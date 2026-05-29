@@ -14,6 +14,14 @@ const STORAGE_KEYS = {
 	geminiKey: 'finanzas_v2_gemini_key'
 } as const;
 
+// Limpieza de base de datos de una sola vez para arrancar limpio y desde cero
+if (typeof window !== 'undefined' && !localStorage.getItem('finanzas_v3_cleared_v2')) {
+	localStorage.removeItem(STORAGE_KEYS.transactions);
+	localStorage.removeItem(STORAGE_KEYS.debts);
+	localStorage.removeItem(STORAGE_KEYS.periods);
+	localStorage.setItem('finanzas_v3_cleared_v2', 'true');
+}
+
 const LEGACY_DATA_KEYS = ['finanzas_v2_transactions', 'finanzas_v2_debts'] as const;
 
 type TransactionType = 'income' | 'expense';
@@ -1105,39 +1113,6 @@ export default function App() {
 						</button>
 					</nav>
 
-					{/* Selector de Mes (Trazabilidad Global) */}
-					{periods.length > 0 && (
-						<div className="flex items-center space-x-2">
-							<label htmlFor="global-month-selector" className="text-xs text-slate-400 font-semibold hidden sm:inline">
-								Mes Activo:
-							</label>
-							<select
-								id="global-month-selector"
-								value={selectedMonth}
-								onChange={(e) => {
-									setSelectedMonth(e.target.value);
-									setTxForm((prev) => ({ ...prev, date: `${e.target.value}-01` }));
-									setDebtForm((prev) => ({ ...prev, date: e.target.value }));
-								}}
-								className="bg-slate-800 text-slate-100 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono font-bold outline-none focus:border-indigo-500"
-							>
-								{[...periods]
-									.sort((a, b) => a.month.localeCompare(b.month))
-									.map((p) => (
-										<option key={p.month} value={p.month}>
-											{p.month}
-										</option>
-									))}
-							</select>
-							<button
-								onClick={handleCreateNextMonth}
-								className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-2 py-1.5 rounded-lg text-xs transition-all flex items-center shadow-md active:scale-95"
-								title="Crear mes siguiente bajo demanda"
-							>
-								<Icons.Plus /> <span className="hidden md:inline">Siguiente Mes</span>
-							</button>
-						</div>
-					)}
 				</div>
 			</header>
 
@@ -1177,19 +1152,17 @@ export default function App() {
 
 			{/* CUERPO PRINCIPAL */}
 			<main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-				{periods.length === 0 || isReconfiguring ? (
+				{periods.length === 0 ? (
 					<div className="max-w-md mx-auto my-12 bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-3xl p-8 shadow-2xl">
 						<div className="text-center mb-8">
 							<div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
 								<span className="font-black text-white text-2xl">%</span>
 							</div>
 							<h2 className="text-2xl font-black bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-								{isReconfiguring ? 'Reconfigurar Cuenta' : 'Bienvenido a FinanzasPro'}
+								Bienvenido a FinanzasPro
 							</h2>
 							<p className="text-xs text-slate-400 mt-2 leading-relaxed">
-								{isReconfiguring 
-									? 'Modificá los parámetros de inicio de tu cronología. Esto redefinirá el mes de partida y el capital inicial.' 
-									: 'Establecé el inicio de tu cronología y balance para comenzar a planificar tus finanzas.'}
+								Establecé el inicio de tu cronología y balance para comenzar a planificar tus finanzas.
 							</p>
 						</div>
 
@@ -1272,37 +1245,68 @@ export default function App() {
 								</p>
 							</div>
 
-							<div className="space-y-2 pt-2">
-								<button
-									type="submit"
-									className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-3 rounded-xl text-sm transition-all shadow-lg active:scale-95"
-								>
-									{isReconfiguring ? 'Guardar Cambios' : 'Inicializar Planificación'}
-								</button>
-								
-								{isReconfiguring && (
-									<div className="flex gap-2">
-										<button
-											type="button"
-											onClick={() => setIsReconfiguring(false)}
-											className="w-1/2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold py-2.5 rounded-xl text-sm transition-all"
-										>
-											Cancelar
-										</button>
-										<button
-											type="button"
-											onClick={handleResetAccount}
-											className="w-1/2 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/30 text-rose-300 font-semibold py-2.5 rounded-xl text-sm transition-all"
-										>
-											Reiniciar Todo
-										</button>
-									</div>
-								)}
-							</div>
+							<button
+								type="submit"
+								className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-3 rounded-xl text-sm transition-all shadow-lg active:scale-95"
+							>
+								Inicializar Planificación
+							</button>
 						</form>
 					</div>
 				) : (
 					<>
+						{/* BARRA DE CONTROL DE TIEMPO Y BALANCE */}
+						<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 p-4 bg-slate-900 border border-slate-800 rounded-2xl">
+							<div className="flex items-center gap-2">
+								<span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mes Activo:</span>
+								<select
+									id="global-month-selector"
+									value={selectedMonth}
+									onChange={(e) => {
+										setSelectedMonth(e.target.value);
+										setTxForm((prev) => ({ ...prev, date: `${e.target.value}-01` }));
+										setDebtForm((prev) => ({ ...prev, date: e.target.value }));
+									}}
+									className="bg-slate-950 text-slate-100 border border-slate-850 rounded-lg px-3 py-1.5 text-xs font-mono font-bold outline-none focus:border-indigo-500"
+								>
+									{[...periods]
+										.sort((a, b) => a.month.localeCompare(b.month))
+										.map((p) => (
+											<option key={p.month} value={p.month}>
+												{p.month}
+											</option>
+										))}
+								</select>
+								<button
+									onClick={handleCreateNextMonth}
+									className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-all flex items-center shadow-md shadow-indigo-600/10 active:scale-95"
+									title="Crear mes siguiente bajo demanda"
+								>
+									<Icons.Plus /> <span>Siguiente Mes</span>
+								</button>
+							</div>
+							<div>
+								<button
+									onClick={() => {
+										const sorted = [...periods].sort((a, b) => a.month.localeCompare(b.month));
+										if (sorted.length > 0) {
+											setInitMonth(sorted[0].month);
+											setInitBalance(String(sorted[0].openingBalance));
+											setInitFlow(sorted[0].month === currentMonthString ? 'current' : 'past');
+										}
+										setIsReconfiguring(true);
+									}}
+									className="px-3 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-750 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
+								>
+									<svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+										<path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+										<path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+									</svg>
+									<span>Reconfigurar Cuenta</span>
+								</button>
+							</div>
+						</div>
+
 						{/* INDICADORES FINANCIEROS MENSUALES */}
 				<section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
 					{/* Tarjeta: Saldo de Apertura */}
@@ -1390,28 +1394,6 @@ export default function App() {
 				{/* 1. RESUMEN GENERAL (DASHBOARD) */}
 				{activeTab === 'overview' && (
 					<div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-						{/* Banner de Reconfiguración de Cuenta */}
-						<div className="lg:col-span-12 flex justify-between items-center bg-slate-900 border border-slate-800/80 p-4 rounded-2xl">
-							<div>
-								<h3 className="text-sm font-semibold text-slate-200">Cronología y Balance</h3>
-								<p className="text-[10px] text-slate-500">Configurá el saldo de apertura, cambiá el mes de inicio o reiniciá la cuenta.</p>
-							</div>
-							<button
-								onClick={() => {
-									const sorted = [...periods].sort((a, b) => a.month.localeCompare(b.month));
-									if (sorted.length > 0) {
-										setInitMonth(sorted[0].month);
-										setInitBalance(String(sorted[0].openingBalance));
-										setInitFlow(sorted[0].month === currentMonthString ? 'current' : 'past');
-									}
-									setIsReconfiguring(true);
-								}}
-								className="px-4 py-2 bg-slate-850 hover:bg-slate-800 text-indigo-400 hover:text-indigo-300 border border-slate-800 text-xs font-bold rounded-xl transition-all"
-							>
-								Reconfigurar Cuenta
-							</button>
-						</div>
-
 						{/* Gráfico SVG de Barras de Composición */}
 						<div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-6">
 							<h3 className="text-lg font-semibold text-slate-200 mb-6">
@@ -2547,6 +2529,134 @@ export default function App() {
 					</div>
 				)}
 					</>
+				)}
+				{/* MODAL DE RECONFIGURACIÓN DE CUENTA */}
+				{isReconfiguring && (
+					<div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+						<div 
+							className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 relative"
+							onClick={(e) => e.stopPropagation()}
+						>
+							<button 
+								onClick={() => setIsReconfiguring(false)}
+								className="absolute top-4 right-4 text-slate-500 hover:text-slate-200 transition-colors"
+								aria-label="Cerrar modal"
+							>
+								<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+									<path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+								</svg>
+							</button>
+
+							<div className="text-center">
+								<div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+									<svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+										<path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+										<path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+									</svg>
+								</div>
+								<h2 className="text-xl font-bold text-slate-100">Configurar Cuenta</h2>
+								<p className="text-xs text-slate-400 mt-1">
+									Modificá el saldo de apertura, cambiá el mes de inicio o reiniciá la cuenta.
+								</p>
+							</div>
+
+							<form onSubmit={handleInitAccount} className="space-y-4">
+								<div>
+									<label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">Flujo de Inicio</label>
+									<div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+										<button
+											type="button"
+											onClick={() => {
+												setInitFlow('current');
+												setInitMonth(currentMonthString);
+											}}
+											className={`py-2 rounded-lg text-xs font-bold transition-all ${
+												initFlow === 'current'
+													? 'bg-indigo-600 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											Mes en Curso
+										</button>
+										<button
+											type="button"
+											onClick={() => setInitFlow('past')}
+											className={`py-2 rounded-lg text-xs font-bold transition-all ${
+												initFlow === 'past'
+													? 'bg-indigo-600 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											Desde el Pasado
+										</button>
+									</div>
+								</div>
+
+								{initFlow === 'past' ? (
+									<div>
+										<label htmlFor="modal-init-month" className="block text-xs font-medium text-slate-400 mb-1">
+											Mes de Partida
+										</label>
+										<input
+											id="modal-init-month"
+											type="month"
+											required
+											max={currentMonthString}
+											value={initMonth}
+											onChange={(e) => setInitMonth(e.target.value)}
+											className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-sm text-slate-100 font-mono outline-none"
+										/>
+									</div>
+								) : (
+									<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-400">
+										<span className="font-semibold text-slate-300">Mes Activo de Inicio:</span> {currentMonthString}
+									</div>
+								)}
+
+								<div>
+									<label htmlFor="modal-init-balance" className="block text-xs font-medium text-slate-400 mb-1">
+										Capital Inicial / Balance de Apertura (€)
+									</label>
+									<input
+										id="modal-init-balance"
+										type="number"
+										step="0.01"
+										required
+										min="0"
+										value={initBalance}
+										onChange={(e) => setInitBalance(e.target.value)}
+										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none"
+									/>
+								</div>
+
+								<div className="flex gap-2 pt-2">
+									<button
+										type="submit"
+										className="w-1/2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-bold py-2.5 rounded-xl text-xs transition-all active:scale-95 shadow-md shadow-indigo-600/10"
+									>
+										Guardar
+									</button>
+									<button
+										type="button"
+										onClick={() => setIsReconfiguring(false)}
+										className="w-1/2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition-all"
+									>
+										Cancelar
+									</button>
+								</div>
+
+								<div className="border-t border-slate-800/80 pt-4 mt-2">
+									<button
+										type="button"
+										onClick={handleResetAccount}
+										className="w-full bg-rose-950/20 hover:bg-rose-950/40 border border-rose-900/30 text-rose-400 hover:text-rose-350 font-bold py-2 rounded-xl text-xs transition-all active:scale-95"
+									>
+										Reiniciar Base de Datos
+									</button>
+								</div>
+							</form>
+						</div>
+					</div>
 				)}
 			</main>
 
