@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment, type SyntheticEvent, type ReactNode } from 'react';
+import { useState, useEffect, Fragment, type SyntheticEvent, type ReactNode, type ChangeEvent } from 'react';
 
 // === CONSTANTES Y VALORES POR DEFECTO ===
 const DEFAULT_TAGS = {
@@ -910,6 +910,9 @@ export default function App() {
 	});
 	const [aiLoading, setAiLoading] = useState(false);
 	const [aiError, setAiError] = useState('');
+	const [copiedChat, setCopiedChat] = useState(false);
+	const [importError, setImportError] = useState('');
+	const [importSuccess, setImportSuccess] = useState('');
 
 	// Sincronización LocalStorage
 	useEffect(() => {
@@ -2050,6 +2053,174 @@ export default function App() {
 			setChatMessages([]);
 			localStorage.removeItem(STORAGE_KEYS.aiChat);
 		}
+	};
+
+	const stripMarkdown = (text: string): string => {
+		let output = text;
+
+		// 1. Remove code blocks
+		output = output.replace(/```[a-zA-Z]*\n([\s\S]*?)\n```/g, '$1');
+		output = output.replace(/```([\s\S]*?)```/g, '$1');
+
+		// 2. Remove inline code
+		output = output.replace(/`([^`\n]+)`/g, '$1');
+
+		// 3. Remove bold/italics
+		output = output.replace(/\*\*([^*]+)\*\*/g, '$1');
+		output = output.replace(/\*([^*]+)\*/g, '$1');
+		output = output.replace(/__([^_]+)__/g, '$1');
+		output = output.replace(/_([^_]+)_/g, '$1');
+
+		// 4. Remove headers, but keep the header text
+		output = output.replace(/^#{1,6}\s+(.*)$/gm, '$1');
+
+		// 5. Remove links [text](url) -> text
+		output = output.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+
+		// 6. Clean tables
+		output = output.replace(/^\|?\s*:?-+\s*:?\s*(?:\|\s*:?-+\s*:?\s*)*\|?$/gm, '');
+		output = output.replace(/^[ \t]*\|(.*)\|[ \t]*$/gm, (_, content) => {
+			return content.split('|').map((cell) => cell.trim()).filter(c => c !== '').join('\t');
+		});
+
+		// Remove trailing spaces on lines
+		output = output.replace(/[ \t]+$/gm, '');
+
+		// Limit to max 2 consecutive empty lines
+		output = output.replace(/\n{3,}/g, '\n\n');
+
+		return output.trim();
+	};
+
+	const handleCopyChatPlaintext = () => {
+		const text = chatMessages
+			.map((msg) => {
+				const roleName = msg.role === 'user' ? 'Tú' : 'Asesor Gemini';
+				const plainContent = msg.role === 'user' ? msg.content : stripMarkdown(msg.content);
+				return `[${msg.timestamp}] ${roleName}:\n${plainContent}`;
+			})
+			.join('\n\n');
+
+		navigator.clipboard.writeText(text).then(() => {
+			setCopiedChat(true);
+			setTimeout(() => setCopiedChat(false), 2000);
+		}).catch((err) => {
+			console.error('Failed to copy text: ', err);
+		});
+	};
+
+	const handleExportData = () => {
+		try {
+			const backupKeys = [
+				'finanzas_v3_transactions',
+				'finanzas_v3_debts',
+				'finanzas_v3_periods',
+				'finanzas_v3_accounts',
+				'finanzas_v3_userA_name',
+				'finanzas_v3_userB_name',
+				'finanzas_v3_ai_chat',
+				'finanzas_v2_gemini_key'
+			] as const;
+
+			const backupData: Record<string, string | null> = {};
+			backupKeys.forEach(key => {
+				backupData[key] = localStorage.getItem(key);
+			});
+			
+			const jsonString = JSON.stringify({
+				version: '3.0',
+				timestamp: new Date().toISOString(),
+				data: backupData
+			}, null, 2);
+			
+			const blob = new Blob([jsonString], { type: 'application/json' });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			const dateStr = new Date().toISOString().substring(0, 10);
+			a.href = url;
+			a.download = `finanzas_pro_backup_${dateStr}.json`;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
+		} catch (err: any) {
+			alert('Error al exportar datos: ' + err.message);
+		}
+	};
+
+	const handleImportData = (e: ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (!file) return;
+
+		const reader = new FileReader();
+		reader.onload = (event) => {
+			try {
+				const parsed = JSON.parse(event.target?.result as string);
+				if (!parsed || typeof parsed !== 'object') {
+					throw new Error('El archivo no tiene un formato válido.');
+				}
+				
+				const backupKeys = [
+					'finanzas_v3_transactions',
+					'finanzas_v3_debts',
+					'finanzas_v3_periods',
+					'finanzas_v3_accounts',
+					'finanzas_v3_userA_name',
+					'finanzas_v3_userB_name',
+					'finanzas_v3_ai_chat',
+					'finanzas_v2_gemini_key'
+				] as const;
+
+				// Check if this is the structured format or direct key-value format
+				const isStructured = parsed.version === '3.0' && parsed.data;
+				const hasDirectKeys = Object.keys(parsed).some(key => backupKeys.includes(key as any));
+
+				if (!isStructured && !hasDirectKeys) {
+					throw new Error('El archivo no parece ser un backup compatible con FinanzasPro.');
+				}
+
+				const confirmImport = window.confirm(
+					'¿Estás seguro de que quieres restaurar esta copia de seguridad? Se perderán los datos actuales de este navegador y la página se reiniciará para cargarlos.'
+				);
+				if (!confirmImport) {
+					e.target.value = '';
+					return;
+				}
+
+				if (isStructured) {
+					Object.entries(parsed.data).forEach(([key, val]) => {
+						if (val !== null && typeof val === 'string') {
+							localStorage.setItem(key, val);
+						} else {
+							localStorage.removeItem(key);
+						}
+					});
+				} else {
+					Object.entries(parsed).forEach(([key, val]) => {
+						if (typeof val === 'string') {
+							localStorage.setItem(key, val);
+						} else if (val !== null) {
+							localStorage.setItem(key, JSON.stringify(val));
+						}
+					});
+				}
+
+				localStorage.setItem('finanzas_v3_cleared_v2', 'true');
+
+				setImportSuccess('¡Copia de seguridad restaurada con éxito! Reiniciando la aplicación...');
+				setImportError('');
+				
+				setTimeout(() => {
+					window.location.reload();
+				}, 1500);
+
+			} catch (err: any) {
+				setImportError('Error al importar copia de seguridad: ' + err.message);
+				setImportSuccess('');
+				e.target.value = '';
+			}
+		};
+		reader.readAsText(file);
 	};
 
 	const paymentPlanTotalToPay = Math.abs(toNumber(debtForm.financedAmount)) + Math.abs(toNumber(debtForm.fees));
@@ -3946,7 +4117,8 @@ export default function App() {
 				)}
 				{/* 5. GESTIÓN DE CUENTAS (CONFIGURACIÓN) */}
 				{activeTab === 'accounts' && (
-					<div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+					<div className="space-y-8">
+						<div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 						{/* Listado de Cuentas */}
 						<div className="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl p-6">
 							<h3 className="text-lg font-semibold text-slate-200 mb-2 flex items-center gap-2">
@@ -4125,6 +4297,84 @@ export default function App() {
 							</form>
 						</div>
 					</div>
+
+					{/* Sección de Backup y Restauración */}
+					<div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+						<h3 className="text-lg font-semibold text-slate-200 mb-2 flex items-center gap-2">
+							<svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+								<path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2v-9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+							</svg>
+							Copia de Seguridad (Backup)
+						</h3>
+						<p className="text-xs text-slate-400 mb-6">
+							Guarda o restaura toda tu información financiera (cuentas, movimientos, deudas, perfiles y chat) para tener un respaldo o transferirla a otro ordenador.
+						</p>
+
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+							<div className="bg-slate-950 p-5 rounded-xl border border-slate-850 flex flex-col justify-between">
+								<div>
+									<h4 className="font-bold text-slate-100 text-sm mb-1">Exportar Datos</h4>
+									<p className="text-xs text-slate-500 leading-relaxed">
+										Descarga un archivo JSON en tu ordenador que contiene toda la configuración y registros actuales de la aplicación.
+									</p>
+								</div>
+								<button
+									onClick={handleExportData}
+									className="mt-4 w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md shadow-indigo-600/10"
+								>
+									<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+										<path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+									</svg>
+									Exportar en JSON
+								</button>
+							</div>
+
+							<div className="bg-slate-950 p-5 rounded-xl border border-slate-850 flex flex-col justify-between">
+								<div>
+									<h4 className="font-bold text-slate-100 text-sm mb-1">Importar Copia de Seguridad</h4>
+									<p className="text-xs text-slate-500 leading-relaxed">
+										Sube un archivo de copia de seguridad JSON previamente exportado. <span className="text-amber-500 font-semibold">Esto reemplazará todos tus datos locales actuales.</span>
+									</p>
+								</div>
+								<div className="mt-4 relative">
+									<input
+										id="import-backup-file"
+										type="file"
+										accept=".json"
+										onChange={handleImportData}
+										className="hidden"
+									/>
+									<label
+										htmlFor="import-backup-file"
+										className="w-full bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer text-center"
+									>
+										<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+											<path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
+										</svg>
+										Seleccionar Archivo JSON
+									</label>
+								</div>
+							</div>
+						</div>
+
+						{importError && (
+							<div className="mt-4 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-450 text-xs rounded-xl flex items-center gap-2">
+								<svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+									<path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+								</svg>
+								<span>{importError}</span>
+							</div>
+						)}
+						{importSuccess && (
+							<div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 text-xs rounded-xl flex items-center gap-2 animate-pulse">
+								<svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+									<path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+								</svg>
+								<span>{importSuccess}</span>
+							</div>
+						)}
+					</div>
+				</div>
 				)}
 
 				{/* 5. ASESOR GEMINI AI */}
@@ -4236,9 +4486,23 @@ export default function App() {
 										Análisis financiero avanzado en base a tus movimientos y deudas
 									</p>
 								</div>
-								<span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/25">
-									Contexto Activo
-								</span>
+								<div className="flex items-center gap-2">
+									{chatMessages.length > 0 && (
+										<button
+											onClick={handleCopyChatPlaintext}
+											className="px-2.5 py-1 text-[11px] font-semibold bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white rounded-lg border border-slate-700 transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+											title="Copiar chat como texto plano"
+										>
+											<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+												<path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+											</svg>
+											<span>{copiedChat ? '¡Copiado!' : 'Copiar Chat'}</span>
+										</button>
+									)}
+									<span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/25">
+										Contexto Activo
+									</span>
+								</div>
 							</div>
 
 							{/* Cuerpo del Chat */}
