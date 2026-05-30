@@ -633,12 +633,107 @@ function MarkdownRenderer({ text }: { text: string }) {
 						}
 					};
 
+					const parseTable = (tableLines: string[]): ReactNode => {
+						if (tableLines.length < 2) return null;
+						
+						const splitRow = (l: string) => {
+							const parts = l.trim().split('|');
+							if (l.trim().startsWith('|')) parts.shift();
+							if (l.trim().endsWith('|')) parts.pop();
+							return parts.map(p => p.trim());
+						};
+
+						const headers = splitRow(tableLines[0]);
+						const sepLine = tableLines[1].trim();
+						const isSeparator = /^\|?(\s*:?-+\s*:?\s*\|)+\s*:?-+\s*:?\|?$/.test(sepLine);
+						
+						let rowsStartIndex = 1;
+						let alignStyles: Array<Record<string, string>> = [];
+						
+						if (isSeparator) {
+							rowsStartIndex = 2;
+							const sepCells = splitRow(tableLines[1]);
+							alignStyles = sepCells.map(cell => {
+								const trimmed = cell.trim();
+								const left = trimmed.startsWith(':');
+								const right = trimmed.endsWith(':');
+								if (left && right) return { textAlign: 'center' };
+								if (right) return { textAlign: 'right' };
+								if (left) return { textAlign: 'left' };
+								return {};
+							});
+						}
+
+						const rows = tableLines.slice(rowsStartIndex).map(rowLine => splitRow(rowLine));
+
+						return (
+							<div className="overflow-x-auto my-3 border border-slate-800 rounded-xl bg-slate-900/50">
+								<table className="min-w-full divide-y divide-slate-800 text-xs">
+									<thead className="bg-slate-900 text-slate-350 font-bold uppercase tracking-wider">
+										<tr>
+											{headers.map((h, idx) => (
+												<th 
+													key={idx} 
+													style={alignStyles[idx] || {}} 
+													className="px-4 py-2.5 text-left font-semibold border-r border-slate-800 last:border-r-0"
+												>
+													{renderInlineMarkdown(h)}
+												</th>
+											))}
+										</tr>
+									</thead>
+									<tbody className="divide-y divide-slate-850 text-slate-300">
+										{rows.map((row, rIdx) => (
+											<tr key={rIdx} className="hover:bg-slate-800/30 transition-colors odd:bg-slate-950/20">
+												{headers.map((_, cIdx) => {
+													const cellValue = row[cIdx] || '';
+													return (
+														<td 
+															key={cIdx} 
+															style={alignStyles[cIdx] || {}} 
+															className="px-4 py-2 border-r border-slate-850 last:border-r-0"
+														>
+															{renderInlineMarkdown(cellValue)}
+														</td>
+													);
+												})}
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
+						);
+					};
+
 					for (let i = 0; i < lines.length; i++) {
 						const line = lines[i];
 						const trimmedLine = line.trim();
 
 						if (trimmedLine === '') {
 							flushList(i);
+							continue;
+						}
+
+						if (trimmedLine.startsWith('|')) {
+							flushList(i);
+							const tableLines = [line];
+							while (i + 1 < lines.length && lines[i + 1].trim().startsWith('|')) {
+								i++;
+								tableLines.push(lines[i]);
+							}
+							
+							const tableNode = parseTable(tableLines);
+							if (tableNode) {
+								renderedElements.push(tableNode);
+							} else {
+								tableLines.forEach((tLine, tlIdx) => {
+									renderedElements.push(
+										<p key={`table-fallback-${i}-${tlIdx}`} className="my-1.5 text-slate-300 leading-relaxed text-sm">
+											{renderInlineMarkdown(tLine)}
+										</p>
+									);
+								});
+							}
 							continue;
 						}
 
@@ -1965,7 +2060,7 @@ export default function App() {
 	const paymentPlanScheduleDiff = paymentPlanScheduleTotal - paymentPlanTotalToPay;
 
 	return (
-		<div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white">
+		<div className={`min-h-screen ${activeTab === 'ai' ? 'h-screen overflow-hidden' : ''} flex flex-col bg-slate-950 text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white`}>
 			{/* HEADER DE LA APP */}
 			<header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-30">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -2095,7 +2190,7 @@ export default function App() {
 			</div>
 
 			{/* CUERPO PRINCIPAL */}
-			<main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+			<main className={`flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col ${activeTab === 'ai' ? 'min-h-0 overflow-hidden' : ''}`}>
 				{periods.length === 0 ? (
 					<div className="max-w-md mx-auto my-12 bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-3xl p-8 shadow-2xl">
 						<div className="text-center mb-8">
@@ -4034,9 +4129,9 @@ export default function App() {
 
 				{/* 5. ASESOR GEMINI AI */}
 				{activeTab === 'ai' && (
-					<div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+					<div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 min-h-0 overflow-hidden">
 						{/* Panel de Configuración e Información Lateral */}
-						<div className="lg:col-span-4 space-y-6">
+						<div className="lg:col-span-4 space-y-6 overflow-y-auto lg:h-full pr-1">
 							{/* Configuración de API Key */}
 							<div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
 								<h3 className="text-base font-bold text-slate-200 mb-2 flex items-center">
@@ -4129,7 +4224,7 @@ export default function App() {
 						</div>
 
 						{/* Ventana de Chat */}
-						<div className="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl h-[550px] flex flex-col overflow-hidden">
+						<div className="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden lg:h-full h-[550px]">
 							{/* Cabecera del Chat */}
 							<div className="p-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center">
 								<div>
@@ -4791,14 +4886,16 @@ export default function App() {
 			</main>
 
 			{/* FOOTER */}
-			<footer className="border-t border-slate-900 bg-slate-950 py-8 mt-12 text-slate-600 text-center text-xs">
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-2">
-					<p>FinanzasPro © {new Date().getFullYear()} - Herramienta de Planificación Financiera Profesional.</p>
-					<p className="text-[10px] text-slate-700">
-						Construido bajo SOLID y buenas prácticas. Soporte para pnpm en entornos de desarrollo.
-					</p>
-				</div>
-			</footer>
+			{activeTab !== 'ai' && (
+				<footer className="border-t border-slate-900 bg-slate-950 py-8 mt-12 text-slate-600 text-center text-xs">
+					<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-2">
+						<p>FinanzasPro © {new Date().getFullYear()} - Herramienta de Planificación Financiera Profesional.</p>
+						<p className="text-[10px] text-slate-700">
+							Construido bajo SOLID y buenas prácticas. Soporte para pnpm en entornos de desarrollo.
+						</p>
+					</div>
+				</footer>
+			)}
 		</div>
 	);
 }
