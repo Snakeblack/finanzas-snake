@@ -109,13 +109,40 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 		};
 	}, [isOpen]);
 
+	// Obtener credenciales TURN dinámicas desde la API serverless
+	const fetchIceServers = async (): Promise<any[] | undefined> => {
+		try {
+			const res = await fetch('/api/get-turn-credentials', {
+				signal: AbortSignal.timeout(3000) // Timeout de 3 segundos para no bloquear
+			});
+			if (res.ok) {
+				const data = await res.json();
+				if (Array.isArray(data) && data.length > 0) {
+					return data;
+				}
+			}
+		} catch (e) {
+			console.warn('No se pudieron obtener credenciales TURN desde la API. Usando fallbacks locales:', e);
+		}
+		return undefined;
+	};
+
 	// Iniciar modo de envío (Host)
-	const handleStartHosting = () => {
+	const handleStartHosting = async () => {
 		cleanSessions();
 		setMode('send');
 		setStatus('connecting');
-		setStatusText('Conectando con el servicio de señalización...');
+		setStatusText('Obteniendo credenciales de red seguras...');
 		setErrorMsg('');
+
+		let resolvedIceServers: any[] | undefined = undefined;
+		try {
+			resolvedIceServers = await fetchIceServers();
+		} catch (e) {
+			console.warn(e);
+		}
+
+		setStatusText('Conectando con el servicio de señalización...');
 
 		try {
 			hostSessionRef.current = startSyncHost({
@@ -147,7 +174,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 					setStatus('error');
 					setErrorMsg(err.message || 'Error al conectar con el servidor de señalización de PeerJS.');
 				}
-			});
+			}, resolvedIceServers);
 		} catch (err: any) {
 			setStatus('error');
 			setErrorMsg(err.message || 'Error inesperado al inicializar la conexión.');
@@ -155,7 +182,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 	};
 
 	// Conectar al host y recibir datos (Client)
-	const handleConnectToHost = (e: React.FormEvent) => {
+	const handleConnectToHost = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!inputCode.trim() || inputCode.length < 6) {
 			setErrorMsg('El código de conexión debe tener 6 caracteres.');
@@ -165,8 +192,17 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 		cleanSessions();
 		setMode('receive');
 		setStatus('connecting');
-		setStatusText('Conectando al dispositivo emisor...');
+		setStatusText('Obteniendo credenciales de red seguras...');
 		setErrorMsg('');
+
+		let resolvedIceServers: any[] | undefined = undefined;
+		try {
+			resolvedIceServers = await fetchIceServers();
+		} catch (e) {
+			console.warn(e);
+		}
+
+		setStatusText('Conectando al dispositivo emisor...');
 
 		// Iniciamos un timeout de 15 segundos para la conexión inicial y negociación WebRTC
 		handshakeTimeoutRef.current = setTimeout(() => {
@@ -202,7 +238,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 					setStatus('error');
 					setErrorMsg(err.message || 'No se pudo conectar. Verifica que el código es correcto y el PC emisor sigue activo.');
 				}
-			});
+			}, resolvedIceServers);
 		} catch (err: any) {
 			clearHandshakeTimeout();
 			setStatus('error');

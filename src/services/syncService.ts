@@ -34,13 +34,15 @@ const getDefaultIceServers = () => {
 	];
 };
 
-const PEER_CONFIG = {
-	debug: 3,
-	config: {
-		get iceServers() {
-			return getDefaultIceServers();
+export const getPeerConfig = (customIceServers?: any[]) => {
+	return {
+		debug: 3,
+		config: {
+			iceServers: customIceServers && customIceServers.length > 0
+				? customIceServers
+				: getDefaultIceServers()
 		}
-	}
+	};
 };
 
 export interface SyncData {
@@ -70,7 +72,10 @@ export interface HostCallbacks {
  * Inicia una sesión de envío de datos (Host).
  * Genera un código y espera a que el móvil/receptor se conecte para enviarle los datos.
  */
-export const startSyncHost = (callbacks: HostCallbacks): { destroy: () => void } => {
+export const startSyncHost = (
+	callbacks: HostCallbacks,
+	customIceServers?: any[]
+): { destroy: () => void } => {
 	let peer: Peer | null = null;
 	let code = generateShortCode();
 	let retryCount = 0;
@@ -80,7 +85,7 @@ export const startSyncHost = (callbacks: HostCallbacks): { destroy: () => void }
 		if (isDestroyed) return;
 		
 		const peerId = `${PEER_PREFIX}${code}`;
-		peer = new Peer(peerId, PEER_CONFIG);
+		peer = new Peer(peerId, getPeerConfig(customIceServers));
 
 		peer.on('open', () => {
 			if (isDestroyed) return;
@@ -170,8 +175,12 @@ export interface ClientCallbacks {
 /**
  * Conecta a una sesión de envío utilizando el código provisto para recibir los datos.
  */
-export const connectToSyncHost = (code: string, callbacks: ClientCallbacks): { destroy: () => void } => {
-	let peer: Peer | null = new Peer(undefined, PEER_CONFIG);
+export const connectToSyncHost = (
+	code: string,
+	callbacks: ClientCallbacks,
+	customIceServers?: any[]
+): { destroy: () => void } => {
+	let peer: Peer | null = new Peer(undefined, getPeerConfig(customIceServers));
 	let conn: any = null;
 	let isDestroyed = false;
 
