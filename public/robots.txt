@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://finanzas.mretamozo.com/sitemap.xml

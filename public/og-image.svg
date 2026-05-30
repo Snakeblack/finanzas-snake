@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#090d16"/>
+  <rect x="0" y="0" width="1200" height="630" fill="url(#glow)"/>
+
+  <defs>
+    <radialGradient id="glow" cx="0.3" cy="0.4" r="0.7">
+      <stop offset="0%" stop-color="#1e1b4b" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#090d16" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Subtle grid pattern -->
+  <g opacity="0.04" stroke="#6366f1" stroke-width="1">
+    <line x1="0" y1="100" x2="1200" y2="100"/>
+    <line x1="0" y1="200" x2="1200" y2="200"/>
+    <line x1="0" y1="300" x2="1200" y2="300"/>
+    <line x1="0" y1="400" x2="1200" y2="400"/>
+    <line x1="0" y1="500" x2="1200" y2="500"/>
+    <line x1="200" y1="0" x2="200" y2="630"/>
+    <line x1="400" y1="0" x2="400" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/>
+    <line x1="800" y1="0" x2="800" y2="630"/>
+    <line x1="1000" y1="0" x2="1000" y2="630"/>
+  </g>
+
+  <!-- Logo mark -->
+  <g transform="translate(140, 190)">
+    <rect x="-20" y="-20" width="180" height="180" rx="36" fill="#0f1225" stroke="#1e1b4b" stroke-width="2"/>
+    <g transform="translate(30, 30) scale(4)">
+      <path d="M 6 24 c 4 0, 5 -12, 9 -12 s 5 9, 9 9 s 5 -18, 8 -18" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M 26 3 h 6 v 6" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+
+  <!-- App name -->
+  <text x="380" y="260" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="300" fill="#e2e8f0" letter-spacing="0.15em">
+    FINANZAS
+  </text>
+  <text x="380" y="340" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="800" fill="#818cf8" letter-spacing="0.15em">
+    SNAKE
+  </text>
+
+  <!-- Tagline -->
+  <text x="380" y="410" font-family="system-ui, -apple-system, sans-serif" font-size="24" fill="#94a3b8" letter-spacing="0.05em">
+    Gestión de finanzas personales con inteligencia artificial
+  </text>
+
+  <!-- Feature pills -->
+  <g transform="translate(380, 450)">
+    <rect x="0" y="0" width="160" height="36" rx="18" fill="#1e1b4b" stroke="#312e81" stroke-width="1"/>
+    <text x="80" y="23" font-family="system-ui, -apple-system, sans-serif" font-size="13" fill="#a5b4fc" text-anchor="middle">Presupuestos</text>
+
+    <rect x="175" y="0" width="130" height="36" rx="18" fill="#1e1b4b" stroke="#312e81" stroke-width="1"/>
+    <text x="240" y="23" font-family="system-ui, -apple-system, sans-serif" font-size="13" fill="#a5b4fc" text-anchor="middle">Deudas</text>
+
+    <rect x="320" y="0" width="140" height="36" rx="18" fill="#1e1b4b" stroke="#312e81" stroke-width="1"/>
+    <text x="390" y="23" font-family="system-ui, -apple-system, sans-serif" font-size="13" fill="#a5b4fc" text-anchor="middle">Asesor IA</text>
+
+    <rect x="475" y="0" width="170" height="36" rx="18" fill="#1e1b4b" stroke="#312e81" stroke-width="1"/>
+    <text x="560" y="23" font-family="system-ui, -apple-system, sans-serif" font-size="13" fill="#a5b4fc" text-anchor="middle">Sincronización P2P</text>
+  </g>
+
+  <!-- Bottom bar -->
+  <text x="600" y="600" font-family="system-ui, -apple-system, sans-serif" font-size="16" fill="#475569" text-anchor="middle" letter-spacing="0.1em">
+    finanzas.mretamozo.com
+  </text>
+</svg>

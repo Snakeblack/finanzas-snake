@@ -3,14 +3,120 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com https://0.peerjs.com wss://0.peerjs.com *.metered.ca *.twilio.com ws://localhost:* ws://127.0.0.1:* http://127.0.0.1:*; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval';">
-		<title>Finanzas Snake</title>
+
+		<!-- Security -->
+		<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com https://0.peerjs.com wss://0.peerjs.com *.metered.ca *.twilio.com ws://localhost:* ws://127.0.0.1:* http://127.0.0.1:*; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval';" />
+
+		<!-- Primary SEO -->
+		<title>Finanzas Snake — Aplicación Gratuita de Finanzas Personales con IA</title>
+		<meta name="description" content="Gestioná tus finanzas personales gratis: presupuestos, control de gastos, seguimiento de deudas y asesoría con inteligencia artificial. Todo en un solo lugar." />
+		<meta name="robots" content="index, follow" />
+		<link rel="canonical" href="https://finanzas.mretamozo.com" />
+
+		<!-- Theme -->
+		<meta name="theme-color" content="#090d16" />
+		<meta name="color-scheme" content="dark" />
+
+		<!-- Open Graph -->
+		<meta property="og:type" content="website" />
+		<meta property="og:locale" content="es_ES" />
+		<meta property="og:site_name" content="Finanzas Snake" />
+		<meta property="og:title" content="Finanzas Snake — Aplicación Gratuita de Finanzas Personales con IA" />
+		<meta property="og:description" content="Gestioná tus finanzas personales gratis: presupuestos, control de gastos, seguimiento de deudas y asesoría con inteligencia artificial." />
+		<meta property="og:url" content="https://finanzas.mretamozo.com" />
+		<meta property="og:image" content="https://finanzas.mretamozo.com/og-image.svg" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content="Finanzas Snake — Aplicación de finanzas personales" />
+
+		<!-- Twitter Card -->
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content="Finanzas Snake — Aplicación Gratuita de Finanzas Personales con IA" />
+		<meta name="twitter:description" content="Gestioná tus finanzas personales gratis: presupuestos, control de gastos, seguimiento de deudas y asesoría con inteligencia artificial." />
+		<meta name="twitter:image" content="https://finanzas.mretamozo.com/og-image.svg" />
+
+		<!-- PWA -->
+		<link rel="manifest" href="/manifest.webmanifest" />
+		<link rel="apple-touch-icon" href="/icon-192.svg" />
+
+		<!-- Favicon -->
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="preconnect" href="https://fonts.googleapis.com">
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-		<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+		<!-- Fonts -->
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+		<!-- JSON-LD: WebApplication -->
+		<script type="application/ld+json">
+		{
+			"@context": "https://schema.org",
+			"@type": "WebApplication",
+			"name": "Finanzas Snake",
+			"url": "https://finanzas.mretamozo.com",
+			"description": "Aplicación gratuita para gestionar finanzas personales con presupuestos, control de gastos, seguimiento de deudas y asesoría con inteligencia artificial.",
+			"applicationCategory": "FinanceApplication",
+			"operatingSystem": "Web",
+			"offers": {
+				"@type": "Offer",
+				"price": "0",
+				"priceCurrency": "EUR"
+			},
+			"featureList": [
+				"Control de presupuestos mensuales",
+				"Seguimiento de ingresos y gastos",
+				"Gestión y planificación de deudas",
+				"Asesor financiero con inteligencia artificial",
+				"Sincronización P2P entre dispositivos",
+				"Exportación de informes PDF",
+				"Cifrado local de datos con AES-GCM",
+				"Soporte para cuentas individuales y compartidas"
+			],
+			"screenshot": "https://finanzas.mretamozo.com/og-image.svg",
+			"softwareHelp": {
+				"@type": "CreativeWork",
+				"url": "https://finanzas.mretamozo.com"
+			}
+		}
+		</script>
+
+		<!-- JSON-LD: Organization -->
+		<script type="application/ld+json">
+		{
+			"@context": "https://schema.org",
+			"@type": "Organization",
+			"name": "Finanzas Snake",
+			"url": "https://finanzas.mretamozo.com",
+			"logo": "https://finanzas.mretamozo.com/icon-512.svg",
+			"description": "Herramienta gratuita de gestión de finanzas personales con inteligencia artificial"
+		}
+		</script>
 	</head>
 	<body>
+		<noscript>
+			<div style="max-width:800px;margin:60px auto;padding:40px;font-family:system-ui,-apple-system,sans-serif;color:#e2e8f0;background:#090d16;border-radius:16px;">
+				<h1 style="font-size:2rem;font-weight:800;margin-bottom:1rem;color:#818cf8;">Finanzas Snake</h1>
+				<p style="font-size:1.1rem;line-height:1.7;color:#94a3b8;margin-bottom:1.5rem;">
+					Aplicación gratuita para gestionar finanzas personales. Controlá tus ingresos, gastos, presupuestos y deudas en un solo lugar.
+				</p>
+				<h2 style="font-size:1.2rem;font-weight:600;margin-bottom:0.75rem;">Características principales</h2>
+				<ul style="color:#94a3b8;line-height:2;padding-left:1.5rem;">
+					<li>Control de presupuestos mensuales</li>
+					<li>Seguimiento de ingresos y gastos</li>
+					<li>Gestión y planificación de deudas con TIN/TAE</li>
+					<li>Asesor financiero con inteligencia artificial (Gemini)</li>
+					<li>Sincronización P2P entre dispositivos</li>
+					<li>Exportación de informes PDF</li>
+					<li>Cifrado local de datos con AES-GCM</li>
+					<li>Soporte para cuentas individuales y compartidas</li>
+				</ul>
+				<p style="margin-top:2rem;font-size:0.9rem;color:#64748b;">
+					Para usar la aplicación, habilitá JavaScript en tu navegador o visitá
+					<a href="https://finanzas.mretamozo.com" style="color:#818cf8;">finanzas.mretamozo.com</a>.
+				</p>
+			</div>
+		</noscript>
+
 		<div id="root"></div>
 		<script type="module" src="/main.tsx"></script>
 	</body>
