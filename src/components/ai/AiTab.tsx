@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useFinanzas } from '../../hooks/useFinanzas';
 import { Icons } from '../common/Icons';
 import { MarkdownRenderer } from '../common/MarkdownRenderer';
@@ -31,10 +32,40 @@ export function AiTab() {
 		aiError
 	} = useFinanzas();
 
+	const [activeMobileView, setActiveMobileView] = useState<'chat' | 'config'>('chat');
+
 	return (
-		<div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 min-h-0 overflow-hidden tab-transition">
+		<div className="flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-6 lg:gap-8 min-h-0 overflow-hidden tab-transition">
+			{/* Selector de Vista en Móvil (solo visible si lg:hidden) */}
+			<div className="lg:hidden flex bg-slate-950/60 p-1 rounded-xl border border-slate-800/80 mb-2 w-full shrink-0">
+				<button
+					type="button"
+					onClick={() => setActiveMobileView('chat')}
+					className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+						activeMobileView === 'chat'
+							? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md'
+							: 'text-slate-400 hover:text-slate-200'
+					}`}
+				>
+					<Icons.Sparkles className="w-3.5 h-3.5" />
+					<span>Asesor AI</span>
+				</button>
+				<button
+					type="button"
+					onClick={() => setActiveMobileView('config')}
+					className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+						activeMobileView === 'config'
+							? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md'
+							: 'text-slate-400 hover:text-slate-200'
+					}`}
+				>
+					<Icons.Lock className="w-3.5 h-3.5" />
+					<span>Config / Contexto</span>
+				</button>
+			</div>
+
 			{/* Panel de Configuración e Información Lateral */}
-			<div className="lg:col-span-4 space-y-6 overflow-y-auto lg:h-full pr-1">
+			<div className={`lg:col-span-4 space-y-6 overflow-y-auto lg:h-full pr-1 flex-1 min-h-0 ${activeMobileView === 'config' ? 'block' : 'hidden lg:block'}`}>
 				{/* Configuración de API Key */}
 				<div className="premium-card rounded-2xl p-6">
 					<h3 className="text-base font-bold text-slate-200 mb-2 flex items-center">
@@ -127,7 +158,7 @@ export function AiTab() {
 			</div>
 
 			{/* Ventana de Chat */}
-			<div className="lg:col-span-8 premium-card rounded-2xl flex flex-col overflow-hidden lg:h-full h-[550px]">
+			<div className={`lg:col-span-8 premium-card rounded-2xl flex flex-col overflow-hidden lg:h-full flex-1 min-h-0 ${activeMobileView === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
 				{/* Cabecera del Chat */}
 				<div className="p-4 bg-slate-950/40 border-b border-slate-800/40 flex justify-between items-center">
 					<div>
@@ -150,7 +181,7 @@ export function AiTab() {
 									<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 										<path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
 									</svg>
-									<span>{copiedChat ? '¡Copiado!' : 'Copiar Chat'}</span>
+									<span>{copiedChat ? '¡Copiado!' : 'Copiar'}</span>
 								</button>
 								<button
 									onClick={() => setIsExportPdfModalOpen(true)}
@@ -160,19 +191,46 @@ export function AiTab() {
 									<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 										<path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
 									</svg>
-									<span>Descargar PDF</span>
+									<span>PDF</span>
 								</button>
 							</>
 						)}
-						<span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/25">
+						<span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/25">
 							Contexto Activo
 						</span>
 					</div>
 				</div>
 
+				{/* Barra rápida de Contexto en Móvil (solo visible en móvil/tablet si el chat está activo) */}
+				<div className="lg:hidden flex flex-wrap gap-2 px-4 py-2 bg-slate-950/20 border-b border-slate-800/30 shrink-0">
+					<button
+						type="button"
+						onClick={() => setActiveMobileView('config')}
+						className={`px-3 py-1 rounded-full text-[10px] font-semibold border flex items-center gap-1.5 transition-all ${
+							geminiApiKey
+								? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+								: 'bg-amber-500/10 border-amber-500/30 text-amber-400 animate-pulse'
+						}`}
+						title="Ver configuración de API Key"
+					>
+						<span className={`w-1.5 h-1.5 rounded-full ${geminiApiKey ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+						<span>API Key</span>
+					</button>
+					<div className="px-3 py-1 rounded-full text-[10px] font-semibold bg-slate-900/60 border border-slate-850 text-slate-300 flex items-center gap-1.5">
+						<span className="text-slate-500">Balance:</span>
+						<span className={netMonthlyBalance >= 0 ? 'text-indigo-400 font-mono' : 'text-rose-450 font-mono'}>
+							{netMonthlyBalance.toFixed(2)}€
+						</span>
+					</div>
+					<div className="px-3 py-1 rounded-full text-[10px] font-semibold bg-slate-900/60 border border-slate-850 text-slate-300 flex items-center gap-1.5">
+						<span className="text-slate-500">Deudas:</span>
+						<span className="font-semibold font-mono">{debts.length}</span>
+					</div>
+				</div>
+
 				{/* Cuerpo del Chat */}
 				{chatMessages.length === 0 ? (
-					<div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-500 space-y-4">
+					<div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-500 space-y-4 overflow-y-auto">
 						<div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 shadow-md">
 							<Icons.Sparkles />
 						</div>
