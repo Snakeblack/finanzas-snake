@@ -700,7 +700,7 @@ function MainAppContent() {
 
 						{/* INDICADORES FINANCIEROS MENSUALES */}
 						<section
-							className={`grid-cols-2 lg:grid-cols-5 gap-2 lg:gap-6 mb-4 lg:mb-8 ${activeTab === 'ai' ? 'hidden lg:grid' : 'grid'}`}
+							className={`grid-cols-2 lg:grid-cols-5 gap-2 lg:gap-6 mb-4 lg:mb-8 ${activeTab === 'overview' ? 'grid' : 'hidden lg:grid'}`}
 						>
 							{/* Tarjeta: Saldo de Apertura */}
 							<div className="premium-card rounded-xl lg:rounded-2xl p-3 lg:p-6">
