@@ -42,9 +42,18 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 
 	const hostSessionRef = useRef<{ destroy: () => void } | null>(null);
 	const clientSessionRef = useRef<{ destroy: () => void } | null>(null);
+	const handshakeTimeoutRef = useRef<any>(null);
+
+	const clearHandshakeTimeout = () => {
+		if (handshakeTimeoutRef.current) {
+			clearTimeout(handshakeTimeoutRef.current);
+			handshakeTimeoutRef.current = null;
+		}
+	};
 
 	// Limpieza al cerrar o cambiar de modo
 	const cleanSessions = () => {
+		clearHandshakeTimeout();
 		if (hostSessionRef.current) {
 			hostSessionRef.current.destroy();
 			hostSessionRef.current = null;
@@ -87,14 +96,24 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 				},
 				onConnectionEstablished: () => {
 					setStatus('connected');
-					setStatusText('¡Dispositivo conectado! Enviando datos...');
+					setStatusText('¡Dispositivo conectado! Estableciendo canal seguro...');
+
+					// Iniciamos un timeout de 15 segundos para la negociación WebRTC (direct connection handshake)
+					clearHandshakeTimeout();
+					handshakeTimeoutRef.current = setTimeout(() => {
+						cleanSessions();
+						setStatus('error');
+						setErrorMsg('No se pudo establecer el canal WebRTC seguro. Verifica que ambos dispositivos estén en la misma red WiFi, sin VPNs activas y que el Firewall no esté bloqueando las conexiones entrantes.');
+					}, 15000);
 				},
 				onDataSent: () => {
+					clearHandshakeTimeout();
 					setStatus('completed');
 					setStatusText('¡Tus datos han sido enviados con éxito!');
 				},
 				onError: (err) => {
 					console.error('Host error:', err);
+					clearHandshakeTimeout();
 					setStatus('error');
 					setErrorMsg(err.message || 'Error al conectar con el servidor de señalización de PeerJS.');
 				}
@@ -119,6 +138,13 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 		setStatusText('Conectando al dispositivo emisor...');
 		setErrorMsg('');
 
+		// Iniciamos un timeout de 15 segundos para la conexión inicial y negociación WebRTC
+		handshakeTimeoutRef.current = setTimeout(() => {
+			cleanSessions();
+			setStatus('error');
+			setErrorMsg('Tiempo de espera agotado. No se pudo conectar al emisor. Asegúrate de estar conectado a la misma red WiFi, sin VPNs activas y de que el código sea correcto.');
+		}, 15000);
+
 		try {
 			clientSessionRef.current = connectToSyncHost(inputCode, {
 				onConnected: () => {
@@ -126,6 +152,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 					setStatusText('Conectado. Recibiendo datos...');
 				},
 				onDataReceived: async (data) => {
+					clearHandshakeTimeout(); // Sincronización exitosa, limpiamos el timeout!
 					setStatusText('Datos recibidos. Procesando e importando...');
 					try {
 						await processReceivedData(data);
@@ -141,11 +168,13 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 				},
 				onError: (err) => {
 					console.error('Client error:', err);
+					clearHandshakeTimeout();
 					setStatus('error');
 					setErrorMsg(err.message || 'No se pudo conectar. Verifica que el código es correcto y el PC emisor sigue activo.');
 				}
 			});
 		} catch (err: any) {
+			clearHandshakeTimeout();
 			setStatus('error');
 			setErrorMsg(err.message || 'Error inesperado al intentar conectar.');
 		}
