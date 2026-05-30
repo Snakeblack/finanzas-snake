@@ -24,13 +24,20 @@ if (typeof window !== 'undefined' && !localStorage.getItem('finanzas_v3_cleared_
 
 const LEGACY_DATA_KEYS = ['finanzas_v2_transactions', 'finanzas_v2_debts'] as const;
 
-type TransactionType = 'income' | 'expense';
-type ActiveTab = 'overview' | 'transactions' | 'debts' | 'consolidation' | 'ai';
+type TransactionType = 'income' | 'expense' | 'transfer';
+type ActiveTab = 'overview' | 'transactions' | 'debts' | 'consolidation' | 'ai' | 'accounts';
 type NumericInput = number | string;
 type RateMode = 'tae' | 'tin';
 type DebtKind = 'classic' | 'paymentPlan';
 type InstallmentStatus = 'pending' | 'paid';
 type TransactionRecurrence = 'one-off' | 'recurring';
+
+type Account = {
+	id: string;
+	name: string;
+	owner: 'userA' | 'userB' | 'joint';
+	initialBalance: number;
+};
 
 type Period = {
 	month: string;
@@ -51,6 +58,9 @@ type Transaction = {
 	originId?: string;
 	owner?: 'userA' | 'userB' | 'joint';
 	paidBy?: 'userA' | 'userB' | 'shared';
+	accountId?: string;
+	fromAccountId?: string;
+	toAccountId?: string;
 };
 
 type DebtBase = {
@@ -60,6 +70,7 @@ type DebtBase = {
 	tag: string;
 	date: string;
 	owner?: 'userA' | 'userB' | 'joint';
+	paymentAccountId?: string;
 };
 
 type ClassicDebt = DebtBase & {
@@ -97,6 +108,9 @@ type TxForm = {
 	recurrence?: TransactionRecurrence;
 	owner: 'userA' | 'userB' | 'joint';
 	paidBy: 'userA' | 'userB' | 'shared';
+	accountId: string;
+	fromAccountId: string;
+	toAccountId: string;
 };
 
 type PaymentPlanTrancheForm = {
@@ -118,6 +132,7 @@ type DebtForm = {
 	tag: string;
 	date: string;
 	owner: 'userA' | 'userB' | 'joint';
+	paymentAccountId: string;
 };
 
 type ConsolidationForm = {
@@ -191,6 +206,7 @@ const migrateDebt = (rawDebt: any): Debt => {
 	const tag = String(rawDebt?.tag ?? DEFAULT_TAGS.debt[0]);
 	const date = normalizeMonth(rawDebt?.date);
 	const owner = rawDebt?.owner === 'userA' || rawDebt?.owner === 'userB' || rawDebt?.owner === 'joint' ? rawDebt.owner : 'joint';
+	const paymentAccountId = rawDebt?.paymentAccountId ? String(rawDebt.paymentAccountId) : undefined;
 
 	if (rawDebt?.kind === 'paymentPlan') {
 		const installments: PaymentPlanInstallment[] = Array.isArray(rawDebt.installments)
@@ -212,6 +228,7 @@ const migrateDebt = (rawDebt: any): Debt => {
 			tag,
 			date,
 			owner,
+			paymentAccountId,
 			financedAmount,
 			fees,
 			totalToPay,
@@ -226,6 +243,7 @@ const migrateDebt = (rawDebt: any): Debt => {
 		tag,
 		date,
 		owner,
+		paymentAccountId,
 		principal: Math.abs(toNumber(rawDebt?.principal)),
 		tin: rawDebt?.tin === undefined ? undefined : Math.abs(toNumber(rawDebt.tin)),
 		tae: Math.abs(toNumber(rawDebt?.tae)),
@@ -277,18 +295,23 @@ const readStoredArray = (primaryKey: string, fallbackKey?: string): unknown[] =>
 };
 
 const migrateTransaction = (rawTransaction: any, index: number): Transaction => {
-	const type: TransactionType = rawTransaction?.type === 'income' ? 'income' : 'expense';
+	const type: TransactionType = 
+		rawTransaction?.type === 'income' ? 'income' : 
+		rawTransaction?.type === 'transfer' ? 'transfer' : 'expense';
 	return {
 		id: String(rawTransaction?.id ?? `tx-${index + 1}`),
 		desc: String(rawTransaction?.desc ?? 'Movimiento sin nombre'),
 		amount: Math.abs(toNumber(rawTransaction?.amount)),
 		type,
-		tag: String(rawTransaction?.tag ?? DEFAULT_TAGS[type][0]),
+		tag: String(rawTransaction?.tag ?? (type === 'transfer' ? 'Traspaso' : DEFAULT_TAGS[type][0])),
 		date: String(rawTransaction?.date ?? new Date().toISOString().substring(0, 10)).substring(0, 10),
 		recurrence: rawTransaction?.recurrence === 'recurring' ? 'recurring' : 'one-off',
 		originId: rawTransaction?.originId ? String(rawTransaction.originId) : undefined,
 		owner: rawTransaction?.owner === 'userA' || rawTransaction?.owner === 'userB' || rawTransaction?.owner === 'joint' ? rawTransaction.owner : 'joint',
-		paidBy: rawTransaction?.paidBy === 'userA' || rawTransaction?.paidBy === 'userB' || rawTransaction?.paidBy === 'shared' ? rawTransaction.paidBy : 'shared'
+		paidBy: rawTransaction?.paidBy === 'userA' || rawTransaction?.paidBy === 'userB' || rawTransaction?.paidBy === 'shared' ? rawTransaction.paidBy : 'shared',
+		accountId: rawTransaction?.accountId ? String(rawTransaction.accountId) : undefined,
+		fromAccountId: rawTransaction?.fromAccountId ? String(rawTransaction.fromAccountId) : undefined,
+		toAccountId: rawTransaction?.toAccountId ? String(rawTransaction.toAccountId) : undefined
 	};
 };
 
@@ -441,6 +464,62 @@ const Icons = {
 	)
 };
 
+const getInitialData = () => {
+	const rawTransactions = readStoredTransactions();
+	const rawDebts = readStoredDebts();
+	const rawPeriods = readStoredPeriods(rawTransactions, rawDebts);
+
+	const storedAccounts = localStorage.getItem('finanzas_v3_accounts');
+	if (storedAccounts) {
+		try {
+			const parsed = JSON.parse(storedAccounts);
+			if (Array.isArray(parsed) && parsed.length > 0) {
+				return {
+					accounts: parsed as Account[],
+					transactions: rawTransactions,
+					periods: rawPeriods
+				};
+			}
+		} catch {}
+	}
+
+	// No accounts exist, migrate.
+	const userAName = (typeof window !== 'undefined' && localStorage.getItem('finanzas_v3_userA_name')) || 'Usuario A';
+	const userBName = (typeof window !== 'undefined' && localStorage.getItem('finanzas_v3_userB_name')) || 'Usuario B';
+
+	const sortedPeriods = [...rawPeriods].sort((a, b) => a.month.localeCompare(b.month));
+	const firstPeriod = sortedPeriods.length > 0 ? sortedPeriods[0] : null;
+	const initialBalA = firstPeriod ? (firstPeriod.openingBalanceA !== undefined ? firstPeriod.openingBalanceA : firstPeriod.openingBalance / 2) : 0;
+	const initialBalB = firstPeriod ? (firstPeriod.openingBalanceB !== undefined ? firstPeriod.openingBalanceB : firstPeriod.openingBalance / 2) : 0;
+
+	const migratedAccounts: Account[] = [
+		{ id: 'default-a', name: `Efectivo ${userAName}`, owner: 'userA', initialBalance: initialBalA },
+		{ id: 'default-b', name: `Efectivo ${userBName}`, owner: 'userB', initialBalance: initialBalB },
+		{ id: 'default-joint', name: 'Cuenta Común', owner: 'joint', initialBalance: 0 }
+	];
+
+	// Map old transactions to these new default accounts
+	const migratedTransactions = rawTransactions.map(t => {
+		if (!t.accountId && t.type !== 'transfer') {
+			if (t.owner === 'userA') return { ...t, accountId: 'default-a' };
+			if (t.owner === 'userB') return { ...t, accountId: 'default-b' };
+			return { ...t, accountId: 'default-joint' };
+		}
+		return t;
+	});
+
+	if (typeof window !== 'undefined') {
+		localStorage.setItem('finanzas_v3_accounts', JSON.stringify(migratedAccounts));
+		localStorage.setItem('finanzas_v3_transactions', JSON.stringify(migratedTransactions));
+	}
+
+	return {
+		accounts: migratedAccounts,
+		transactions: migratedTransactions,
+		periods: rawPeriods
+	};
+};
+
 export default function App() {
 	const currentMonthString = new Date().toISOString().substring(0, 7); // "YYYY-MM"
 
@@ -448,6 +527,8 @@ export default function App() {
 	const [userAName, setUserAName] = useState(() => localStorage.getItem('finanzas_v3_userA_name') || 'Usuario A');
 	const [userBName, setUserBName] = useState(() => localStorage.getItem('finanzas_v3_userB_name') || 'Usuario B');
 	const [viewMode, setViewMode] = useState<'all' | 'userA' | 'userB'>('all');
+
+	const [accounts, setAccounts] = useState<Account[]>(() => getInitialData().accounts);
 
 	// Estados de Edición de Transacción
 	const [editingTx, setEditingTx] = useState<Transaction | null>(null);
@@ -459,17 +540,18 @@ export default function App() {
 		date: `${currentMonthString}-01`,
 		recurrence: 'one-off',
 		owner: 'joint',
-		paidBy: 'shared'
+		paidBy: 'shared',
+		accountId: '',
+		fromAccountId: '',
+		toAccountId: ''
 	});
 	const [editScope, setEditScope] = useState<'only-this' | 'future' | 'all'>('only-this');
 
-	const [periods, setPeriods] = useState<Period[]>(() =>
-		readStoredPeriods(readStoredTransactions(), readStoredDebts())
-	);
+	const [periods, setPeriods] = useState<Period[]>(() => getInitialData().periods);
 
 	const [selectedMonth, setSelectedMonth] = useState(() => {
 		const currentMonth = new Date().toISOString().substring(0, 7);
-		const storedPeriods = readStoredPeriods(readStoredTransactions(), readStoredDebts());
+		const storedPeriods = getInitialData().periods;
 		if (storedPeriods.length > 0) {
 			const exists = storedPeriods.some((p) => p.month === currentMonth);
 			if (exists) return currentMonth;
@@ -478,7 +560,7 @@ export default function App() {
 		return currentMonth;
 	});
 
-	const [transactions, setTransactions] = useState<Transaction[]>(readStoredTransactions);
+	const [transactions, setTransactions] = useState<Transaction[]>(() => getInitialData().transactions);
 
 	const [debts, setDebts] = useState<Debt[]>(readStoredDebts);
 
@@ -494,7 +576,10 @@ export default function App() {
 		date: `${selectedMonth}-01`,
 		recurrence: 'one-off',
 		owner: 'joint',
-		paidBy: 'shared'
+		paidBy: 'shared',
+		accountId: '',
+		fromAccountId: '',
+		toAccountId: ''
 	});
 	const [debtForm, setDebtForm] = useState<DebtForm>({
 		kind: 'classic',
@@ -508,9 +593,18 @@ export default function App() {
 		tranches: [{ id: 'initial-tranche', months: '', amount: '' }],
 		tag: DEFAULT_TAGS.debt[0],
 		date: selectedMonth,
-		owner: 'joint'
+		owner: 'joint',
+		paymentAccountId: ''
 	});
 	const [debtFormError, setDebtFormError] = useState('');
+
+	// Estados de gestión de Cuentas
+	const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+	const [accountForm, setAccountForm] = useState({
+		name: '',
+		owner: 'joint' as 'userA' | 'userB' | 'joint',
+		initialBalance: ''
+	});
 
 	// Formularios de inicialización/reconfiguración
 	const [initFlow, setInitFlow] = useState<'past' | 'current'>('current');
@@ -519,6 +613,7 @@ export default function App() {
 	const [initBalanceA, setInitBalanceA] = useState('0');
 	const [initBalanceB, setInitBalanceB] = useState('0');
 	const [isReconfiguring, setIsReconfiguring] = useState(false);
+	const [reconfigAccounts, setReconfigAccounts] = useState<Account[]>([]);
 
 	// === SIMULADOR DE REUNIFICACIÓN ===
 	const [selectedDebtsForConsolidation, setSelectedDebtsForConsolidation] = useState<string[]>([]);
@@ -565,6 +660,22 @@ export default function App() {
 	useEffect(() => {
 		localStorage.setItem('finanzas_v3_userB_name', userBName);
 	}, [userBName]);
+
+	useEffect(() => {
+		localStorage.setItem('finanzas_v3_accounts', JSON.stringify(accounts));
+	}, [accounts]);
+
+	useEffect(() => {
+		if (accounts.length > 0) {
+			const firstJoint = accounts.find((a) => a.owner === 'joint')?.id || accounts[0].id;
+			setTxForm((prev) => ({
+				...prev,
+				accountId: prev.accountId && accounts.some((a) => a.id === prev.accountId) ? prev.accountId : firstJoint,
+				fromAccountId: prev.fromAccountId && accounts.some((a) => a.id === prev.fromAccountId) ? prev.fromAccountId : accounts[0].id,
+				toAccountId: prev.toAccountId && accounts.some((a) => a.id === prev.toAccountId) ? prev.toAccountId : (accounts[1]?.id || accounts[0].id)
+			}));
+		}
+	}, [accounts]);
 
 	// Auto-generación de periodos faltantes si el mes actual es posterior al último registrado
 	useEffect(() => {
@@ -690,19 +801,132 @@ export default function App() {
 		debtPayments: number;
 		netBalance: number;
 		closingBalance: number;
+		accountBalances: Record<string, number>;
 	};
 
 	const sortedPeriods = [...periods].sort((a, b) => a.month.localeCompare(b.month));
 	
 	const timelineBalances: Record<string, MonthBalanceData> = {};
-	let previousClosingBalance = 0;
+
+	// Running balances that propagate across periods
+	const runningAccountBalances: Record<string, number> = {};
+	accounts.forEach((acc) => {
+		runningAccountBalances[acc.id] = acc.initialBalance;
+	});
+
+	const runningUnassignedBalances: Record<'userA' | 'userB' | 'joint', number> = {
+		userA: 0,
+		userB: 0,
+		joint: 0
+	};
 
 	sortedPeriods.forEach((period, idx) => {
 		const m = period.month;
+
+		// 1. Capture opening balance of this month
+		const openingAccBalances = { ...runningAccountBalances };
+		const openingUnassigned = { ...runningUnassignedBalances };
+
+		// 2. Process all transactions of this month
 		const mTx = transactions.filter((t) => t.date.substring(0, 7) === m);
 
+		mTx.forEach((t) => {
+			const amount = toNumber(t.amount);
+			if (t.type === 'income') {
+				if (t.accountId && runningAccountBalances[t.accountId] !== undefined) {
+					runningAccountBalances[t.accountId] += amount;
+				} else {
+					runningUnassignedBalances[t.owner || 'joint'] += amount;
+				}
+			} else if (t.type === 'expense') {
+				if (t.accountId && runningAccountBalances[t.accountId] !== undefined) {
+					runningAccountBalances[t.accountId] -= amount;
+				} else {
+					runningUnassignedBalances[t.owner || 'joint'] -= amount;
+				}
+			} else if (t.type === 'transfer') {
+				if (t.fromAccountId && runningAccountBalances[t.fromAccountId] !== undefined) {
+					runningAccountBalances[t.fromAccountId] -= amount;
+				}
+				if (t.toAccountId && runningAccountBalances[t.toAccountId] !== undefined) {
+					runningAccountBalances[t.toAccountId] += amount;
+				}
+			}
+		});
+
+		// 3. Process all debt payments of this month
+		debts.forEach((d) => {
+			const dStart = normalizeMonth(d.date);
+			let rawPayment = 0;
+			if (isPaymentPlanDebt(d)) {
+				if (dStart <= m) {
+					rawPayment = calculateDebtMonthlyPayment(d, m);
+				}
+			} else {
+				const dEnd = addMonthsToMonth(dStart, d.termMonths - 1);
+				if (m >= dStart && m <= dEnd) {
+					rawPayment = calculateDebtMonthlyPayment(d, m);
+				}
+			}
+
+			if (rawPayment > 0) {
+				if (d.paymentAccountId && runningAccountBalances[d.paymentAccountId] !== undefined) {
+					runningAccountBalances[d.paymentAccountId] -= rawPayment;
+				} else {
+					// Fallback to first account of this owner, or unassigned
+					const fallbackAcc = accounts.find((a) => a.owner === d.owner);
+					if (fallbackAcc) {
+						runningAccountBalances[fallbackAcc.id] -= rawPayment;
+					} else {
+						runningUnassignedBalances[d.owner || 'joint'] -= rawPayment;
+					}
+				}
+			}
+		});
+
+		// 4. Helper to calculate balances for the current viewMode
+		const getModeBalance = (
+			accBals: Record<string, number>,
+			unassignedBals: Record<'userA' | 'userB' | 'joint', number>
+		) => {
+			let total = 0;
+			accounts.forEach((acc) => {
+				const bal = accBals[acc.id] ?? 0;
+				if (viewMode === 'all') {
+					total += bal;
+				} else if (viewMode === 'userA') {
+					if (acc.owner === 'userA') total += bal;
+					else if (acc.owner === 'joint') total += bal * 0.5;
+				} else if (viewMode === 'userB') {
+					if (acc.owner === 'userB') total += bal;
+					else if (acc.owner === 'joint') total += bal * 0.5;
+				}
+			});
+
+			if (viewMode === 'all') {
+				total += unassignedBals.userA + unassignedBals.userB + unassignedBals.joint;
+			} else if (viewMode === 'userA') {
+				total += unassignedBals.userA + unassignedBals.joint * 0.5;
+			} else if (viewMode === 'userB') {
+				total += unassignedBals.userB + unassignedBals.joint * 0.5;
+			}
+			return total;
+		};
+
+		// 5. Calculate summary fields for viewMode
+		const openingBalance = getModeBalance(openingAccBalances, openingUnassigned);
+		const closingBalance = getModeBalance(runningAccountBalances, runningUnassignedBalances);
+
+		const getTransactionOwner = (t: Transaction) => {
+			if (t.accountId) {
+				const acc = accounts.find((a) => a.id === t.accountId);
+				if (acc) return acc.owner;
+			}
+			return t.owner || 'joint';
+		};
+
 		const getEffectiveAmount = (t: Transaction) => {
-			const owner = t.owner ?? 'joint';
+			const owner = getTransactionOwner(t);
 			if (viewMode === 'all') return toNumber(t.amount);
 			if (viewMode === 'userA') {
 				if (owner === 'userA') return toNumber(t.amount);
@@ -756,21 +980,8 @@ export default function App() {
 			return sum + getEffectiveDebtPayment(d, rawPayment);
 		}, 0);
 
-		let openingBalance = previousClosingBalance;
-		if (idx === 0 || period.isManualInit) {
-			const balA = period.openingBalanceA !== undefined ? period.openingBalanceA : period.openingBalance / 2;
-			const balB = period.openingBalanceB !== undefined ? period.openingBalanceB : period.openingBalance / 2;
-			if (viewMode === 'userA') {
-				openingBalance = balA;
-			} else if (viewMode === 'userB') {
-				openingBalance = balB;
-			} else {
-				openingBalance = balA + balB;
-			}
-		}
-
-		const netBalance = incomes - (expenses + debtPayments);
-		const closingBalance = openingBalance + netBalance;
+		// Net balance representing the actual month cash change for view mode
+		const netBalance = closingBalance - openingBalance;
 
 		timelineBalances[m] = {
 			month: m,
@@ -779,10 +990,9 @@ export default function App() {
 			expenses,
 			debtPayments,
 			netBalance,
-			closingBalance
+			closingBalance,
+			accountBalances: { ...runningAccountBalances }
 		};
-
-		previousClosingBalance = closingBalance;
 	});
 
 	const activePeriodData = timelineBalances[selectedMonth] ?? {
@@ -830,18 +1040,16 @@ export default function App() {
 	// === GESTORES DE ACCIONES ===
 	const handleInitAccount = (e: SyntheticEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		const balA = parseFloat(initBalanceA);
-		const parsedA = Number.isFinite(balA) ? Math.abs(balA) : 0;
-		const balB = parseFloat(initBalanceB);
-		const parsedB = Number.isFinite(balB) ? Math.abs(balB) : 0;
-		const totalBalance = parsedA + parsedB;
+		if (isReconfiguring) {
+			setAccounts(reconfigAccounts);
+		}
+		
+		const totalBalance = (isReconfiguring ? reconfigAccounts : accounts).reduce((sum, a) => sum + (a.initialBalance || 0), 0);
 
 		const targetMonth = initFlow === 'current' ? new Date().toISOString().substring(0, 7) : initMonth;
 		const newPeriod: Period = {
 			month: targetMonth,
 			openingBalance: totalBalance,
-			openingBalanceA: parsedA,
-			openingBalanceB: parsedB,
 			isManualInit: true
 		};
 		setPeriods([newPeriod]);
@@ -854,6 +1062,11 @@ export default function App() {
 			setPeriods([]);
 			setTransactions([]);
 			setDebts([]);
+			setAccounts([
+				{ id: 'default-a', name: `Efectivo ${userAName}`, owner: 'userA', initialBalance: 0 },
+				{ id: 'default-b', name: `Efectivo ${userBName}`, owner: 'userB', initialBalance: 0 },
+				{ id: 'default-joint', name: 'Cuenta Común', owner: 'joint', initialBalance: 0 }
+			]);
 			setSelectedMonth(new Date().toISOString().substring(0, 7));
 			setIsReconfiguring(false);
 		}
@@ -897,17 +1110,41 @@ export default function App() {
 		e.preventDefault();
 		if (!txForm.desc || !txForm.amount) return;
 
+		const getTransferOwner = (fromId?: string, toId?: string) => {
+			const fromAcc = accounts.find((a) => a.id === fromId);
+			const toAcc = accounts.find((a) => a.id === toId);
+			if (fromAcc && toAcc) {
+				if (fromAcc.owner === toAcc.owner) return fromAcc.owner;
+			}
+			return 'joint';
+		};
+
+		const getEffectiveOwner = () => {
+			if (txForm.type === 'transfer') {
+				return getTransferOwner(txForm.fromAccountId, txForm.toAccountId);
+			}
+			if (txForm.accountId) {
+				const acc = accounts.find((a) => a.id === txForm.accountId);
+				if (acc) return acc.owner;
+			}
+			return txForm.owner;
+		};
+
 		const newTxId = Date.now().toString();
+		const effectiveOwner = getEffectiveOwner();
 		const newTx: Transaction = {
 			id: newTxId,
 			desc: txForm.desc,
 			amount: Math.abs(parseFloat(txForm.amount)),
 			type: txForm.type,
-			tag: txForm.tag,
+			tag: txForm.type === 'transfer' ? 'Traspaso' : txForm.tag,
 			date: txForm.date,
 			recurrence: txForm.recurrence || 'one-off',
-			owner: txForm.owner,
-			paidBy: txForm.owner === 'joint' ? txForm.paidBy : 'shared'
+			owner: effectiveOwner,
+			paidBy: effectiveOwner === 'joint' ? txForm.paidBy : 'shared',
+			accountId: txForm.type !== 'transfer' && txForm.accountId ? txForm.accountId : undefined,
+			fromAccountId: txForm.type === 'transfer' ? txForm.fromAccountId : undefined,
+			toAccountId: txForm.type === 'transfer' ? txForm.toAccountId : undefined
 		};
 
 		let newTransactions = [newTx, ...transactions];
@@ -936,7 +1173,12 @@ export default function App() {
 
 		setTransactions(newTransactions);
 		// Mantener la fecha del filtro actual para usabilidad
-		setTxForm({ ...txForm, desc: '', amount: '', recurrence: 'one-off', owner: 'joint', paidBy: 'shared' });
+		setTxForm({
+			...txForm,
+			desc: '',
+			amount: '',
+			recurrence: 'one-off'
+		});
 	};
 
 	const handleStartEditTransaction = (tx: Transaction) => {
@@ -949,7 +1191,10 @@ export default function App() {
 			date: tx.date,
 			recurrence: tx.recurrence || 'one-off',
 			owner: tx.owner || 'joint',
-			paidBy: tx.paidBy || 'shared'
+			paidBy: tx.paidBy || 'shared',
+			accountId: tx.accountId || '',
+			fromAccountId: tx.fromAccountId || (accounts[0]?.id || ''),
+			toAccountId: tx.toAccountId || (accounts[1]?.id || accounts[0]?.id || '')
 		});
 		setEditScope('only-this');
 	};
@@ -962,12 +1207,36 @@ export default function App() {
 		const rootId = editingTx.originId || editingTx.id;
 		const currentMonth = editingTx.date.substring(0, 7);
 
+		const getTransferOwner = (fromId?: string, toId?: string) => {
+			const fromAcc = accounts.find((a) => a.id === fromId);
+			const toAcc = accounts.find((a) => a.id === toId);
+			if (fromAcc && toAcc) {
+				if (fromAcc.owner === toAcc.owner) return fromAcc.owner;
+			}
+			return 'joint';
+		};
+
+		const getEffectiveOwner = () => {
+			if (editForm.type === 'transfer') {
+				return getTransferOwner(editForm.fromAccountId, editForm.toAccountId);
+			}
+			if (editForm.accountId) {
+				const acc = accounts.find((a) => a.id === editForm.accountId);
+				if (acc) return acc.owner;
+			}
+			return editForm.owner;
+		};
+
+		const effectiveOwner = getEffectiveOwner();
 		const updatedFields = {
 			desc: editForm.desc,
 			type: editForm.type,
-			tag: editForm.tag,
-			owner: editForm.owner,
-			paidBy: editForm.owner === 'joint' ? editForm.paidBy : 'shared'
+			tag: editForm.type === 'transfer' ? 'Traspaso' : editForm.tag,
+			owner: effectiveOwner,
+			paidBy: effectiveOwner === 'joint' ? editForm.paidBy : 'shared',
+			accountId: editForm.type !== 'transfer' && editForm.accountId ? editForm.accountId : undefined,
+			fromAccountId: editForm.type === 'transfer' ? editForm.fromAccountId : undefined,
+			toAccountId: editForm.type === 'transfer' ? editForm.toAccountId : undefined
 		};
 
 		setTransactions((prev) =>
@@ -1050,11 +1319,12 @@ export default function App() {
 				termMonths: Math.abs(parseInt(debtForm.termMonths)),
 				tag: debtForm.tag,
 				date: normalizeMonth(debtForm.date),
-				owner: debtForm.owner
+				owner: debtForm.owner,
+				paymentAccountId: debtForm.paymentAccountId || undefined
 			};
 
 			setDebts([newDebt, ...debts]);
-			setDebtForm({ ...debtForm, desc: '', principal: '', tin: '', tae: '', termMonths: '', owner: 'joint' });
+			setDebtForm({ ...debtForm, desc: '', principal: '', tin: '', tae: '', termMonths: '', owner: 'joint', paymentAccountId: '' });
 			return;
 		}
 
@@ -1094,7 +1364,8 @@ export default function App() {
 			installments: generatePaymentPlanInstallments(id, normalizeMonth(debtForm.date), validTranches),
 			tag: debtForm.tag,
 			date: normalizeMonth(debtForm.date),
-			owner: debtForm.owner
+			owner: debtForm.owner,
+			paymentAccountId: debtForm.paymentAccountId || undefined
 		};
 
 		setDebts([newDebt, ...debts]);
@@ -1104,7 +1375,8 @@ export default function App() {
 			financedAmount: '',
 			fees: '',
 			tranches: [{ id: `tranche-${Date.now()}`, months: '', amount: '' }],
-			owner: 'joint'
+			owner: 'joint',
+			paymentAccountId: ''
 		});
 	};
 
@@ -1138,6 +1410,80 @@ export default function App() {
 		setSelectedDebtsForConsolidation(selectedDebtsForConsolidation.filter((itemId) => itemId !== id));
 		if (selectedDebtSchedule?.id === id) {
 			setSelectedDebtSchedule(null);
+		}
+	};
+
+	const handleAddAccount = (e: SyntheticEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		if (!accountForm.name) return;
+
+		const newAcc: Account = {
+			id: Date.now().toString(),
+			name: accountForm.name,
+			owner: accountForm.owner,
+			initialBalance: Math.abs(parseFloat(accountForm.initialBalance) || 0)
+		};
+
+		setAccounts([...accounts, newAcc]);
+		setAccountForm({ name: '', owner: 'joint', initialBalance: '' });
+	};
+
+	const handleSaveEditAccount = (e: SyntheticEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		if (!editingAccount || !accountForm.name) return;
+
+		const updatedBalance = Math.abs(parseFloat(accountForm.initialBalance) || 0);
+		setAccounts(accounts.map((acc) => {
+			if (acc.id === editingAccount.id) {
+				return {
+					...acc,
+					name: accountForm.name,
+					owner: accountForm.owner,
+					initialBalance: updatedBalance
+				};
+			}
+			return acc;
+		}));
+
+		setEditingAccount(null);
+		setAccountForm({ name: '', owner: 'joint', initialBalance: '' });
+	};
+
+	const handleStartEditAccount = (acc: Account) => {
+		setEditingAccount(acc);
+		setAccountForm({
+			name: acc.name,
+			owner: acc.owner,
+			initialBalance: String(acc.initialBalance)
+		});
+	};
+
+	const handleDeleteAccount = (id: string) => {
+		if (accounts.length <= 1) {
+			window.alert('Debe haber al menos una cuenta en el sistema.');
+			return;
+		}
+		if (window.confirm('¿Estás seguro de que quieres eliminar esta cuenta? Los movimientos y deudas vinculados a ella pasarán a estar sin cuenta asociada.')) {
+			setAccounts(accounts.filter((a) => a.id !== id));
+			
+			setTransactions((prev) =>
+				prev.map((t) => {
+					const updated = { ...t };
+					if (t.accountId === id) updated.accountId = undefined;
+					if (t.fromAccountId === id) updated.fromAccountId = undefined;
+					if (t.toAccountId === id) updated.toAccountId = undefined;
+					return updated;
+				})
+			);
+
+			setDebts((prev) =>
+				prev.map((d) => {
+					if (d.paymentAccountId === id) {
+						return { ...d, paymentAccountId: undefined };
+					}
+					return d;
+				})
+			);
 		}
 	};
 
@@ -1402,6 +1748,17 @@ export default function App() {
 						</button>
 						<button
 							onClick={() => {
+								setActiveTab('accounts');
+								setSelectedDebtSchedule(null);
+							}}
+							className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+								activeTab === 'accounts' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+							}`}
+						>
+							Cuentas
+						</button>
+						<button
+							onClick={() => {
 								setActiveTab('consolidation');
 								setSelectedDebtSchedule(null);
 							}}
@@ -1446,6 +1803,12 @@ export default function App() {
 					className={`p-2 rounded ${activeTab === 'debts' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}
 				>
 					Deudas
+				</button>
+				<button
+					onClick={() => setActiveTab('accounts')}
+					className={`p-2 rounded ${activeTab === 'accounts' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}
+				>
+					Cuentas
 				</button>
 				<button
 					onClick={() => setActiveTab('consolidation')}
@@ -1566,40 +1929,35 @@ export default function App() {
 
 							<div className="space-y-4 border-t border-slate-800/80 pt-4">
 								<h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Balances de Apertura (€)</h3>
-								<div className="grid grid-cols-2 gap-4">
-									<div>
-										<label htmlFor="init-balance-a-input" className="block text-[11px] font-medium text-slate-500 mb-1">Saldo inicial {userAName || 'Usuario A'}</label>
-										<input
-											id="init-balance-a-input"
-											type="number"
-											step="0.01"
-											required
-											min="0"
-											placeholder="0.00"
-											value={initBalanceA}
-											onChange={(e) => setInitBalanceA(e.target.value)}
-											className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs text-slate-100 outline-none"
-										/>
-									</div>
-									<div>
-										<label htmlFor="init-balance-b-input" className="block text-[11px] font-medium text-slate-500 mb-1">Saldo inicial {userBName || 'Usuario B'}</label>
-										<input
-											id="init-balance-b-input"
-											type="number"
-											step="0.01"
-											required
-											min="0"
-											placeholder="0.00"
-											value={initBalanceB}
-											onChange={(e) => setInitBalanceB(e.target.value)}
-											className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs text-slate-100 outline-none"
-										/>
-									</div>
+								<div className="space-y-3">
+									{accounts.map((acc, index) => (
+										<div key={acc.id} className="flex flex-col">
+											<label htmlFor={`init-balance-welcome-${acc.id}`} className="block text-[11px] font-medium text-slate-500 mb-1">
+												Saldo inicial: {acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+											</label>
+											<input
+												id={`init-balance-welcome-${acc.id}`}
+												type="number"
+												step="0.01"
+												required
+												min="0"
+												placeholder="0.00"
+												value={acc.initialBalance || ''}
+												onChange={(e) => {
+													const val = parseFloat(e.target.value) || 0;
+													setAccounts((prev) =>
+														prev.map((a, i) => (i === index ? { ...a, initialBalance: val } : a))
+													);
+												}}
+												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs text-slate-100 outline-none"
+											/>
+										</div>
+									))}
 								</div>
 								<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs flex justify-between items-center text-slate-400">
 									<span>Total Conjunto:</span>
 									<span className="font-bold text-slate-200 text-sm">
-										{((parseFloat(initBalanceA) || 0) + (parseFloat(initBalanceB) || 0)).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+										{accounts.reduce((sum, a) => sum + (a.initialBalance || 0), 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
 									</span>
 								</div>
 							</div>
@@ -1684,11 +2042,9 @@ export default function App() {
 										const sorted = [...periods].sort((a, b) => a.month.localeCompare(b.month));
 										if (sorted.length > 0) {
 											setInitMonth(sorted[0].month);
-											setInitBalance(String(sorted[0].openingBalance));
-											setInitBalanceA(String(sorted[0].openingBalanceA ?? (sorted[0].openingBalance / 2)));
-											setInitBalanceB(String(sorted[0].openingBalanceB ?? (sorted[0].openingBalance / 2)));
 											setInitFlow(sorted[0].month === currentMonthString ? 'current' : 'past');
 										}
+										setReconfigAccounts(accounts.map((acc) => ({ ...acc })));
 										setIsReconfiguring(true);
 									}}
 									className="px-3 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-750 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
@@ -2055,11 +2411,11 @@ export default function App() {
 							<form onSubmit={handleAddTransaction} className="space-y-4">
 								<div>
 									<label className="block text-xs font-medium text-slate-400 mb-1.5">Tipo de Movimiento</label>
-									<div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+									<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
 										<button
 											type="button"
 											onClick={() => setTxForm({ ...txForm, type: 'expense', tag: DEFAULT_TAGS.expense[0] })}
-											className={`py-2 rounded-lg text-xs font-semibold transition-all ${
+											className={`py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 												txForm.type === 'expense'
 													? 'bg-rose-500 text-white shadow-md'
 													: 'text-slate-400 hover:text-slate-200'
@@ -2070,13 +2426,24 @@ export default function App() {
 										<button
 											type="button"
 											onClick={() => setTxForm({ ...txForm, type: 'income', tag: DEFAULT_TAGS.income[0] })}
-											className={`py-2 rounded-lg text-xs font-semibold transition-all ${
+											className={`py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 												txForm.type === 'income'
 													? 'bg-emerald-500 text-white shadow-md'
 													: 'text-slate-400 hover:text-slate-200'
 											}`}
 										>
-											Cobro / Ingreso
+											Cobro
+										</button>
+										<button
+											type="button"
+											onClick={() => setTxForm({ ...txForm, type: 'transfer', tag: 'Traspaso' })}
+											className={`py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+												txForm.type === 'transfer'
+													? 'bg-sky-500 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											Traspaso
 										</button>
 									</div>
 								</div>
@@ -2158,109 +2525,182 @@ export default function App() {
 									/>
 								</div>
 
-								<div>
-									<label className="block text-xs font-medium text-slate-400 mb-1.5">¿De quién es?</label>
-									<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
-										<button
-											type="button"
-											onClick={() => setTxForm({ ...txForm, owner: 'userA' })}
-											className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
-												txForm.owner === 'userA'
-													? 'bg-indigo-600 text-white shadow-md'
-													: 'text-slate-400 hover:text-slate-200'
-											}`}
-										>
-											{userAName}
-										</button>
-										<button
-											type="button"
-											onClick={() => setTxForm({ ...txForm, owner: 'userB' })}
-											className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
-												txForm.owner === 'userB'
-													? 'bg-indigo-600 text-white shadow-md'
-													: 'text-slate-400 hover:text-slate-200'
-											}`}
-										>
-											{userBName}
-										</button>
-										<button
-											type="button"
-											onClick={() => setTxForm({ ...txForm, owner: 'joint' })}
-											className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
-												txForm.owner === 'joint' || !txForm.owner
-													? 'bg-indigo-600 text-white shadow-md'
-													: 'text-slate-400 hover:text-slate-200'
-											}`}
-										>
-											Conjunto
-										</button>
-									</div>
-								</div>
-
-								{txForm.owner === 'joint' && txForm.type === 'expense' && (
-									<div>
-										<label className="block text-xs font-medium text-slate-400 mb-1.5">Pagado por</label>
-										<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
-											<button
-												type="button"
-												onClick={() => setTxForm({ ...txForm, paidBy: 'userA' })}
-												className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
-													txForm.paidBy === 'userA'
-														? 'bg-slate-750 text-white shadow-md'
-														: 'text-slate-400 hover:text-slate-200'
-												}`}
+								{txForm.type === 'transfer' ? (
+									<>
+										<div>
+											<label htmlFor="tx-from-account" className="block text-xs font-medium text-slate-400 mb-1.5">
+												Cuenta de Origen
+											</label>
+											<select
+												id="tx-from-account"
+												value={txForm.fromAccountId}
+												onChange={(e) => setTxForm({ ...txForm, fromAccountId: e.target.value })}
+												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
 											>
-												{userAName}
-											</button>
-											<button
-												type="button"
-												onClick={() => setTxForm({ ...txForm, paidBy: 'userB' })}
-												className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
-													txForm.paidBy === 'userB'
-														? 'bg-slate-750 text-white shadow-md'
-														: 'text-slate-400 hover:text-slate-200'
-												}`}
-											>
-												{userBName}
-											</button>
-											<button
-												type="button"
-												onClick={() => setTxForm({ ...txForm, paidBy: 'shared' })}
-												className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
-													txForm.paidBy === 'shared' || !txForm.paidBy
-														? 'bg-slate-750 text-white shadow-md'
-														: 'text-slate-400 hover:text-slate-200'
-												}`}
-											>
-												Cuenta Común
-											</button>
-										</div>
-									</div>
-								)}
-
-								<div>
-									<label htmlFor="tx-tag" className="block text-xs font-medium text-slate-400 mb-1.5">
-										Etiqueta
-									</label>
-									<select
-										id="tx-tag"
-										value={txForm.tag}
-										onChange={(e) => setTxForm({ ...txForm, tag: e.target.value })}
-										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
-									>
-										{txForm.type === 'income'
-											? DEFAULT_TAGS.income.map((tag) => (
-													<option key={tag} value={tag}>
-														{tag}
-													</option>
-												))
-											: DEFAULT_TAGS.expense.map((tag) => (
-													<option key={tag} value={tag}>
-														{tag}
+												{accounts.map((acc) => (
+													<option key={acc.id} value={acc.id}>
+														{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
 													</option>
 												))}
-									</select>
-								</div>
+											</select>
+										</div>
+
+										<div>
+											<label htmlFor="tx-to-account" className="block text-xs font-medium text-slate-400 mb-1.5">
+												Cuenta de Destino
+											</label>
+											<select
+												id="tx-to-account"
+												value={txForm.toAccountId}
+												onChange={(e) => setTxForm({ ...txForm, toAccountId: e.target.value })}
+												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
+											>
+												{accounts.filter((acc) => acc.id !== txForm.fromAccountId).map((acc) => (
+													<option key={acc.id} value={acc.id}>
+														{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+													</option>
+												))}
+											</select>
+										</div>
+									</>
+								) : (
+									<>
+										<div>
+											<label htmlFor="tx-account" className="block text-xs font-medium text-slate-400 mb-1.5">
+												Cuenta Asociada
+											</label>
+											<select
+												id="tx-account"
+												value={txForm.accountId}
+												onChange={(e) => {
+													const accId = e.target.value;
+													const acc = accounts.find((a) => a.id === accId);
+													setTxForm({
+														...txForm,
+														accountId: accId,
+														owner: acc ? acc.owner : txForm.owner
+													});
+												}}
+												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
+											>
+												<option value="">Sin Cuenta (Manual)</option>
+												{accounts.map((acc) => (
+													<option key={acc.id} value={acc.id}>
+														{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+													</option>
+												))}
+											</select>
+										</div>
+
+										{!txForm.accountId && (
+											<>
+												<div>
+													<label className="block text-xs font-medium text-slate-400 mb-1.5">¿De quién es?</label>
+													<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+														<button
+															type="button"
+															onClick={() => setTxForm({ ...txForm, owner: 'userA' })}
+															className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+																txForm.owner === 'userA'
+																	? 'bg-indigo-600 text-white shadow-md'
+																	: 'text-slate-400 hover:text-slate-200'
+															}`}
+														>
+															{userAName}
+														</button>
+														<button
+															type="button"
+															onClick={() => setTxForm({ ...txForm, owner: 'userB' })}
+															className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+																txForm.owner === 'userB'
+																	? 'bg-indigo-600 text-white shadow-md'
+																	: 'text-slate-400 hover:text-slate-200'
+															}`}
+														>
+															{userBName}
+														</button>
+														<button
+															type="button"
+															onClick={() => setTxForm({ ...txForm, owner: 'joint' })}
+															className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+																txForm.owner === 'joint' || !txForm.owner
+																	? 'bg-indigo-600 text-white shadow-md'
+																	: 'text-slate-400 hover:text-slate-200'
+															}`}
+														>
+															Conjunto
+														</button>
+													</div>
+												</div>
+
+												{txForm.owner === 'joint' && txForm.type === 'expense' && (
+													<div>
+														<label className="block text-xs font-medium text-slate-400 mb-1.5">Pagado por</label>
+														<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+															<button
+																type="button"
+																onClick={() => setTxForm({ ...txForm, paidBy: 'userA' })}
+																className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+																	txForm.paidBy === 'userA'
+																		? 'bg-slate-750 text-white shadow-md'
+																		: 'text-slate-400 hover:text-slate-200'
+																}`}
+															>
+																{userAName}
+															</button>
+															<button
+																type="button"
+																onClick={() => setTxForm({ ...txForm, paidBy: 'userB' })}
+																className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+																	txForm.paidBy === 'userB'
+																		? 'bg-slate-750 text-white shadow-md'
+																		: 'text-slate-400 hover:text-slate-200'
+																}`}
+															>
+																{userBName}
+															</button>
+															<button
+																type="button"
+																onClick={() => setTxForm({ ...txForm, paidBy: 'shared' })}
+																className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+																	txForm.paidBy === 'shared' || !txForm.paidBy
+																		? 'bg-slate-750 text-white shadow-md'
+																		: 'text-slate-400 hover:text-slate-200'
+																}`}
+															>
+																Cuenta Común
+															</button>
+														</div>
+													</div>
+												)}
+											</>
+										)}
+
+										<div>
+											<label htmlFor="tx-tag" className="block text-xs font-medium text-slate-400 mb-1.5">
+												Etiqueta
+											</label>
+											<select
+												id="tx-tag"
+												value={txForm.tag}
+												onChange={(e) => setTxForm({ ...txForm, tag: e.target.value })}
+												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
+											>
+												{txForm.type === 'income'
+													? DEFAULT_TAGS.income.map((tag) => (
+															<option key={tag} value={tag}>
+																{tag}
+															</option>
+														))
+													: DEFAULT_TAGS.expense.map((tag) => (
+															<option key={tag} value={tag}>
+																{tag}
+															</option>
+														))}
+											</select>
+										</div>
+									</>
+								)}
 
 								<button
 									type="submit"
@@ -2298,55 +2738,109 @@ export default function App() {
 												<tr key={t.id} className="hover:bg-slate-800/20 transition-colors">
 													<td className="py-3.5 pl-2 text-slate-400 font-mono text-xs">{t.date}</td>
 													<td className="py-3.5 font-medium text-slate-200">
-														<div className="flex items-center space-x-2">
-															<span>{t.desc}</span>
-															{t.recurrence === 'recurring' && (
-																<span 
-																	title="Movimiento Recurrente"
-																	className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
-																>
-																	<svg className="w-3 h-3 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-																		<path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.5" />
-																	</svg>
-																	Recurrente
-																</span>
+														<div className="flex flex-col">
+															<div className="flex items-center space-x-2">
+																<span>{t.desc}</span>
+																{t.recurrence === 'recurring' && (
+																	<span 
+																		title="Movimiento Recurrente"
+																		className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+																	>
+																		<svg className="w-3 h-3 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+																			<path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.5" />
+																		</svg>
+																		Recurrente
+																	</span>
+																)}
+															</div>
+															{t.type === 'transfer' ? (
+																<div className="text-[10px] text-slate-500 font-mono mt-0.5">
+																	{accounts.find((a) => a.id === t.fromAccountId)?.name || 'Sin origen'} ➔ {accounts.find((a) => a.id === t.toAccountId)?.name || 'Sin destino'}
+																</div>
+															) : (
+																t.accountId && (
+																	<div className="text-[10px] text-slate-500 font-mono mt-0.5">
+																		Cuenta: {accounts.find((a) => a.id === t.accountId)?.name || 'Desconocida'}
+																	</div>
+																)
 															)}
 														</div>
 													</td>
 													<td className="py-3.5">
-														<span
-															className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-																t.owner === 'userA'
-																	? 'bg-indigo-500/15 text-indigo-400'
+														{t.type === 'transfer' ? (
+															<span className="inline-block px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-bold">
+																Traspaso
+															</span>
+														) : (
+															<span
+																className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+																	t.owner === 'userA'
+																		? 'bg-indigo-500/15 text-indigo-400'
+																		: t.owner === 'userB'
+																			? 'bg-violet-500/15 text-violet-400'
+																			: 'bg-emerald-500/15 text-emerald-400'
+																}`}
+															>
+																{t.owner === 'userA'
+																	? userAName
 																	: t.owner === 'userB'
-																		? 'bg-violet-500/15 text-violet-400'
-																		: 'bg-emerald-500/15 text-emerald-400'
-															}`}
-														>
-															{t.owner === 'userA'
-																? userAName
-																: t.owner === 'userB'
-																	? userBName
-																	: 'Conjunto'}
-															{t.owner === 'joint' && t.type === 'expense' && ` (${t.paidBy === 'userA' ? userAName : t.paidBy === 'userB' ? userBName : 'Común'})`}
-														</span>
+																		? userBName
+																		: 'Conjunto'}
+																{t.owner === 'joint' && t.type === 'expense' && ` (${t.paidBy === 'userA' ? userAName : t.paidBy === 'userB' ? userBName : 'Común'})`}
+															</span>
+														)}
 													</td>
 													<td className="py-3.5">
 														<span
 															className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
 																t.type === 'income'
 																	? 'bg-emerald-500/10 text-emerald-400'
-																	: 'bg-rose-500/10 text-rose-400'
+																	: t.type === 'transfer'
+																		? 'bg-sky-500/10 text-sky-400'
+																		: 'bg-rose-500/10 text-rose-400'
 															}`}
 														>
 															{t.tag}
 														</span>
 													</td>
-													<td
-														className={`py-3.5 text-right font-bold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}
-													>
-														{t.type === 'income' ? '+' : '-'}
-														{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+													<td className="py-3.5 text-right">
+														{(() => {
+															if (t.type === 'transfer') {
+																const getWeight = (owner: 'userA' | 'userB' | 'joint') => {
+																	if (viewMode === 'all') return 1;
+																	if (viewMode === 'userA') {
+																		if (owner === 'userA') return 1;
+																		if (owner === 'joint') return 0.5;
+																		return 0;
+																	}
+																	if (viewMode === 'userB') {
+																		if (owner === 'userB') return 1;
+																		if (owner === 'joint') return 0.5;
+																		return 0;
+																	}
+																	return 0;
+																};
+																const fromAcc = accounts.find((a) => a.id === t.fromAccountId);
+																const toAcc = accounts.find((a) => a.id === t.toAccountId);
+																if (fromAcc && toAcc) {
+																	const toW = getWeight(toAcc.owner);
+																	const fromW = getWeight(fromAcc.owner);
+																	const netChange = (toW - fromW) * t.amount;
+																	if (netChange > 0.001) {
+																		return <span className="text-emerald-400 font-bold">+{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</span>;
+																	} else if (netChange < -0.001) {
+																		return <span className="text-rose-400 font-bold">-{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</span>;
+																	}
+																}
+																return <span className="text-sky-400 font-bold">{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</span>;
+															}
+															return (
+																<span className={`font-bold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
+																	{t.type === 'income' ? '+' : '-'}
+																	{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+																</span>
+															);
+														})()}
 													</td>
 													<td className="py-3.5 text-center">
 														<button
@@ -2459,6 +2953,33 @@ export default function App() {
 											Conjunta
 										</button>
 									</div>
+								</div>
+
+								<div>
+									<label htmlFor="debt-payment-account" className="block text-xs font-medium text-slate-400 mb-1.5">
+										Cuenta para el Pago de la Cuota
+									</label>
+									<select
+										id="debt-payment-account"
+										value={debtForm.paymentAccountId}
+										onChange={(e) => {
+											const accId = e.target.value;
+											const acc = accounts.find((a) => a.id === accId);
+											setDebtForm({
+												...debtForm,
+												paymentAccountId: accId,
+												owner: acc ? acc.owner : debtForm.owner
+											});
+										}}
+										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
+									>
+										<option value="">Sin Cuenta (Automático por Propietario)</option>
+										{accounts.map((acc) => (
+											<option key={acc.id} value={acc.id}>
+												{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+											</option>
+										))}
+									</select>
 								</div>
 
 								{debtForm.kind === 'classic' ? (
@@ -3047,6 +3568,188 @@ export default function App() {
 						</div>
 					</div>
 				)}
+				{/* 5. GESTIÓN DE CUENTAS (CONFIGURACIÓN) */}
+				{activeTab === 'accounts' && (
+					<div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+						{/* Listado de Cuentas */}
+						<div className="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl p-6">
+							<h3 className="text-lg font-semibold text-slate-200 mb-2 flex items-center gap-2">
+								<svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+									<path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+								</svg>
+								Cuentas Configuradas
+							</h3>
+							<p className="text-xs text-slate-400 mb-6">
+								Tus cuentas financieras activas. Los saldos de apertura de la cronología se calculan en base a sus saldos iniciales.
+							</p>
+
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+								{accounts.map((acc) => {
+									const closingBal = timelineBalances[selectedMonth]?.accountBalances[acc.id] ?? acc.initialBalance;
+									return (
+										<div
+											key={acc.id}
+											className="bg-slate-950 p-5 rounded-xl border border-slate-800/80 hover:border-indigo-500/30 transition-all flex flex-col justify-between"
+										>
+											<div>
+												<div className="flex justify-between items-start mb-2">
+													<h4 className="font-bold text-slate-100 text-sm truncate max-w-[150px]">{acc.name}</h4>
+													<span
+														className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold ${
+															acc.owner === 'userA'
+																? 'bg-indigo-500/15 text-indigo-400'
+																: acc.owner === 'userB'
+																	? 'bg-violet-500/15 text-violet-400'
+																	: 'bg-emerald-500/15 text-emerald-400'
+														}`}
+													>
+														{acc.owner === 'userA'
+															? userAName
+															: acc.owner === 'userB'
+																? userBName
+																: 'Compartida'}
+													</span>
+												</div>
+												<div className="text-xs text-slate-500 font-mono mt-1 space-y-1">
+													<div>Saldo Inicial: {acc.initialBalance.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</div>
+												</div>
+											</div>
+
+											<div className="mt-4 pt-4 border-t border-slate-900/60 flex items-center justify-between">
+												<div>
+													<span className="block text-[10px] text-slate-500">Saldo en {selectedMonth}:</span>
+													<span className={`text-sm font-extrabold ${closingBal >= 0 ? 'text-indigo-400' : 'text-rose-500'}`}>
+														{closingBal.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+													</span>
+												</div>
+												<div className="flex space-x-1.5">
+													<button
+														onClick={() => handleStartEditAccount(acc)}
+														className="text-slate-500 hover:text-indigo-400 p-1.5 rounded-lg transition-colors border border-slate-850 bg-slate-900"
+														title="Editar cuenta"
+													>
+														<Icons.Edit />
+													</button>
+													<button
+														onClick={() => handleDeleteAccount(acc.id)}
+														className="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg transition-colors border border-slate-850 bg-slate-900"
+														title="Eliminar cuenta"
+													>
+														<Icons.Trash />
+													</button>
+												</div>
+											</div>
+										</div>
+									);
+								})}
+							</div>
+						</div>
+
+						{/* Formulario de Alta/Edición */}
+						<div className="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl p-6 h-fit">
+							<h3 className="text-lg font-semibold text-slate-200 mb-6 flex items-center">
+								<span className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg mr-2">
+									{editingAccount ? <Icons.Edit /> : <Icons.Plus />}
+								</span>
+								{editingAccount ? 'Editar Cuenta' : 'Nueva Cuenta'}
+							</h3>
+
+							<form onSubmit={editingAccount ? handleSaveEditAccount : handleAddAccount} className="space-y-4">
+								<div>
+									<label htmlFor="acc-name" className="block text-xs font-medium text-slate-400 mb-1.5">
+										Nombre de la Cuenta
+									</label>
+									<input
+										id="acc-name"
+										type="text"
+										required
+										placeholder="Ej. Nómina La Caixa, Cuenta Ahorros..."
+										value={accountForm.name}
+										onChange={(e) => setAccountForm({ ...accountForm, name: e.target.value })}
+										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-600"
+									/>
+								</div>
+
+								<div>
+									<label className="block text-xs font-medium text-slate-400 mb-1.5">Propietario / Tipo</label>
+									<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+										<button
+											type="button"
+											onClick={() => setAccountForm({ ...accountForm, owner: 'userA' })}
+											className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+												accountForm.owner === 'userA'
+													? 'bg-indigo-600 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											{userAName}
+										</button>
+										<button
+											type="button"
+											onClick={() => setAccountForm({ ...accountForm, owner: 'userB' })}
+											className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+												accountForm.owner === 'userB'
+													? 'bg-indigo-600 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											{userBName}
+										</button>
+										<button
+											type="button"
+											onClick={() => setAccountForm({ ...accountForm, owner: 'joint' })}
+											className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+												accountForm.owner === 'joint'
+													? 'bg-indigo-600 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											Compartida
+										</button>
+									</div>
+								</div>
+
+								<div>
+									<label htmlFor="acc-balance" className="block text-xs font-medium text-slate-400 mb-1.5">
+										Saldo Inicial (€)
+									</label>
+									<input
+										id="acc-balance"
+										type="number"
+										step="0.01"
+										required
+										min="0"
+										placeholder="0.00"
+										value={accountForm.initialBalance}
+										onChange={(e) => setAccountForm({ ...accountForm, initialBalance: e.target.value })}
+										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
+									/>
+								</div>
+
+								<div className="flex gap-2 pt-2">
+									<button
+										type="submit"
+										className={`font-semibold py-2.5 rounded-xl text-sm transition-all shadow-lg active:scale-95 ${editingAccount ? 'w-1/2 bg-indigo-600 hover:bg-indigo-500 text-white' : 'w-full bg-indigo-600 hover:bg-indigo-500 text-white'}`}
+									>
+										{editingAccount ? 'Guardar' : 'Agregar Cuenta'}
+									</button>
+									{editingAccount && (
+										<button
+											type="button"
+											onClick={() => {
+												setEditingAccount(null);
+												setAccountForm({ name: '', owner: 'joint', initialBalance: '' });
+											}}
+											className="w-1/2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition-all"
+										>
+											Cancelar
+										</button>
+									)}
+								</div>
+							</form>
+						</div>
+					</div>
+				)}
 
 				{/* 5. ASESOR GEMINI AI */}
 				{activeTab === 'ai' && (
@@ -3284,38 +3987,34 @@ export default function App() {
 
 								<div className="space-y-4 border-t border-slate-800/80 pt-4">
 									<h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Balances de Apertura (€)</h3>
-									<div className="grid grid-cols-2 gap-4">
-										<div>
-											<label htmlFor="modal-init-balance-a" className="block text-[11px] font-medium text-slate-500 mb-1">Saldo inicial {userAName || 'Usuario A'}</label>
-											<input
-												id="modal-init-balance-a"
-												type="number"
-												step="0.01"
-												required
-												min="0"
-												value={initBalanceA}
-												onChange={(e) => setInitBalanceA(e.target.value)}
-												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs text-slate-100 outline-none"
-											/>
-										</div>
-										<div>
-											<label htmlFor="modal-init-balance-b" className="block text-[11px] font-medium text-slate-500 mb-1">Saldo inicial {userBName || 'Usuario B'}</label>
-											<input
-												id="modal-init-balance-b"
-												type="number"
-												step="0.01"
-												required
-												min="0"
-												value={initBalanceB}
-												onChange={(e) => setInitBalanceB(e.target.value)}
-												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs text-slate-100 outline-none"
-											/>
-										</div>
+									<div className="space-y-3">
+										{reconfigAccounts.map((acc, index) => (
+											<div key={acc.id} className="flex flex-col">
+												<label htmlFor={`init-balance-modal-${acc.id}`} className="block text-[11px] font-medium text-slate-500 mb-1">
+													Saldo inicial: {acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+												</label>
+												<input
+													id={`init-balance-modal-${acc.id}`}
+													type="number"
+													step="0.01"
+													required
+													min="0"
+													value={acc.initialBalance}
+													onChange={(e) => {
+														const val = parseFloat(e.target.value) || 0;
+														setReconfigAccounts((prev) =>
+															prev.map((a, i) => (i === index ? { ...a, initialBalance: val } : a))
+														);
+													}}
+													className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs text-slate-100 outline-none"
+												/>
+											</div>
+										))}
 									</div>
 									<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs flex justify-between items-center text-slate-400">
 										<span>Total Conjunto:</span>
 										<span className="font-bold text-slate-200 text-sm">
-											{((parseFloat(initBalanceA) || 0) + (parseFloat(initBalanceB) || 0)).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+											{reconfigAccounts.reduce((sum, a) => sum + (a.initialBalance || 0), 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
 										</span>
 									</div>
 								</div>
@@ -3380,11 +4079,11 @@ export default function App() {
 							<form onSubmit={handleSaveEditTransaction} className="space-y-4">
 								<div>
 									<label className="block text-xs font-medium text-slate-400 mb-1.5">Tipo de Movimiento</label>
-									<div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+									<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
 										<button
 											type="button"
 											onClick={() => setEditForm({ ...editForm, type: 'expense', tag: DEFAULT_TAGS.expense[0] })}
-											className={`py-2 rounded-lg text-xs font-semibold transition-all ${
+											className={`py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 												editForm.type === 'expense'
 													? 'bg-rose-500 text-white shadow-md'
 													: 'text-slate-400 hover:text-slate-200'
@@ -3395,13 +4094,24 @@ export default function App() {
 										<button
 											type="button"
 											onClick={() => setEditForm({ ...editForm, type: 'income', tag: DEFAULT_TAGS.income[0] })}
-											className={`py-2 rounded-lg text-xs font-semibold transition-all ${
+											className={`py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 												editForm.type === 'income'
 													? 'bg-emerald-500 text-white shadow-md'
 													: 'text-slate-400 hover:text-slate-200'
 											}`}
 										>
-											Cobro / Ingreso
+											Cobro
+										</button>
+										<button
+											type="button"
+											onClick={() => setEditForm({ ...editForm, type: 'transfer', tag: 'Traspaso' })}
+											className={`py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+												editForm.type === 'transfer'
+													? 'bg-sky-500 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											Traspaso
 										</button>
 									</div>
 								</div>
@@ -3450,109 +4160,182 @@ export default function App() {
 									/>
 								</div>
 
-								<div>
-									<label className="block text-xs font-medium text-slate-400 mb-1.5">¿De quién es?</label>
-									<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
-										<button
-											type="button"
-											onClick={() => setEditForm({ ...editForm, owner: 'userA' })}
-											className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
-												editForm.owner === 'userA'
-													? 'bg-indigo-600 text-white shadow-md'
-													: 'text-slate-400 hover:text-slate-200'
-											}`}
-										>
-											{userAName}
-										</button>
-										<button
-											type="button"
-											onClick={() => setEditForm({ ...editForm, owner: 'userB' })}
-											className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
-												editForm.owner === 'userB'
-													? 'bg-indigo-600 text-white shadow-md'
-													: 'text-slate-400 hover:text-slate-200'
-											}`}
-										>
-											{userBName}
-										</button>
-										<button
-											type="button"
-											onClick={() => setEditForm({ ...editForm, owner: 'joint' })}
-											className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
-												editForm.owner === 'joint'
-													? 'bg-indigo-600 text-white shadow-md'
-													: 'text-slate-400 hover:text-slate-200'
-											}`}
-										>
-											Conjunto
-										</button>
-									</div>
-								</div>
-
-								{editForm.owner === 'joint' && editForm.type === 'expense' && (
-									<div>
-										<label className="block text-xs font-medium text-slate-400 mb-1.5">Pagado por</label>
-										<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
-											<button
-												type="button"
-												onClick={() => setEditForm({ ...editForm, paidBy: 'userA' })}
-												className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
-													editForm.paidBy === 'userA'
-														? 'bg-slate-750 text-white shadow-md'
-														: 'text-slate-400 hover:text-slate-200'
-												}`}
+								{editForm.type === 'transfer' ? (
+									<>
+										<div>
+											<label htmlFor="edit-from-account" className="block text-xs font-medium text-slate-400 mb-1.5">
+												Cuenta de Origen
+											</label>
+											<select
+												id="edit-from-account"
+												value={editForm.fromAccountId}
+												onChange={(e) => setEditForm({ ...editForm, fromAccountId: e.target.value })}
+												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
 											>
-												{userAName}
-											</button>
-											<button
-												type="button"
-												onClick={() => setEditForm({ ...editForm, paidBy: 'userB' })}
-												className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
-													editForm.paidBy === 'userB'
-														? 'bg-slate-750 text-white shadow-md'
-														: 'text-slate-400 hover:text-slate-200'
-												}`}
-											>
-												{userBName}
-											</button>
-											<button
-												type="button"
-												onClick={() => setEditForm({ ...editForm, paidBy: 'shared' })}
-												className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
-													editForm.paidBy === 'shared'
-														? 'bg-slate-750 text-white shadow-md'
-														: 'text-slate-400 hover:text-slate-200'
-												}`}
-											>
-												Común
-											</button>
-										</div>
-									</div>
-								)}
-
-								<div>
-									<label htmlFor="edit-tag" className="block text-xs font-medium text-slate-400 mb-1.5">
-										Etiqueta
-									</label>
-									<select
-										id="edit-tag"
-										value={editForm.tag}
-										onChange={(e) => setEditForm({ ...editForm, tag: e.target.value })}
-										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
-									>
-										{editForm.type === 'income'
-											? DEFAULT_TAGS.income.map((tag) => (
-													<option key={tag} value={tag}>
-														{tag}
-													</option>
-												))
-											: DEFAULT_TAGS.expense.map((tag) => (
-													<option key={tag} value={tag}>
-														{tag}
+												{accounts.map((acc) => (
+													<option key={acc.id} value={acc.id}>
+														{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
 													</option>
 												))}
-									</select>
-								</div>
+											</select>
+										</div>
+
+										<div>
+											<label htmlFor="edit-to-account" className="block text-xs font-medium text-slate-400 mb-1.5">
+												Cuenta de Destino
+											</label>
+											<select
+												id="edit-to-account"
+												value={editForm.toAccountId}
+												onChange={(e) => setEditForm({ ...editForm, toAccountId: e.target.value })}
+												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
+											>
+												{accounts.filter((acc) => acc.id !== editForm.fromAccountId).map((acc) => (
+													<option key={acc.id} value={acc.id}>
+														{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+													</option>
+												))}
+											</select>
+										</div>
+									</>
+								) : (
+									<>
+										<div>
+											<label htmlFor="edit-account" className="block text-xs font-medium text-slate-400 mb-1.5">
+												Cuenta Asociada
+											</label>
+											<select
+												id="edit-account"
+												value={editForm.accountId}
+												onChange={(e) => {
+													const accId = e.target.value;
+													const acc = accounts.find((a) => a.id === accId);
+													setEditForm({
+														...editForm,
+														accountId: accId,
+														owner: acc ? acc.owner : editForm.owner
+													});
+												}}
+												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
+											>
+												<option value="">Sin Cuenta (Manual)</option>
+												{accounts.map((acc) => (
+													<option key={acc.id} value={acc.id}>
+														{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+													</option>
+												))}
+											</select>
+										</div>
+
+										{!editForm.accountId && (
+											<>
+												<div>
+													<label className="block text-xs font-medium text-slate-400 mb-1.5">¿De quién es?</label>
+													<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+														<button
+															type="button"
+															onClick={() => setEditForm({ ...editForm, owner: 'userA' })}
+															className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+																editForm.owner === 'userA'
+																	? 'bg-indigo-600 text-white shadow-md'
+																	: 'text-slate-400 hover:text-slate-200'
+															}`}
+														>
+															{userAName}
+														</button>
+														<button
+															type="button"
+															onClick={() => setEditForm({ ...editForm, owner: 'userB' })}
+															className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+																editForm.owner === 'userB'
+																	? 'bg-indigo-600 text-white shadow-md'
+																	: 'text-slate-400 hover:text-slate-200'
+															}`}
+														>
+															{userBName}
+														</button>
+														<button
+															type="button"
+															onClick={() => setEditForm({ ...editForm, owner: 'joint' })}
+															className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+																editForm.owner === 'joint'
+																	? 'bg-indigo-600 text-white shadow-md'
+																	: 'text-slate-400 hover:text-slate-200'
+															}`}
+														>
+															Conjunto
+														</button>
+													</div>
+												</div>
+
+												{editForm.owner === 'joint' && editForm.type === 'expense' && (
+													<div>
+														<label className="block text-xs font-medium text-slate-400 mb-1.5">Pagado por</label>
+														<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+															<button
+																type="button"
+																onClick={() => setEditForm({ ...editForm, paidBy: 'userA' })}
+																className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+																	editForm.paidBy === 'userA'
+																		? 'bg-slate-750 text-white shadow-md'
+																		: 'text-slate-400 hover:text-slate-200'
+																}`}
+															>
+																{userAName}
+															</button>
+															<button
+																type="button"
+																onClick={() => setEditForm({ ...editForm, paidBy: 'userB' })}
+																className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+																	editForm.paidBy === 'userB'
+																		? 'bg-slate-750 text-white shadow-md'
+																		: 'text-slate-400 hover:text-slate-200'
+																}`}
+															>
+																{userBName}
+															</button>
+															<button
+																type="button"
+																onClick={() => setEditForm({ ...editForm, paidBy: 'shared' })}
+																className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+																	editForm.paidBy === 'shared'
+																		? 'bg-slate-750 text-white shadow-md'
+																		: 'text-slate-400 hover:text-slate-200'
+																}`}
+															>
+																Común
+															</button>
+														</div>
+													</div>
+												)}
+											</>
+										)}
+
+										<div>
+											<label htmlFor="edit-tag" className="block text-xs font-medium text-slate-400 mb-1.5">
+												Etiqueta
+											</label>
+											<select
+												id="edit-tag"
+												value={editForm.tag}
+												onChange={(e) => setEditForm({ ...editForm, tag: e.target.value })}
+												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
+											>
+												{editForm.type === 'income'
+													? DEFAULT_TAGS.income.map((tag) => (
+															<option key={tag} value={tag}>
+																{tag}
+															</option>
+														))
+													: DEFAULT_TAGS.expense.map((tag) => (
+															<option key={tag} value={tag}>
+																{tag}
+															</option>
+														))}
+											</select>
+										</div>
+									</>
+								)}
 
 								{/* Rango de Edición para recurrentes */}
 								{editingTx.recurrence === 'recurring' && (
