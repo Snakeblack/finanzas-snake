@@ -12,7 +12,12 @@ const PEER_CONFIG = {
 				urls: [
 					'turn:openrelay.metered.ca:80',
 					'turn:openrelay.metered.ca:443',
-					'turn:openrelay.metered.ca:443?transport=tcp'
+					'turn:openrelay.metered.ca:443?transport=tcp',
+					'turns:openrelay.metered.ca:443?transport=tcp',
+					'turn:relay.metered.ca:80',
+					'turn:relay.metered.ca:443',
+					'turn:relay.metered.ca:443?transport=tcp',
+					'turns:relay.metered.ca:443?transport=tcp'
 				],
 				username: 'openrelayproject',
 				credential: 'openrelayproject'
@@ -149,7 +154,7 @@ export interface ClientCallbacks {
  * Conecta a una sesión de envío utilizando el código provisto para recibir los datos.
  */
 export const connectToSyncHost = (code: string, callbacks: ClientCallbacks): { destroy: () => void } => {
-	let peer: Peer | null = new Peer(PEER_CONFIG);
+	let peer: Peer | null = new Peer(undefined, PEER_CONFIG);
 	let conn: any = null;
 	let isDestroyed = false;
 
