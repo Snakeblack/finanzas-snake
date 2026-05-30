@@ -30,7 +30,7 @@ export default async function handler(req, res) {
 	appNameClean = appNameClean.replace(/\.metered\.(ca|live)$/i, '');
 	appNameClean = appNameClean.replace(/\/+$/, '');
 
-	// Metered usa el dominio .metered.live y el param secretKey (no apiKey)
+	// Metered usa el dominio .metered.live (el param en la URL se llama apiKey)
 	const targetUrl = `https://${appNameClean}.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`;
 
 	try {
