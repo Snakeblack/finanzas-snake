@@ -1289,7 +1289,8 @@ export default function App() {
 		expenses: 0,
 		debtPayments: 0,
 		netBalance: 0,
-		closingBalance: 0
+		closingBalance: 0,
+		accountBalances: {}
 	};
 
 	const totalIncomes = activePeriodData.incomes;
@@ -2107,6 +2108,634 @@ export default function App() {
 		}).catch((err) => {
 			console.error('Failed to copy text: ', err);
 		});
+	};
+
+	const convertMarkdownToHtml = (text: string): string => {
+		const parts = text.split(/(```[\s\S]*?```)/g);
+
+		const renderInlineMarkdownHtml = (inlineText: string): string => {
+			let escaped = inlineText
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#039;');
+
+			escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+			escaped = escaped.replace(/`(.*?)`/g, '<code style="background-color: #f1f5f9; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em; color: #4f46e5;">$1</code>');
+			return escaped;
+		};
+
+		const htmlParts = parts.map((part) => {
+			if (part.startsWith('```')) {
+				const lines = part.split('\n');
+				let language = 'text';
+				let code = part;
+				if (lines[0].startsWith('```')) {
+					language = lines[0].replace('```', '').trim() || 'text';
+					code = lines.slice(1, -1).join('\n');
+				}
+				const escapedCode = code
+					.replace(/&/g, '&amp;')
+					.replace(/</g, '&lt;')
+					.replace(/>/g, '&gt;');
+				return `<pre style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 12px; overflow-x: auto; color: #334155; margin: 8px 0;">` +
+					(language !== 'text' ? `<span style="display: block; font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: bold; margin-bottom: 6px; font-family: sans-serif;">${language}</span>` : '') +
+					`<code>${escapedCode}</code></pre>`;
+			} else {
+				const lines = part.split('\n');
+				const renderedHtml: string[] = [];
+				let listItems: string[] = [];
+				let listType: 'ol' | 'ul' | null = null;
+
+				const flushListHtml = () => {
+					if (listItems.length > 0) {
+						if (listType === 'ul') {
+							renderedHtml.push(`<ul style="list-style-type: disc; padding-left: 20px; margin: 8px 0; color: #334155;">${listItems.map(item => `<li style="margin-bottom: 4px;">${renderInlineMarkdownHtml(item)}</li>`).join('')}</ul>`);
+						} else if (listType === 'ol') {
+							renderedHtml.push(`<ol style="list-style-type: decimal; padding-left: 20px; margin: 8px 0; color: #334155;">${listItems.map(item => `<li style="margin-bottom: 4px;">${renderInlineMarkdownHtml(item)}</li>`).join('')}</ol>`);
+						}
+						listItems = [];
+						listType = null;
+					}
+				};
+
+				const parseTableHtml = (tableLines: string[]): string => {
+					if (tableLines.length < 2) return '';
+					
+					const splitRow = (l: string) => {
+						const parts = l.trim().split('|');
+						if (l.trim().startsWith('|')) parts.shift();
+						if (l.trim().endsWith('|')) parts.pop();
+						return parts.map(p => p.trim());
+					};
+
+					const headers = splitRow(tableLines[0]);
+					const sepLine = tableLines[1].trim();
+					const isSeparator = /^\|?(\s*:?-+\s*:?\s*\|)+\s*:?-+\s*:?\|?$/.test(sepLine);
+					
+					let rowsStartIndex = 1;
+					let alignStyles: string[] = [];
+					
+					if (isSeparator) {
+						rowsStartIndex = 2;
+						const sepCells = splitRow(tableLines[1]);
+						alignStyles = sepCells.map(cell => {
+							const trimmed = cell.trim();
+							const left = trimmed.startsWith(':');
+							const right = trimmed.endsWith(':');
+							if (left && right) return 'text-align: center;';
+							if (right) return 'text-align: right;';
+							if (left) return 'text-align: left;';
+							return '';
+						});
+					}
+
+					const rows = tableLines.slice(rowsStartIndex).map(rowLine => splitRow(rowLine));
+
+					let tableHtml = `<div style="overflow-x: auto; margin: 12px 0; border: 1px solid #e2e8f0; border-radius: 8px;"><table style="min-width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">`;
+					tableHtml += `<thead style="background-color: #f1f5f9; color: #475569; font-weight: bold; border-bottom: 1px solid #e2e8f0;"><tr>`;
+					headers.forEach((h, idx) => {
+						const align = alignStyles[idx] || '';
+						tableHtml += `<th style="padding: 8px 12px; border-right: 1px solid #e2e8f0; ${align}">${renderInlineMarkdownHtml(h)}</th>`;
+					});
+					tableHtml += `</tr></thead>`;
+
+					tableHtml += `<tbody style="color: #334155;">`;
+					rows.forEach((row, rIdx) => {
+						const bg = rIdx % 2 === 0 ? 'background-color: #ffffff;' : 'background-color: #f8fafc;';
+						tableHtml += `<tr style="${bg} border-bottom: 1px solid #f1f5f9;">`;
+						headers.forEach((_, cIdx) => {
+							const cellValue = row[cIdx] || '';
+							const align = alignStyles[cIdx] || '';
+							tableHtml += `<td style="padding: 6px 12px; border-right: 1px solid #f1f5f9; ${align}">${renderInlineMarkdownHtml(cellValue)}</td>`;
+						});
+						tableHtml += `</tr>`;
+					});
+					tableHtml += `</tbody></table></div>`;
+					return tableHtml;
+				};
+
+				for (let i = 0; i < lines.length; i++) {
+					const line = lines[i];
+					const trimmedLine = line.trim();
+
+					if (trimmedLine === '') {
+						flushListHtml();
+						continue;
+					}
+
+					if (trimmedLine.startsWith('|')) {
+						flushListHtml();
+						const tableLines = [line];
+						while (i + 1 < lines.length && lines[i + 1].trim().startsWith('|')) {
+							i++;
+							tableLines.push(lines[i]);
+						}
+						const tableHtml = parseTableHtml(tableLines);
+						if (tableHtml) {
+							renderedHtml.push(tableHtml);
+						} else {
+							tableLines.forEach((tLine) => {
+								renderedHtml.push(`<p style="margin: 6px 0; color: #334155; line-height: 1.5; font-size: 13px;">${renderInlineMarkdownHtml(tLine)}</p>`);
+							});
+						}
+						continue;
+					}
+
+					const headerMatch = line.match(/^(#{1,6})\s+(.*)$/);
+					if (headerMatch) {
+						flushListHtml();
+						const level = headerMatch[1].length;
+						const content = headerMatch[2];
+						const fontSize = level === 1 ? '18px' : level === 2 ? '16px' : level === 3 ? '14px' : '12px';
+						const margin = '12px 0 6px 0';
+						renderedHtml.push(`<h${level + 2} style="font-size: ${fontSize}; font-weight: bold; color: #1e293b; margin: ${margin}; font-family: sans-serif;">${renderInlineMarkdownHtml(content)}</h${level + 2}>`);
+						continue;
+					}
+
+					const ulMatch = line.match(/^[\*\-\+]\s+(.*)$/);
+					if (ulMatch) {
+						if (listType !== 'ul') {
+							flushListHtml();
+							listType = 'ul';
+						}
+						listItems.push(ulMatch[1]);
+						continue;
+					}
+
+					const olMatch = line.match(/^\d+\.\s+(.*)$/);
+					if (olMatch) {
+						if (listType !== 'ol') {
+							flushListHtml();
+							listType = 'ol';
+						}
+						listItems.push(olMatch[1]);
+						continue;
+					}
+
+					flushListHtml();
+					renderedHtml.push(`<p style="margin: 6px 0; color: #334155; line-height: 1.5; font-size: 13px;">${renderInlineMarkdownHtml(line)}</p>`);
+				}
+				flushListHtml();
+				return renderedHtml.join('');
+			}
+		});
+
+		return htmlParts.join('');
+	};
+
+	const handleDownloadChatPDF = () => {
+		const iframe = document.createElement('iframe');
+		iframe.style.position = 'fixed';
+		iframe.style.right = '0';
+		iframe.style.bottom = '0';
+		iframe.style.width = '0';
+		iframe.style.height = '0';
+		iframe.style.border = '0';
+		document.body.appendChild(iframe);
+
+		const doc = iframe.contentWindow?.document || iframe.contentDocument;
+		if (!doc) return;
+
+		const dateStr = new Date().toLocaleDateString('es-ES', {
+			year: 'numeric',
+			month: 'long',
+			day: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+
+		const vistaActiva = viewMode === 'all' 
+			? 'Conjunta' 
+			: viewMode === 'userA' 
+				? `Individual de ${userAName}` 
+				: `Individual de ${userBName}`;
+
+		const tagBreakdown = getTagBreakdown();
+
+		const liquidacionText = netOwed === 0 
+			? 'Cuentas al día' 
+			: netOwed > 0 
+				? `${userBName} debe a ${userAName} ${netOwed.toFixed(2)}€` 
+				: `${userAName} debe a ${userBName} ${Math.abs(netOwed).toFixed(2)}€`;
+
+		const accountsListHtml = accounts.map(acc => {
+			const bal = activePeriodData.accountBalances?.[acc.id] ?? acc.initialBalance;
+			const ownerLabel = acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Conjunta';
+			return `
+				<tr>
+					<td>${acc.name}</td>
+					<td>${ownerLabel}</td>
+					<td style="text-align: right; font-weight: bold; color: ${bal >= 0 ? '#10b981' : '#ef4444'}">${bal.toFixed(2)}€</td>
+				</tr>
+			`;
+		}).join('');
+
+		const debtsListHtml = debts.length > 0 ? debts.map(d => {
+			const ownerLabel = d.owner === 'userA' ? userAName : d.owner === 'userB' ? userBName : 'Conjunta';
+			const cuota = calculateDebtMonthlyPayment(d, selectedMonth);
+			const isActive = filteredDebts.some((fd) => fd.id === d.id);
+			const isFuture = d.date > selectedMonth;
+			const statusLabel = isActive ? 'Activa este mes' : isFuture ? `Futura (empieza en ${d.date})` : 'Inactiva';
+			
+			let details = '';
+			if (isClassicDebt(d)) {
+				details = `Capital: ${d.principal}€, ${getDebtRateLabel(d)}, Plazo: ${d.termMonths} meses`;
+			} else {
+				details = `Financiado: ${d.financedAmount}€, Comisiones: ${d.fees}€, Total: ${d.totalToPay}€`;
+			}
+
+			return `
+				<tr>
+					<td><strong>${d.desc}</strong><br/><small style="color: #64748b;">${details}</small></td>
+					<td>${ownerLabel}</td>
+					<td>${statusLabel}</td>
+					<td style="text-align: right; font-weight: bold; color: #f59e0b;">${cuota.toFixed(2)}€</td>
+				</tr>
+			`;
+		}).join('') : '<tr><td colspan="4" style="text-align: center; color: #94a3b8;">No hay deudas registradas</td></tr>';
+
+		const transactionsListHtml = filteredTransactions.length > 0 ? filteredTransactions.map(t => {
+			const ownerLabel = t.owner === 'userA' ? userAName : t.owner === 'userB' ? userBName : 'Conjunta';
+			return `
+				<tr>
+					<td>${t.desc}</td>
+					<td><span style="background-color: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${t.tag}</span></td>
+					<td>${t.recurrence === 'recurring' ? 'Recurrente' : 'Puntual'}</td>
+					<td>${ownerLabel}</td>
+					<td style="text-align: right; font-weight: bold; color: ${t.type === 'income' ? '#10b981' : '#ef4444'}">
+						${t.type === 'income' ? '+' : '-'}${t.amount.toFixed(2)}€
+					</td>
+				</tr>
+			`;
+		}).join('') : '<tr><td colspan="5" style="text-align: center; color: #94a3b8;">No hay movimientos este mes</td></tr>';
+
+		const messagesHtml = chatMessages.map(msg => {
+			const isUser = msg.role === 'user';
+			const sender = isUser ? 'Tú' : 'Asesor Gemini';
+			const bubbleClass = isUser ? 'message-user' : 'message-model';
+			const contentHtml = isUser 
+				? `<div style="white-space: pre-wrap;">${msg.content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>` 
+				: convertMarkdownToHtml(msg.content);
+
+			return `
+				<div class="message-bubble ${bubbleClass}">
+					<div class="message-meta">${sender} (${msg.timestamp})</div>
+					<div>${contentHtml}</div>
+				</div>
+			`;
+		}).join('');
+
+		const tagBreakdownHtml = tagBreakdown.map(t => `
+			<tr>
+				<td>${t.tag}</td>
+				<td style="text-align: right; font-weight: bold;">${t.amount.toFixed(2)}€</td>
+			</tr>
+		`).join('');
+
+		const html = `
+			<!DOCTYPE html>
+			<html>
+			<head>
+				<meta charset="utf-8">
+				<title>Informe del Asesor Gemini - ${selectedMonth}</title>
+				<style>
+					body {
+						font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+						color: #334155;
+						background-color: #ffffff;
+						margin: 0;
+						padding: 40px;
+						line-height: 1.5;
+					}
+					.header {
+						border-bottom: 2px solid #e2e8f0;
+						padding-bottom: 16px;
+						margin-bottom: 24px;
+					}
+					.header-top {
+						display: flex;
+						justify-content: space-between;
+						align-items: flex-start;
+					}
+					.header h1 {
+						margin: 0;
+						font-size: 26px;
+						color: #4f46e5;
+						font-weight: 800;
+						letter-spacing: -0.5px;
+					}
+					.header p {
+						margin: 4px 0 0 0;
+						font-size: 12px;
+						color: #64748b;
+					}
+					.report-info {
+						display: flex;
+						justify-content: space-between;
+						margin-top: 16px;
+						font-size: 11px;
+						color: #475569;
+						background-color: #f8fafc;
+						padding: 10px 16px;
+						border-radius: 8px;
+						border: 1px solid #e2e8f0;
+					}
+					.section-title {
+						font-size: 11px;
+						font-weight: 800;
+						color: #0f172a;
+						border-bottom: 2px solid #f1f5f9;
+						padding-bottom: 6px;
+						margin-top: 28px;
+						margin-bottom: 16px;
+						text-transform: uppercase;
+						letter-spacing: 0.75px;
+					}
+					.metrics-grid {
+						display: grid;
+						grid-template-columns: repeat(4, 1fr);
+						gap: 16px;
+						margin-bottom: 24px;
+					}
+					.metric-card {
+						border: 1px solid #e2e8f0;
+						border-radius: 12px;
+						padding: 16px;
+						background-color: #f8fafc;
+						box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+					}
+					.metric-label {
+						font-size: 10px;
+						font-weight: 700;
+						color: #64748b;
+						text-transform: uppercase;
+						letter-spacing: 0.5px;
+					}
+					.metric-value {
+						font-size: 18px;
+						font-weight: 800;
+						margin-top: 6px;
+					}
+					.metric-sub {
+						font-size: 9px;
+						color: #94a3b8;
+						margin-top: 4px;
+						line-height: 1.4;
+					}
+					.split-grid {
+						display: grid;
+						grid-template-columns: 1fr 1fr;
+						gap: 24px;
+						margin-bottom: 24px;
+					}
+					.table-container {
+						border: 1px solid #e2e8f0;
+						border-radius: 12px;
+						overflow: hidden;
+						box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+					}
+					.table {
+						width: 100%;
+						border-collapse: collapse;
+						font-size: 11px;
+						text-align: left;
+					}
+					.table th {
+						background-color: #f8fafc;
+						color: #475569;
+						font-weight: 700;
+						padding: 8px 12px;
+						border-bottom: 1px solid #e2e8f0;
+						text-transform: uppercase;
+						font-size: 9px;
+						letter-spacing: 0.5px;
+					}
+					.table td {
+						padding: 8px 12px;
+						border-bottom: 1px solid #f1f5f9;
+						color: #334155;
+					}
+					.table tr:last-child td {
+						border-bottom: none;
+					}
+					.table tr:nth-child(even) td {
+						background-color: #fdfdfd;
+					}
+					.message-bubble {
+						margin-bottom: 20px;
+						padding: 16px 20px;
+						border-radius: 16px;
+						font-size: 13px;
+						line-height: 1.6;
+						box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+					}
+					.message-user {
+						background-color: #e0e7ff;
+						border-left: 5px solid #4f46e5;
+						color: #1e1b4b;
+					}
+					.message-model {
+						background-color: #f8fafc;
+						border: 1px solid #e2e8f0;
+						border-left: 5px solid #64748b;
+						color: #334155;
+					}
+					.message-meta {
+						font-size: 10px;
+						color: #64748b;
+						margin-bottom: 8px;
+						font-weight: 700;
+						text-transform: uppercase;
+						letter-spacing: 0.5px;
+					}
+					.page-break {
+						page-break-before: always;
+					}
+					
+					@media print {
+						body {
+							padding: 20px;
+						}
+						.metric-card {
+							background-color: #f8fafc !important;
+							-webkit-print-color-adjust: exact;
+							print-color-adjust: exact;
+						}
+						.message-bubble {
+							-webkit-print-color-adjust: exact;
+							print-color-adjust: exact;
+						}
+						.message-user {
+							background-color: #e0e7ff !important;
+						}
+						.message-model {
+							background-color: #f8fafc !important;
+						}
+					}
+				</style>
+			</head>
+			<body>
+				<div class="header">
+					<div class="header-top">
+						<div>
+							<h1>FinanzasPro</h1>
+							<p>Reporte de Análisis y Asesoría Financiera IA</p>
+						</div>
+						<div style="text-align: right;">
+							<span style="background-color: #4f46e5; color: white; padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">
+								Asesor Gemini
+							</span>
+						</div>
+					</div>
+					<div class="report-info">
+						<div><strong>Mes analizado:</strong> ${selectedMonth}</div>
+						<div><strong>Vista activa:</strong> ${vistaActiva}</div>
+						<div><strong>Liquidación:</strong> ${liquidacionText}</div>
+						<div><strong>Generado el:</strong> ${dateStr}</div>
+					</div>
+				</div>
+
+				<div class="section-title">Contexto Financiero de la Vista</div>
+				<div class="metrics-grid">
+					<div class="metric-card">
+						<div class="metric-label">Ingresos Totales</div>
+						<div class="metric-value" style="color: #10b981;">+${totalIncomes.toFixed(2)}€</div>
+						<div class="metric-sub">
+							Recurrentes: +${recurringIncomes.toFixed(2)}€<br/>
+							Puntuales: +${oneOffIncomes.toFixed(2)}€
+						</div>
+					</div>
+					<div class="metric-card">
+						<div class="metric-label">Gastos Totales</div>
+						<div class="metric-value" style="color: #ef4444;">-${totalExpenses.toFixed(2)}€</div>
+						<div class="metric-sub">
+							Recurrentes: -${recurringExpenses.toFixed(2)}€<br/>
+							Puntuales: -${oneOffExpenses.toFixed(2)}€
+						</div>
+					</div>
+					<div class="metric-card">
+						<div class="metric-label">Cuota Deudas</div>
+						<div class="metric-value" style="color: #f59e0b;">-${totalMonthlyDebtPayments.toFixed(2)}€</div>
+						<div class="metric-sub">
+							Deudas activas: ${filteredDebts.length} de ${debts.length}
+						</div>
+					</div>
+					<div class="metric-card" style="border-color: #4f46e5;">
+						<div class="metric-label">Balance Neto Disponible</div>
+						<div class="metric-value" style="color: ${netMonthlyBalance >= 0 ? '#4f46e5' : '#ef4444'};">
+							${netMonthlyBalance.toFixed(2)}€
+						</div>
+						<div class="metric-sub">
+							Apertura: ${currentOpeningBalance.toFixed(2)}€<br/>
+							Cierre: ${currentClosingBalance.toFixed(2)}€
+						</div>
+					</div>
+				</div>
+
+				<div class="split-grid">
+					<div>
+						<div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+							Saldos de Cuentas (Cierre de Mes)
+						</div>
+						<div class="table-container">
+							<table class="table">
+								<thead>
+									<tr>
+										<th>Cuenta</th>
+										<th>Propietario</th>
+										<th style="text-align: right;">Saldo</th>
+									</tr>
+								</thead>
+								<tbody>
+									${accountsListHtml}
+								</tbody>
+							</table>
+						</div>
+					</div>
+					<div>
+						<div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+							Distribución de Gastos por Etiqueta
+						</div>
+						<div class="table-container">
+							<table class="table">
+								<thead>
+									<tr>
+										<th>Categoría / Etiqueta</th>
+										<th style="text-align: right;">Importe</th>
+									</tr>
+								</thead>
+								<tbody>
+									${tagBreakdownHtml.length > 0 ? tagBreakdownHtml : '<tr><td colspan="2" style="text-align: center; color: #94a3b8;">Sin gastos registrados</td></tr>'}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+
+				<div class="page-break"></div>
+
+				<div class="section-title">Registro de Deudas del Mes</div>
+				<div class="table-container" style="margin-bottom: 24px;">
+					<table class="table">
+						<thead>
+							<tr>
+								<th>Descripción</th>
+								<th>Propietario</th>
+								<th>Estado</th>
+								<th style="text-align: right;">Cuota este Mes</th>
+							</tr>
+						</thead>
+						<tbody>
+							${debtsListHtml}
+						</tbody>
+					</table>
+				</div>
+
+				<div class="section-title">Movimientos Detallados del Mes</div>
+				<div class="table-container" style="margin-bottom: 24px;">
+					<table class="table">
+						<thead>
+							<tr>
+								<th>Concepto</th>
+								<th>Categoría</th>
+								<th>Frecuencia</th>
+								<th>Propietario</th>
+								<th style="text-align: right;">Importe</th>
+							</tr>
+						</thead>
+						<tbody>
+							${transactionsListHtml}
+						</tbody>
+					</table>
+				</div>
+
+				<div class="page-break"></div>
+
+				<div class="section-title">Historial de Conversación con el Asesor</div>
+				<div class="chat-history">
+					${messagesHtml}
+				</div>
+
+				<div style="margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 16px; text-align: center; font-size: 10px; color: #94a3b8;">
+					Generado automáticamente por FinanzasPro con tecnología Gemini 3.5.
+				</div>
+			</body>
+			</html>
+		`;
+
+		doc.open();
+		doc.write(html);
+		doc.close();
+
+		setTimeout(() => {
+			iframe.contentWindow?.focus();
+			iframe.contentWindow?.print();
+			setTimeout(() => {
+				document.body.removeChild(iframe);
+			}, 1000);
+		}, 300);
 	};
 
 	const handleExportData = () => {
@@ -4488,16 +5117,28 @@ export default function App() {
 								</div>
 								<div className="flex items-center gap-2">
 									{chatMessages.length > 0 && (
-										<button
-											onClick={handleCopyChatPlaintext}
-											className="px-2.5 py-1 text-[11px] font-semibold bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white rounded-lg border border-slate-700 transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
-											title="Copiar chat como texto plano"
-										>
-											<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-												<path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-											</svg>
-											<span>{copiedChat ? '¡Copiado!' : 'Copiar Chat'}</span>
-										</button>
+										<>
+											<button
+												onClick={handleCopyChatPlaintext}
+												className="px-2.5 py-1 text-[11px] font-semibold bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white rounded-lg border border-slate-700 transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+												title="Copiar chat como texto plano"
+											>
+												<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+													<path strokeLinecap="round" strokeLinejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+												</svg>
+												<span>{copiedChat ? '¡Copiado!' : 'Copiar Chat'}</span>
+											</button>
+											<button
+												onClick={handleDownloadChatPDF}
+												className="px-2.5 py-1 text-[11px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg border border-indigo-500 transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+												title="Descargar conversación como PDF"
+											>
+												<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+													<path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+												</svg>
+												<span>Descargar PDF</span>
+											</button>
+										</>
 									)}
 									<span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/25">
 										Contexto Activo
