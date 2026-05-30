@@ -11,13 +11,7 @@ import { AiTab } from './ai/AiTab';
 import { DEFAULT_TAGS } from '../constants';
 import { deduceTagFromConcept } from '../services/financeService';
 import { SyncModal } from './sync/SyncModal';
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogDescription
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 /**
  * Contenido principal de la aplicación, consumiendo el contexto de finanzas.
@@ -106,7 +100,9 @@ function MainAppContent() {
 	}
 
 	return (
-		<div className={`min-h-screen ${activeTab === 'ai' ? 'h-screen overflow-hidden' : ''} flex flex-col bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white relative overflow-hidden`}>
+		<div
+			className={`min-h-screen ${activeTab === 'ai' || activeTab === 'transactions' ? 'lg:h-screen lg:overflow-hidden' : ''} flex flex-col bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white relative overflow-hidden`}
+		>
 			{/* Ambient glows */}
 			<div className="bg-glow-indigo top-0 left-1/4" />
 			<div className="bg-glow-violet top-1/4 right-1/4" />
@@ -115,7 +111,15 @@ function MainAppContent() {
 			<header className="border-b border-slate-900/40 bg-slate-950/20 backdrop-blur-md sticky top-0 z-30">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
 					<div className="flex items-center space-x-2.5">
-						<svg className="w-5 h-5 text-indigo-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+						<svg
+							className="w-5 h-5 text-indigo-400 shrink-0"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth={1.75}
+							strokeLinecap="round"
+							strokeLinejoin="round"
+						>
 							<path d="M 4 18 c 2 -4, 4 -7, 8 -7 s 4 5, 8 5 s 3 -10, 4 -12" />
 							<path d="M 20 4 h 4 v 4" />
 						</svg>
@@ -212,7 +216,11 @@ function MainAppContent() {
 							title="Bloquear Aplicación"
 						>
 							<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-								<path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+								/>
 							</svg>
 						</button>
 					)}
@@ -227,11 +235,17 @@ function MainAppContent() {
 						setSelectedDebtSchedule(null);
 					}}
 					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-all rounded-xl ${
-						activeTab === 'overview' ? 'text-indigo-350 font-bold bg-indigo-500/10 shadow-inner' : 'text-slate-400 hover:text-slate-200'
+						activeTab === 'overview'
+							? 'text-indigo-350 font-bold bg-indigo-500/10 shadow-inner'
+							: 'text-slate-400 hover:text-slate-200'
 					}`}
 				>
 					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-						<path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+						<path
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+						/>
 					</svg>
 					<span className="text-[10px]">Resumen</span>
 				</button>
@@ -241,11 +255,17 @@ function MainAppContent() {
 						setSelectedDebtSchedule(null);
 					}}
 					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-all rounded-xl ${
-						activeTab === 'transactions' ? 'text-indigo-350 font-bold bg-indigo-500/10 shadow-inner' : 'text-slate-400 hover:text-slate-200'
+						activeTab === 'transactions'
+							? 'text-indigo-350 font-bold bg-indigo-500/10 shadow-inner'
+							: 'text-slate-400 hover:text-slate-200'
 					}`}
 				>
 					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-						<path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						<path
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+						/>
 					</svg>
 					<span className="text-[10px]">Movs</span>
 				</button>
@@ -255,11 +275,17 @@ function MainAppContent() {
 						setSelectedDebtSchedule(null);
 					}}
 					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-all rounded-xl ${
-						activeTab === 'debts' ? 'text-indigo-350 font-bold bg-indigo-500/10 shadow-inner' : 'text-slate-400 hover:text-slate-200'
+						activeTab === 'debts'
+							? 'text-indigo-350 font-bold bg-indigo-500/10 shadow-inner'
+							: 'text-slate-400 hover:text-slate-200'
 					}`}
 				>
 					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-						<path strokeLinecap="round" strokeLinejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+						<path
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"
+						/>
 					</svg>
 					<span className="text-[10px]">Deudas</span>
 				</button>
@@ -269,11 +295,17 @@ function MainAppContent() {
 						setSelectedDebtSchedule(null);
 					}}
 					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-all rounded-xl ${
-						activeTab === 'accounts' ? 'text-indigo-350 font-bold bg-indigo-500/10 shadow-inner' : 'text-slate-400 hover:text-slate-200'
+						activeTab === 'accounts'
+							? 'text-indigo-350 font-bold bg-indigo-500/10 shadow-inner'
+							: 'text-slate-400 hover:text-slate-200'
 					}`}
 				>
 					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-						<path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+						<path
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+						/>
 					</svg>
 					<span className="text-[10px]">Cuentas</span>
 				</button>
@@ -283,11 +315,17 @@ function MainAppContent() {
 						setSelectedDebtSchedule(null);
 					}}
 					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-all rounded-xl ${
-						activeTab === 'consolidation' ? 'text-indigo-350 font-bold bg-indigo-500/10 shadow-inner' : 'text-slate-400 hover:text-slate-200'
+						activeTab === 'consolidation'
+							? 'text-indigo-350 font-bold bg-indigo-500/10 shadow-inner'
+							: 'text-slate-400 hover:text-slate-200'
 					}`}
 				>
 					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-						<path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+						<path
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+						/>
 					</svg>
 					<span className="text-[10px]">Reunificar</span>
 				</button>
@@ -297,7 +335,9 @@ function MainAppContent() {
 						setSelectedDebtSchedule(null);
 					}}
 					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-all rounded-xl ${
-						activeTab === 'ai' ? 'text-indigo-350 font-bold bg-indigo-500/10 shadow-inner' : 'text-slate-400 hover:text-slate-200'
+						activeTab === 'ai'
+							? 'text-indigo-350 font-bold bg-indigo-500/10 shadow-inner'
+							: 'text-slate-400 hover:text-slate-200'
 					}`}
 				>
 					<Icons.Sparkles className="w-5 h-5" />
@@ -306,12 +346,22 @@ function MainAppContent() {
 			</div>
 
 			{/* CUERPO PRINCIPAL */}
-			<main className={`flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:py-8 flex flex-col ${activeTab === 'ai' ? 'min-h-0 overflow-hidden' : ''}`}>
+			<main
+				className={`flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:py-8 flex flex-col ${activeTab === 'ai' || activeTab === 'transactions' ? 'lg:min-h-0 lg:overflow-hidden' : ''}`}
+			>
 				{periods.length === 0 ? (
 					<div className="max-w-md mx-auto my-12 bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-3xl p-8 shadow-2xl">
 						<div className="text-center mb-8">
 							<div className="w-12 h-12 mx-auto mb-3 flex items-center justify-center">
-								<svg className="w-10 h-10 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+								<svg
+									className="w-10 h-10 text-indigo-400"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth={1.75}
+									strokeLinecap="round"
+									strokeLinejoin="round"
+								>
 									<path d="M 4 18 c 2 -4, 4 -7, 8 -7 s 4 5, 8 5 s 3 -10, 4 -12" />
 									<path d="M 20 4 h 4 v 4" />
 								</svg>
@@ -326,7 +376,9 @@ function MainAppContent() {
 
 						<form onSubmit={handleInitAccount} className="space-y-6">
 							<div>
-								<label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">Flujo de Inicio</label>
+								<label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">
+									Flujo de Inicio
+								</label>
 								<div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
 									<button
 										type="button"
@@ -346,9 +398,7 @@ function MainAppContent() {
 										type="button"
 										onClick={() => setInitFlow('past')}
 										className={`py-2.5 rounded-lg text-xs font-bold transition-all ${
-											initFlow === 'past'
-												? 'bg-indigo-600 text-white shadow-md'
-												: 'text-slate-400 hover:text-slate-200'
+											initFlow === 'past' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
 										}`}
 									>
 										Registrar desde el Pasado
@@ -387,7 +437,9 @@ function MainAppContent() {
 								<h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Perfiles de Usuario</h3>
 								<div className="grid grid-cols-2 gap-4">
 									<div>
-										<label htmlFor="user-a-name-input" className="block text-[11px] font-medium text-slate-500 mb-1">Nombre {userAName || 'Usuario A'}</label>
+										<label htmlFor="user-a-name-input" className="block text-[11px] font-medium text-slate-500 mb-1">
+											Nombre {userAName || 'Usuario A'}
+										</label>
 										<input
 											id="user-a-name-input"
 											type="text"
@@ -398,7 +450,9 @@ function MainAppContent() {
 										/>
 									</div>
 									<div>
-										<label htmlFor="user-b-name-input" className="block text-[11px] font-medium text-slate-500 mb-1">Nombre {userBName || 'Usuario B'}</label>
+										<label htmlFor="user-b-name-input" className="block text-[11px] font-medium text-slate-500 mb-1">
+											Nombre {userBName || 'Usuario B'}
+										</label>
 										<input
 											id="user-b-name-input"
 											type="text"
@@ -416,8 +470,12 @@ function MainAppContent() {
 								<div className="space-y-3">
 									{accounts.map((acc, index) => (
 										<div key={acc.id} className="flex flex-col">
-											<label htmlFor={`init-balance-welcome-${acc.id}`} className="block text-[11px] font-medium text-slate-500 mb-1">
-												Saldo inicial: {acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+											<label
+												htmlFor={`init-balance-welcome-${acc.id}`}
+												className="block text-[11px] font-medium text-slate-500 mb-1"
+											>
+												Saldo inicial: {acc.name} (
+												{acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
 											</label>
 											<input
 												id={`init-balance-welcome-${acc.id}`}
@@ -429,9 +487,7 @@ function MainAppContent() {
 												value={acc.initialBalance || ''}
 												onChange={(e) => {
 													const val = parseFloat(e.target.value) || 0;
-													setAccounts((prev) =>
-														prev.map((a, i) => (i === index ? { ...a, initialBalance: val } : a))
-													);
+													setAccounts((prev) => prev.map((a, i) => (i === index ? { ...a, initialBalance: val } : a)));
 												}}
 												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs text-slate-100 outline-none"
 											/>
@@ -441,7 +497,10 @@ function MainAppContent() {
 								<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs flex justify-between items-center text-slate-400">
 									<span>Total Conjunto:</span>
 									<span className="font-bold text-slate-200 text-sm">
-										{accounts.reduce((sum, a) => sum + (a.initialBalance || 0), 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+										{accounts
+											.reduce((sum, a) => sum + (a.initialBalance || 0), 0)
+											.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+										€
 									</span>
 								</div>
 							</div>
@@ -456,7 +515,9 @@ function MainAppContent() {
 
 						<div className="relative flex py-4 items-center">
 							<div className="flex-grow border-t border-slate-850"></div>
-							<span className="flex-shrink mx-4 text-slate-500 text-[10px] uppercase font-bold tracking-wider">O bien</span>
+							<span className="flex-shrink mx-4 text-slate-500 text-[10px] uppercase font-bold tracking-wider">
+								O bien
+							</span>
 							<div className="flex-grow border-t border-slate-850"></div>
 						</div>
 
@@ -473,8 +534,18 @@ function MainAppContent() {
 									htmlFor="welcome-import-backup-file"
 									className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-slate-800 bg-slate-950 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer transition-all active:scale-95 hover:border-indigo-500/30"
 								>
-									<svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-										<path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
+									<svg
+										className="w-4 h-4 text-indigo-400"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+										strokeWidth={2}
+									>
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12"
+										/>
 									</svg>
 									Importar Archivo JSON
 								</label>
@@ -485,8 +556,18 @@ function MainAppContent() {
 								onClick={() => setIsSyncModalOpen(true)}
 								className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-slate-800 bg-slate-950 text-slate-300 hover:text-white text-xs font-semibold transition-all active:scale-95 hover:border-indigo-500/30"
 							>
-								<svg className="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-									<path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+								<svg
+									className="w-4 h-4 text-violet-400"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+									strokeWidth={2}
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+									/>
 								</svg>
 								Sincronizar desde Móvil/PC (P2P)
 							</button>
@@ -495,7 +576,11 @@ function MainAppContent() {
 						{importError && (
 							<div className="mt-4 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl flex items-center gap-2">
 								<svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-									<path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+									/>
 								</svg>
 								<span>{importError}</span>
 							</div>
@@ -503,7 +588,11 @@ function MainAppContent() {
 						{importSuccess && (
 							<div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-xl flex items-center gap-2 animate-pulse">
 								<svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-									<path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+									/>
 								</svg>
 								<span>{importSuccess}</span>
 							</div>
@@ -512,7 +601,9 @@ function MainAppContent() {
 				) : (
 					<>
 						{/* BARRA DE CONTROL DE TIEMPO Y BALANCE */}
-						<div className={`flex-col md:flex-row md:items-center justify-between gap-4 mb-6 p-4 premium-card rounded-2xl ${activeTab === 'ai' ? 'hidden lg:flex' : 'flex'}`}>
+						<div
+							className={`flex-col md:flex-row md:items-center justify-between gap-4 mb-6 p-4 premium-card rounded-2xl ${activeTab === 'ai' ? 'hidden lg:flex' : 'flex'}`}
+						>
 							<div className="flex flex-wrap items-center gap-2">
 								<span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mes Activo:</span>
 								<select
@@ -546,9 +637,7 @@ function MainAppContent() {
 								<button
 									onClick={() => setViewMode('all')}
 									className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-										viewMode === 'all'
-											? 'bg-indigo-600 text-white shadow-md'
-											: 'text-slate-400 hover:text-slate-200'
+										viewMode === 'all' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
 									}`}
 								>
 									Conjunto
@@ -556,9 +645,7 @@ function MainAppContent() {
 								<button
 									onClick={() => setViewMode('userA')}
 									className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-										viewMode === 'userA'
-											? 'bg-indigo-600 text-white shadow-md'
-											: 'text-slate-400 hover:text-slate-200'
+										viewMode === 'userA' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
 									}`}
 								>
 									{userAName}
@@ -566,9 +653,7 @@ function MainAppContent() {
 								<button
 									onClick={() => setViewMode('userB')}
 									className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-										viewMode === 'userB'
-											? 'bg-indigo-600 text-white shadow-md'
-											: 'text-slate-400 hover:text-slate-200'
+										viewMode === 'userB' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
 									}`}
 								>
 									{userBName}
@@ -588,8 +673,18 @@ function MainAppContent() {
 									}}
 									className="px-3 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-750 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
 								>
-									<svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-										<path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+									<svg
+										className="w-3.5 h-3.5 text-slate-400"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+										strokeWidth={2}
+									>
+										<path
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+										/>
 										<path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
 									</svg>
 									<span>Reconfigurar Cuenta</span>
@@ -598,21 +693,35 @@ function MainAppContent() {
 						</div>
 
 						{/* INDICADORES FINANCIEROS MENSUALES */}
-						<section className={`grid-cols-2 lg:grid-cols-5 gap-2 lg:gap-6 mb-4 lg:mb-8 ${activeTab === 'ai' ? 'hidden lg:grid' : 'grid'}`}>
+						<section
+							className={`grid-cols-2 lg:grid-cols-5 gap-2 lg:gap-6 mb-4 lg:mb-8 ${activeTab === 'ai' ? 'hidden lg:grid' : 'grid'}`}
+						>
 							{/* Tarjeta: Saldo de Apertura */}
 							<div className="premium-card rounded-xl lg:rounded-2xl p-3 lg:p-6">
 								<div className="flex items-center justify-between mb-1 lg:mb-4">
 									<span className="text-[10px] lg:text-sm font-semibold text-slate-400 truncate">Apertura</span>
 									<div className="p-1 lg:p-2 bg-indigo-500/15 rounded-md lg:rounded-lg">
-										<svg className="w-3.5 h-3.5 lg:w-5 lg:h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-											<path strokeLinecap="round" strokeLinejoin="round" d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l3-3m-3 3L9 8m-5 5h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293h3.172a1 1 0 00.707-.293l2.414-2.414a1 1 0 01.707-.293H20" />
+										<svg
+											className="w-3.5 h-3.5 lg:w-5 lg:h-5 text-indigo-400"
+											fill="none"
+											viewBox="0 0 24 24"
+											stroke="currentColor"
+											strokeWidth={2}
+										>
+											<path
+												strokeLinecap="round"
+												strokeLinejoin="round"
+												d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l3-3m-3 3L9 8m-5 5h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293h3.172a1 1 0 00.707-.293l2.414-2.414a1 1 0 01.707-.293H20"
+											/>
 										</svg>
 									</div>
 								</div>
 								<div className="text-base lg:text-3xl font-extrabold text-slate-100 truncate">
 									{currentOpeningBalance.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
 								</div>
-								<p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 hidden lg:block">Saldo inicial del periodo</p>
+								<p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 hidden lg:block">
+									Saldo inicial del periodo
+								</p>
 							</div>
 
 							{/* Tarjeta: Cobros / Ingresos */}
@@ -627,11 +736,9 @@ function MainAppContent() {
 									+{totalIncomes.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
 								</div>
 								<p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 hidden lg:block">
-									{oneOffIncomes > 0 ? (
-										`Recurrentes: +${recurringIncomes.toFixed(2)}€ | Puntuales: +${oneOffIncomes.toFixed(2)}€`
-									) : (
-										'Registrados para este mes'
-									)}
+									{oneOffIncomes > 0
+										? `Recurrentes: +${recurringIncomes.toFixed(2)}€ | Puntuales: +${oneOffIncomes.toFixed(2)}€`
+										: 'Registrados para este mes'}
 								</p>
 							</div>
 
@@ -647,11 +754,9 @@ function MainAppContent() {
 									-{totalExpenses.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
 								</div>
 								<p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 hidden lg:block">
-									{oneOffExpenses > 0 ? (
-										`Recurrentes: -${recurringExpenses.toFixed(2)}€ | Puntuales: -${oneOffExpenses.toFixed(2)}€`
-									) : (
-										'Sin contar amortización de deudas'
-									)}
+									{oneOffExpenses > 0
+										? `Recurrentes: -${recurringExpenses.toFixed(2)}€ | Puntuales: -${oneOffExpenses.toFixed(2)}€`
+										: 'Sin contar amortización de deudas'}
 								</p>
 							</div>
 
@@ -660,7 +765,10 @@ function MainAppContent() {
 								<div className="flex items-center justify-between mb-1 lg:mb-4">
 									<div className="flex items-center space-x-1">
 										<span className="text-[10px] lg:text-sm font-semibold text-slate-400 truncate">Deuda</span>
-										<span className="hidden lg:inline" title="Préstamos: cuota calculada con TIN/TAE. Fraccionamientos: cuotas pendientes vencidas o exigibles hasta el mes activo.">
+										<span
+											className="hidden lg:inline"
+											title="Préstamos: cuota calculada con TIN/TAE. Fraccionamientos: cuotas pendientes vencidas o exigibles hasta el mes activo."
+										>
 											<Icons.Info className="text-slate-400" />
 										</span>
 									</div>
@@ -671,18 +779,24 @@ function MainAppContent() {
 								<div className="text-base lg:text-3xl font-extrabold text-amber-500 truncate">
 									-{totalMonthlyDebtPayments.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
 								</div>
-								<p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 hidden lg:block">Incluye cuotas activas y vencidas</p>
+								<p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 hidden lg:block">
+									Incluye cuotas activas y vencidas
+								</p>
 							</div>
 
 							{/* Tarjeta: Saldo al Cierre (Acumulado) */}
-							<div className={`premium-card rounded-xl lg:rounded-2xl p-3 lg:p-6 col-span-2 lg:col-span-1 border ${currentClosingBalance >= 0 ? 'border-indigo-500/10 hover:border-indigo-500/30 shadow-md' : 'border-rose-900/20 hover:border-rose-800/40 shadow-md'}`}>
+							<div
+								className={`premium-card rounded-xl lg:rounded-2xl p-3 lg:p-6 col-span-2 lg:col-span-1 border ${currentClosingBalance >= 0 ? 'border-indigo-500/10 hover:border-indigo-500/30 shadow-md' : 'border-rose-900/20 hover:border-rose-800/40 shadow-md'}`}
+							>
 								<div className="flex items-center justify-between mb-1 lg:mb-4">
 									<span className="text-[10px] lg:text-sm font-semibold text-slate-300">Cierre ({selectedMonth})</span>
 									<div className="p-1 lg:p-2 bg-indigo-500/15 rounded-md lg:rounded-lg">
 										<Icons.Scale className="text-indigo-400" />
 									</div>
 								</div>
-								<div className={`text-lg lg:text-3xl font-black ${currentClosingBalance >= 0 ? 'text-indigo-400' : 'text-rose-500'}`}>
+								<div
+									className={`text-lg lg:text-3xl font-black ${currentClosingBalance >= 0 ? 'text-indigo-400' : 'text-rose-500'}`}
+								>
 									{currentClosingBalance.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
 								</div>
 								<p className="text-[9px] lg:text-xs text-slate-400 mt-0.5 lg:mt-1">
@@ -705,13 +819,10 @@ function MainAppContent() {
 			</main>
 
 			{/* FOOTER */}
-			{activeTab !== 'ai' && (
-				<footer className="border-t border-slate-900 bg-slate-950 py-8 mt-12 text-slate-600 text-center text-xs">
-					<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-2">
-						<p>Finanzas Snake © {new Date().getFullYear()} - Herramienta de Planificación Financiera Profesional.</p>
-						<p className="text-[10px] text-slate-700">
-							Construido bajo SOLID y buenas prácticas. Soporte para pnpm en entornos de desarrollo.
-						</p>
+			{activeTab !== 'ai' && activeTab !== 'transactions' && (
+				<footer className="border-t border-slate-900/30 bg-slate-950/20 py-3 mt-6 text-center text-[10px] text-slate-600">
+					<div className="max-w-7xl mx-auto px-4">
+						Finanzas Snake © {new Date().getFullYear()}
 					</div>
 				</footer>
 			)}
@@ -722,7 +833,11 @@ function MainAppContent() {
 					<DialogHeader className="text-center">
 						<div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
 							<svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-								<path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+								/>
 							</svg>
 						</div>
 						<DialogTitle>Exportar PDF Personalizado</DialogTitle>
@@ -735,7 +850,7 @@ function MainAppContent() {
 						<div className="space-y-3">
 							{/* Opción 1: Contexto Financiero */}
 							<label className="flex items-start gap-3 p-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-xl cursor-pointer transition-all">
-								<input 
+								<input
 									type="checkbox"
 									checked={pdfExportOptions.showContext}
 									onChange={(e) => setPdfExportOptions({ ...pdfExportOptions, showContext: e.target.checked })}
@@ -751,7 +866,7 @@ function MainAppContent() {
 
 							{/* Opción 2: Registro de Deudas */}
 							<label className="flex items-start gap-3 p-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-xl cursor-pointer transition-all">
-								<input 
+								<input
 									type="checkbox"
 									checked={pdfExportOptions.showDebts}
 									onChange={(e) => setPdfExportOptions({ ...pdfExportOptions, showDebts: e.target.checked })}
@@ -767,7 +882,7 @@ function MainAppContent() {
 
 							{/* Opción 3: Movimientos Detallados */}
 							<label className="flex items-start gap-3 p-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-xl cursor-pointer transition-all">
-								<input 
+								<input
 									type="checkbox"
 									checked={pdfExportOptions.showTransactions}
 									onChange={(e) => setPdfExportOptions({ ...pdfExportOptions, showTransactions: e.target.checked })}
@@ -783,14 +898,16 @@ function MainAppContent() {
 
 							{/* Opción 4: Historial de Chat */}
 							<label className="flex items-start gap-3 p-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-xl cursor-pointer transition-all">
-								<input 
+								<input
 									type="checkbox"
 									checked={pdfExportOptions.showChat}
 									onChange={(e) => setPdfExportOptions({ ...pdfExportOptions, showChat: e.target.checked })}
 									className="mt-1 w-4 h-4 text-indigo-600 border-slate-700 bg-slate-950 rounded focus:ring-indigo-500 focus:ring-offset-slate-900"
 								/>
 								<div>
-									<span className="text-sm font-semibold text-slate-200 block">Historial de Conversación con el Asesor</span>
+									<span className="text-sm font-semibold text-slate-200 block">
+										Historial de Conversación con el Asesor
+									</span>
 									<span className="text-[11px] text-slate-500 leading-relaxed block">
 										Mensajes del chat interactivo formateados.
 									</span>
@@ -806,7 +923,12 @@ function MainAppContent() {
 									handleDownloadChatPDF(pdfExportOptions);
 									setIsExportPdfModalOpen(false);
 								}}
-								disabled={!pdfExportOptions.showContext && !pdfExportOptions.showDebts && !pdfExportOptions.showTransactions && !pdfExportOptions.showChat}
+								disabled={
+									!pdfExportOptions.showContext &&
+									!pdfExportOptions.showDebts &&
+									!pdfExportOptions.showTransactions &&
+									!pdfExportOptions.showChat
+								}
 								className="w-1/2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 disabled:opacity-40 disabled:hover:from-indigo-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all active:scale-95 shadow-md shadow-indigo-600/10"
 							>
 								Descargar
@@ -829,7 +951,11 @@ function MainAppContent() {
 					<DialogHeader className="text-center">
 						<div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
 							<svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-								<path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+								/>
 								<path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
 							</svg>
 						</div>
@@ -841,7 +967,9 @@ function MainAppContent() {
 
 					<form onSubmit={handleInitAccount} className="space-y-4">
 						<div>
-							<label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">Flujo de Inicio</label>
+							<label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
+								Flujo de Inicio
+							</label>
 							<div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
 								<button
 									type="button"
@@ -861,9 +989,7 @@ function MainAppContent() {
 									type="button"
 									onClick={() => setInitFlow('past')}
 									className={`py-2 rounded-lg text-xs font-bold transition-all ${
-										initFlow === 'past'
-											? 'bg-indigo-600 text-white shadow-md'
-											: 'text-slate-400 hover:text-slate-200'
+										initFlow === 'past' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
 									}`}
 								>
 									Desde el Pasado
@@ -896,7 +1022,9 @@ function MainAppContent() {
 							<h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Perfiles de Usuario</h3>
 							<div className="grid grid-cols-2 gap-4">
 								<div>
-									<label htmlFor="modal-user-a-name" className="block text-[11px] font-medium text-slate-500 mb-1">Nombre {userAName || 'Usuario A'}</label>
+									<label htmlFor="modal-user-a-name" className="block text-[11px] font-medium text-slate-500 mb-1">
+										Nombre {userAName || 'Usuario A'}
+									</label>
 									<input
 										id="modal-user-a-name"
 										type="text"
@@ -907,7 +1035,9 @@ function MainAppContent() {
 									/>
 								</div>
 								<div>
-									<label htmlFor="modal-user-b-name" className="block text-[11px] font-medium text-slate-500 mb-1">Nombre {userBName || 'Usuario B'}</label>
+									<label htmlFor="modal-user-b-name" className="block text-[11px] font-medium text-slate-500 mb-1">
+										Nombre {userBName || 'Usuario B'}
+									</label>
 									<input
 										id="modal-user-b-name"
 										type="text"
@@ -925,8 +1055,12 @@ function MainAppContent() {
 							<div className="space-y-3">
 								{reconfigAccounts.map((acc, index) => (
 									<div key={acc.id} className="flex flex-col">
-										<label htmlFor={`init-balance-modal-${acc.id}`} className="block text-[11px] font-medium text-slate-500 mb-1">
-											Saldo inicial: {acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+										<label
+											htmlFor={`init-balance-modal-${acc.id}`}
+											className="block text-[11px] font-medium text-slate-500 mb-1"
+										>
+											Saldo inicial: {acc.name} (
+											{acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
 										</label>
 										<input
 											id={`init-balance-modal-${acc.id}`}
@@ -949,7 +1083,10 @@ function MainAppContent() {
 							<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs flex justify-between items-center text-slate-400">
 								<span>Total Conjunto:</span>
 								<span className="font-bold text-slate-200 text-sm">
-									{reconfigAccounts.reduce((sum, a) => sum + (a.initialBalance || 0), 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+									{reconfigAccounts
+										.reduce((sum, a) => sum + (a.initialBalance || 0), 0)
+										.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+									€
 								</span>
 							</div>
 						</div>
@@ -991,9 +1128,7 @@ function MainAppContent() {
 							<Icons.Edit />
 						</div>
 						<DialogTitle>Editar Transacción</DialogTitle>
-						<DialogDescription>
-							Modifica los valores del movimiento seleccionado.
-						</DialogDescription>
+						<DialogDescription>Modifica los valores del movimiento seleccionado.</DialogDescription>
 					</DialogHeader>
 
 					{editingTx && (
@@ -1131,7 +1266,8 @@ function MainAppContent() {
 										>
 											{accounts.map((acc) => (
 												<option key={acc.id} value={acc.id}>
-													{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+													{acc.name} (
+													{acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
 												</option>
 											))}
 										</select>
@@ -1147,11 +1283,14 @@ function MainAppContent() {
 											onChange={(e) => setEditForm({ ...editForm, toAccountId: e.target.value })}
 											className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
 										>
-											{accounts.filter((acc) => acc.id !== editForm.fromAccountId).map((acc) => (
-												<option key={acc.id} value={acc.id}>
-													{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
-												</option>
-											))}
+											{accounts
+												.filter((acc) => acc.id !== editForm.fromAccountId)
+												.map((acc) => (
+													<option key={acc.id} value={acc.id}>
+														{acc.name} (
+														{acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+													</option>
+												))}
 										</select>
 									</div>
 								</>
@@ -1178,7 +1317,8 @@ function MainAppContent() {
 											<option value="">Sin Cuenta (Manual)</option>
 											{accounts.map((acc) => (
 												<option key={acc.id} value={acc.id}>
-													{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+													{acc.name} (
+													{acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
 												</option>
 											))}
 										</select>
@@ -1366,13 +1506,7 @@ export default function App() {
  * Pantalla de bloqueo / Registro de PIN
  */
 function LockScreen() {
-	const {
-		hasPasswordSet,
-		passwordError,
-		setPasswordError,
-		handleSetupPassword,
-		handleUnlock
-	} = useFinanzas();
+	const { hasPasswordSet, passwordError, setPasswordError, handleSetupPassword, handleUnlock } = useFinanzas();
 
 	const [pin, setPin] = useState('');
 	const [confirmPin, setConfirmPin] = useState('');
@@ -1407,12 +1541,16 @@ function LockScreen() {
 		<div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 p-4 font-sans selection:bg-indigo-500 selection:text-white">
 			<div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,#1e1b4b,transparent_45%)] z-0" />
 			<div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_70%,#0f172a,transparent_50%)] z-0" />
-			
+
 			<div className="relative z-10 max-w-md w-full bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-3xl p-8 shadow-2xl shadow-indigo-950/20">
 				<div className="text-center mb-8">
 					<div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
 						<svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-							<path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+							/>
 						</svg>
 					</div>
 					<h2 className="text-2xl font-black bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
@@ -1427,7 +1565,10 @@ function LockScreen() {
 
 				<form onSubmit={handleSubmit} className="space-y-5">
 					<div>
-						<label htmlFor="pin-input" className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
+						<label
+							htmlFor="pin-input"
+							className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider"
+						>
 							{!hasPasswordSet ? 'Nuevo PIN (mínimo 4 caracteres)' : 'Introduce tu PIN'}
 						</label>
 						<input
@@ -1444,7 +1585,10 @@ function LockScreen() {
 
 					{!hasPasswordSet && (
 						<div>
-							<label htmlFor="confirm-pin-input" className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
+							<label
+								htmlFor="confirm-pin-input"
+								className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider"
+							>
 								Confirmar PIN
 							</label>
 							<input
@@ -1462,7 +1606,11 @@ function LockScreen() {
 					{passwordError && (
 						<div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-450 text-xs rounded-xl flex items-center gap-2">
 							<svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-								<path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+								/>
 							</svg>
 							<span>{passwordError}</span>
 						</div>
@@ -1476,10 +1624,11 @@ function LockScreen() {
 						{loading ? 'Procesando...' : !hasPasswordSet ? 'Activar Seguridad Local' : 'Desbloquear'}
 					</button>
 				</form>
-				
+
 				{hasPasswordSet && (
 					<p className="text-[10px] text-slate-500 text-center mt-6">
-						¿Olvidaste tu PIN? Tus datos están cifrados localmente de forma segura. Si no puedes recordar tu PIN, tendrás que borrar los datos del navegador y restaurar desde una copia de seguridad JSON.
+						¿Olvidaste tu PIN? Tus datos están cifrados localmente de forma segura. Si no puedes recordar tu PIN,
+						tendrás que borrar los datos del navegador y restaurar desde una copia de seguridad JSON.
 					</p>
 				)}
 			</div>

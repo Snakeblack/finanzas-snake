@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useFinanzas } from '../../hooks/useFinanzas';
 import { deduceTagFromConcept } from '../../services/financeService';
 import { DEFAULT_TAGS } from '../../constants';
@@ -23,10 +24,40 @@ export function TransactionsTab() {
 		selectedMonth
 	} = useFinanzas();
 
+	const [isMobileFormOpen, setIsMobileFormOpen] = useState(false);
+
+	const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+		handleAddTransaction(e);
+		setIsMobileFormOpen(false);
+	};
+
 	return (
-		<div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+		<div className="flex-1 min-h-0 flex flex-col lg:grid lg:grid-cols-12 gap-6 lg:gap-8">
+			{/* Botón para desplegar formulario en móvil */}
+			<div className="lg:hidden shrink-0">
+				<button
+					type="button"
+					onClick={() => setIsMobileFormOpen(!isMobileFormOpen)}
+					className="w-full flex items-center justify-center gap-2 bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800/60 text-slate-200 hover:text-white px-4 py-3 rounded-xl text-sm font-semibold transition-all shadow-sm active:scale-[0.98]"
+				>
+					{isMobileFormOpen ? (
+						<>
+							<svg className="w-4 h-4 text-rose-450" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+								<path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+							</svg>
+							<span>Ocultar Formulario</span>
+						</>
+					) : (
+						<>
+							<Icons.Plus className="w-4 h-4 text-indigo-400 mr-0" />
+							<span>Nueva Transacción</span>
+						</>
+					)}
+				</button>
+			</div>
+
 			{/* Formulario */}
-			<div className="lg:col-span-4 premium-card rounded-2xl p-6 h-fit">
+			<div className={`${isMobileFormOpen ? 'block' : 'hidden'} lg:block lg:col-span-4 premium-card rounded-2xl p-6 h-fit lg:max-h-full lg:overflow-y-auto shrink-0 lg:shrink`}>
 				<h3 className="font-heading text-lg font-bold text-slate-100 mb-6 flex items-center">
 					<span className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg mr-2">
 						<Icons.Plus className="w-4 h-4" />
@@ -34,7 +65,7 @@ export function TransactionsTab() {
 					Nueva Transacción
 				</h3>
 
-				<form onSubmit={handleAddTransaction} className="space-y-4">
+				<form onSubmit={handleFormSubmit} className="space-y-4">
 					<div>
 						<label className="block text-xs font-medium text-slate-400 mb-1.5">Tipo de Movimiento</label>
 						<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
@@ -327,26 +358,35 @@ export function TransactionsTab() {
 						</datalist>
 					</div>
 
-					<button
-						type="submit"
-						className="w-full mt-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] text-white font-bold py-2.5 rounded-xl text-sm transition-all shadow-md active:scale-95"
-					>
-						Agregar Transacción
-					</button>
+					<div className="flex gap-2">
+						<button
+							type="submit"
+							className="flex-1 mt-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] text-white font-bold py-2.5 rounded-xl text-sm transition-all shadow-md active:scale-95"
+						>
+							Agregar Transacción
+						</button>
+						<button
+							type="button"
+							onClick={() => setIsMobileFormOpen(false)}
+							className="lg:hidden flex-1 mt-2 bg-slate-850 hover:bg-slate-800 text-slate-350 font-semibold py-2.5 rounded-xl text-sm transition-all border border-slate-800 active:scale-95"
+						>
+							Cancelar
+						</button>
+					</div>
 				</form>
 			</div>
 
 			{/* Listado de Historial */}
-			<div className="lg:col-span-8 premium-card rounded-2xl p-6">
-				<h3 className="font-heading text-lg font-bold text-slate-100 mb-6">Historial para el mes {selectedMonth}</h3>
+			<div className="lg:col-span-8 premium-card rounded-2xl p-6 flex flex-col lg:h-full lg:max-h-full min-h-0">
+				<h3 className="font-heading text-lg font-bold text-slate-100 mb-6 shrink-0">Historial para el mes {selectedMonth}</h3>
 
 				{filteredTransactions.length === 0 ? (
-					<div className="text-center py-12 text-slate-500">
+					<div className="text-center py-12 text-slate-500 flex-1 flex flex-col justify-center">
 						<p className="text-sm">No hay transacciones registradas este mes.</p>
 						<p className="text-xs">Usa el formulario para añadir cobros o gastos corrientes.</p>
 					</div>
 				) : (
-					<>
+					<div className="flex-1 lg:overflow-y-auto pr-1" style={{ WebkitOverflowScrolling: 'touch' }}>
 						{/* Vista de Tarjetas para Móviles */}
 						<div className="md:hidden space-y-3">
 							{filteredTransactions.map((t) => (
@@ -590,7 +630,7 @@ export function TransactionsTab() {
 								</tbody>
 							</table>
 						</div>
-					</>
+					</div>
 				)}
 			</div>
 		</div>
