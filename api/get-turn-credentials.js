@@ -12,8 +12,8 @@ export default async function handler(req, res) {
 	// Deshabilitar caché para evitar credenciales expiradas o fallbacks de error cacheados
 	res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
 
-	const apiKey = process.env.METERED_SECRET_KEY;
-	const appName = process.env.METERED_APP_NAME;
+	const apiKey = process.env.METERED_SECRET_KEY ? process.env.METERED_SECRET_KEY.trim() : '';
+	const appName = process.env.METERED_APP_NAME ? process.env.METERED_APP_NAME.trim() : '';
 
 	if (!apiKey || !appName) {
 		return res.status(200).json({
@@ -24,16 +24,25 @@ export default async function handler(req, res) {
 		});
 	}
 
+	// Sanitizar el appName por si el usuario copió el dominio completo o con protocolo
+	let appNameClean = appName;
+	appNameClean = appNameClean.replace(/^https?:\/\//i, '');
+	appNameClean = appNameClean.replace(/\.metered\.ca$/i, '');
+	appNameClean = appNameClean.replace(/\/+$/, '');
+
+	const targetUrl = `https://${appNameClean}.metered.ca/api/v1/turn/credentials?apiKey=${apiKey}`;
+
 	try {
 		const response = await fetch(
-			`https://${appName}.metered.ca/api/v1/turn/credentials?apiKey=${apiKey}`,
-			{ signal: AbortSignal.timeout(3000) }
+			targetUrl,
+			{ signal: AbortSignal.timeout(4000) } // Timeout de 4 segundos
 		);
 
 		if (!response.ok) {
 			return res.status(200).json({
 				error: `Http error from Metered: ${response.status} ${response.statusText}`,
-				appName,
+				appName: appNameClean,
+				targetUrl: targetUrl.replace(apiKey, '[MASKED]'),
 				responseStatus: response.status
 			});
 		}
@@ -49,8 +58,9 @@ export default async function handler(req, res) {
 		return res.status(200).json(fullIceServers);
 	} catch (error) {
 		return res.status(200).json({
-			error: "Excepción capturada",
+			error: "Excepción capturada al hacer fetch",
 			message: error.message,
+			targetUrl: targetUrl.replace(apiKey, '[MASKED]'),
 			stack: error.stack
 		});
 	}
