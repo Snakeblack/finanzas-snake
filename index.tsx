@@ -886,6 +886,13 @@ export default function App() {
 	const [initBalanceB, setInitBalanceB] = useState('0');
 	const [isReconfiguring, setIsReconfiguring] = useState(false);
 	const [reconfigAccounts, setReconfigAccounts] = useState<Account[]>([]);
+	const [isExportPdfModalOpen, setIsExportPdfModalOpen] = useState(false);
+	const [pdfExportOptions, setPdfExportOptions] = useState({
+		showContext: true,
+		showDebts: true,
+		showTransactions: true,
+		showChat: true
+	});
 
 	// === SIMULADOR DE REUNIFICACIÓN ===
 	const [selectedDebtsForConsolidation, setSelectedDebtsForConsolidation] = useState<string[]>([]);
@@ -2285,7 +2292,12 @@ export default function App() {
 		return htmlParts.join('');
 	};
 
-	const handleDownloadChatPDF = () => {
+	const handleDownloadChatPDF = (options: {
+		showContext: boolean;
+		showDebts: boolean;
+		showTransactions: boolean;
+		showChat: boolean;
+	}) => {
 		const iframe = document.createElement('iframe');
 		iframe.style.position = 'fixed';
 		iframe.style.right = '0';
@@ -2399,6 +2411,143 @@ export default function App() {
 				<td style="text-align: right; font-weight: bold;">${t.amount.toFixed(2)}€</td>
 			</tr>
 		`).join('');
+
+		const htmlSections: string[] = [];
+
+		if (options.showContext) {
+			htmlSections.push(`
+				<div class="section-title">Contexto Financiero de la Vista</div>
+				<div class="metrics-grid">
+					<div class="metric-card">
+						<div class="metric-label">Ingresos Totales</div>
+						<div class="metric-value" style="color: #10b981;">+${totalIncomes.toFixed(2)}€</div>
+						<div class="metric-sub">
+							Recurrentes: +${recurringIncomes.toFixed(2)}€<br/>
+							Puntuales: +${oneOffIncomes.toFixed(2)}€
+						</div>
+					</div>
+					<div class="metric-card">
+						<div class="metric-label">Gastos Totales</div>
+						<div class="metric-value" style="color: #ef4444;">-${totalExpenses.toFixed(2)}€</div>
+						<div class="metric-sub">
+							Recurrentes: -${recurringExpenses.toFixed(2)}€<br/>
+							Puntuales: -${oneOffExpenses.toFixed(2)}€
+						</div>
+					</div>
+					<div class="metric-card">
+						<div class="metric-label">Cuota Deudas</div>
+						<div class="metric-value" style="color: #f59e0b;">-${totalMonthlyDebtPayments.toFixed(2)}€</div>
+						<div class="metric-sub">
+							Deudas activas: ${filteredDebts.length} de ${debts.length}
+						</div>
+					</div>
+					<div class="metric-card" style="border-color: #4f46e5;">
+						<div class="metric-label">Balance Neto Disponible</div>
+						<div class="metric-value" style="color: ${netMonthlyBalance >= 0 ? '#4f46e5' : '#ef4444'};">
+							${netMonthlyBalance.toFixed(2)}€
+						</div>
+						<div class="metric-sub">
+							Apertura: ${currentOpeningBalance.toFixed(2)}€<br/>
+							Cierre: ${currentClosingBalance.toFixed(2)}€
+						</div>
+					</div>
+				</div>
+
+				<div class="split-grid">
+					<div>
+						<div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+							Saldos de Cuentas (Cierre de Mes)
+						</div>
+						<div class="table-container">
+							<table class="table">
+								<thead>
+									<tr>
+										<th>Cuenta</th>
+										<th>Propietario</th>
+										<th style="text-align: right;">Saldo</th>
+									</tr>
+								</thead>
+								<tbody>
+									${accountsListHtml}
+								</tbody>
+							</table>
+						</div>
+					</div>
+					<div>
+						<div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+							Distribución de Gastos por Etiqueta
+						</div>
+						<div class="table-container">
+							<table class="table">
+								<thead>
+									<tr>
+										<th>Categoría / Etiqueta</th>
+										<th style="text-align: right;">Importe</th>
+									</tr>
+								</thead>
+								<tbody>
+									${tagBreakdownHtml.length > 0 ? tagBreakdownHtml : '<tr><td colspan="2" style="text-align: center; color: #94a3b8;">Sin gastos registrados</td></tr>'}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			`);
+		}
+
+		if (options.showDebts) {
+			htmlSections.push(`
+				<div class="section-title">Registro de Deudas del Mes</div>
+				<div class="table-container" style="margin-bottom: 24px;">
+					<table class="table">
+						<thead>
+							<tr>
+								<th>Descripción</th>
+								<th>Propietario</th>
+								<th>Estado</th>
+								<th style="text-align: right;">Cuota este Mes</th>
+							</tr>
+						</thead>
+						<tbody>
+							${debtsListHtml}
+						</tbody>
+					</table>
+				</div>
+			`);
+		}
+
+		if (options.showTransactions) {
+			htmlSections.push(`
+				<div class="section-title">Movimientos Detallados del Mes</div>
+				<div class="table-container" style="margin-bottom: 24px;">
+					<table class="table">
+						<thead>
+							<tr>
+								<th>Concepto</th>
+								<th>Categoría</th>
+								<th>Frecuencia</th>
+								<th>Propietario</th>
+								<th style="text-align: right;">Importe</th>
+							</tr>
+						</thead>
+						<tbody>
+							${transactionsListHtml}
+						</tbody>
+					</table>
+				</div>
+			`);
+		}
+
+		if (options.showChat) {
+			htmlSections.push(`
+				<div class="section-title">Historial de Conversación con el Asesor</div>
+				<div class="chat-history">
+					${messagesHtml}
+				</div>
+			`);
+		}
+
+		const bodyContent = htmlSections.join('\n<div class="page-break"></div>\n');
 
 		const html = `
 			<!DOCTYPE html>
@@ -2603,126 +2752,7 @@ export default function App() {
 					</div>
 				</div>
 
-				<div class="section-title">Contexto Financiero de la Vista</div>
-				<div class="metrics-grid">
-					<div class="metric-card">
-						<div class="metric-label">Ingresos Totales</div>
-						<div class="metric-value" style="color: #10b981;">+${totalIncomes.toFixed(2)}€</div>
-						<div class="metric-sub">
-							Recurrentes: +${recurringIncomes.toFixed(2)}€<br/>
-							Puntuales: +${oneOffIncomes.toFixed(2)}€
-						</div>
-					</div>
-					<div class="metric-card">
-						<div class="metric-label">Gastos Totales</div>
-						<div class="metric-value" style="color: #ef4444;">-${totalExpenses.toFixed(2)}€</div>
-						<div class="metric-sub">
-							Recurrentes: -${recurringExpenses.toFixed(2)}€<br/>
-							Puntuales: -${oneOffExpenses.toFixed(2)}€
-						</div>
-					</div>
-					<div class="metric-card">
-						<div class="metric-label">Cuota Deudas</div>
-						<div class="metric-value" style="color: #f59e0b;">-${totalMonthlyDebtPayments.toFixed(2)}€</div>
-						<div class="metric-sub">
-							Deudas activas: ${filteredDebts.length} de ${debts.length}
-						</div>
-					</div>
-					<div class="metric-card" style="border-color: #4f46e5;">
-						<div class="metric-label">Balance Neto Disponible</div>
-						<div class="metric-value" style="color: ${netMonthlyBalance >= 0 ? '#4f46e5' : '#ef4444'};">
-							${netMonthlyBalance.toFixed(2)}€
-						</div>
-						<div class="metric-sub">
-							Apertura: ${currentOpeningBalance.toFixed(2)}€<br/>
-							Cierre: ${currentClosingBalance.toFixed(2)}€
-						</div>
-					</div>
-				</div>
-
-				<div class="split-grid">
-					<div>
-						<div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
-							Saldos de Cuentas (Cierre de Mes)
-						</div>
-						<div class="table-container">
-							<table class="table">
-								<thead>
-									<tr>
-										<th>Cuenta</th>
-										<th>Propietario</th>
-										<th style="text-align: right;">Saldo</th>
-									</tr>
-								</thead>
-								<tbody>
-									${accountsListHtml}
-								</tbody>
-							</table>
-						</div>
-					</div>
-					<div>
-						<div style="font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
-							Distribución de Gastos por Etiqueta
-						</div>
-						<div class="table-container">
-							<table class="table">
-								<thead>
-									<tr>
-										<th>Categoría / Etiqueta</th>
-										<th style="text-align: right;">Importe</th>
-									</tr>
-								</thead>
-								<tbody>
-									${tagBreakdownHtml.length > 0 ? tagBreakdownHtml : '<tr><td colspan="2" style="text-align: center; color: #94a3b8;">Sin gastos registrados</td></tr>'}
-								</tbody>
-							</table>
-						</div>
-					</div>
-				</div>
-
-				<div class="page-break"></div>
-
-				<div class="section-title">Registro de Deudas del Mes</div>
-				<div class="table-container" style="margin-bottom: 24px;">
-					<table class="table">
-						<thead>
-							<tr>
-								<th>Descripción</th>
-								<th>Propietario</th>
-								<th>Estado</th>
-								<th style="text-align: right;">Cuota este Mes</th>
-							</tr>
-						</thead>
-						<tbody>
-							${debtsListHtml}
-						</tbody>
-					</table>
-				</div>
-
-				<div class="section-title">Movimientos Detallados del Mes</div>
-				<div class="table-container" style="margin-bottom: 24px;">
-					<table class="table">
-						<thead>
-							<tr>
-								<th>Concepto</th>
-								<th>Categoría</th>
-								<th>Frecuencia</th>
-								<th>Propietario</th>
-								<th style="text-align: right;">Importe</th>
-							</tr>
-						</thead>
-						<tbody>
-							${transactionsListHtml}
-						</tbody>
-					</table>
-				</div>
-
-				<div class="page-break"></div>
-
-				<div class="section-title">Historial de Conversación con el Asesor</div>
-				<div class="chat-history">
-					${messagesHtml}
-				</div>
+				${bodyContent || '<p style="text-align: center; color: #64748b; margin-top: 40px; font-style: italic;">Ninguna sección seleccionada para exportar.</p>'}
 
 				<div style="margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 16px; text-align: center; font-size: 10px; color: #94a3b8;">
 					Generado automáticamente por FinanzasPro con tecnología Gemini 3.5.
@@ -5139,7 +5169,7 @@ export default function App() {
 												<span>{copiedChat ? '¡Copiado!' : 'Copiar Chat'}</span>
 											</button>
 											<button
-												onClick={handleDownloadChatPDF}
+												onClick={() => setIsExportPdfModalOpen(true)}
 												className="px-2.5 py-1 text-[11px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg border border-indigo-500 transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
 												title="Descargar conversación como PDF"
 											>
@@ -5273,6 +5303,128 @@ export default function App() {
 				)}
 					</>
 				)}
+				{/* MODAL DE CONFIGURACIÓN DE EXPORTACIÓN PDF */}
+				{isExportPdfModalOpen && (
+					<div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+						<div 
+							className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 relative"
+							onClick={(e) => e.stopPropagation()}
+						>
+							<button 
+								onClick={() => setIsExportPdfModalOpen(false)}
+								className="absolute top-4 right-4 text-slate-500 hover:text-slate-200 transition-colors"
+								aria-label="Cerrar modal"
+							>
+								<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+									<path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+								</svg>
+							</button>
+
+							<div className="text-center">
+								<div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+									<svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+										<path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+									</svg>
+								</div>
+								<h2 className="text-xl font-bold text-slate-100">Exportar PDF Personalizado</h2>
+								<p className="text-xs text-slate-400 mt-1">
+									Selecciona las secciones que deseas incluir en el documento PDF final.
+								</p>
+							</div>
+
+							<div className="space-y-4">
+								<div className="space-y-3">
+									{/* Opción 1: Contexto Financiero */}
+									<label className="flex items-start gap-3 p-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-xl cursor-pointer transition-all">
+										<input 
+											type="checkbox"
+											checked={pdfExportOptions.showContext}
+											onChange={(e) => setPdfExportOptions({ ...pdfExportOptions, showContext: e.target.checked })}
+											className="mt-1 w-4 h-4 text-indigo-600 border-slate-700 bg-slate-950 rounded focus:ring-indigo-500 focus:ring-offset-slate-900"
+										/>
+										<div>
+											<span className="text-sm font-semibold text-slate-200 block">Contexto Financiero de la Vista</span>
+											<span className="text-[11px] text-slate-500 leading-relaxed block">
+												Resumen de ingresos, gastos, balance y desglose por etiquetas.
+											</span>
+										</div>
+									</label>
+
+									{/* Opción 2: Registro de Deudas */}
+									<label className="flex items-start gap-3 p-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-xl cursor-pointer transition-all">
+										<input 
+											type="checkbox"
+											checked={pdfExportOptions.showDebts}
+											onChange={(e) => setPdfExportOptions({ ...pdfExportOptions, showDebts: e.target.checked })}
+											className="mt-1 w-4 h-4 text-indigo-600 border-slate-700 bg-slate-950 rounded focus:ring-indigo-500 focus:ring-offset-slate-900"
+										/>
+										<div>
+											<span className="text-sm font-semibold text-slate-200 block">Registro de Deudas del Mes</span>
+											<span className="text-[11px] text-slate-500 leading-relaxed block">
+												Listado detallado de deudas y cuotas del mes analizado.
+											</span>
+										</div>
+									</label>
+
+									{/* Opción 3: Movimientos Detallados */}
+									<label className="flex items-start gap-3 p-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-xl cursor-pointer transition-all">
+										<input 
+											type="checkbox"
+											checked={pdfExportOptions.showTransactions}
+											onChange={(e) => setPdfExportOptions({ ...pdfExportOptions, showTransactions: e.target.checked })}
+											className="mt-1 w-4 h-4 text-indigo-600 border-slate-700 bg-slate-950 rounded focus:ring-indigo-500 focus:ring-offset-slate-900"
+										/>
+										<div>
+											<span className="text-sm font-semibold text-slate-200 block">Movimientos Detallados del Mes</span>
+											<span className="text-[11px] text-slate-500 leading-relaxed block">
+												Historial de ingresos, gastos y transferencias ejecutadas.
+											</span>
+										</div>
+									</label>
+
+									{/* Opción 4: Historial de Chat */}
+									<label className="flex items-start gap-3 p-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-xl cursor-pointer transition-all">
+										<input 
+											type="checkbox"
+											checked={pdfExportOptions.showChat}
+											onChange={(e) => setPdfExportOptions({ ...pdfExportOptions, showChat: e.target.checked })}
+											className="mt-1 w-4 h-4 text-indigo-600 border-slate-700 bg-slate-950 rounded focus:ring-indigo-500 focus:ring-offset-slate-900"
+										/>
+										<div>
+											<span className="text-sm font-semibold text-slate-200 block">Historial de Conversación con el Asesor</span>
+											<span className="text-[11px] text-slate-500 leading-relaxed block">
+												Mensajes del chat interactivo formateados.
+											</span>
+										</div>
+									</label>
+								</div>
+
+								{/* Botones de Acción */}
+								<div className="flex gap-2 pt-2">
+									<button
+										type="button"
+										onClick={() => {
+											handleDownloadChatPDF(pdfExportOptions);
+											setIsExportPdfModalOpen(false);
+										}}
+										disabled={!pdfExportOptions.showContext && !pdfExportOptions.showDebts && !pdfExportOptions.showTransactions && !pdfExportOptions.showChat}
+										className="w-1/2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 disabled:opacity-40 disabled:hover:from-indigo-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all active:scale-95 shadow-md shadow-indigo-600/10"
+									>
+										Descargar
+									</button>
+									<button
+										type="button"
+										onClick={() => setIsExportPdfModalOpen(false)}
+										className="w-1/2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition-all"
+									>
+										Cancelar
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+				)}
+
 				{/* MODAL DE RECONFIGURACIÓN DE CUENTA */}
 				{isReconfiguring && (
 					<div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
