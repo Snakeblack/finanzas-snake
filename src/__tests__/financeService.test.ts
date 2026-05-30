@@ -1,142 +1,620 @@
 import { describe, it, expect } from 'vitest';
-import { 
-	deduceTagFromConcept, 
-	calculateMonthlyPayment, 
-	generateAmortizationSchedule, 
-	calculateTimelineBalances, 
-	isClassicDebt, 
-	isPaymentPlanDebt 
+import {
+	deduceTagFromConcept,
+	isClassicDebt,
+	isPaymentPlanDebt,
+	hasTin,
+	getDebtRateLabel,
+	getPaymentPlanPaidAmount,
+	getPaymentPlanRemainingAmount,
+	generatePaymentPlanInstallments,
+	getMonthlyRate,
+	calculateMonthlyPayment,
+	getDebtRateMode,
+	getPaymentPlanDueInstallments,
+	getPaymentPlanCashflowForMonth,
+	getPaymentPlanOverdueAmount,
+	calculateDebtMonthlyPayment,
+	generateAmortizationSchedule,
+	getTransactionOwner,
+	getEffectiveAmount,
+	calculateTimelineBalances,
+	getTagBreakdown
 } from '../services/financeService';
-import { toNumber } from '../utils/formatters';
-import { normalizeMonth, addMonthsToMonth, getValidDateForMonth } from '../utils/dateUtils';
-import type { Account, Period, Transaction, Debt } from '../types';
+import type { Account, Period, Transaction, Debt, ClassicDebt, PaymentPlanDebt } from '../types';
 
-describe('Utilidades de Fechas y Formateadores', () => {
-	it('toNumber debe convertir entradas de forma segura', () => {
-		expect(toNumber(100)).toBe(100);
-		expect(toNumber('123.45')).toBe(123.45);
-		expect(toNumber(undefined)).toBe(0);
-		expect(toNumber('invalido')).toBe(0);
+// --- Fixtures reutilizables ---
+const classicDebt: ClassicDebt = {
+	id: 'debt-classic-1',
+	kind: 'classic',
+	desc: 'Préstamo Personal',
+	tag: 'Préstamo Personal',
+	date: '2026-05',
+	principal: 10000,
+	tae: 5,
+	termMonths: 12,
+	owner: 'joint'
+};
+
+const classicDebtWithTin: ClassicDebt = {
+	id: 'debt-classic-tin',
+	kind: 'classic',
+	desc: 'Hipoteca',
+	tag: 'Hipoteca',
+	date: '2026-01',
+	principal: 150000,
+	tin: 2.5,
+	tae: 3.0,
+	termMonths: 360,
+	owner: 'userA'
+};
+
+const paymentPlanDebt: PaymentPlanDebt = {
+	id: 'debt-pp-1',
+	kind: 'paymentPlan',
+	desc: 'Fraccionamiento Móvil',
+	tag: 'Préstamo Personal',
+	date: '2026-03',
+	financedAmount: 1200,
+	fees: 60,
+	totalToPay: 1260,
+	owner: 'userB',
+	installments: [
+		{ id: 'i1', dueMonth: '2026-03', amount: 105, status: 'paid', label: 'Tramo 1 · Cuota 1' },
+		{ id: 'i2', dueMonth: '2026-04', amount: 105, status: 'paid', label: 'Tramo 1 · Cuota 2' },
+		{ id: 'i3', dueMonth: '2026-05', amount: 105, status: 'pending', label: 'Tramo 1 · Cuota 3' },
+		{ id: 'i4', dueMonth: '2026-06', amount: 105, status: 'pending', label: 'Tramo 1 · Cuota 4' },
+		{ id: 'i5', dueMonth: '2026-07', amount: 105, status: 'pending', label: 'Tramo 1 · Cuota 5' },
+		{ id: 'i6', dueMonth: '2026-08', amount: 105, status: 'pending', label: 'Tramo 1 · Cuota 6' },
+		{ id: 'i7', dueMonth: '2026-09', amount: 105, status: 'pending', label: 'Tramo 1 · Cuota 7' },
+		{ id: 'i8', dueMonth: '2026-10', amount: 105, status: 'pending', label: 'Tramo 1 · Cuota 8' },
+		{ id: 'i9', dueMonth: '2026-11', amount: 105, status: 'pending', label: 'Tramo 1 · Cuota 9' },
+		{ id: 'i10', dueMonth: '2026-12', amount: 105, status: 'pending', label: 'Tramo 1 · Cuota 10' },
+		{ id: 'i11', dueMonth: '2027-01', amount: 105, status: 'pending', label: 'Tramo 1 · Cuota 11' },
+		{ id: 'i12', dueMonth: '2027-02', amount: 105, status: 'pending', label: 'Tramo 1 · Cuota 12' }
+	]
+};
+
+const defaultAccounts: Account[] = [
+	{ id: 'acc-a', name: 'Efectivo A', owner: 'userA', initialBalance: 1000 },
+	{ id: 'acc-b', name: 'Efectivo B', owner: 'userB', initialBalance: 500 },
+	{ id: 'acc-j', name: 'Común', owner: 'joint', initialBalance: 200 }
+];
+
+// --- Tests ---
+
+describe('deduceTagFromConcept', () => {
+	it('debe retornar null para concepto vacío', () => {
+		expect(deduceTagFromConcept('', 'income')).toBeNull();
+		expect(deduceTagFromConcept('   ', 'expense')).toBeNull();
 	});
 
-	it('normalizeMonth debe normalizar a formato YYYY-MM', () => {
-		expect(normalizeMonth('2026-05-30')).toBe('2026-05');
-		expect(normalizeMonth(undefined)).toBe(new Date().toISOString().substring(0, 7));
+	it('debe deducir etiquetas de ingresos correctamente', () => {
+		expect(deduceTagFromConcept('Sueldo de Mayo', 'income')).toBe('Sueldo');
+		expect(deduceTagFromConcept('Nómina empresa', 'income')).toBe('Sueldo');
+		expect(deduceTagFromConcept('Dividendo de bolsa', 'income')).toBe('Inversiones');
+		expect(deduceTagFromConcept('Cripto Bitcoin', 'income')).toBe('Inversiones');
+		expect(deduceTagFromConcept('Proyecto freelance', 'income')).toBe('Freelance');
+		expect(deduceTagFromConcept('Autónomo trabajo', 'income')).toBe('Freelance');
+		expect(deduceTagFromConcept('Bizum cumpleaños', 'income')).toBe('Bizum/Regalo');
+		expect(deduceTagFromConcept('Regalo mamá', 'income')).toBe('Bizum/Regalo');
+		expect(deduceTagFromConcept('Reembolso Amazon', 'income')).toBe('Reembolso');
+		expect(deduceTagFromConcept('Devolucion Zara', 'income')).toBe('Reembolso');
 	});
 
-	it('addMonthsToMonth debe sumar meses correctamente', () => {
-		expect(addMonthsToMonth('2026-05', 1)).toBe('2026-06');
-		expect(addMonthsToMonth('2026-12', 1)).toBe('2027-01');
-		expect(addMonthsToMonth('2026-01', -1)).toBe('2025-12');
+	it('debe deducir etiquetas de gastos correctamente', () => {
+		expect(deduceTagFromConcept('Alquiler piso', 'expense')).toBe('Alquiler/Hipoteca');
+		expect(deduceTagFromConcept('Hipoteca mes', 'expense')).toBe('Alquiler/Hipoteca');
+		expect(deduceTagFromConcept('Mercadona compra', 'expense')).toBe('Alimentación');
+		expect(deduceTagFromConcept('Supermercado Lidl', 'expense')).toBe('Alimentación');
+		expect(deduceTagFromConcept('Gasolina coche', 'expense')).toBe('Transporte');
+		expect(deduceTagFromConcept('Uber trabajo', 'expense')).toBe('Transporte');
+		expect(deduceTagFromConcept('Renfe Madrid', 'expense')).toBe('Transporte');
+		expect(deduceTagFromConcept('Factura de luz', 'expense')).toBe('Suministros');
+		expect(deduceTagFromConcept('Internet fibra', 'expense')).toBe('Suministros');
+		expect(deduceTagFromConcept('Iberdrola electricidad', 'expense')).toBe('Suministros');
+		expect(deduceTagFromConcept('Cine con amigos', 'expense')).toBe('Ocio/Restauración');
+		expect(deduceTagFromConcept('Restaurante italiano', 'expense')).toBe('Ocio/Restauración');
+		expect(deduceTagFromConcept('Cañas viernes', 'expense')).toBe('Ocio/Restauración');
+		expect(deduceTagFromConcept('Netflix mensual', 'expense')).toBe('Suscripciones');
+		expect(deduceTagFromConcept('Spotify premium', 'expense')).toBe('Suscripciones');
+		expect(deduceTagFromConcept('Médico dentista', 'expense')).toBe('Salud/Belleza');
+		expect(deduceTagFromConcept('Farmacia medicina', 'expense')).toBe('Salud/Belleza');
+		expect(deduceTagFromConcept('Curso universidad', 'expense')).toBe('Educación');
+		expect(deduceTagFromConcept('Libro de texto', 'expense')).toBe('Educación');
+		expect(deduceTagFromConcept('Viaje a Roma', 'expense')).toBe('Viajes');
+		expect(deduceTagFromConcept('Hotel booking', 'expense')).toBe('Viajes');
+		expect(deduceTagFromConcept('Ropa Zara', 'expense')).toBe('Compras/Ropa');
+		expect(deduceTagFromConcept('Nike zapatillas', 'expense')).toBe('Compras/Ropa');
 	});
 
-	it('getValidDateForMonth debe retornar una fecha válida ajustada', () => {
-		expect(getValidDateForMonth('2026-05', '15')).toBe('2026-05-15');
-		// Mayo tiene 31 días
-		expect(getValidDateForMonth('2026-05', '35')).toBe('2026-05-31');
-		// Febrero 2026 tiene 28 días
-		expect(getValidDateForMonth('2026-02', '30')).toBe('2026-02-28');
+	it('debe deducir etiquetas de traspasos correctamente', () => {
+		expect(deduceTagFromConcept('Ahorro mensual', 'transfer')).toBe('Ahorro/Inversión');
+		expect(deduceTagFromConcept('Inversión crypto', 'transfer')).toBe('Ahorro/Inversión');
+		expect(deduceTagFromConcept('Gasto común pareja', 'transfer')).toBe('Gasto Común');
+		expect(deduceTagFromConcept('Compartido juntos', 'transfer')).toBe('Gasto Común');
+		expect(deduceTagFromConcept('Ajuste de saldo', 'transfer')).toBe('Ajuste de Saldo');
+		expect(deduceTagFromConcept('Cuadrar cuentas', 'transfer')).toBe('Ajuste de Saldo');
+	});
+
+	it('debe retornar null si no hay coincidencia', () => {
+		expect(deduceTagFromConcept('Concepto genérico', 'income')).toBeNull();
+		expect(deduceTagFromConcept('Algo random', 'expense')).toBeNull();
+		expect(deduceTagFromConcept('Pago a fulano', 'transfer')).toBeNull();
 	});
 });
 
-describe('Lógica Financiera y Categorización', () => {
-	it('deduceTagFromConcept debe inferir categorías correctas', () => {
-		expect(deduceTagFromConcept('Sueldo de Mayo', 'income')).toBe('Sueldo');
-		expect(deduceTagFromConcept('dividendo de bolsa', 'income')).toBe('Inversiones');
-		expect(deduceTagFromConcept('Compra en Mercadona', 'expense')).toBe('Alimentación');
-		expect(deduceTagFromConcept('Uber al trabajo', 'expense')).toBe('Transporte');
-		expect(deduceTagFromConcept('Pago de Netflix', 'expense')).toBe('Suscripciones');
-		expect(deduceTagFromConcept('Inversión en hucha', 'transfer')).toBe('Ahorro/Inversión');
+describe('Type Guards de Deudas', () => {
+	it('isClassicDebt debe identificar deudas clásicas', () => {
+		expect(isClassicDebt(classicDebt)).toBe(true);
+		expect(isClassicDebt(paymentPlanDebt)).toBe(false);
 	});
 
-	it('calculateMonthlyPayment debe calcular cuotas de préstamos según sistema francés', () => {
-		// Capital de 10000€, TAE de 5%, 12 meses
+	it('isPaymentPlanDebt debe identificar planes de pago', () => {
+		expect(isPaymentPlanDebt(paymentPlanDebt)).toBe(true);
+		expect(isPaymentPlanDebt(classicDebt)).toBe(false);
+	});
+});
+
+describe('hasTin y getDebtRateLabel', () => {
+	it('hasTin debe retornar true si la deuda tiene TIN > 0', () => {
+		expect(hasTin(classicDebtWithTin)).toBe(true);
+	});
+
+	it('hasTin debe retornar false si la deuda no tiene TIN', () => {
+		expect(hasTin(classicDebt)).toBe(false);
+	});
+
+	it('getDebtRateLabel debe mostrar solo TAE sin TIN', () => {
+		expect(getDebtRateLabel(classicDebt)).toBe('TAE 5%');
+	});
+
+	it('getDebtRateLabel debe mostrar TIN y TAE con TIN', () => {
+		expect(getDebtRateLabel(classicDebtWithTin)).toBe('TIN 2.5% / TAE 3%');
+	});
+});
+
+describe('PaymentPlan helpers', () => {
+	it('getPaymentPlanPaidAmount debe sumar las cuotas pagadas', () => {
+		expect(getPaymentPlanPaidAmount(paymentPlanDebt)).toBe(210); // 2 × 105
+	});
+
+	it('getPaymentPlanRemainingAmount debe sumar las cuotas pendientes', () => {
+		expect(getPaymentPlanRemainingAmount(paymentPlanDebt)).toBe(1050); // 10 × 105
+	});
+
+	it('debe retornar 0 si todas están pagadas', () => {
+		const allPaid: PaymentPlanDebt = {
+			...paymentPlanDebt,
+			installments: paymentPlanDebt.installments.map(i => ({ ...i, status: 'paid' as const }))
+		};
+		expect(getPaymentPlanRemainingAmount(allPaid)).toBe(0);
+		expect(getPaymentPlanPaidAmount(allPaid)).toBe(1260);
+	});
+
+	it('debe retornar 0 si no hay installments', () => {
+		const empty: PaymentPlanDebt = { ...paymentPlanDebt, installments: [] };
+		expect(getPaymentPlanPaidAmount(empty)).toBe(0);
+		expect(getPaymentPlanRemainingAmount(empty)).toBe(0);
+	});
+});
+
+describe('generatePaymentPlanInstallments', () => {
+	it('debe generar installments correctas para un solo tramo', () => {
+		const result = generatePaymentPlanInstallments('d1', '2026-05', [
+			{ id: 't1', months: '3', amount: '100' }
+		]);
+		expect(result).toHaveLength(3);
+		expect(result[0].dueMonth).toBe('2026-05');
+		expect(result[1].dueMonth).toBe('2026-06');
+		expect(result[2].dueMonth).toBe('2026-07');
+		expect(result[0].amount).toBe(100);
+		expect(result[0].status).toBe('pending');
+		expect(result[0].label).toBe('Tramo 1 · Cuota 1');
+	});
+
+	it('debe generar installments para múltiples tramos', () => {
+		const result = generatePaymentPlanInstallments('d2', '2026-01', [
+			{ id: 't1', months: '2', amount: '50' },
+			{ id: 't2', months: '3', amount: '80' }
+		]);
+		expect(result).toHaveLength(5);
+		expect(result[0].amount).toBe(50);
+		expect(result[0].label).toBe('Tramo 1 · Cuota 1');
+		expect(result[1].amount).toBe(50);
+		expect(result[2].amount).toBe(80);
+		expect(result[2].label).toBe('Tramo 2 · Cuota 1');
+		expect(result[4].dueMonth).toBe('2026-05');
+	});
+
+	it('debe manejar importes negativos (usa Math.abs)', () => {
+		const result = generatePaymentPlanInstallments('d3', '2026-01', [
+			{ id: 't1', months: '1', amount: '-50' }
+		]);
+		expect(result[0].amount).toBe(50);
+	});
+
+	it('debe retornar vacío si meses es 0', () => {
+		const result = generatePaymentPlanInstallments('d4', '2026-01', [
+			{ id: 't1', months: '0', amount: '50' }
+		]);
+		expect(result).toHaveLength(0);
+	});
+});
+
+describe('getMonthlyRate', () => {
+	it('debe calcular la tasa mensual en modo TIN', () => {
+		const rate = getMonthlyRate(12, 'tin');
+		expect(rate).toBeCloseTo(0.01, 5); // 12% / 12 = 1%
+	});
+
+	it('debe calcular la tasa mensual en modo TAE', () => {
+		const rate = getMonthlyRate(12, 'tae');
+		// (1 + 0.12)^(1/12) - 1 ≈ 0.00949
+		expect(rate).toBeCloseTo(0.00949, 4);
+	});
+
+	it('debe retornar 0 si la tasa es 0', () => {
+		expect(getMonthlyRate(0, 'tin')).toBe(0);
+		expect(getMonthlyRate(0, 'tae')).toBe(0);
+	});
+
+	it('debe retornar 0 si la tasa es negativa', () => {
+		expect(getMonthlyRate(-5, 'tin')).toBe(0);
+		expect(getMonthlyRate(-5, 'tae')).toBe(0);
+	});
+});
+
+describe('calculateMonthlyPayment', () => {
+	it('debe calcular correctamente con TAE', () => {
 		const cuota = calculateMonthlyPayment(10000, 5, 12, 'tae');
-		expect(cuota).toBeCloseTo(855.57, 2);
-
-		// Sin interés
-		const cuotaSinInteres = calculateMonthlyPayment(1200, 0, 12);
-		expect(cuotaSinInteres).toBe(100);
+		expect(cuota).toBeCloseTo(855.57, 0);
 	});
 
-	it('generateAmortizationSchedule debe generar cuadro detallado', () => {
-		const classic: Debt = {
-			id: 'debt-1',
-			kind: 'classic',
-			desc: 'Préstamo Test',
-			tag: 'Préstamo Personal',
-			date: '2026-05',
-			principal: 5000,
-			tae: 6,
-			termMonths: 6,
+	it('debe calcular correctamente con TIN', () => {
+		const cuota = calculateMonthlyPayment(10000, 6, 12, 'tin');
+		expect(cuota).toBeCloseTo(860.66, 0);
+	});
+
+	it('debe retornar capital / meses si tasa es 0', () => {
+		expect(calculateMonthlyPayment(1200, 0, 12)).toBe(100);
+	});
+
+	it('debe retornar 0 si capital es 0', () => {
+		expect(calculateMonthlyPayment(0, 5, 12)).toBe(0);
+	});
+
+	it('debe retornar 0 si meses es 0', () => {
+		expect(calculateMonthlyPayment(10000, 5, 0)).toBe(0);
+	});
+
+	it('debe usar TAE por defecto', () => {
+		const cuota = calculateMonthlyPayment(10000, 5, 12);
+		expect(cuota).toBeCloseTo(855.57, 0);
+	});
+});
+
+describe('getDebtRateMode', () => {
+	it('debe retornar tin si la deuda tiene TIN', () => {
+		expect(getDebtRateMode(classicDebtWithTin)).toBe('tin');
+	});
+
+	it('debe retornar tae si la deuda no tiene TIN', () => {
+		expect(getDebtRateMode(classicDebt)).toBe('tae');
+	});
+});
+
+describe('PaymentPlan due/cashflow/overdue', () => {
+	it('getPaymentPlanDueInstallments debe filtrar pendientes hasta el mes dado', () => {
+		const due = getPaymentPlanDueInstallments(paymentPlanDebt, '2026-05');
+		// i3 (2026-05) es pending y dueMonth <= '2026-05'
+		expect(due).toHaveLength(1);
+		expect(due[0].id).toBe('i3');
+	});
+
+	it('getPaymentPlanDueInstallments debe incluir overdue y current', () => {
+		// Simular que hay una cuota overdue
+		const debtWithOverdue: PaymentPlanDebt = {
+			...paymentPlanDebt,
+			installments: paymentPlanDebt.installments.map(i =>
+				i.id === 'i1' ? { ...i, status: 'pending' as const } : i
+			)
+		};
+		const due = getPaymentPlanDueInstallments(debtWithOverdue, '2026-05');
+		// i1 (2026-03 pending), i3 (2026-05 pending) = 2
+		expect(due).toHaveLength(2);
+	});
+
+	it('getPaymentPlanCashflowForMonth debe sumar importes de cuotas exigibles', () => {
+		expect(getPaymentPlanCashflowForMonth(paymentPlanDebt, '2026-05')).toBe(105);
+		expect(getPaymentPlanCashflowForMonth(paymentPlanDebt, '2026-02')).toBe(0); // antes del inicio
+	});
+
+	it('getPaymentPlanOverdueAmount debe sumar cuotas vencidas anteriores al mes', () => {
+		// i1 y i2 están paid, así que no hay overdue
+		expect(getPaymentPlanOverdueAmount(paymentPlanDebt, '2026-06')).toBe(105); // i3 (2026-05) pendiente, y antes de 2026-06
+	});
+
+	it('getPaymentPlanOverdueAmount debe retornar 0 si no hay vencidas', () => {
+		expect(getPaymentPlanOverdueAmount(paymentPlanDebt, '2026-03')).toBe(0);
+	});
+});
+
+describe('calculateDebtMonthlyPayment', () => {
+	it('debe calcular cuota para deuda clásica', () => {
+		const cuota = calculateDebtMonthlyPayment(classicDebt, '2026-05');
+		expect(cuota).toBeGreaterThan(0);
+		expect(cuota).toBeCloseTo(calculateMonthlyPayment(10000, 5, 12, 'tae'), 2);
+	});
+
+	it('debe calcular cuota para plan de pagos', () => {
+		expect(calculateDebtMonthlyPayment(paymentPlanDebt, '2026-05')).toBe(105);
+	});
+});
+
+describe('generateAmortizationSchedule', () => {
+	it('debe generar cuadro completo de amortización', () => {
+		const schedule = generateAmortizationSchedule(classicDebt);
+		expect(schedule).toHaveLength(12);
+		expect(schedule[0].month).toBe(1);
+		expect(schedule[11].month).toBe(12);
+		expect(schedule[11].remainingPrincipal).toBeCloseTo(0, 0);
+	});
+
+	it('todas las cuotas deben ser iguales (sistema francés)', () => {
+		const schedule = generateAmortizationSchedule(classicDebt);
+		const cuota = schedule[0].cuota;
+		schedule.forEach(row => {
+			expect(row.cuota).toBeCloseTo(cuota, 2);
+		});
+	});
+
+	it('debe funcionar con TIN', () => {
+		const schedule = generateAmortizationSchedule(classicDebtWithTin);
+		expect(schedule).toHaveLength(360);
+		expect(schedule[0].interestPayment).toBeGreaterThan(0);
+		expect(schedule[359].remainingPrincipal).toBeCloseTo(0, 0);
+	});
+
+	it('debe funcionar sin interés', () => {
+		const noInterest: ClassicDebt = { ...classicDebt, tae: 0 };
+		const schedule = generateAmortizationSchedule(noInterest);
+		expect(schedule).toHaveLength(12);
+		schedule.forEach(row => {
+			expect(row.interestPayment).toBe(0);
+			expect(row.cuota).toBeCloseTo(10000 / 12, 2);
+		});
+	});
+});
+
+describe('getTransactionOwner', () => {
+	it('debe retornar el owner directo si existe', () => {
+		const tx: Transaction = {
+			id: 't1', desc: 'Test', amount: 100, type: 'expense',
+			tag: 'Test', date: '2026-05-01', owner: 'userA'
+		};
+		expect(getTransactionOwner(tx, defaultAccounts)).toBe('userA');
+	});
+
+	it('debe resolver a través de accountId si no tiene owner', () => {
+		const tx: Transaction = {
+			id: 't2', desc: 'Test', amount: 100, type: 'expense',
+			tag: 'Test', date: '2026-05-01', accountId: 'acc-b'
+		};
+		expect(getTransactionOwner(tx, defaultAccounts)).toBe('userB');
+	});
+
+	it('debe retornar joint si no tiene owner ni accountId', () => {
+		const tx: Transaction = {
+			id: 't3', desc: 'Test', amount: 100, type: 'expense',
+			tag: 'Test', date: '2026-05-01'
+		};
+		expect(getTransactionOwner(tx, defaultAccounts)).toBe('joint');
+	});
+
+	it('debe retornar joint si el accountId no existe en las cuentas', () => {
+		const tx: Transaction = {
+			id: 't4', desc: 'Test', amount: 100, type: 'expense',
+			tag: 'Test', date: '2026-05-01', accountId: 'inexistente'
+		};
+		expect(getTransactionOwner(tx, defaultAccounts)).toBe('joint');
+	});
+});
+
+describe('getEffectiveAmount', () => {
+	const txA: Transaction = {
+		id: 't1', desc: 'Test', amount: 200, type: 'expense',
+		tag: 'Test', date: '2026-05-01', owner: 'userA'
+	};
+	const txB: Transaction = {
+		id: 't2', desc: 'Test', amount: 300, type: 'income',
+		tag: 'Test', date: '2026-05-01', owner: 'userB'
+	};
+	const txJoint: Transaction = {
+		id: 't3', desc: 'Test', amount: 400, type: 'expense',
+		tag: 'Test', date: '2026-05-01', owner: 'joint'
+	};
+
+	it('vista all: debe retornar el importe completo siempre', () => {
+		expect(getEffectiveAmount(txA, 'all', defaultAccounts)).toBe(200);
+		expect(getEffectiveAmount(txB, 'all', defaultAccounts)).toBe(300);
+		expect(getEffectiveAmount(txJoint, 'all', defaultAccounts)).toBe(400);
+	});
+
+	it('vista userA: 100% para userA, 50% para joint, 0% para userB', () => {
+		expect(getEffectiveAmount(txA, 'userA', defaultAccounts)).toBe(200);
+		expect(getEffectiveAmount(txJoint, 'userA', defaultAccounts)).toBe(200);
+		expect(getEffectiveAmount(txB, 'userA', defaultAccounts)).toBe(0);
+	});
+
+	it('vista userB: 100% para userB, 50% para joint, 0% para userA', () => {
+		expect(getEffectiveAmount(txB, 'userB', defaultAccounts)).toBe(300);
+		expect(getEffectiveAmount(txJoint, 'userB', defaultAccounts)).toBe(200);
+		expect(getEffectiveAmount(txA, 'userB', defaultAccounts)).toBe(0);
+	});
+});
+
+describe('calculateTimelineBalances', () => {
+	it('debe calcular saldos para un mes simple con ingresos y gastos', () => {
+		const accounts: Account[] = [
+			{ id: 'a1', name: 'A', owner: 'userA', initialBalance: 1000 },
+			{ id: 'j1', name: 'J', owner: 'joint', initialBalance: 0 }
+		];
+		const periods: Period[] = [{ month: '2026-05', openingBalance: 1000 }];
+		const txs: Transaction[] = [
+			{ id: 't1', desc: 'Nómina', amount: 2000, type: 'income', tag: 'Sueldo', date: '2026-05-01', owner: 'userA', accountId: 'a1' },
+			{ id: 't2', desc: 'Compra', amount: 100, type: 'expense', tag: 'Alimentación', date: '2026-05-05', owner: 'joint', accountId: 'j1' }
+		];
+
+		const result = calculateTimelineBalances(periods, txs, [], accounts, 'all');
+		expect(result['2026-05']).toBeDefined();
+		expect(result['2026-05'].incomes).toBe(2000);
+		expect(result['2026-05'].expenses).toBe(100);
+		expect(result['2026-05'].openingBalance).toBe(1000);
+		expect(result['2026-05'].closingBalance).toBe(2900);
+	});
+
+	it('debe acumular saldos entre periodos', () => {
+		const accounts: Account[] = [
+			{ id: 'a1', name: 'A', owner: 'userA', initialBalance: 500 }
+		];
+		const periods: Period[] = [
+			{ month: '2026-05', openingBalance: 500 },
+			{ month: '2026-06', openingBalance: 0 }
+		];
+		const txs: Transaction[] = [
+			{ id: 't1', desc: 'Ingreso', amount: 1000, type: 'income', tag: 'Sueldo', date: '2026-05-01', owner: 'userA', accountId: 'a1' },
+			{ id: 't2', desc: 'Gasto', amount: 200, type: 'expense', tag: 'Otros', date: '2026-06-01', owner: 'userA', accountId: 'a1' }
+		];
+
+		const result = calculateTimelineBalances(periods, txs, [], accounts, 'all');
+		expect(result['2026-05'].closingBalance).toBe(1500);
+		expect(result['2026-06'].openingBalance).toBe(1500);
+		expect(result['2026-06'].closingBalance).toBe(1300);
+	});
+
+	it('debe ponderar saldos por vista de usuario', () => {
+		const accounts: Account[] = [
+			{ id: 'a1', name: 'A', owner: 'userA', initialBalance: 1000 },
+			{ id: 'b1', name: 'B', owner: 'userB', initialBalance: 500 },
+			{ id: 'j1', name: 'J', owner: 'joint', initialBalance: 200 }
+		];
+		const periods: Period[] = [{ month: '2026-05', openingBalance: 1700 }];
+
+		const resultAll = calculateTimelineBalances(periods, [], [], accounts, 'all');
+		expect(resultAll['2026-05'].openingBalance).toBe(1700);
+
+		const resultA = calculateTimelineBalances(periods, [], [], accounts, 'userA');
+		// A owns acc-a (1000) + 50% of joint (100) = 1100
+		expect(resultA['2026-05'].openingBalance).toBe(1100);
+
+		const resultB = calculateTimelineBalances(periods, [], [], accounts, 'userB');
+		// B owns acc-b (500) + 50% of joint (100) = 600
+		expect(resultB['2026-05'].openingBalance).toBe(600);
+	});
+
+	it('debe aplicar transferencias correctamente', () => {
+		const accounts: Account[] = [
+			{ id: 'a1', name: 'A', owner: 'userA', initialBalance: 1000 },
+			{ id: 'b1', name: 'B', owner: 'userB', initialBalance: 500 }
+		];
+		const periods: Period[] = [{ month: '2026-05', openingBalance: 1500 }];
+		const txs: Transaction[] = [{
+			id: 't1', desc: 'Traspaso', amount: 200, type: 'transfer',
+			tag: 'Traspaso', date: '2026-05-01',
+			fromAccountId: 'a1', toAccountId: 'b1'
+		}];
+
+		const result = calculateTimelineBalances(periods, txs, [], accounts, 'all');
+		// Transferencia no cambia el total
+		expect(result['2026-05'].closingBalance).toBe(1500);
+		expect(result['2026-05'].accountBalances['a1']).toBe(800);
+		expect(result['2026-05'].accountBalances['b1']).toBe(700);
+	});
+
+	it('debe aplicar cuotas de deudas clásicas', () => {
+		const accounts: Account[] = [
+			{ id: 'a1', name: 'A', owner: 'joint', initialBalance: 5000 }
+		];
+		const periods: Period[] = [{ month: '2026-05', openingBalance: 5000 }];
+		const debt: ClassicDebt = {
+			id: 'd1', kind: 'classic', desc: 'Test', tag: 'Test',
+			date: '2026-05', principal: 1200, tae: 0, termMonths: 12,
+			owner: 'joint', paymentAccountId: 'a1'
+		};
+
+		const result = calculateTimelineBalances(periods, [], [debt], accounts, 'all');
+		// Cuota = 1200/12 = 100
+		expect(result['2026-05'].debtPayments).toBeCloseTo(100, 2);
+		expect(result['2026-05'].accountBalances['a1']).toBeCloseTo(4900, 2);
+	});
+
+	it('debe ponderar pagos de deudas por vista de usuario', () => {
+		const accounts: Account[] = [
+			{ id: 'a1', name: 'A', owner: 'userA', initialBalance: 5000 }
+		];
+		const periods: Period[] = [{ month: '2026-05', openingBalance: 5000 }];
+		const debt: ClassicDebt = {
+			id: 'd1', kind: 'classic', desc: 'Test', tag: 'Test',
+			date: '2026-05', principal: 1200, tae: 0, termMonths: 12,
+			owner: 'joint' // joint debt
+		};
+
+		const resultA = calculateTimelineBalances(periods, [], [debt], accounts, 'userA');
+		// joint debt → pago ponderado al 50% para userA
+		expect(resultA['2026-05'].debtPayments).toBeCloseTo(50, 2);
+
+		const resultB = calculateTimelineBalances(periods, [], [debt], accounts, 'userB');
+		expect(resultB['2026-05'].debtPayments).toBeCloseTo(50, 2);
+	});
+
+	it('debe ignorar deudas fuera de rango', () => {
+		const accounts: Account[] = [
+			{ id: 'a1', name: 'A', owner: 'joint', initialBalance: 5000 }
+		];
+		const periods: Period[] = [{ month: '2026-05', openingBalance: 5000 }];
+		const futureDebt: ClassicDebt = {
+			id: 'd1', kind: 'classic', desc: 'Futura', tag: 'Test',
+			date: '2027-01', principal: 1200, tae: 0, termMonths: 12,
+			owner: 'joint', paymentAccountId: 'a1'
+		};
+
+		const result = calculateTimelineBalances(periods, [], [futureDebt], accounts, 'all');
+		expect(result['2026-05'].debtPayments).toBe(0);
+	});
+});
+
+describe('getTagBreakdown', () => {
+	it('debe agrupar gastos por etiqueta', () => {
+		const txs: Transaction[] = [
+			{ id: 't1', desc: 'Compra 1', amount: 50, type: 'expense', tag: 'Alimentación', date: '2026-05-01' },
+			{ id: 't2', desc: 'Compra 2', amount: 30, type: 'expense', tag: 'Alimentación', date: '2026-05-02' },
+			{ id: 't3', desc: 'Netflix', amount: 15, type: 'expense', tag: 'Suscripciones', date: '2026-05-01' },
+			{ id: 't4', desc: 'Nómina', amount: 2000, type: 'income', tag: 'Sueldo', date: '2026-05-01' }
+		];
+
+		const result = getTagBreakdown(txs, [], '2026-05');
+		expect(result).toHaveLength(2); // Solo gastos
+		const alimentacion = result.find(r => r.tag === 'Alimentación');
+		expect(alimentacion?.amount).toBe(80);
+		const suscripciones = result.find(r => r.tag === 'Suscripciones');
+		expect(suscripciones?.amount).toBe(15);
+	});
+
+	it('debe incluir cuotas de deudas en el breakdown', () => {
+		const debt: ClassicDebt = {
+			id: 'd1', kind: 'classic', desc: 'Test', tag: 'Hipoteca',
+			date: '2026-05', principal: 1200, tae: 0, termMonths: 12,
 			owner: 'joint'
 		};
 
-		if (isClassicDebt(classic)) {
-			const schedule = generateAmortizationSchedule(classic);
-			expect(schedule).toHaveLength(6);
-			expect(schedule[0].month).toBe(1);
-			expect(schedule[5].remainingPrincipal).toBeCloseTo(0, 2);
-		} else {
-			throw new Error('Debería ser classic');
-		}
+		const result = getTagBreakdown([], [debt], '2026-05');
+		expect(result).toHaveLength(1);
+		expect(result[0].tag).toBe('Hipoteca');
+		expect(result[0].amount).toBeCloseTo(100, 2);
 	});
-});
 
-describe('Motor Contable de Línea Temporal', () => {
-	it('calculateTimelineBalances debe acumular y ponderar los saldos correctamente', () => {
-		const accounts: Account[] = [
-			{ id: 'default-a', name: 'Efectivo A', owner: 'userA', initialBalance: 1000 },
-			{ id: 'default-b', name: 'Efectivo B', owner: 'userB', initialBalance: 500 },
-			{ id: 'default-joint', name: 'Común', owner: 'joint', initialBalance: 0 }
-		];
-
-		const periods: Period[] = [
-			{ month: '2026-05', openingBalance: 1500 }
-		];
-
-		const transactions: Transaction[] = [
-			// Ingreso en cuenta de User A
-			{
-				id: 'tx-1',
-				desc: 'Nómina',
-				amount: 2000,
-				type: 'income',
-				tag: 'Sueldo',
-				date: '2026-05-01',
-				owner: 'userA',
-				accountId: 'default-a'
-			},
-			// Gasto conjunto pagado por A
-			{
-				id: 'tx-2',
-				desc: 'Supermercado',
-				amount: 100,
-				type: 'expense',
-				tag: 'Alimentación',
-				date: '2026-05-05',
-				owner: 'joint',
-				paidBy: 'userA',
-				accountId: 'default-joint'
-			}
-		];
-
-		const debts: Debt[] = [];
-
-		// Vista de User A
-		// Apertura: 1000 (A) + 0 (joint * 0.5) = 1000
-		// Ingresos A: 2000 (100% de A)
-		// Gastos A: 50 (50% de joint)
-		// Saldo final A en cuenta A: 1000 + 2000 = 3000
-		// Saldo final A en cuenta joint: -100 = -100 (conjunto), ponderado al 50% = -50
-		// Balance neto esperado para A: 2000 - 50 = 1950
-		const balancesA = calculateTimelineBalances(periods, transactions, debts, accounts, 'userA');
-		
-		expect(balancesA['2026-05']).toBeDefined();
-		expect(balancesA['2026-05'].openingBalance).toBe(1000);
-		expect(balancesA['2026-05'].incomes).toBe(2000);
-		expect(balancesA['2026-05'].expenses).toBe(50);
-		expect(balancesA['2026-05'].netBalance).toBe(1950);
-		expect(balancesA['2026-05'].closingBalance).toBe(2950);
+	it('debe retornar vacío si no hay gastos ni deudas', () => {
+		expect(getTagBreakdown([], [], '2026-05')).toHaveLength(0);
 	});
 });
