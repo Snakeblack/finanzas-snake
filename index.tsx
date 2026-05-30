@@ -2735,10 +2735,14 @@ export default function App() {
 		doc.write(html);
 		doc.close();
 
+		const originalTitle = document.title;
+		document.title = pdfTitle;
+
 		setTimeout(() => {
 			iframe.contentWindow?.focus();
 			iframe.contentWindow?.print();
 			setTimeout(() => {
+				document.title = originalTitle;
 				document.body.removeChild(iframe);
 			}, 1000);
 		}, 300);
