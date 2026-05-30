@@ -2,6 +2,24 @@ import { Peer } from 'peerjs';
 
 const PEER_PREFIX = 'finpro-';
 
+const PEER_CONFIG = {
+	config: {
+		iceServers: [
+			{ urls: 'stun:stun.l.google.com:19302' },
+			{ urls: 'stun:global.stun.twilio.com:3478' },
+			{
+				urls: [
+					'turn:openrelay.metered.ca:80',
+					'turn:openrelay.metered.ca:443',
+					'turn:openrelay.metered.ca:443?transport=tcp'
+				],
+				username: 'openrelayproject',
+				credential: 'openrelayproject'
+			}
+		]
+	}
+};
+
 export interface SyncData {
 	[key: string]: string | null;
 }
@@ -39,7 +57,7 @@ export const startSyncHost = (callbacks: HostCallbacks): { destroy: () => void }
 		if (isDestroyed) return;
 		
 		const peerId = `${PEER_PREFIX}${code}`;
-		peer = new Peer(peerId);
+		peer = new Peer(peerId, PEER_CONFIG);
 
 		peer.on('open', () => {
 			if (isDestroyed) return;
@@ -130,7 +148,7 @@ export interface ClientCallbacks {
  * Conecta a una sesión de envío utilizando el código provisto para recibir los datos.
  */
 export const connectToSyncHost = (code: string, callbacks: ClientCallbacks): { destroy: () => void } => {
-	let peer: Peer | null = new Peer();
+	let peer: Peer | null = new Peer(PEER_CONFIG);
 	let conn: any = null;
 	let isDestroyed = false;
 
