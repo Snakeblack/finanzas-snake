@@ -28,8 +28,22 @@ import {
 	saveGeminiApiKey, 
 	saveAiChat,
 	readGeminiApiKey,
-	readAiChat
+	readAiChat,
+	setCryptoKey,
+	readStoredTransactions,
+	readStoredAccounts,
+	readStoredPeriods,
+	readStoredDebtsSync,
+	readGeminiApiKeySync,
+	readAiChatSync
 } from '../services/storageService';
+import {
+	deriveKeyFromPassword,
+	encryptWithKey,
+	decryptWithKey,
+	generateSalt
+} from '../services/cryptoService';
+import { validateAndSanitizeBackup } from '../utils/backupValidator';
 import { 
 	addMonthsToMonth, 
 	getValidDateForMonth, 
@@ -154,6 +168,15 @@ export interface FinanzasContextType {
 	importSuccess: string;
 	setImportSuccess: (msg: string) => void;
 
+	// Seguridad y Bloqueo (OWASP)
+	isLocked: boolean;
+	hasPasswordSet: boolean;
+	passwordError: string;
+	setPasswordError: (err: string) => void;
+	handleSetupPassword: (password: string) => Promise<boolean>;
+	handleUnlock: (password: string) => Promise<boolean>;
+	handleLockApp: () => void;
+
 	// Valores calculados
 	activePeriodData: any;
 	totalIncomes: number;
@@ -223,6 +246,21 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	const [userBName, setUserBName] = useState(() => localStorage.getItem(STORAGE_KEYS.userBName) || 'Usuario B');
 	const [viewMode, setViewMode] = useState<'all' | 'userA' | 'userB'>('all');
 
+	// Estados de Seguridad y PIN (OWASP)
+	const [isLocked, setIsLocked] = useState(() => {
+		if (typeof window !== 'undefined') {
+			return localStorage.getItem('finanzas_v3_password_salt') !== null;
+		}
+		return false;
+	});
+	const [hasPasswordSet, setHasPasswordSet] = useState(() => {
+		if (typeof window !== 'undefined') {
+			return localStorage.getItem('finanzas_v3_password_salt') !== null;
+		}
+		return false;
+	});
+	const [passwordError, setPasswordError] = useState('');
+
 	const [accounts, setAccounts] = useState<Account[]>(() => getInitialData().accounts);
 
 	// Estados de Edición de Transacción
@@ -256,7 +294,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	});
 
 	const [transactions, setTransactions] = useState<Transaction[]>(() => getInitialData().transactions);
-	const [debts, setDebts] = useState<Debt[]>(readStoredDebts);
+	const [debts, setDebts] = useState<Debt[]>(() => readStoredDebtsSync());
 	const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
 	const [selectedDebtSchedule, setSelectedDebtSchedule] = useState<Debt | null>(null);
 
@@ -325,9 +363,9 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	});
 
 	// === INTEGRACIÓN GEMINI AI ===
-	const [geminiApiKey, setGeminiApiKey] = useState(() => readGeminiApiKey());
+	const [geminiApiKey, setGeminiApiKey] = useState(() => readGeminiApiKeySync());
 	const [customQuestion, setCustomQuestion] = useState('');
-	const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => readAiChat());
+	const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => readAiChatSync());
 	const [aiLoading, setAiLoading] = useState(false);
 	const [aiError, setAiError] = useState('');
 	const [copiedChat, setCopiedChat] = useState(false);
@@ -1885,7 +1923,131 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		}
 	};
 
-	const handleImportData = (e: SyntheticEvent<HTMLFormElement>, jsonString: string) => {
+	const handleSetupPassword = async (password: string): Promise<boolean> => {
+		setPasswordError('');
+		if (password.length < 4) {
+			setPasswordError('El PIN debe tener al menos 4 caracteres.');
+			return false;
+		}
+		try {
+			const salt = generateSalt();
+			const key = await deriveKeyFromPassword(password, salt);
+			
+			// Cifrar el vector de prueba "valid"
+			const checkCiphertext = await encryptWithKey('valid', key);
+			
+			// Guardar el salt y el vector de prueba en LocalStorage
+			const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('');
+			localStorage.setItem('finanzas_v3_password_salt', saltHex);
+			localStorage.setItem('finanzas_v3_password_check', checkCiphertext);
+			
+			// Establecer clave activa en storage
+			setCryptoKey(key);
+			
+			// Cifrar y guardar el estado actual (si existía previamente en texto plano)
+			await saveStoredAccounts(accounts);
+			await saveStoredTransactions(transactions);
+			await saveStoredDebts(debts);
+			await saveStoredPeriods(periods);
+			await saveGeminiApiKey(geminiApiKey);
+			await saveAiChat(chatMessages);
+			
+			setHasPasswordSet(true);
+			setIsLocked(false);
+			return true;
+		} catch (err: any) {
+			setPasswordError(`Error al configurar PIN: ${err.message}`);
+			return false;
+		}
+	};
+
+	const handleUnlock = async (password: string): Promise<boolean> => {
+		setPasswordError('');
+		const saltHex = localStorage.getItem('finanzas_v3_password_salt');
+		const checkCiphertext = localStorage.getItem('finanzas_v3_password_check');
+		if (!saltHex || !checkCiphertext) {
+			setPasswordError('No se ha configurado un PIN.');
+			return false;
+		}
+		try {
+			const bytes = new Uint8Array(saltHex.length / 2);
+			for (let i = 0; i < bytes.length; i++) {
+				bytes[i] = parseInt(saltHex.substring(i * 2, i * 2 + 2), 16);
+			}
+			
+			const key = await deriveKeyFromPassword(password, bytes);
+			const checkText = await decryptWithKey(checkCiphertext, key);
+			
+			if (checkText === 'valid') {
+				setCryptoKey(key);
+				
+				// Cargar datos cifrados asíncronamente
+				const loadedAccounts = await readStoredAccounts();
+				const loadedTx = await readStoredTransactions();
+				const loadedDebts = await readStoredDebts();
+				const loadedPeriods = await readStoredPeriods(loadedTx, loadedDebts);
+				const loadedKey = await readGeminiApiKey();
+				const loadedChat = await readAiChat();
+				
+				if (loadedAccounts.length === 0 && (loadedTx.length > 0 || loadedDebts.length > 0)) {
+					const userANameVal = localStorage.getItem(STORAGE_KEYS.userAName) || 'Usuario A';
+					const userBNameVal = localStorage.getItem(STORAGE_KEYS.userBName) || 'Usuario B';
+					const sortedPeriods = [...loadedPeriods].sort((a, b) => a.month.localeCompare(b.month));
+					const firstPeriod = sortedPeriods.length > 0 ? sortedPeriods[0] : null;
+					const initialBalA = firstPeriod ? (firstPeriod.openingBalanceA !== undefined ? firstPeriod.openingBalanceA : firstPeriod.openingBalance / 2) : 0;
+					const initialBalB = firstPeriod ? (firstPeriod.openingBalanceB !== undefined ? firstPeriod.openingBalanceB : firstPeriod.openingBalance / 2) : 0;
+					const defaultAccs = [
+						{ id: 'default-a', name: `Efectivo ${userANameVal}`, owner: 'userA', initialBalance: initialBalA },
+						{ id: 'default-b', name: `Efectivo ${userBNameVal}`, owner: 'userB', initialBalance: initialBalB },
+						{ id: 'default-joint', name: 'Cuenta Común', owner: 'joint', initialBalance: 0 }
+					];
+					setAccounts(defaultAccs);
+					await saveStoredAccounts(defaultAccs);
+				} else {
+					setAccounts(loadedAccounts);
+				}
+				
+				setTransactions(loadedTx);
+				setDebts(loadedDebts);
+				setPeriods(loadedPeriods);
+				setGeminiApiKey(loadedKey);
+				setChatMessages(loadedChat);
+				
+				if (loadedPeriods.length > 0) {
+					const sortedP = [...loadedPeriods].sort((a, b) => a.month.localeCompare(b.month));
+					const currentMonth = new Date().toISOString().substring(0, 7);
+					const exists = sortedP.some((p) => p.month === currentMonth);
+					if (exists) {
+						setSelectedMonth(currentMonth);
+					} else {
+						setSelectedMonth(sortedP[sortedP.length - 1].month);
+					}
+				}
+				
+				setIsLocked(false);
+				return true;
+			} else {
+				setPasswordError('PIN incorrecto. Vuelve a intentarlo.');
+				return false;
+			}
+		} catch (err) {
+			setPasswordError('PIN incorrecto o error al descifrar.');
+			return false;
+		}
+	};
+
+	const handleLockApp = () => {
+		setCryptoKey(null);
+		setAccounts([]);
+		setTransactions([]);
+		setDebts([]);
+		setPeriods([]);
+		setGeminiApiKey('');
+		setChatMessages([]);
+		setIsLocked(true);
+	};
+
+	const handleImportData = async (e: SyntheticEvent<HTMLFormElement>, jsonString: string) => {
 		e.preventDefault();
 		setImportError('');
 		setImportSuccess('');
@@ -1897,50 +2059,52 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 
 		try {
 			const parsed = JSON.parse(jsonString);
-			const backupKeys = [
-				STORAGE_KEYS.transactions,
-				STORAGE_KEYS.debts,
-				STORAGE_KEYS.periods,
-				STORAGE_KEYS.accounts,
-				STORAGE_KEYS.userAName,
-				STORAGE_KEYS.userBName,
-				STORAGE_KEYS.aiChat,
-				STORAGE_KEYS.geminiKey
-			] as const;
+			const validated = validateAndSanitizeBackup(parsed);
 
-			// Verificar validez básica del backup
-			const hasAtLeastSomeKeys = backupKeys.some(key => key in parsed);
-			if (!hasAtLeastSomeKeys) {
-				throw new Error('El JSON introducido no parece un backup válido de FinanzasPro.');
+			if (validated[STORAGE_KEYS.userAName] !== undefined) {
+				localStorage.setItem(STORAGE_KEYS.userAName, validated[STORAGE_KEYS.userAName]);
+				setUserAName(validated[STORAGE_KEYS.userAName]);
+			}
+			if (validated[STORAGE_KEYS.userBName] !== undefined) {
+				localStorage.setItem(STORAGE_KEYS.userBName, validated[STORAGE_KEYS.userBName]);
+				setUserBName(validated[STORAGE_KEYS.userBName]);
+			}
+			if (validated[STORAGE_KEYS.accounts] !== undefined) {
+				await saveStoredAccounts(validated[STORAGE_KEYS.accounts]);
+				setAccounts(validated[STORAGE_KEYS.accounts]);
+			}
+			if (validated[STORAGE_KEYS.transactions] !== undefined) {
+				await saveStoredTransactions(validated[STORAGE_KEYS.transactions]);
+				setTransactions(validated[STORAGE_KEYS.transactions]);
+			}
+			if (validated[STORAGE_KEYS.debts] !== undefined) {
+				await saveStoredDebts(validated[STORAGE_KEYS.debts]);
+				setDebts(validated[STORAGE_KEYS.debts]);
+			}
+			if (validated[STORAGE_KEYS.periods] !== undefined) {
+				await saveStoredPeriods(validated[STORAGE_KEYS.periods]);
+				setPeriods(validated[STORAGE_KEYS.periods]);
+			} else if (validated[STORAGE_KEYS.transactions] !== undefined && validated[STORAGE_KEYS.debts] !== undefined) {
+				const generated = await readStoredPeriods(validated[STORAGE_KEYS.transactions], validated[STORAGE_KEYS.debts]);
+				await saveStoredPeriods(generated);
+				setPeriods(generated);
+			}
+			if (validated[STORAGE_KEYS.geminiKey] !== undefined) {
+				await saveGeminiApiKey(validated[STORAGE_KEYS.geminiKey]);
+				setGeminiApiKey(validated[STORAGE_KEYS.geminiKey]);
+			}
+			if (validated[STORAGE_KEYS.aiChat] !== undefined) {
+				await saveAiChat(validated[STORAGE_KEYS.aiChat]);
+				setChatMessages(validated[STORAGE_KEYS.aiChat]);
 			}
 
-			// Aplicar al LocalStorage
-			backupKeys.forEach(key => {
-				const value = parsed[key];
-				if (value !== undefined && value !== null) {
-					localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
-				}
-			});
-
-			// Actualizar estados reactivos
-			const initData = getInitialData();
-			setAccounts(initData.accounts);
-			setTransactions(initData.transactions);
-			setPeriods(initData.periods);
-			setDebts(readStoredDebts());
-			
-			setUserAName(localStorage.getItem(STORAGE_KEYS.userAName) || 'Usuario A');
-			setUserBName(localStorage.getItem(STORAGE_KEYS.userBName) || 'Usuario B');
-			setGeminiApiKey(readGeminiApiKey());
-			setChatMessages(readAiChat());
-
-			// Seleccionar último mes disponible del backup
-			if (initData.periods.length > 0) {
-				const sortedP = [...initData.periods].sort((a, b) => a.month.localeCompare(b.month));
+			const activePeriods = validated[STORAGE_KEYS.periods] || [];
+			if (activePeriods.length > 0) {
+				const sortedP = [...activePeriods].sort((a, b) => a.month.localeCompare(b.month));
 				setSelectedMonth(sortedP[sortedP.length - 1].month);
 			}
 
-			setImportSuccess('Datos importados con éxito.');
+			setImportSuccess('Datos importados y validados con éxito.');
 		} catch (err: any) {
 			setImportError(`Error al procesar el backup: ${err.message}`);
 		}
@@ -2020,6 +2184,15 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			setImportError,
 			importSuccess,
 			setImportSuccess,
+			
+			// Seguridad y PIN (OWASP)
+			isLocked,
+			hasPasswordSet,
+			passwordError,
+			setPasswordError,
+			handleSetupPassword,
+			handleUnlock,
+			handleLockApp,
 			
 			// Valores calculados
 			activePeriodData,

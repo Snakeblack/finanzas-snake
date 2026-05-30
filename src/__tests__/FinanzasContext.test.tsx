@@ -769,15 +769,15 @@ describe('Import / Export', () => {
 
 		const backupData: Record<string, string> = {};
 		backupData[STORAGE_KEYS.transactions] = JSON.stringify([
-			{ id: 'imp-1', desc: 'Importado', amount: 100, type: 'expense', tag: 'Test', date: '2026-05-01' }
+			{ id: 'imp-1', desc: 'Importado', amount: 100, type: 'expense', tag: 'Test', date: '2026-05-01', recurrence: 'one-off', owner: 'joint', paidBy: 'shared' }
 		]);
 		backupData[STORAGE_KEYS.periods] = JSON.stringify([
-			{ month: '2026-05', openingBalance: 0 }
+			{ month: '2026-05', openingBalance: 0, openingBalanceA: 0, openingBalanceB: 0 }
 		]);
 
 		const fakeEvent = { preventDefault: vi.fn() } as any;
 		await act(async () => {
-			ctxRef.handleImportData(fakeEvent, JSON.stringify(backupData));
+			await ctxRef.handleImportData(fakeEvent, JSON.stringify(backupData));
 		});
 
 		expect(ctxRef.importSuccess).toContain('éxito');
@@ -789,7 +789,7 @@ describe('Import / Export', () => {
 
 		const fakeEvent = { preventDefault: vi.fn() } as any;
 		await act(async () => {
-			ctxRef.handleImportData(fakeEvent, '');
+			await ctxRef.handleImportData(fakeEvent, '');
 		});
 
 		expect(ctxRef.importError).toContain('JSON de backup válido');
@@ -801,7 +801,7 @@ describe('Import / Export', () => {
 
 		const fakeEvent = { preventDefault: vi.fn() } as any;
 		await act(async () => {
-			ctxRef.handleImportData(fakeEvent, 'not-json');
+			await ctxRef.handleImportData(fakeEvent, 'not-json');
 		});
 
 		expect(ctxRef.importError).not.toBe('');
@@ -813,7 +813,7 @@ describe('Import / Export', () => {
 
 		const fakeEvent = { preventDefault: vi.fn() } as any;
 		await act(async () => {
-			ctxRef.handleImportData(fakeEvent, JSON.stringify({ foo: 'bar' }));
+			await ctxRef.handleImportData(fakeEvent, JSON.stringify({ foo: 'bar' }));
 		});
 
 		expect(ctxRef.importError).toContain('no parece un backup válido');
@@ -1362,8 +1362,8 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 
 		const backupData = {
 			[STORAGE_KEYS.periods]: JSON.stringify([
-				{ month: '2026-05', openingBalance: 0 },
-				{ month: '2026-09', openingBalance: 0 }
+				{ month: '2026-05', openingBalance: 0, openingBalanceA: 0, openingBalanceB: 0 },
+				{ month: '2026-09', openingBalance: 0, openingBalanceA: 0, openingBalanceB: 0 }
 			]),
 			[STORAGE_KEYS.accounts]: JSON.stringify([]),
 			[STORAGE_KEYS.transactions]: JSON.stringify([]),
@@ -1372,7 +1372,7 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 
 		const fakeEvent = { preventDefault: vi.fn() } as any;
 		await act(async () => {
-			ctxRef.handleImportData(fakeEvent, JSON.stringify(backupData));
+			await ctxRef.handleImportData(fakeEvent, JSON.stringify(backupData));
 		});
 
 		expect(ctxRef.selectedMonth).toBe('2026-09');

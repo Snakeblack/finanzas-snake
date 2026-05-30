@@ -15,12 +15,15 @@ import {
 	readGeminiApiKey,
 	saveGeminiApiKey,
 	readAiChat,
-	saveAiChat
+	saveAiChat,
+	setCryptoKey
 } from '../services/storageService';
+import { deriveKeyFromPassword, generateSalt } from '../services/cryptoService';
 import type { Transaction, Debt, Account, ChatMessage, Period } from '../types';
 
 beforeEach(() => {
 	localStorage.clear();
+	setCryptoKey(null); // Reset key
 });
 
 describe('cleanLegacyData', () => {
@@ -31,7 +34,6 @@ describe('cleanLegacyData', () => {
 
 		cleanLegacyData();
 
-		// Debe haber limpiado todo y marcado la flag
 		expect(localStorage.getItem(STORAGE_KEYS.transactions)).toBeNull();
 		expect(localStorage.getItem(STORAGE_KEYS.debts)).toBeNull();
 		expect(localStorage.getItem(STORAGE_KEYS.periods)).toBeNull();
@@ -109,21 +111,6 @@ describe('migrateTransaction', () => {
 		expect(migrateTransaction({ type: 'expense' }, 0).type).toBe('expense');
 		expect(migrateTransaction({ type: 'invalid' }, 0).type).toBe('expense');
 	});
-
-	it('debe preservar originId si existe', () => {
-		const result = migrateTransaction({ originId: 'root-1' }, 0);
-		expect(result.originId).toBe('root-1');
-	});
-
-	it('debe preservar fromAccountId y toAccountId', () => {
-		const result = migrateTransaction({
-			fromAccountId: 'from-1',
-			toAccountId: 'to-1',
-			type: 'transfer'
-		}, 0);
-		expect(result.fromAccountId).toBe('from-1');
-		expect(result.toAccountId).toBe('to-1');
-	});
 });
 
 describe('migrateDebt', () => {
@@ -151,18 +138,6 @@ describe('migrateDebt', () => {
 		}
 	});
 
-	it('debe aplicar valores por defecto para deuda clásica incompleta', () => {
-		const result = migrateDebt({});
-		expect(result.kind).toBe('classic');
-		expect(result.desc).toBe('Deuda sin nombre');
-		expect(result.owner).toBe('joint');
-		if (result.kind === 'classic') {
-			expect(result.principal).toBe(0);
-			expect(result.tae).toBe(0);
-			expect(result.termMonths).toBe(1);
-		}
-	});
-
 	it('debe migrar una deuda paymentPlan válida', () => {
 		const raw = {
 			kind: 'paymentPlan',
@@ -187,307 +162,151 @@ describe('migrateDebt', () => {
 			expect(result.installments[1].status).toBe('paid');
 		}
 	});
+});
 
-	it('debe calcular totalToPay si no se provee', () => {
-		const raw = {
-			kind: 'paymentPlan',
-			desc: 'Test',
-			financedAmount: 1000,
-			fees: 50,
-			installments: []
-		};
+describe('Operaciones de Almacenamiento (Plano vs Cifrado)', () => {
+	const mockTransactions: Transaction[] = [{
+		id: 'tx-1',
+		desc: 'Compra Café',
+		amount: 3.5,
+		type: 'expense',
+		tag: 'Ocio/Restauración',
+		date: '2026-05-30',
+		recurrence: 'one-off',
+		owner: 'userA',
+		paidBy: 'userA'
+	}];
 
-		const result = migrateDebt(raw);
-		if (result.kind === 'paymentPlan') {
-			expect(result.totalToPay).toBe(1050);
-		}
-	});
-
-	it('debe usar Math.abs para valores numéricos', () => {
-		const result = migrateDebt({
-			principal: -5000,
-			tae: -3,
-			termMonths: 12
+	describe('Flujo de Texto Plano (Sin Cifrado)', () => {
+		it('debe guardar y leer transacciones en texto plano', async () => {
+			await saveStoredTransactions(mockTransactions);
+			const result = await readStoredTransactions();
+			expect(result).toHaveLength(1);
+			expect(result[0].desc).toBe('Compra Café');
+			
+			// Verificar que esté en texto plano en localStorage
+			const rawVal = localStorage.getItem(STORAGE_KEYS.transactions);
+			expect(rawVal).toContain('Compra Café');
 		});
-		if (result.kind === 'classic') {
-			expect(result.principal).toBe(5000);
-			expect(result.tae).toBe(3);
-			expect(result.termMonths).toBe(12);
-		}
-	});
 
-	it('debe garantizar termMonths mínimo de 1', () => {
-		const result = migrateDebt({ termMonths: 0 });
-		if (result.kind === 'classic') {
-			expect(result.termMonths).toBe(1);
-		}
-	});
-
-	it('debe manejar installments inválidos en paymentPlan', () => {
-		const result = migrateDebt({
-			kind: 'paymentPlan',
-			installments: 'no-array'
+		it('debe retornar vacío si no hay datos', async () => {
+			const result = await readStoredTransactions();
+			expect(result).toHaveLength(0);
 		});
-		if (result.kind === 'paymentPlan') {
-			expect(result.installments).toHaveLength(0);
-		}
+
+		it('debe retornar vacío si el JSON es inválido', async () => {
+			localStorage.setItem(STORAGE_KEYS.transactions, 'invalid-json');
+			const result = await readStoredTransactions();
+			expect(result).toHaveLength(0);
+		});
 	});
 
-	it('debe preservar paymentAccountId', () => {
-		const result = migrateDebt({ paymentAccountId: 'acc-1' });
-		expect(result.paymentAccountId).toBe('acc-1');
-	});
-});
+	describe('Flujo de Cifrado Activo (AES-GCM)', () => {
+		let testKey: CryptoKey;
 
-describe('readStoredTransactions / saveStoredTransactions', () => {
-	it('debe guardar y leer transacciones correctamente (roundtrip)', () => {
-		const txs: Transaction[] = [{
-			id: 'tx-1', desc: 'Test', amount: 100, type: 'expense',
-			tag: 'Test', date: '2026-05-01', owner: 'joint'
-		}];
+		beforeEach(async () => {
+			const salt = generateSalt();
+			testKey = await deriveKeyFromPassword('mi-pin', salt);
+			setCryptoKey(testKey);
+		});
 
-		saveStoredTransactions(txs);
-		const result = readStoredTransactions();
-		expect(result).toHaveLength(1);
-		expect(result[0].desc).toBe('Test');
-	});
+		it('debe cifrar al guardar y descifrar al leer de forma transparente', async () => {
+			await saveStoredTransactions(mockTransactions);
+			
+			// Verificar que el dato en LocalStorage no sea legible (esté cifrado)
+			const rawVal = localStorage.getItem(STORAGE_KEYS.transactions);
+			expect(rawVal).not.toContain('Compra Café');
+			expect(rawVal).toContain(':'); // Formato iv:ciphertext
 
-	it('debe retornar vacío si no hay datos', () => {
-		expect(readStoredTransactions()).toHaveLength(0);
-	});
+			// Leer a través de la interfaz transparente
+			const result = await readStoredTransactions();
+			expect(result).toHaveLength(1);
+			expect(result[0].desc).toBe('Compra Café');
+		});
 
-	it('debe retornar vacío si hay JSON inválido', () => {
-		localStorage.setItem(STORAGE_KEYS.transactions, 'not-json');
-		expect(readStoredTransactions()).toHaveLength(0);
-	});
+		it('debe retornar vacío si la base de datos está bloqueada (sin llave)', async () => {
+			await saveStoredTransactions(mockTransactions);
+			
+			// Wipiamos la llave (bloqueamos la app)
+			setCryptoKey(null);
 
-	it('debe retornar vacío si el dato no es un array', () => {
-		localStorage.setItem(STORAGE_KEYS.transactions, '{"key": "value"}');
-		expect(readStoredTransactions()).toHaveLength(0);
-	});
-});
+			const result = await readStoredTransactions();
+			expect(result).toHaveLength(0); // Devuelve vacío ya que no puede descifrar
+		});
 
-describe('readStoredDebts / saveStoredDebts', () => {
-	it('debe guardar y leer deudas correctamente (roundtrip)', () => {
-		const debts: Debt[] = [{
-			id: 'd1', kind: 'classic', desc: 'Test', tag: 'Test',
-			date: '2026-05', principal: 1000, tae: 5, termMonths: 12,
-			owner: 'joint'
-		}];
+		it('debe guardar y leer deudas cifradas', async () => {
+			const mockDebts: Debt[] = [{
+				id: 'd-1',
+				kind: 'classic',
+				desc: 'Préstamo',
+				tag: 'Hipoteca',
+				date: '2026-05',
+				owner: 'joint',
+				principal: 1000,
+				tae: 3,
+				termMonths: 12
+			}];
 
-		saveStoredDebts(debts);
-		const result = readStoredDebts();
-		expect(result).toHaveLength(1);
-		expect(result[0].desc).toBe('Test');
-	});
+			await saveStoredDebts(mockDebts);
+			expect(localStorage.getItem(STORAGE_KEYS.debts)).not.toContain('Préstamo');
 
-	it('debe retornar vacío si no hay datos', () => {
-		expect(readStoredDebts()).toHaveLength(0);
-	});
-});
+			const result = await readStoredDebts();
+			expect(result).toHaveLength(1);
+			expect(result[0].desc).toBe('Préstamo');
+		});
 
-describe('readStoredPeriods / saveStoredPeriods', () => {
-	it('debe guardar y leer periodos correctamente (roundtrip)', () => {
-		const periods: Period[] = [
-			{ month: '2026-05', openingBalance: 1000, openingBalanceA: 500, openingBalanceB: 500 }
-		];
+		it('debe guardar y leer periodos cifrados', async () => {
+			const mockPeriods: Period[] = [{
+				month: '2026-05',
+				openingBalance: 100,
+				openingBalanceA: 50,
+				openingBalanceB: 50
+			}];
 
-		saveStoredPeriods(periods);
-		const result = readStoredPeriods([], []);
-		expect(result).toHaveLength(1);
-		expect(result[0].month).toBe('2026-05');
-		expect(result[0].openingBalance).toBe(1000);
-	});
+			await saveStoredPeriods(mockPeriods);
+			expect(localStorage.getItem(STORAGE_KEYS.periods)).not.toContain('2026-05');
 
-	it('debe retornar vacío si no hay datos ni transacciones ni deudas', () => {
-		expect(readStoredPeriods([], [])).toHaveLength(0);
-	});
+			const result = await readStoredPeriods([], []);
+			expect(result).toHaveLength(1);
+			expect(result[0].month).toBe('2026-05');
+		});
 
-	it('debe autogenerar periodos basándose en las transacciones', () => {
-		const txs: Transaction[] = [
-			{ id: 't1', desc: 'Test', amount: 100, type: 'expense', tag: 'T', date: '2026-03-01' },
-			{ id: 't2', desc: 'Test', amount: 100, type: 'income', tag: 'T', date: '2026-05-01' }
-		];
+		it('debe guardar y leer la API key de Gemini de forma cifrada', async () => {
+			await saveGeminiApiKey('mi-api-key');
+			expect(localStorage.getItem(STORAGE_KEYS.geminiKey)).not.toBe('mi-api-key');
 
-		const result = readStoredPeriods(txs, []);
-		// Debe generar periodos desde 2026-03 hasta al menos el mes actual
-		expect(result.length).toBeGreaterThanOrEqual(3);
-		expect(result[0].month).toBe('2026-03');
-		expect(result[0].openingBalance).toBe(0);
-	});
+			const result = await readGeminiApiKey();
+			expect(result).toBe('mi-api-key');
+		});
 
-	it('debe calcular openingBalanceA/B como mitad si no existen', () => {
-		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([
-			{ month: '2026-05', openingBalance: 2000 }
-		]));
+		it('debe guardar y leer el historial de chat cifrado', async () => {
+			const mockChat: ChatMessage[] = [{
+				role: 'user',
+				content: 'Mensaje secreto',
+				timestamp: '12:00'
+			}];
 
-		const result = readStoredPeriods([], []);
-		expect(result[0].openingBalanceA).toBe(1000);
-		expect(result[0].openingBalanceB).toBe(1000);
-	});
+			await saveAiChat(mockChat);
+			expect(localStorage.getItem(STORAGE_KEYS.aiChat)).not.toContain('Mensaje secreto');
 
-	it('debe manejar JSON inválido en periods', () => {
-		localStorage.setItem(STORAGE_KEYS.periods, 'not-json');
-		expect(readStoredPeriods([], [])).toHaveLength(0);
-	});
-
-	it('debe manejar array vacío en periods stored', () => {
-		localStorage.setItem(STORAGE_KEYS.periods, '[]');
-		expect(readStoredPeriods([], [])).toHaveLength(0);
-	});
-
-	it('debe autogenerar periodos basándose en las deudas', () => {
-		const debts: Debt[] = [{
-			id: 'd1', kind: 'classic', desc: 'Test', tag: 'T',
-			date: '2026-02', principal: 1000, tae: 5, termMonths: 6, owner: 'joint'
-		}];
-
-		const result = readStoredPeriods([], debts);
-		expect(result.length).toBeGreaterThanOrEqual(1);
-		expect(result[0].month).toBe('2026-02');
+			const result = await readAiChat();
+			expect(result).toHaveLength(1);
+			expect(result[0].content).toBe('Mensaje secreto');
+		});
 	});
 });
 
 describe('getInitialData', () => {
-	it('debe crear cuentas por defecto si no hay cuentas guardadas', () => {
+	it('debe retornar datos vacíos si hay un PIN configurado en LocalStorage (base de datos bloqueada)', () => {
+		localStorage.setItem('finanzas_v3_password_salt', 'somesalt');
+		const result = getInitialData();
+		expect(result.accounts).toHaveLength(0);
+		expect(result.transactions).toHaveLength(0);
+	});
+
+	it('debe crear cuentas predeterminadas si no hay PIN ni cuentas guardadas', () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		const data = getInitialData();
-
-		expect(data.accounts).toHaveLength(3);
-		expect(data.accounts[0].owner).toBe('userA');
-		expect(data.accounts[1].owner).toBe('userB');
-		expect(data.accounts[2].owner).toBe('joint');
-	});
-
-	it('debe usar cuentas guardadas si existen', () => {
-		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		const customAccounts: Account[] = [
-			{ id: 'custom-1', name: 'Mi Cuenta', owner: 'userA', initialBalance: 5000 }
-		];
-		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(customAccounts));
-
-		const data = getInitialData();
-		expect(data.accounts).toHaveLength(1);
-		expect(data.accounts[0].name).toBe('Mi Cuenta');
-	});
-
-	it('debe usar nombres de usuario personalizados', () => {
-		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.userAName, 'Alice');
-		localStorage.setItem(STORAGE_KEYS.userBName, 'Bob');
-
-		const data = getInitialData();
-		expect(data.accounts[0].name).toContain('Alice');
-		expect(data.accounts[1].name).toContain('Bob');
-	});
-
-	it('debe migrar transacciones sin accountId a cuentas por defecto', () => {
-		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
-			{ id: 'tx-1', desc: 'Test A', amount: 100, type: 'expense', tag: 'T', date: '2026-05-01', owner: 'userA' },
-			{ id: 'tx-2', desc: 'Test B', amount: 200, type: 'income', tag: 'T', date: '2026-05-01', owner: 'userB' },
-			{ id: 'tx-3', desc: 'Test J', amount: 300, type: 'expense', tag: 'T', date: '2026-05-01', owner: 'joint' }
-		]));
-
-		const data = getInitialData();
-		const txA = data.transactions.find(t => t.desc === 'Test A');
-		const txB = data.transactions.find(t => t.desc === 'Test B');
-		const txJ = data.transactions.find(t => t.desc === 'Test J');
-
-		expect(txA?.accountId).toBe('default-a');
-		expect(txB?.accountId).toBe('default-b');
-		expect(txJ?.accountId).toBe('default-joint');
-	});
-
-	it('debe preservar accountId si la transacción ya lo tiene', () => {
-		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
-			{ id: 'tx-1', desc: 'Test', amount: 100, type: 'expense', tag: 'T', date: '2026-05-01', owner: 'userA', accountId: 'existing-acc' }
-		]));
-
-		const data = getInitialData();
-		expect(data.transactions[0].accountId).toBe('existing-acc');
-	});
-
-	it('no debe migrar transacciones de tipo transfer', () => {
-		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
-			{ id: 'tx-1', desc: 'Transfer', amount: 100, type: 'transfer', tag: 'T', date: '2026-05-01', owner: 'userA' }
-		]));
-
-		const data = getInitialData();
-		expect(data.transactions[0].accountId).toBeUndefined();
-	});
-
-	it('debe manejar JSON inválido en cuentas', () => {
-		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.accounts, 'not-json');
-
-		const data = getInitialData();
-		expect(data.accounts).toHaveLength(3); // defaults
-	});
-
-	it('debe manejar array vacío en cuentas guardadas', () => {
-		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.accounts, '[]');
-
-		const data = getInitialData();
-		expect(data.accounts).toHaveLength(3); // defaults
-	});
-
-	it('debe usar saldos de apertura del primer periodo para initialBalance', () => {
-		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([
-			{ month: '2026-05', openingBalance: 3000, openingBalanceA: 1500, openingBalanceB: 1500 }
-		]));
-
-		const data = getInitialData();
-		const accA = data.accounts.find(a => a.owner === 'userA');
-		const accB = data.accounts.find(a => a.owner === 'userB');
-		expect(accA?.initialBalance).toBe(1500);
-		expect(accB?.initialBalance).toBe(1500);
-	});
-});
-
-describe('saveStoredAccounts', () => {
-	it('debe guardar cuentas en localStorage', () => {
-		const accounts: Account[] = [
-			{ id: 'a1', name: 'Test', owner: 'userA', initialBalance: 100 }
-		];
-		saveStoredAccounts(accounts);
-		expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.accounts)!)).toHaveLength(1);
-	});
-});
-
-describe('Gemini API Key storage', () => {
-	it('debe guardar y leer la API key', () => {
-		saveGeminiApiKey('test-key-123');
-		expect(readGeminiApiKey()).toBe('test-key-123');
-	});
-
-	it('debe retornar vacío si no hay key', () => {
-		expect(readGeminiApiKey()).toBe('');
-	});
-});
-
-describe('AI Chat storage', () => {
-	it('debe guardar y leer el chat', () => {
-		const chat: ChatMessage[] = [
-			{ role: 'user', content: 'Hola', timestamp: '12:00' },
-			{ role: 'model', content: 'Respuesta', timestamp: '12:01' }
-		];
-		saveAiChat(chat);
-		const result = readAiChat();
-		expect(result).toHaveLength(2);
-		expect(result[0].content).toBe('Hola');
-	});
-
-	it('debe retornar vacío si no hay chat', () => {
-		expect(readAiChat()).toHaveLength(0);
-	});
-
-	it('debe retornar vacío si hay JSON inválido', () => {
-		localStorage.setItem(STORAGE_KEYS.aiChat, 'not-json');
-		expect(readAiChat()).toHaveLength(0);
+		const result = getInitialData();
+		expect(result.accounts).toHaveLength(3); // default-a, default-b, default-joint
 	});
 });

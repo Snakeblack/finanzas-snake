@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useFinanzas } from '../hooks/useFinanzas';
 import { FinanzasProvider } from '../context/FinanzasContext';
 import { Icons } from './common/Icons';
@@ -66,8 +67,15 @@ function MainAppContent() {
 		setEditForm,
 		editScope,
 		setEditScope,
-		handleSaveEditTransaction
+		handleSaveEditTransaction,
+		isLocked,
+		hasPasswordSet,
+		handleLockApp
 	} = useFinanzas();
+
+	if (isLocked) {
+		return <LockScreen />;
+	}
 
 	return (
 		<div className={`min-h-screen ${activeTab === 'ai' ? 'h-screen overflow-hidden' : ''} flex flex-col bg-slate-950 text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white`}>
@@ -155,6 +163,17 @@ function MainAppContent() {
 							<Icons.Sparkles /> Asesor Gemini
 						</button>
 					</nav>
+					{hasPasswordSet && (
+						<button
+							onClick={handleLockApp}
+							className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all border border-slate-800 hover:border-rose-500/20 bg-slate-900/80 shadow-md ml-3"
+							title="Bloquear Aplicación"
+						>
+							<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+								<path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+							</svg>
+						</button>
+					)}
 				</div>
 			</header>
 
@@ -1233,5 +1252,130 @@ export default function App() {
 		<FinanzasProvider>
 			<MainAppContent />
 		</FinanzasProvider>
+	);
+}
+
+/**
+ * Pantalla de bloqueo / Registro de PIN
+ */
+function LockScreen() {
+	const {
+		hasPasswordSet,
+		passwordError,
+		setPasswordError,
+		handleSetupPassword,
+		handleUnlock
+	} = useFinanzas();
+
+	const [pin, setPin] = useState('');
+	const [confirmPin, setConfirmPin] = useState('');
+	const [loading, setLoading] = useState(false);
+
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		setPasswordError('');
+		setLoading(true);
+
+		if (!hasPasswordSet) {
+			if (pin !== confirmPin) {
+				setPasswordError('Los PINs no coinciden.');
+				setLoading(false);
+				return;
+			}
+			const success = await handleSetupPassword(pin);
+			if (success) {
+				setPin('');
+				setConfirmPin('');
+			}
+		} else {
+			const success = await handleUnlock(pin);
+			if (success) {
+				setPin('');
+			}
+		}
+		setLoading(false);
+	};
+
+	return (
+		<div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 p-4 font-sans selection:bg-indigo-500 selection:text-white">
+			<div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,#1e1b4b,transparent_45%)] z-0" />
+			<div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_70%,#0f172a,transparent_50%)] z-0" />
+			
+			<div className="relative z-10 max-w-md w-full bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-3xl p-8 shadow-2xl shadow-indigo-950/20">
+				<div className="text-center mb-8">
+					<div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+						<svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+							<path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+						</svg>
+					</div>
+					<h2 className="text-2xl font-black bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+						{!hasPasswordSet ? 'Configurar PIN de Acceso' : 'Aplicación Bloqueada'}
+					</h2>
+					<p className="text-xs text-slate-400 mt-2 leading-relaxed">
+						{!hasPasswordSet
+							? 'Crea un PIN para cifrar tus datos financieros en este dispositivo. Toda la información se almacenará cifrada localmente con AES-GCM.'
+							: 'Introduce tu PIN de seguridad para descifrar y acceder a tus finanzas locales.'}
+					</p>
+				</div>
+
+				<form onSubmit={handleSubmit} className="space-y-5">
+					<div>
+						<label htmlFor="pin-input" className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
+							{!hasPasswordSet ? 'Nuevo PIN (mínimo 4 caracteres)' : 'Introduce tu PIN'}
+						</label>
+						<input
+							id="pin-input"
+							type="password"
+							required
+							autoFocus
+							value={pin}
+							onChange={(e) => setPin(e.target.value)}
+							placeholder="••••"
+							className="w-full bg-slate-950/80 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-3 text-center text-lg tracking-widest text-white outline-none transition-all placeholder:text-slate-700"
+						/>
+					</div>
+
+					{!hasPasswordSet && (
+						<div>
+							<label htmlFor="confirm-pin-input" className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
+								Confirmar PIN
+							</label>
+							<input
+								id="confirm-pin-input"
+								type="password"
+								required
+								value={confirmPin}
+								onChange={(e) => setConfirmPin(e.target.value)}
+								placeholder="••••"
+								className="w-full bg-slate-950/80 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-3 text-center text-lg tracking-widest text-white outline-none transition-all placeholder:text-slate-700"
+							/>
+						</div>
+					)}
+
+					{passwordError && (
+						<div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-450 text-xs rounded-xl flex items-center gap-2">
+							<svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+								<path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+							</svg>
+							<span>{passwordError}</span>
+						</div>
+					)}
+
+					<button
+						type="submit"
+						disabled={loading}
+						className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-3 rounded-xl text-sm transition-all shadow-lg active:scale-95 disabled:opacity-50"
+					>
+						{loading ? 'Procesando...' : !hasPasswordSet ? 'Activar Seguridad Local' : 'Desbloquear'}
+					</button>
+				</form>
+				
+				{hasPasswordSet && (
+					<p className="text-[10px] text-slate-500 text-center mt-6">
+						¿Olvidaste tu PIN? Tus datos están cifrados localmente de forma segura. Si no puedes recordar tu PIN, tendrás que borrar los datos del navegador y restaurar desde una copia de seguridad JSON.
+					</p>
+				)}
+			</div>
+		</div>
 	);
 }

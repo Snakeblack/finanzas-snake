@@ -11,7 +11,8 @@
 		"typecheck": "tsc --noEmit",
 		"preview": "vite preview --host 127.0.0.1",
 		"test": "vitest",
-		"test:coverage": "vitest run --coverage"
+		"test:coverage": "vitest run --coverage",
+		"audit": "pnpm audit"
 	},
 	"dependencies": {
 		"react": "^19.2.6",
