@@ -112,7 +112,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 	// Obtener credenciales TURN dinámicas desde la API serverless
 	const fetchIceServers = async (): Promise<any[] | undefined> => {
 		try {
-			const res = await fetch('/api/get-turn-credentials', {
+			const res = await fetch(`/api/get-turn-credentials?t=${Date.now()}`, {
 				signal: AbortSignal.timeout(3000) // Timeout de 3 segundos para no bloquear
 			});
 			if (res.ok) {
