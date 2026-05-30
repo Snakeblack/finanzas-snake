@@ -3,6 +3,7 @@ import { Peer } from 'peerjs';
 const PEER_PREFIX = 'finpro-';
 
 const PEER_CONFIG = {
+	debug: 3,
 	config: {
 		iceServers: [
 			{ urls: 'stun:stun.l.google.com:19302' },
