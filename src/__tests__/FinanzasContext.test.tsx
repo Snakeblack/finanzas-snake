@@ -905,3 +905,853 @@ describe('Valores Calculados', () => {
 		expect(ctxRef.totalExpenses).toBe(140);
 	});
 });
+
+describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
+	it('debe inicializar selectedMonth con el último período disponible si el mes actual no existe', () => {
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([
+			{ month: '2026-01', openingBalance: 100 }
+		]));
+		renderCtx();
+		expect(ctxRef.selectedMonth).toBe('2026-01');
+	});
+
+	it('debe propagar clones de transacciones recurrentes automáticamente en useEffect', () => {
+		// Mes actual es 2026-05. Ponemos el último periodo en el pasado (2026-04)
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([
+			{ month: '2026-04', openingBalance: 0 }
+		]));
+		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
+			{ id: 't1', desc: 'Sueldo Recurrente', amount: 1000, type: 'income', tag: 'Sueldo', date: '2026-04-01', recurrence: 'recurring', owner: 'joint' }
+		]));
+
+		renderCtx();
+
+		// El useEffect debe correr en el primer render/mount y propagar a 2026-05 (mes actual)
+		const hasCloned = ctxRef.transactions.some(t => t.date.startsWith('2026-05') && t.desc === 'Sueldo Recurrente');
+		expect(hasCloned).toBe(true);
+	});
+
+	it('debe ignorar deudas futuras en filteredDebts', () => {
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([
+			{ month: '2026-05', openingBalance: 0 }
+		]));
+		localStorage.setItem(STORAGE_KEYS.debts, JSON.stringify([
+			{ id: 'd-futura', kind: 'classic', desc: 'Deuda Futura', tag: 'T', date: '2026-08', principal: 1000, tae: 0, termMonths: 12, owner: 'joint' }
+		]));
+
+		renderCtx();
+		expect(ctxRef.filteredDebts.some(d => d.id === 'd-futura')).toBe(false);
+	});
+
+	it('handleCreateNextMonth debe cambiar selectedMonth si el mes siguiente ya existe', async () => {
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([
+			{ month: '2026-05', openingBalance: 0 },
+			{ month: '2026-06', openingBalance: 0 }
+		]));
+		renderCtx();
+
+		await act(async () => {
+			ctxRef.setSelectedMonth('2026-05');
+		});
+
+		// Mock de periods.some para que retorne true al chequear el mes siguiente (2026-07)
+		const originalPeriods = ctxRef.periods;
+		const mockPeriods = [...originalPeriods] as any;
+		mockPeriods.some = vi.fn().mockReturnValue(true);
+
+		await act(async () => {
+			ctxRef.setPeriods(mockPeriods);
+		});
+
+		await act(async () => {
+			ctxRef.handleCreateNextMonth();
+		});
+
+		expect(ctxRef.selectedMonth).toBe('2026-07');
+	});
+
+	it('debe calcular transfer owner correctamente en handleAddTransaction', async () => {
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify([
+			{ id: 'acc-a', name: 'Cuenta A', owner: 'userA', initialBalance: 1000 },
+			{ id: 'acc-b', name: 'Cuenta B', owner: 'userB', initialBalance: 500 }
+		]));
+		renderCtx();
+
+		// Caso 1: Propietarios distintos -> joint
+		await act(async () => {
+			ctxRef.setTxForm({
+				desc: 'Traspaso Joint',
+				amount: '100',
+				type: 'transfer',
+				tag: 'Ajuste de Saldo',
+				date: '2026-05-01',
+				recurrence: 'one-off',
+				owner: 'userA',
+				paidBy: 'shared',
+				accountId: '',
+				fromAccountId: 'acc-a',
+				toAccountId: 'acc-b'
+			});
+		});
+
+		await act(async () => {
+			const fakeEvent = { preventDefault: vi.fn() } as any;
+			ctxRef.handleAddTransaction(fakeEvent);
+		});
+
+		let added = ctxRef.transactions[0];
+		expect(added.owner).toBe('joint');
+
+		// Caso 2: Mismo propietario -> userA
+		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify([
+			{ id: 'acc-a1', name: 'Cuenta A1', owner: 'userA', initialBalance: 1000 },
+			{ id: 'acc-a2', name: 'Cuenta A2', owner: 'userA', initialBalance: 500 }
+		]));
+		renderCtx();
+
+		await act(async () => {
+			ctxRef.setTxForm({
+				desc: 'Traspaso A',
+				amount: '100',
+				type: 'transfer',
+				tag: 'Ajuste de Saldo',
+				date: '2026-05-01',
+				recurrence: 'one-off',
+				owner: 'userB', // se sobreescribe
+				paidBy: 'shared',
+				accountId: '',
+				fromAccountId: 'acc-a1',
+				toAccountId: 'acc-a2'
+			});
+		});
+
+		await act(async () => {
+			const fakeEvent = { preventDefault: vi.fn() } as any;
+			ctxRef.handleAddTransaction(fakeEvent);
+		});
+
+		added = ctxRef.transactions[0];
+		expect(added.owner).toBe('userA');
+	});
+
+	it('debe deducir paidBy en handleAddTransaction para cuentas comunes e individuales', async () => {
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify([
+			{ id: 'acc-a', name: 'Cuenta A', owner: 'userA', initialBalance: 1000 },
+			{ id: 'acc-j', name: 'Cuenta Común', owner: 'joint', initialBalance: 1000 }
+		]));
+		renderCtx();
+
+		// Caso owner !== joint -> paidBy = shared
+		await act(async () => {
+			ctxRef.setTxForm({
+				desc: 'Gasto A',
+				amount: '10',
+				type: 'expense',
+				tag: 'Otros',
+				date: '2026-05-01',
+				recurrence: 'one-off',
+				owner: 'userA',
+				paidBy: 'userB',
+				accountId: 'acc-a'
+			});
+		});
+
+		await act(async () => {
+			const fakeEvent = { preventDefault: vi.fn() } as any;
+			ctxRef.handleAddTransaction(fakeEvent);
+		});
+
+		expect(ctxRef.transactions[0].paidBy).toBe('shared');
+
+		// Caso owner === joint, accountId tiene dueño userA -> paidBy = userA
+		await act(async () => {
+			ctxRef.setTxForm({
+				desc: 'Gasto Común por A',
+				amount: '10',
+				type: 'expense',
+				tag: 'Otros',
+				date: '2026-05-01',
+				recurrence: 'one-off',
+				owner: 'joint',
+				paidBy: 'userB',
+				accountId: 'acc-a'
+			});
+		});
+
+		await act(async () => {
+			const fakeEvent = { preventDefault: vi.fn() } as any;
+			ctxRef.handleAddTransaction(fakeEvent);
+		});
+
+		expect(ctxRef.transactions[0].paidBy).toBe('userA');
+	});
+
+	it('debe propagar clones al agregar transacciones recurrentes en handleAddTransaction', async () => {
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([
+			{ month: '2026-05', openingBalance: 0 },
+			{ month: '2026-06', openingBalance: 0 }
+		]));
+		renderCtx();
+
+		await act(async () => {
+			ctxRef.setTxForm({
+				desc: 'Netflix',
+				amount: '15',
+				type: 'expense',
+				tag: 'Suscripciones',
+				date: '2026-05-15',
+				recurrence: 'recurring',
+				owner: 'joint',
+				paidBy: 'shared'
+			});
+		});
+
+		await act(async () => {
+			const fakeEvent = { preventDefault: vi.fn() } as any;
+			ctxRef.handleAddTransaction(fakeEvent);
+		});
+
+		expect(ctxRef.transactions.length).toBe(2); // La original + clon
+		const clon = ctxRef.transactions.find(t => t.date.startsWith('2026-06'));
+		expect(clon).toBeDefined();
+		expect(clon?.originId).toBeDefined();
+	});
+
+	it('debe manejar scopes only-this y all al guardar edición de transacciones recurrentes', async () => {
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([
+			{ month: '2026-05', openingBalance: 0 },
+			{ month: '2026-06', openingBalance: 0 }
+		]));
+		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
+			{ id: 't1-2026-06', originId: 't1', desc: 'Netflix', amount: 15, type: 'expense', tag: 'Suscripciones', date: '2026-06-15', recurrence: 'recurring', owner: 'joint' },
+			{ id: 't1', desc: 'Netflix', amount: 15, type: 'expense', tag: 'Suscripciones', date: '2026-05-15', recurrence: 'recurring', owner: 'joint' }
+		]));
+		renderCtx();
+
+		// Caso: editScope = 'only-this'
+		await act(async () => {
+			ctxRef.setEditingTx(ctxRef.transactions[1]); // t1
+			ctxRef.setEditForm({
+				desc: 'Netflix Modificado',
+				amount: '20',
+				type: 'expense',
+				tag: 'Suscripciones',
+				date: '2026-05-15',
+				recurrence: 'recurring',
+				owner: 'joint',
+				paidBy: 'shared',
+				accountId: ''
+			});
+			ctxRef.setEditScope('only-this');
+		});
+
+		await act(async () => {
+			const fakeEvent = { preventDefault: vi.fn() } as any;
+			ctxRef.handleSaveEditTransaction(fakeEvent);
+		});
+
+		const t1Mod = ctxRef.transactions.find(t => t.id === 't1');
+		expect(t1Mod?.desc).toBe('Netflix Modificado');
+		expect(t1Mod?.recurrence).toBe('one-off'); // se vuelve puntual
+
+		// Caso: editScope = 'all'
+		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
+			{ id: 't1-2026-06', originId: 't1', desc: 'Netflix', amount: 15, type: 'expense', tag: 'Suscripciones', date: '2026-06-15', recurrence: 'recurring', owner: 'joint' },
+			{ id: 't1', desc: 'Netflix', amount: 15, type: 'expense', tag: 'Suscripciones', date: '2026-05-15', recurrence: 'recurring', owner: 'joint' }
+		]));
+		renderCtx();
+
+		await act(async () => {
+			ctxRef.setEditingTx(ctxRef.transactions[1]); // t1
+			ctxRef.setEditForm({
+				desc: 'Netflix Todo',
+				amount: '25',
+				type: 'expense',
+				tag: 'Suscripciones',
+				date: '2026-05-15',
+				recurrence: 'recurring',
+				owner: 'joint',
+				paidBy: 'shared',
+				accountId: ''
+			});
+			ctxRef.setEditScope('all');
+		});
+
+		await act(async () => {
+			const fakeEvent = { preventDefault: vi.fn() } as any;
+			ctxRef.handleSaveEditTransaction(fakeEvent);
+		});
+
+		ctxRef.transactions.forEach(t => {
+			expect(t.desc).toBe('Netflix Todo');
+			expect(t.amount).toBe(25);
+		});
+	});
+
+	it('handleDeleteTransaction debe retornar early si el id no existe', () => {
+		renderCtx();
+		const lengthBefore = ctxRef.transactions.length;
+		act(() => {
+			ctxRef.handleDeleteTransaction('invalid-id');
+		});
+		expect(ctxRef.transactions.length).toBe(lengthBefore);
+	});
+
+	it('handleDeleteTransaction debe eliminar todas las ocurrencias futuras si es recurrente y se confirma', () => {
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
+			{ id: 't1-2026-06', originId: 't1', desc: 'Netflix', amount: 15, type: 'expense', tag: 'Suscripciones', date: '2026-06-15', recurrence: 'recurring', owner: 'joint' },
+			{ id: 't1', desc: 'Netflix', amount: 15, type: 'expense', tag: 'Suscripciones', date: '2026-05-15', recurrence: 'recurring', owner: 'joint' }
+		]));
+		renderCtx();
+
+		vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+		act(() => {
+			ctxRef.handleDeleteTransaction('t1');
+		});
+
+		expect(ctxRef.transactions.length).toBe(0);
+	});
+
+	it('handleDeleteDebt debe limpiar deudas para consolidación y deuda seleccionada', () => {
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		localStorage.setItem(STORAGE_KEYS.debts, JSON.stringify([
+			{ id: 'd1', kind: 'classic', desc: 'Test Debt', tag: 'T', date: '2026-05', principal: 100, tae: 0, termMonths: 12, owner: 'joint' }
+		]));
+		renderCtx();
+
+		act(() => {
+			ctxRef.setSelectedDebtsForConsolidation(['d1']);
+			ctxRef.setSelectedDebtSchedule(ctxRef.debts[0]);
+		});
+
+		expect(ctxRef.selectedDebtsForConsolidation).toContain('d1');
+		expect(ctxRef.selectedDebtSchedule?.id).toBe('d1');
+
+		act(() => {
+			ctxRef.handleDeleteDebt('d1');
+		});
+
+		expect(ctxRef.selectedDebtsForConsolidation).not.toContain('d1');
+		expect(ctxRef.selectedDebtSchedule).toBeNull();
+	});
+
+	it('handleSaveEditAccount debe retornar early si no hay editingAccount o nombre vacío', () => {
+		renderCtx();
+		act(() => {
+			ctxRef.setEditingAccount(null);
+			const fakeEvent = { preventDefault: vi.fn() } as any;
+			ctxRef.handleSaveEditAccount(fakeEvent);
+		});
+		expect(ctxRef.editingAccount).toBeNull();
+	});
+
+	it('handleDeleteAccount debe desasociar cuenta de transacciones y deudas al eliminarse', () => {
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify([
+			{ id: 'acc-a', name: 'Cuenta A', owner: 'userA', initialBalance: 100 },
+			{ id: 'acc-b', name: 'Cuenta B', owner: 'userB', initialBalance: 200 }
+		]));
+		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
+			{ id: 't1', desc: 'Movimiento', amount: 10, type: 'expense', tag: 'Otros', date: '2026-05-01', owner: 'userA', accountId: 'acc-a' },
+			{ id: 't2', desc: 'Traspaso', amount: 10, type: 'transfer', tag: 'Traspaso', date: '2026-05-01', owner: 'joint', fromAccountId: 'acc-a', toAccountId: 'acc-b' }
+		]));
+		localStorage.setItem(STORAGE_KEYS.debts, JSON.stringify([
+			{ id: 'd1', kind: 'classic', desc: 'Deuda', tag: 'T', date: '2026-05', principal: 100, tae: 0, termMonths: 12, owner: 'joint', paymentAccountId: 'acc-a' }
+		]));
+		renderCtx();
+
+		vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+		act(() => {
+			ctxRef.handleDeleteAccount('acc-a');
+		});
+
+		expect(ctxRef.accounts.length).toBe(1);
+		expect(ctxRef.transactions[0].accountId).toBeUndefined();
+		expect(ctxRef.transactions[1].fromAccountId).toBeUndefined();
+		expect(ctxRef.debts[0].paymentAccountId).toBeUndefined();
+	});
+
+	it('togglePaymentPlanInstallmentStatus debe retornar early si la deuda no es paymentPlan', () => {
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		localStorage.setItem(STORAGE_KEYS.debts, JSON.stringify([
+			{ id: 'd-classic', kind: 'classic', desc: 'Deuda Clásica', tag: 'T', date: '2026-05', principal: 100, tae: 0, termMonths: 12, owner: 'joint' }
+		]));
+		renderCtx();
+
+		const debtsBefore = JSON.stringify(ctxRef.debts);
+		act(() => {
+			ctxRef.togglePaymentPlanInstallmentStatus('d-classic', 'i1');
+		});
+		expect(JSON.stringify(ctxRef.debts)).toBe(debtsBefore);
+	});
+
+	it('handleDownloadChatPDF debe avanzar timers para ejecutar callbacks internos de impresión', () => {
+		vi.useFakeTimers();
+		renderCtx();
+
+		const focusSpy = vi.fn();
+		const printSpy = vi.fn();
+		const mockIframe = {
+			contentWindow: {
+				focus: focusSpy,
+				print: printSpy
+			},
+			style: {},
+			appendChild: vi.fn(),
+			contentDocument: {
+				open: vi.fn(),
+				write: vi.fn(),
+				close: vi.fn()
+			}
+		} as any;
+
+		const createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue(mockIframe);
+		const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => mockIframe);
+		const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => mockIframe);
+
+		ctxRef.handleDownloadChatPDF({
+			showContext: true,
+			showDebts: true,
+			showTransactions: true,
+			showChat: true
+		});
+
+		vi.advanceTimersByTime(300);
+		expect(focusSpy).toHaveBeenCalled();
+		expect(printSpy).toHaveBeenCalled();
+
+		vi.advanceTimersByTime(1000);
+		expect(removeChildSpy).toHaveBeenCalledWith(mockIframe);
+
+		createElementSpy.mockRestore();
+		appendChildSpy.mockRestore();
+		removeChildSpy.mockRestore();
+		vi.useRealTimers();
+	});
+
+	it('handleExportData debe alertar en caso de excepción', () => {
+		renderCtx();
+
+		const stringifySpy = vi.spyOn(JSON, 'stringify').mockImplementation(() => {
+			throw new Error('Fake Error');
+		});
+		const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+		ctxRef.handleExportData();
+
+		expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('Fake Error'));
+
+		stringifySpy.mockRestore();
+		alertSpy.mockRestore();
+	});
+
+	it('handleImportData debe seleccionar el último mes del backup si tiene periodos', async () => {
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		renderCtx();
+
+		const backupData = {
+			[STORAGE_KEYS.periods]: JSON.stringify([
+				{ month: '2026-05', openingBalance: 0 },
+				{ month: '2026-09', openingBalance: 0 }
+			]),
+			[STORAGE_KEYS.accounts]: JSON.stringify([]),
+			[STORAGE_KEYS.transactions]: JSON.stringify([]),
+			[STORAGE_KEYS.debts]: JSON.stringify([])
+		};
+
+		const fakeEvent = { preventDefault: vi.fn() } as any;
+		await act(async () => {
+			ctxRef.handleImportData(fakeEvent, JSON.stringify(backupData));
+		});
+
+		expect(ctxRef.selectedMonth).toBe('2026-09');
+	});
+
+	it('debe deducir paidBy en handleAddTransaction para cuenta del usuario B', async () => {
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify([
+			{ id: 'acc-b', name: 'Cuenta B', owner: 'userB', initialBalance: 1000 }
+		]));
+		renderCtx();
+
+		await act(async () => {
+			ctxRef.setTxForm({
+				desc: 'Gasto Joint por B',
+				amount: '10',
+				type: 'expense',
+				tag: 'Otros',
+				date: '2026-05-01',
+				recurrence: 'one-off',
+				owner: 'joint',
+				paidBy: 'userA',
+				accountId: 'acc-b'
+			});
+		});
+
+		await act(async () => {
+			const fakeEvent = { preventDefault: vi.fn() } as any;
+			ctxRef.handleAddTransaction(fakeEvent);
+		});
+
+		expect(ctxRef.transactions[0].paidBy).toBe('userB');
+	});
+
+	it('handleSaveEditTransaction debe retornar early si no hay editingTx o campos vacíos', async () => {
+		renderCtx();
+		await act(async () => {
+			ctxRef.setEditingTx(null);
+			const fakeEvent = { preventDefault: vi.fn() } as any;
+			ctxRef.handleSaveEditTransaction(fakeEvent);
+		});
+		expect(ctxRef.editingTx).toBeNull();
+	});
+
+	it('debe calcular transfer owner y paidBy correctamente al editar transacciones', async () => {
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify([
+			{ id: 'acc-a', name: 'Cuenta A', owner: 'userA', initialBalance: 1000 },
+			{ id: 'acc-b', name: 'Cuenta B', owner: 'userB', initialBalance: 500 },
+			{ id: 'acc-a2', name: 'Cuenta A2', owner: 'userA', initialBalance: 200 }
+		]));
+		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
+			{ id: 't1', desc: 'Traspaso Original', amount: 50, type: 'transfer', tag: 'Otros', date: '2026-05-01', fromAccountId: 'acc-a', toAccountId: 'acc-b' }
+		]));
+		renderCtx();
+
+		// Caso: Dueños distintos
+		await act(async () => {
+			ctxRef.setEditingTx(ctxRef.transactions[0]);
+			ctxRef.setEditForm({
+				desc: 'Traspaso Editado',
+				amount: '60',
+				type: 'transfer',
+				tag: 'Otros',
+				date: '2026-05-01',
+				recurrence: 'one-off',
+				owner: 'userA',
+				paidBy: 'userB',
+				accountId: '',
+				fromAccountId: 'acc-a',
+				toAccountId: 'acc-b'
+			});
+			ctxRef.setEditScope('only-this');
+		});
+
+		await act(async () => {
+			const fakeEvent = { preventDefault: vi.fn() } as any;
+			ctxRef.handleSaveEditTransaction(fakeEvent);
+		});
+
+		let edited = ctxRef.transactions[0];
+		expect(edited.owner).toBe('joint');
+		expect(edited.paidBy).toBe('userB');
+
+		// Caso: Mismos dueños al editar transferencia
+		await act(async () => {
+			ctxRef.setEditingTx(ctxRef.transactions[0]);
+			ctxRef.setEditForm({
+				desc: 'Traspaso Mismo Dueño',
+				amount: '60',
+				type: 'transfer',
+				tag: 'Otros',
+				date: '2026-05-01',
+				recurrence: 'one-off',
+				owner: 'userB',
+				paidBy: 'userB',
+				accountId: '',
+				fromAccountId: 'acc-a',
+				toAccountId: 'acc-a2'
+			});
+		});
+
+		await act(async () => {
+			const fakeEvent = { preventDefault: vi.fn() } as any;
+			ctxRef.handleSaveEditTransaction(fakeEvent);
+		});
+
+		edited = ctxRef.transactions[0];
+		expect(edited.owner).toBe('userA'); // fromAcc.owner === toAcc.owner
+		expect(edited.paidBy).toBe('shared');
+
+		// Caso: Gasto no-transferencia con dueño joint, pero cuenta de usuario A
+		await act(async () => {
+			ctxRef.setEditingTx(ctxRef.transactions[0]);
+			ctxRef.setEditForm({
+				desc: 'Gasto Editado A',
+				amount: '40',
+				type: 'expense',
+				tag: 'Otros',
+				date: '2026-05-01',
+				recurrence: 'one-off',
+				owner: 'joint',
+				paidBy: 'userB',
+				accountId: 'acc-a',
+				fromAccountId: '',
+				toAccountId: ''
+			});
+		});
+
+		await act(async () => {
+			const fakeEvent = { preventDefault: vi.fn() } as any;
+			ctxRef.handleSaveEditTransaction(fakeEvent);
+		});
+
+		edited = ctxRef.transactions[0];
+		expect(edited.owner).toBe('joint');
+		expect(edited.paidBy).toBe('userA'); // acc.owner === 'userA' -> returns userA
+
+		// Caso: Gasto no-transferencia con dueño joint, pero cuenta de usuario B
+		await act(async () => {
+			ctxRef.setEditingTx(ctxRef.transactions[0]);
+			ctxRef.setEditForm({
+				desc: 'Gasto Editado B',
+				amount: '40',
+				type: 'expense',
+				tag: 'Otros',
+				date: '2026-05-01',
+				recurrence: 'one-off',
+				owner: 'joint',
+				paidBy: 'userA',
+				accountId: 'acc-b',
+				fromAccountId: '',
+				toAccountId: ''
+			});
+		});
+
+		await act(async () => {
+			const fakeEvent = { preventDefault: vi.fn() } as any;
+			ctxRef.handleSaveEditTransaction(fakeEvent);
+		});
+
+		edited = ctxRef.transactions[0];
+		expect(edited.owner).toBe('joint');
+		expect(edited.paidBy).toBe('userB'); // acc.owner === 'userB' -> returns userB
+
+		// Caso: Gasto no-transferencia con dueño no-joint -> paidBy = shared
+		await act(async () => {
+			ctxRef.setEditingTx(ctxRef.transactions[0]);
+			ctxRef.setEditForm({
+				desc: 'Gasto Editado Individual',
+				amount: '40',
+				type: 'expense',
+				tag: 'Otros',
+				date: '2026-05-01',
+				recurrence: 'one-off',
+				owner: 'userA',
+				paidBy: 'userB',
+				accountId: 'acc-b',
+				fromAccountId: '',
+				toAccountId: ''
+			});
+		});
+
+		await act(async () => {
+			const fakeEvent = { preventDefault: vi.fn() } as any;
+			ctxRef.handleSaveEditTransaction(fakeEvent);
+		});
+
+		edited = ctxRef.transactions[0];
+		expect(edited.owner).toBe('userA');
+		expect(edited.paidBy).toBe('shared'); // effectiveOwner !== joint -> returns shared
+	});
+
+	it('handleDeleteAccount debe desasociar toAccountId de transacciones y mantener deudas no asociadas', () => {
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify([
+			{ id: 'acc-a', name: 'Cuenta A', owner: 'userA', initialBalance: 100 },
+			{ id: 'acc-b', name: 'Cuenta B', owner: 'userB', initialBalance: 200 }
+		]));
+		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
+			{ id: 't2', desc: 'Traspaso', amount: 10, type: 'transfer', tag: 'Traspaso', date: '2026-05-01', owner: 'joint', fromAccountId: 'acc-a', toAccountId: 'acc-b' }
+		]));
+		localStorage.setItem(STORAGE_KEYS.debts, JSON.stringify([
+			{ id: 'd1', kind: 'classic', desc: 'Deuda A', tag: 'T', date: '2026-05', principal: 50, tae: 0, termMonths: 12, owner: 'joint', paymentAccountId: 'acc-a' },
+			{ id: 'd2', kind: 'classic', desc: 'Deuda B', tag: 'T', date: '2026-05', principal: 100, tae: 0, termMonths: 12, owner: 'joint', paymentAccountId: 'acc-b' }
+		]));
+		renderCtx();
+
+		vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+		act(() => {
+			ctxRef.handleDeleteAccount('acc-b');
+		});
+
+		expect(ctxRef.accounts.length).toBe(1);
+		expect(ctxRef.transactions[0].toAccountId).toBeUndefined(); // acc-b eliminado
+		expect(ctxRef.transactions[0].fromAccountId).toBe('acc-a'); // acc-a se mantiene
+		expect(ctxRef.debts[0].paymentAccountId).toBe('acc-a'); // d1 (no asociado a acc-b) se mantiene intacto (cubre line 1017 return d)
+		expect(ctxRef.debts[1].paymentAccountId).toBeUndefined(); // d2 (asociado a acc-b) se limpia
+	});
+
+	it('stripMarkdown debe parsear tablas y handleCopyChatPlaintext manejar errores de clipboard', async () => {
+		renderCtx();
+
+		const markdownWithTable = `
+Aquí hay una tabla:
+| Col 1 | Col 2 |
+|---|---|
+| Celda A | Celda B |
+| Celda C | Celda D |
+		`;
+
+		await act(async () => {
+			ctxRef.setChatMessages([
+				{ role: 'model', content: markdownWithTable, timestamp: '12:00' }
+			]);
+		});
+
+		// Mock de navigator.clipboard.writeText que falla
+		const writeTextSpy = vi.fn().mockRejectedValue(new Error('Clipboard block'));
+		Object.assign(navigator, {
+			clipboard: {
+				writeText: writeTextSpy
+			}
+		});
+
+		const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+		await act(async () => {
+			ctxRef.handleCopyChatPlaintext();
+		});
+
+		expect(writeTextSpy).toHaveBeenCalled();
+		// Esperar que la microtarea de la promesa rechazada se resuelva para el console.error
+		await new Promise(resolve => setTimeout(resolve, 0));
+		expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to copy text'), expect.any(Error));
+
+		consoleErrorSpy.mockRestore();
+	});
+
+	it('handleDownloadChatPDF debe renderizar deudas y markdown complejos completamente', async () => {
+		vi.useFakeTimers();
+		
+		const month = '2026-05';
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month, openingBalance: 1000 }]));
+		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify([
+			{ id: 'acc-j', name: 'Cuenta Común', owner: 'joint', initialBalance: 1000 }
+		]));
+		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
+			{ id: 't1', desc: 'Comida', amount: 50, type: 'expense', tag: 'Alimentación', date: `${month}-01`, recurrence: 'recurring', owner: 'joint', accountId: 'acc-j' },
+			{ id: 't2', desc: 'Taxi', amount: 15, type: 'expense', tag: 'Transporte', date: `${month}-02`, recurrence: 'one-off', owner: 'joint', accountId: 'acc-j' }
+		]));
+		localStorage.setItem(STORAGE_KEYS.debts, JSON.stringify([
+			{ id: 'd1', kind: 'classic', desc: 'Hipoteca', tag: 'Hipoteca', date: month, principal: 100000, tae: 3.5, tin: 3.2, termMonths: 120, owner: 'joint', paymentAccountId: 'acc-j' },
+			{ id: 'd2', kind: 'classic', desc: 'Préstamo', tag: 'Otros', date: month, principal: 5000, tae: 0, termMonths: 10, owner: 'joint', paymentAccountId: 'acc-j' },
+			{ id: 'd3', kind: 'paymentPlan', desc: 'Móvil', tag: 'Otros', date: month, financedAmount: 600, fees: 0, totalToPay: 600, owner: 'joint', installments: [{ id: 'i1', dueMonth: month, amount: 50, status: 'pending', label: 'Tramo 1' }] }
+		]));
+
+		renderCtx();
+
+		const complexMarkdown = `
+# Título 1
+## Título 2
+### Título 3
+#### Título 4
+
+Texto con **negrita** y \`código inline\`.
+
+* Item UL 1
+- Item UL 2
++ Item UL 3
+
+1. Item OL 1
+2. Item OL 2
+
+| Columna A | Columna B |
+|:---|---:|
+| A1 | B1 |
+
+\`\`\`javascript
+const test = "code block";
+\`\`\`
+
+\`\`\`
+code block sin lenguaje
+\`\`\`
+		`;
+
+		await act(async () => {
+			ctxRef.setChatMessages([
+				{ role: 'user', content: 'Hola', timestamp: '12:00' },
+				{ role: 'model', content: complexMarkdown, timestamp: '12:01' }
+			]);
+		});
+
+		const focusSpy = vi.fn();
+		const printSpy = vi.fn();
+		const mockIframe = {
+			contentWindow: {
+				focus: focusSpy,
+				print: printSpy
+			},
+			style: {},
+			appendChild: vi.fn(),
+			contentDocument: {
+				open: vi.fn(),
+				write: vi.fn(),
+				close: vi.fn()
+			}
+		} as any;
+
+		const createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue(mockIframe);
+		const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => mockIframe);
+		const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => mockIframe);
+
+		ctxRef.handleDownloadChatPDF({
+			showContext: true,
+			showDebts: true,
+			showTransactions: true,
+			showChat: true
+		});
+
+		vi.advanceTimersByTime(300);
+		expect(printSpy).toHaveBeenCalled();
+
+		vi.advanceTimersByTime(1000);
+
+		createElementSpy.mockRestore();
+		appendChildSpy.mockRestore();
+		removeChildSpy.mockRestore();
+		vi.useRealTimers();
+	});
+
+	it('handleDownloadChatPDF debe retornar si no hay document en el iframe', () => {
+		renderCtx();
+
+		const mockIframe = {
+			contentWindow: null,
+			contentDocument: null,
+			style: {},
+			appendChild: vi.fn()
+		} as any;
+
+		const createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue(mockIframe);
+		const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => mockIframe);
+
+		expect(() => {
+			ctxRef.handleDownloadChatPDF({
+				showContext: true,
+				showDebts: true,
+				showTransactions: true,
+				showChat: true
+			});
+		}).not.toThrow();
+
+		createElementSpy.mockRestore();
+		appendChildSpy.mockRestore();
+	});
+});
+
+

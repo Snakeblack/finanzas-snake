@@ -618,3 +618,54 @@ describe('getTagBreakdown', () => {
 		expect(getTagBreakdown([], [], '2026-05')).toHaveLength(0);
 	});
 });
+
+describe('financeService - Edge Cases de Cobertura', () => {
+	it('getEffectiveAmount debe retornar 0 para viewMode inválido', () => {
+		const tx: Transaction = { id: 't-test', desc: 'Test', amount: 100, type: 'expense', tag: 'Otros', date: '2026-05-01', owner: 'userA' };
+		expect(getEffectiveAmount(tx, 'invalid' as any, [])).toBe(0);
+	});
+
+	it('calculateTimelineBalances debe guardar ingresos sin cuenta asociada en runningUnassignedBalances', () => {
+		const accounts: Account[] = [{ id: 'a1', name: 'A', owner: 'userA', initialBalance: 1000 }];
+		const periods: Period[] = [{ month: '2026-05', openingBalance: 1000 }];
+		const txs: Transaction[] = [
+			{ id: 't1', desc: 'Ingreso Sin Cuenta', amount: 500, type: 'income', tag: 'Sueldo', date: '2026-05-01', owner: 'userA' }
+		];
+		const result = calculateTimelineBalances(periods, txs, [], accounts, 'all');
+		expect(result['2026-05'].closingBalance).toBe(1500);
+	});
+
+	it('calculateTimelineBalances debe ponderar pagos de deudas según dueños cruzados y vistas de usuario', () => {
+		const accounts: Account[] = [
+			{ id: 'a1', name: 'A', owner: 'userA', initialBalance: 5000 }
+		];
+		const periods: Period[] = [{ month: '2026-05', openingBalance: 5000 }];
+		const debtA: ClassicDebt = {
+			id: 'dA', kind: 'classic', desc: 'Debt A', tag: 'Test',
+			date: '2026-05', principal: 1200, tae: 0, termMonths: 12,
+			owner: 'userA'
+		};
+		const debtB: ClassicDebt = {
+			id: 'dB', kind: 'classic', desc: 'Debt B', tag: 'Test',
+			date: '2026-05', principal: 2400, tae: 0, termMonths: 12,
+			owner: 'userB'
+		};
+
+		// En vista all, ambas deudas pagan cuota completa: 100 + 200 = 300
+		const resAll = calculateTimelineBalances(periods, [], [debtA, debtB], accounts, 'all');
+		expect(resAll['2026-05'].debtPayments).toBeCloseTo(300, 2);
+
+		// En vista userA, debtA paga 100, debtB paga 0
+		const resA = calculateTimelineBalances(periods, [], [debtA, debtB], accounts, 'userA');
+		expect(resA['2026-05'].debtPayments).toBeCloseTo(100, 2);
+
+		// En vista userB, debtB paga 200, debtA paga 0
+		const resB = calculateTimelineBalances(periods, [], [debtA, debtB], accounts, 'userB');
+		expect(resB['2026-05'].debtPayments).toBeCloseTo(200, 2);
+
+		// Con viewMode inválido, paga 0
+		const resInv = calculateTimelineBalances(periods, [], [debtA, debtB], accounts, 'invalid' as any);
+		expect(resInv['2026-05'].debtPayments).toBe(0);
+	});
+});
+
