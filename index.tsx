@@ -2298,7 +2298,13 @@ export default function App() {
 		const doc = iframe.contentWindow?.document || iframe.contentDocument;
 		if (!doc) return;
 
-		const dateStr = new Date().toLocaleDateString('es-ES', {
+		const today = new Date();
+		const yyyy = today.getFullYear();
+		const mm = String(today.getMonth() + 1).padStart(2, '0');
+		const dd = String(today.getDate()).padStart(2, '0');
+		const pdfTitle = `${yyyy}-${mm}-${dd}-finanzaspro`;
+
+		const dateStr = today.toLocaleDateString('es-ES', {
 			year: 'numeric',
 			month: 'long',
 			day: 'numeric',
@@ -2399,7 +2405,7 @@ export default function App() {
 			<html>
 			<head>
 				<meta charset="utf-8">
-				<title>Informe del Asesor Gemini - ${selectedMonth}</title>
+				<title>${pdfTitle}</title>
 				<style>
 					body {
 						font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
