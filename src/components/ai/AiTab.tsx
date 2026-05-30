@@ -107,7 +107,15 @@ export function AiTab() {
 					</h3>
 					<p className="text-xs text-slate-400 mb-4 font-normal">
 						Introduce tu API Key de Google Gemini para habilitar el motor de análisis y recibir consejos
-						estructurados en tiempo real.
+						estructurados en tiempo real.{' '}
+						<a
+							href="https://aistudio.google.com/api-keys"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors"
+						>
+							Obtener API Key →
+						</a>
 					</p>
 
 					<div className="space-y-3">
