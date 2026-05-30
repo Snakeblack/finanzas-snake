@@ -420,14 +420,14 @@ function MainAppContent() {
 										onChange={(e) => setInitMonth(e.target.value)}
 										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 font-mono outline-none"
 									/>
-									<p className="text-[10px] text-slate-500 mt-1">
+									<p className="text-[10px] text-slate-400 mt-1">
 										Vas a poder ingresar transacciones históricas desde este mes seleccionado.
 									</p>
 								</div>
 							) : (
-								<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-400">
-									<span className="font-semibold text-slate-300">Mes Activo de Inicio:</span> {currentMonthString}
-									<p className="text-[10px] text-slate-500 mt-1">
+								<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-300">
+									<span className="font-semibold text-slate-200">Mes Activo de Inicio:</span> {currentMonthString}
+									<p className="text-[10px] text-slate-400 mt-1">
 										La cronología arranca directamente en el mes actual del calendario.
 									</p>
 								</div>
@@ -494,15 +494,15 @@ function MainAppContent() {
 										</div>
 									))}
 								</div>
-								<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs flex justify-between items-center text-slate-400">
-									<span>Total Conjunto:</span>
-									<span className="font-bold text-slate-200 text-sm">
-										{accounts
-											.reduce((sum, a) => sum + (a.initialBalance || 0), 0)
-											.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-										€
-									</span>
-								</div>
+							<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs flex justify-between items-center text-slate-300">
+								<span>Total Conjunto:</span>
+								<span className="font-bold text-slate-100 text-sm">
+									{accounts
+										.reduce((sum, a) => sum + (a.initialBalance || 0), 0)
+										.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+									€
+								</span>
+							</div>
 							</div>
 
 							<button
@@ -1019,8 +1019,8 @@ function MainAppContent() {
 								/>
 							</div>
 						) : (
-							<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-400">
-								<span className="font-semibold text-slate-300">Mes Activo de Inicio:</span> {currentMonthString}
+							<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-300">
+								<span className="font-semibold text-slate-200">Mes Activo de Inicio:</span> {currentMonthString}
 							</div>
 						)}
 
@@ -1086,9 +1086,9 @@ function MainAppContent() {
 									</div>
 								))}
 							</div>
-							<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs flex justify-between items-center text-slate-400">
+							<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs flex justify-between items-center text-slate-300">
 								<span>Total Conjunto:</span>
-								<span className="font-bold text-slate-200 text-sm">
+								<span className="font-bold text-slate-100 text-sm">
 									{reconfigAccounts
 										.reduce((sum, a) => sum + (a.initialBalance || 0), 0)
 										.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
