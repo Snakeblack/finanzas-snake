@@ -528,35 +528,35 @@ function MainAppContent() {
 						</div>
 
 						{/* INDICADORES FINANCIEROS MENSUALES */}
-						<section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+						<section className="grid grid-cols-2 lg:grid-cols-5 gap-2 lg:gap-6 mb-4 lg:mb-8">
 							{/* Tarjeta: Saldo de Apertura */}
-							<div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 transition-all hover:border-slate-700">
-								<div className="flex items-center justify-between mb-4">
-									<span className="text-sm font-medium text-slate-400">Apertura ({selectedMonth})</span>
-									<div className="p-2 bg-indigo-500/10 rounded-lg">
-										<svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+							<div className="bg-slate-900 border border-slate-800 rounded-xl lg:rounded-2xl p-3 lg:p-6 transition-all hover:border-slate-700">
+								<div className="flex items-center justify-between mb-1 lg:mb-4">
+									<span className="text-[10px] lg:text-sm font-medium text-slate-400 truncate">Apertura</span>
+									<div className="p-1 lg:p-2 bg-indigo-500/10 rounded-md lg:rounded-lg">
+										<svg className="w-3.5 h-3.5 lg:w-5 lg:h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 											<path strokeLinecap="round" strokeLinejoin="round" d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l3-3m-3 3L9 8m-5 5h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293h3.172a1 1 0 00.707-.293l2.414-2.414a1 1 0 01.707-.293H20" />
 										</svg>
 									</div>
 								</div>
-								<div className="text-3xl font-bold text-slate-200">
+								<div className="text-base lg:text-3xl font-bold text-slate-200 truncate">
 									{currentOpeningBalance.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
 								</div>
-								<p className="text-xs text-slate-500 mt-1">Saldo inicial del periodo</p>
+								<p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 hidden lg:block">Saldo inicial del periodo</p>
 							</div>
 
 							{/* Tarjeta: Cobros / Ingresos */}
-							<div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 transition-all hover:border-slate-700">
-								<div className="flex items-center justify-between mb-4">
-									<span className="text-sm font-medium text-slate-400">Ingresos ({selectedMonth})</span>
-									<div className="p-2 bg-emerald-500/10 rounded-lg">
+							<div className="bg-slate-900 border border-slate-800 rounded-xl lg:rounded-2xl p-3 lg:p-6 transition-all hover:border-slate-700">
+								<div className="flex items-center justify-between mb-1 lg:mb-4">
+									<span className="text-[10px] lg:text-sm font-medium text-slate-400 truncate">Ingresos</span>
+									<div className="p-1 lg:p-2 bg-emerald-500/10 rounded-md lg:rounded-lg">
 										<Icons.TrendingUp />
 									</div>
 								</div>
-								<div className="text-3xl font-bold text-emerald-400">
+								<div className="text-base lg:text-3xl font-bold text-emerald-400 truncate">
 									+{totalIncomes.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
 								</div>
-								<p className="text-xs text-slate-500 mt-1">
+								<p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 hidden lg:block">
 									{oneOffIncomes > 0 ? (
 										`Recurrentes: +${recurringIncomes.toFixed(2)}€ | Puntuales: +${oneOffIncomes.toFixed(2)}€`
 									) : (
@@ -566,17 +566,17 @@ function MainAppContent() {
 							</div>
 
 							{/* Tarjeta: Gastos de Flujo Diario */}
-							<div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 transition-all hover:border-slate-700">
-								<div className="flex items-center justify-between mb-4">
-									<span className="text-sm font-medium text-slate-400">Gastos del Mes ({selectedMonth})</span>
-									<div className="p-2 bg-rose-500/10 rounded-lg">
+							<div className="bg-slate-900 border border-slate-800 rounded-xl lg:rounded-2xl p-3 lg:p-6 transition-all hover:border-slate-700">
+								<div className="flex items-center justify-between mb-1 lg:mb-4">
+									<span className="text-[10px] lg:text-sm font-medium text-slate-400 truncate">Gastos</span>
+									<div className="p-1 lg:p-2 bg-rose-500/10 rounded-md lg:rounded-lg">
 										<Icons.TrendingDown />
 									</div>
 								</div>
-								<div className="text-3xl font-bold text-rose-400">
+								<div className="text-base lg:text-3xl font-bold text-rose-400 truncate">
 									-{totalExpenses.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
 								</div>
-								<p className="text-xs text-slate-500 mt-1">
+								<p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 hidden lg:block">
 									{oneOffExpenses > 0 ? (
 										`Recurrentes: -${recurringExpenses.toFixed(2)}€ | Puntuales: -${oneOffExpenses.toFixed(2)}€`
 									) : (
@@ -586,36 +586,36 @@ function MainAppContent() {
 							</div>
 
 							{/* Tarjeta: Amortización de Deudas (TIN / TAE) */}
-							<div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 transition-all hover:border-slate-700">
-								<div className="flex items-center justify-between mb-4">
+							<div className="bg-slate-900 border border-slate-800 rounded-xl lg:rounded-2xl p-3 lg:p-6 transition-all hover:border-slate-700">
+								<div className="flex items-center justify-between mb-1 lg:mb-4">
 									<div className="flex items-center space-x-1">
-										<span className="text-sm font-medium text-slate-400">Pagos de Deuda</span>
-										<span title="Préstamos: cuota calculada con TIN/TAE. Fraccionamientos: cuotas pendientes vencidas o exigibles hasta el mes activo.">
+										<span className="text-[10px] lg:text-sm font-medium text-slate-400 truncate">Deuda</span>
+										<span className="hidden lg:inline" title="Préstamos: cuota calculada con TIN/TAE. Fraccionamientos: cuotas pendientes vencidas o exigibles hasta el mes activo.">
 											<Icons.Info />
 										</span>
 									</div>
-									<div className="p-2 bg-amber-500/10 rounded-lg">
+									<div className="p-1 lg:p-2 bg-amber-500/10 rounded-md lg:rounded-lg">
 										<Icons.CreditCard />
 									</div>
 								</div>
-								<div className="text-3xl font-bold text-amber-500">
+								<div className="text-base lg:text-3xl font-bold text-amber-500 truncate">
 									-{totalMonthlyDebtPayments.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
 								</div>
-								<p className="text-xs text-slate-500 mt-1">Incluye cuotas activas y vencidas</p>
+								<p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 hidden lg:block">Incluye cuotas activas y vencidas</p>
 							</div>
 
 							{/* Tarjeta: Saldo al Cierre (Acumulado) */}
-							<div className={`bg-slate-900 border rounded-2xl p-6 transition-all hover:border-indigo-500/30 shadow-md ${currentClosingBalance >= 0 ? 'border-slate-800 hover:border-indigo-500/50' : 'border-rose-900/50 hover:border-rose-800'}`}>
-								<div className="flex items-center justify-between mb-4">
-									<span className="text-sm font-medium text-slate-300">Cierre ({selectedMonth})</span>
-									<div className="p-2 bg-indigo-500/10 rounded-lg">
+							<div className={`bg-slate-900 border rounded-xl lg:rounded-2xl p-3 lg:p-6 transition-all hover:border-indigo-500/30 shadow-md col-span-2 lg:col-span-1 ${currentClosingBalance >= 0 ? 'border-slate-800 hover:border-indigo-500/50' : 'border-rose-900/50 hover:border-rose-800'}`}>
+								<div className="flex items-center justify-between mb-1 lg:mb-4">
+									<span className="text-[10px] lg:text-sm font-medium text-slate-300">Cierre ({selectedMonth})</span>
+									<div className="p-1 lg:p-2 bg-indigo-500/10 rounded-md lg:rounded-lg">
 										<Icons.Scale />
 									</div>
 								</div>
-								<div className={`text-3xl font-black ${currentClosingBalance >= 0 ? 'text-indigo-400' : 'text-rose-500'}`}>
+								<div className={`text-lg lg:text-3xl font-black ${currentClosingBalance >= 0 ? 'text-indigo-400' : 'text-rose-500'}`}>
 									{currentClosingBalance.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
 								</div>
-								<p className="text-xs text-slate-400 mt-1">
+								<p className="text-[9px] lg:text-xs text-slate-400 mt-0.5 lg:mt-1">
 									{currentClosingBalance >= 0 ? 'Saldo neto acumulado positivo' : 'Déficit acumulado al cierre'}
 								</p>
 							</div>
