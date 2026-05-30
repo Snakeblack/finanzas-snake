@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useFinanzas } from '../../hooks/useFinanzas';
 import { Icons } from '../common/Icons';
+import { SyncModal } from '../sync/SyncModal';
 
 /**
  * Componente que renderiza la pestaña de Cuentas y Configuración.
@@ -8,6 +9,7 @@ import { Icons } from '../common/Icons';
  * copias de seguridad (exportar e importar datos mediante JSON).
  */
 export function AccountsTab() {
+	const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 	const {
 		accounts,
 		selectedMonth,
@@ -239,7 +241,7 @@ export function AccountsTab() {
 					Guarda o restaura toda tu información financiera (cuentas, movimientos, deudas, perfiles y chat) para tener un respaldo o transferirla a otro ordenador.
 				</p>
 
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+				<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 					<div className="bg-slate-950 p-5 rounded-xl border border-slate-850 flex flex-col justify-between">
 						<div>
 							<h4 className="font-bold text-slate-100 text-sm mb-1">Exportar Datos</h4>
@@ -284,6 +286,24 @@ export function AccountsTab() {
 							</label>
 						</div>
 					</div>
+
+					<div className="bg-slate-950 p-5 rounded-xl border border-slate-850 flex flex-col justify-between">
+						<div>
+							<h4 className="font-bold text-slate-100 text-sm mb-1">Sincronización P2P</h4>
+							<p className="text-xs text-slate-500 leading-relaxed">
+								Transfiere datos en tiempo real entre tu ordenador y tu móvil. Directo, cifrado y sin usar servidores de terceros.
+							</p>
+						</div>
+						<button
+							onClick={() => setIsSyncModalOpen(true)}
+							className="mt-4 w-full bg-violet-600 hover:bg-violet-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md shadow-violet-600/10"
+						>
+							<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+								<path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+							</svg>
+							Sincronizar Dispositivos
+						</button>
+					</div>
 				</div>
 
 				{importError && (
@@ -303,6 +323,8 @@ export function AccountsTab() {
 					</div>
 				)}
 			</div>
+
+			<SyncModal isOpen={isSyncModalOpen} onClose={() => setIsSyncModalOpen(false)} />
 		</div>
 	);
 }

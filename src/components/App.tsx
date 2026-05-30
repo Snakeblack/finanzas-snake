@@ -10,12 +10,14 @@ import { ConsolidationTab } from './consolidation/ConsolidationTab';
 import { AiTab } from './ai/AiTab';
 import { DEFAULT_TAGS } from '../constants';
 import { deduceTagFromConcept } from '../services/financeService';
+import { SyncModal } from './sync/SyncModal';
 
 /**
  * Contenido principal de la aplicación, consumiendo el contexto de finanzas.
  */
 function MainAppContent() {
 	const currentMonthString = new Date().toISOString().substring(0, 7); // "YYYY-MM"
+	const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
 
 	const {
 		activeTab,
@@ -388,23 +390,36 @@ function MainAppContent() {
 							<div className="flex-grow border-t border-slate-850"></div>
 						</div>
 
-						<div className="text-center">
-							<input
-								id="welcome-import-backup-file"
-								type="file"
-								accept=".json"
-								onChange={handleFileChange}
-								className="hidden"
-							/>
-							<label
-								htmlFor="welcome-import-backup-file"
-								className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-slate-800 bg-slate-950 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer transition-all active:scale-95 hover:border-indigo-500/30"
+						<div className="grid grid-cols-1 gap-3 text-center">
+							<div>
+								<input
+									id="welcome-import-backup-file"
+									type="file"
+									accept=".json"
+									onChange={handleFileChange}
+									className="hidden"
+								/>
+								<label
+									htmlFor="welcome-import-backup-file"
+									className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-slate-800 bg-slate-950 text-slate-300 hover:text-white text-xs font-semibold cursor-pointer transition-all active:scale-95 hover:border-indigo-500/30"
+								>
+									<svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+										<path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
+									</svg>
+									Importar Archivo JSON
+								</label>
+							</div>
+
+							<button
+								type="button"
+								onClick={() => setIsSyncModalOpen(true)}
+								className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-slate-800 bg-slate-950 text-slate-300 hover:text-white text-xs font-semibold transition-all active:scale-95 hover:border-indigo-500/30"
 							>
-								<svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-									<path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
+								<svg className="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+									<path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
 								</svg>
-								Importar Copia de Seguridad
-							</label>
+								Sincronizar desde Móvil/PC (P2P)
+							</button>
 						</div>
 
 						{importError && (
@@ -1304,6 +1319,8 @@ function MainAppContent() {
 					</div>
 				</div>
 			)}
+
+			<SyncModal isOpen={isSyncModalOpen} onClose={() => setIsSyncModalOpen(false)} />
 		</div>
 	);
 }
