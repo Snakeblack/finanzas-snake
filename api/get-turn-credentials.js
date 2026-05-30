@@ -16,8 +16,12 @@ export default async function handler(req, res) {
 	const appName = process.env.METERED_APP_NAME;
 
 	if (!apiKey || !appName) {
-		console.warn("Falta configurar METERED_SECRET_KEY o METERED_APP_NAME en Vercel. Usando fallback local.");
-		return res.status(200).json([]);
+		return res.status(200).json({
+			error: "Variables no configuradas en el entorno",
+			apiKeyPresent: !!apiKey,
+			appNamePresent: !!appName,
+			envKeys: Object.keys(process.env).filter(k => k.includes('METERED'))
+		});
 	}
 
 	try {
@@ -27,7 +31,11 @@ export default async function handler(req, res) {
 		);
 
 		if (!response.ok) {
-			throw new Error(`Error de Metered.ca: ${response.statusText}`);
+			return res.status(200).json({
+				error: `Http error from Metered: ${response.status} ${response.statusText}`,
+				appName,
+				responseStatus: response.status
+			});
 		}
 
 		const iceServers = await response.json();
@@ -40,7 +48,10 @@ export default async function handler(req, res) {
 
 		return res.status(200).json(fullIceServers);
 	} catch (error) {
-		console.error("Error al obtener credenciales TURN:", error);
-		return res.status(200).json([]);
+		return res.status(200).json({
+			error: "Excepción capturada",
+			message: error.message,
+			stack: error.stack
+		});
 	}
 }
