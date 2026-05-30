@@ -2,27 +2,44 @@ import { Peer } from 'peerjs';
 
 const PEER_PREFIX = 'finpro-';
 
+const getDefaultIceServers = () => {
+	const customServers = localStorage.getItem('finanzas_v3_custom_ice_servers');
+	if (customServers) {
+		try {
+			const parsed = JSON.parse(customServers);
+			if (Array.isArray(parsed)) {
+				return parsed;
+			}
+		} catch (e) {
+			console.error('Error parsing custom iceServers:', e);
+		}
+	}
+	return [
+		{ urls: 'stun:stun.l.google.com:19302' },
+		{ urls: 'stun:global.stun.twilio.com:3478' },
+		{
+			urls: [
+				'turn:openrelay.metered.ca:80',
+				'turn:openrelay.metered.ca:443',
+				'turn:openrelay.metered.ca:443?transport=tcp',
+				'turns:openrelay.metered.ca:443?transport=tcp',
+				'turn:relay.metered.ca:80',
+				'turn:relay.metered.ca:443',
+				'turn:relay.metered.ca:443?transport=tcp',
+				'turns:relay.metered.ca:443?transport=tcp'
+			],
+			username: 'openrelayproject',
+			credential: 'openrelayproject'
+		}
+	];
+};
+
 const PEER_CONFIG = {
 	debug: 3,
 	config: {
-		iceServers: [
-			{ urls: 'stun:stun.l.google.com:19302' },
-			{ urls: 'stun:global.stun.twilio.com:3478' },
-			{
-				urls: [
-					'turn:openrelay.metered.ca:80',
-					'turn:openrelay.metered.ca:443',
-					'turn:openrelay.metered.ca:443?transport=tcp',
-					'turns:openrelay.metered.ca:443?transport=tcp',
-					'turn:relay.metered.ca:80',
-					'turn:relay.metered.ca:443',
-					'turn:relay.metered.ca:443?transport=tcp',
-					'turns:relay.metered.ca:443?transport=tcp'
-				],
-				username: 'openrelayproject',
-				credential: 'openrelayproject'
-			}
-		]
+		get iceServers() {
+			return getDefaultIceServers();
+		}
 	}
 };
 

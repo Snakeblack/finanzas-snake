@@ -40,6 +40,36 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 	const [inputCode, setInputCode] = useState('');
 	const [errorMsg, setErrorMsg] = useState('');
 
+	const [showAdvanced, setShowAdvanced] = useState(false);
+	const [customIceServersInput, setCustomIceServersInput] = useState(() => localStorage.getItem('finanzas_v3_custom_ice_servers') || '');
+	const [advancedError, setAdvancedError] = useState('');
+	const [advancedSuccess, setAdvancedSuccess] = useState(false);
+
+	const handleSaveAdvanced = () => {
+		setAdvancedError('');
+		setAdvancedSuccess(false);
+
+		const value = customIceServersInput.trim();
+		if (!value) {
+			localStorage.removeItem('finanzas_v3_custom_ice_servers');
+			setAdvancedSuccess(true);
+			setTimeout(() => setAdvancedSuccess(false), 2000);
+			return;
+		}
+
+		try {
+			const parsed = JSON.parse(value);
+			if (!Array.isArray(parsed)) {
+				throw new Error('La configuración debe ser un array de objetos.');
+			}
+			localStorage.setItem('finanzas_v3_custom_ice_servers', value);
+			setAdvancedSuccess(true);
+			setTimeout(() => setAdvancedSuccess(false), 2000);
+		} catch (err: any) {
+			setAdvancedError(err.message || 'El formato JSON introducido no es válido.');
+		}
+	};
+
 	const hostSessionRef = useRef<{ destroy: () => void } | null>(null);
 	const clientSessionRef = useRef<{ destroy: () => void } | null>(null);
 	const handshakeTimeoutRef = useRef<any>(null);
@@ -360,6 +390,54 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 								</span>
 							</div>
 						</button>
+
+						{/* AJUSTES AVANZADOS */}
+						<div className="pt-2 border-t border-slate-800/60">
+							<button
+								type="button"
+								onClick={() => setShowAdvanced(!showAdvanced)}
+								className="w-full flex items-center justify-between py-1 text-slate-400 hover:text-slate-200 transition-colors text-xs font-semibold"
+							>
+								<span>Ajustes avanzados de red (WebRTC)</span>
+								<svg 
+									className={`w-4 h-4 transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`} 
+									fill="none" 
+									viewBox="0 0 24 24" 
+									stroke="currentColor" 
+									strokeWidth={2}
+								>
+									<path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+								</svg>
+							</button>
+
+							{showAdvanced && (
+								<div className="mt-3 space-y-3 bg-slate-950/50 p-4 border border-slate-800/80 rounded-2xl animate-fadeIn">
+									<p className="text-[10px] text-slate-400 leading-normal">
+										Si la conexión directa falla por el router, regístrate gratis en <a href="https://www.metered.ca" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">Metered.ca</a> y pega aquí la lista de <strong>iceServers</strong> (en formato JSON) de tu cuenta para forzar la red de relevo:
+									</p>
+									<textarea
+										value={customIceServersInput}
+										onChange={(e) => setCustomIceServersInput(e.target.value)}
+										placeholder={'[\n  {\n    "urls": "turn:relay.metered.ca:443",\n    "username": "...",\n    "credential": "..."\n  }\n]'}
+										rows={5}
+										className="w-full bg-slate-900 border border-slate-850 rounded-xl px-3 py-2 text-[10px] font-mono text-slate-300 focus:border-indigo-500 outline-none resize-none leading-relaxed"
+									/>
+									{advancedError && (
+										<p className="text-[9px] text-rose-400 font-medium">{advancedError}</p>
+									)}
+									{advancedSuccess && (
+										<p className="text-[9px] text-emerald-400 font-medium">✓ Ajustes guardados correctamente.</p>
+									)}
+									<button
+										type="button"
+										onClick={handleSaveAdvanced}
+										className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 rounded-lg text-[10px] transition-all"
+									>
+										Guardar Ajustes
+									</button>
+								</div>
+							)}
+						</div>
 					</div>
 				)}
 
