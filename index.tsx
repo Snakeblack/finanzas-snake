@@ -993,6 +993,31 @@ export default function App() {
 	};
 
 	const sortedPeriods = [...periods].sort((a, b) => a.month.localeCompare(b.month));
+
+	const getTransactionOwner = (t: Transaction) => {
+		if (t.owner) return t.owner;
+		if (t.accountId) {
+			const acc = accounts.find((a) => a.id === t.accountId);
+			if (acc) return acc.owner;
+		}
+		return 'joint';
+	};
+
+	const getEffectiveAmount = (t: Transaction) => {
+		const owner = getTransactionOwner(t);
+		if (viewMode === 'all') return toNumber(t.amount);
+		if (viewMode === 'userA') {
+			if (owner === 'userA') return toNumber(t.amount);
+			if (owner === 'joint') return toNumber(t.amount) * 0.5;
+			return 0;
+		}
+		if (viewMode === 'userB') {
+			if (owner === 'userB') return toNumber(t.amount);
+			if (owner === 'joint') return toNumber(t.amount) * 0.5;
+			return 0;
+		}
+		return 0;
+	};
 	
 	const timelineBalances: Record<string, MonthBalanceData> = {};
 
@@ -1105,31 +1130,6 @@ export default function App() {
 		const openingBalance = getModeBalance(openingAccBalances, openingUnassigned);
 		const closingBalance = getModeBalance(runningAccountBalances, runningUnassignedBalances);
 
-		const getTransactionOwner = (t: Transaction) => {
-			if (t.owner) return t.owner;
-			if (t.accountId) {
-				const acc = accounts.find((a) => a.id === t.accountId);
-				if (acc) return acc.owner;
-			}
-			return 'joint';
-		};
-
-		const getEffectiveAmount = (t: Transaction) => {
-			const owner = getTransactionOwner(t);
-			if (viewMode === 'all') return toNumber(t.amount);
-			if (viewMode === 'userA') {
-				if (owner === 'userA') return toNumber(t.amount);
-				if (owner === 'joint') return toNumber(t.amount) * 0.5;
-				return 0;
-			}
-			if (viewMode === 'userB') {
-				if (owner === 'userB') return toNumber(t.amount);
-				if (owner === 'joint') return toNumber(t.amount) * 0.5;
-				return 0;
-			}
-			return 0;
-		};
-
 		const incomes = mTx
 			.filter((t) => t.type === 'income')
 			.reduce((sum, t) => sum + getEffectiveAmount(t), 0);
@@ -1202,6 +1202,22 @@ export default function App() {
 	const currentClosingBalance = activePeriodData.closingBalance;
 
 	const filteredTransactions = transactions.filter((t) => t.date.substring(0, 7) === selectedMonth);
+
+	const recurringIncomes = filteredTransactions
+		.filter((t) => t.type === 'income' && t.recurrence === 'recurring')
+		.reduce((sum, t) => sum + getEffectiveAmount(t), 0);
+
+	const oneOffIncomes = filteredTransactions
+		.filter((t) => t.type === 'income' && t.recurrence !== 'recurring')
+		.reduce((sum, t) => sum + getEffectiveAmount(t), 0);
+
+	const recurringExpenses = filteredTransactions
+		.filter((t) => t.type === 'expense' && t.recurrence === 'recurring')
+		.reduce((sum, t) => sum + getEffectiveAmount(t), 0);
+
+	const oneOffExpenses = filteredTransactions
+		.filter((t) => t.type === 'expense' && t.recurrence !== 'recurring')
+		.reduce((sum, t) => sum + getEffectiveAmount(t), 0);
 
 	// Deudas activas en el mes seleccionado (excluyendo expiradas y futuras)
 	const filteredDebts = debts.filter((d) => {
@@ -1828,13 +1844,15 @@ export default function App() {
 		const financeDataPrompt = `
       Eres un analista financiero experto. Analiza el flujo de caja, balance neto, listado detallado de movimientos (inspecciona los conceptos/descripciones de las transacciones para deducir/corregir si alguna categoría/etiqueta es incorrecta o sugerir mejores agrupaciones) y deudas (tanto activas como futuras, prestando especial atención a préstamos o fraccionamientos que empiecen en meses futuros). Ofrece una respuesta directa, concisa y altamente práctica. Utiliza un formato limpio (negritas, viñetas) y da siempre una crítica rigurosa de los riesgos ocultos en plazos de deudas.
 
+      CRUCIAL SOBRE RECURRENCIA: Distingue claramente entre ingresos/gastos recurrentes (mensuales/habituales) y puntuales/extraordinarios (one-off, como cancelaciones de deudas puntuales, compras de una sola vez, etc.). Al proyectar el flujo de caja de meses futuros o evaluar la salud financiera a largo plazo, NO asumas que los gastos o ingresos puntuales/extraordinarios se repetirán en los siguientes periodos. Basa tus recomendaciones de ahorro y presupuesto sobre la base de ingresos y gastos recurrentes.
+
       Contexto financiero mensual actual de la aplicación (para dos usuarios conjuntos):
 
       - Nombres de los Usuarios: ${userAName} y ${userBName}
       - Vista activa analizada: ${viewMode === 'all' ? 'Conjunta' : viewMode === 'userA' ? `Individual de ${userAName}` : `Individual de ${viewMode === 'userB' ? userBName : ''}`}
       - Mes Analizado: ${selectedMonth}
-      - Total Ingresos (en esta vista): ${totalIncomes.toFixed(2)}€
-      - Total Gastos Regulares (en esta vista): ${totalExpenses.toFixed(2)}€
+      - Total Ingresos (en esta vista): ${totalIncomes.toFixed(2)}€ (Ingresos Recurrentes: ${recurringIncomes.toFixed(2)}€, Ingresos Puntuales: ${oneOffIncomes.toFixed(2)}€)
+      - Total Gastos (en esta vista, excluyendo cuotas de deudas): ${totalExpenses.toFixed(2)}€ (Gastos Recurrentes: ${recurringExpenses.toFixed(2)}€, Gastos Puntuales: ${oneOffExpenses.toFixed(2)}€)
       - Cuota Total Deudas Actuales (en esta vista): ${totalMonthlyDebtPayments.toFixed(2)}€
       - Balance Neto Mensual Disponible (en esta vista): ${netMonthlyBalance.toFixed(2)}€
 
@@ -1848,7 +1866,7 @@ export default function App() {
 
       Listado Detallado de Movimientos (Ingresos y Gastos) de este mes:
       ${filteredTransactions.length > 0
-        ? filteredTransactions.map((t) => `- Concepto: "${t.desc}", Importe: ${t.amount.toFixed(2)}€, Tipo: ${t.type}, Etiqueta/Categoría actual: "${t.tag}", Propietario: ${t.owner}`).join('\n')
+        ? filteredTransactions.map((t) => `- Concepto: "${t.desc}", Importe: ${t.amount.toFixed(2)}€, Tipo: ${t.type}, Frecuencia: ${t.recurrence === 'recurring' ? 'Recurrente' : 'Puntual/Único'}, Etiqueta/Categoría actual: "${t.tag}", Propietario: ${t.owner}`).join('\n')
         : 'No hay movimientos registrados para este mes.'
       }
 
@@ -2339,13 +2357,19 @@ export default function App() {
 						<div className="text-3xl font-bold text-emerald-400">
 							+{totalIncomes.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
 						</div>
-						<p className="text-xs text-slate-500 mt-1">Registrados para este mes</p>
+						<p className="text-xs text-slate-500 mt-1">
+							{oneOffIncomes > 0 ? (
+								`Recurrentes: +${recurringIncomes.toFixed(2)}€ | Puntuales: +${oneOffIncomes.toFixed(2)}€`
+							) : (
+								'Registrados para este mes'
+							)}
+						</p>
 					</div>
 
 					{/* Tarjeta: Gastos de Flujo Diario */}
 					<div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 transition-all hover:border-slate-700">
 						<div className="flex items-center justify-between mb-4">
-							<span className="text-sm font-medium text-slate-400">Gastos Regulares ({selectedMonth})</span>
+							<span className="text-sm font-medium text-slate-400">Gastos del Mes ({selectedMonth})</span>
 							<div className="p-2 bg-rose-500/10 rounded-lg">
 								<Icons.TrendingDown />
 							</div>
@@ -2353,7 +2377,13 @@ export default function App() {
 						<div className="text-3xl font-bold text-rose-400">
 							-{totalExpenses.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
 						</div>
-						<p className="text-xs text-slate-500 mt-1">Sin contar amortización de deudas</p>
+						<p className="text-xs text-slate-500 mt-1">
+							{oneOffExpenses > 0 ? (
+								`Recurrentes: -${recurringExpenses.toFixed(2)}€ | Puntuales: -${oneOffExpenses.toFixed(2)}€`
+							) : (
+								'Sin contar amortización de deudas'
+							)}
+						</p>
 					</div>
 
 					{/* Tarjeta: Amortización de Deudas (TIN / TAE) */}
@@ -4054,11 +4084,17 @@ export default function App() {
 								<div className="space-y-2 text-xs border-t border-slate-800 pt-3">
 									<div className="flex justify-between">
 										<span className="text-slate-500">Ingresos Totales:</span>
-										<span className="font-semibold text-emerald-400">{totalIncomes.toFixed(2)}€</span>
+										<span className="font-semibold text-emerald-400">
+											{totalIncomes.toFixed(2)}€
+											{oneOffIncomes > 0 && ` (Puntual: ${oneOffIncomes.toFixed(2)}€)`}
+										</span>
 									</div>
 									<div className="flex justify-between">
-										<span className="text-slate-500">Gastos Regulares:</span>
-										<span className="font-semibold text-rose-400">-{totalExpenses.toFixed(2)}€</span>
+										<span className="text-slate-500">Gastos Totales:</span>
+										<span className="font-semibold text-rose-400">
+											-{totalExpenses.toFixed(2)}€
+											{oneOffExpenses > 0 && ` (Puntual: -${oneOffExpenses.toFixed(2)}€)`}
+										</span>
 									</div>
 									<div className="flex justify-between">
 										<span className="text-slate-500">Pagos de Deudas:</span>
