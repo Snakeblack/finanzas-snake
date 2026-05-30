@@ -439,6 +439,14 @@ export const getInitialData = (): {
 };
 
 /**
+ * Lee las cuentas desde LocalStorage.
+ */
+export const readStoredAccounts = async (): Promise<Account[]> => {
+	const rawArray = await readStoredArray(STORAGE_KEYS.accounts);
+	return rawArray as Account[];
+};
+
+/**
  * Guarda las cuentas en LocalStorage.
  */
 export const saveStoredAccounts = async (accounts: Account[]): Promise<void> => {
