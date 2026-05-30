@@ -33,8 +33,8 @@ export function OverviewTab() {
 	return (
 		<div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 			{/* Gráfico SVG de Barras de Composición */}
-			<div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-6">
-				<h3 className="text-lg font-semibold text-slate-200 mb-6">
+			<div className="lg:col-span-7 premium-card rounded-2xl p-6">
+				<h3 className="font-heading text-lg font-bold text-slate-100 mb-6">
 					Composición del Flujo Mensual en {selectedMonth}
 				</h3>
 
@@ -115,8 +115,8 @@ export function OverviewTab() {
 			</div>
 
 			{/* Desglose Acumulado por Etiquetas */}
-			<div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-6">
-				<h3 className="text-lg font-semibold text-slate-200 mb-6">
+			<div className="lg:col-span-5 premium-card rounded-2xl p-6">
+				<h3 className="font-heading text-lg font-bold text-slate-100 mb-6">
 					Desglose Acumulado por Etiquetas ({selectedMonth})
 				</h3>
 
@@ -137,9 +137,9 @@ export function OverviewTab() {
 											{amount.toFixed(2)}€ ({pct}%)
 										</span>
 									</div>
-									<div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+									<div className="w-full bg-slate-950/60 h-2.5 rounded-full overflow-hidden border border-white/5">
 										<div
-											className="bg-indigo-500 h-full rounded-full transition-all duration-500"
+											className="bg-gradient-to-r from-indigo-500 to-violet-500 h-full rounded-full transition-all duration-500"
 											style={{ width: `${(amount / maxTagAmount) * 100}%` }}
 										></div>
 									</div>
@@ -151,8 +151,8 @@ export function OverviewTab() {
 			</div>
 
 			{/* Tarjeta: Hacer Cuentas (Liquidación de Gastos Conjuntos) */}
-			<div className="lg:col-span-12 bg-slate-900 border border-slate-800 rounded-2xl p-6">
-				<h3 className="text-lg font-semibold text-slate-200 mb-2 flex items-center gap-2">
+			<div className="lg:col-span-12 premium-card rounded-2xl p-6">
+				<h3 className="font-heading text-lg font-bold text-slate-100 mb-2 flex items-center gap-2">
 					<svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 						<path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 					</svg>
@@ -164,7 +164,7 @@ export function OverviewTab() {
 
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 					{/* Columna Usuario A */}
-					<div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+					<div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/60 backdrop-blur-sm shadow-inner transition-all hover:border-indigo-500/20">
 						<div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">Gastos comunes pagados por</div>
 						<div className="text-xl font-bold text-slate-200">{userAName}</div>
 						<div className="text-2xl font-black text-indigo-400 mt-2">{jointPaidByA.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</div>
@@ -172,7 +172,7 @@ export function OverviewTab() {
 					</div>
 
 					{/* Columna Usuario B */}
-					<div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+					<div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/60 backdrop-blur-sm shadow-inner transition-all hover:border-indigo-500/20">
 						<div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">Gastos comunes pagados por</div>
 						<div className="text-xl font-bold text-slate-200">{userBName}</div>
 						<div className="text-2xl font-black text-indigo-400 mt-2">{jointPaidByB.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</div>
@@ -180,7 +180,7 @@ export function OverviewTab() {
 					</div>
 
 					{/* Columna Liquidación */}
-					<div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+					<div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/60 backdrop-blur-sm shadow-inner flex flex-col justify-between transition-all hover:border-indigo-500/20">
 						<div>
 							<div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">Estado de Cuentas</div>
 							{netOwed === 0 ? (
@@ -205,8 +205,8 @@ export function OverviewTab() {
 			</div>
 
 			{/* Resumen de Deudas Activas */}
-			<div className="lg:col-span-12 bg-slate-900 border border-slate-800 rounded-2xl p-6">
-				<h3 className="text-lg font-semibold text-slate-200 mb-4">Deudas Activas al Mes {selectedMonth}</h3>
+			<div className="lg:col-span-12 premium-card rounded-2xl p-6">
+				<h3 className="font-heading text-lg font-bold text-slate-100 mb-4">Deudas Activas al Mes {selectedMonth}</h3>
 
 				{filteredDebts.length === 0 ? (
 					<p className="text-sm text-slate-500">
@@ -224,7 +224,7 @@ export function OverviewTab() {
 							return (
 								<div
 									key={d.id}
-									className="bg-slate-950 p-4 rounded-xl border border-slate-800/80 hover:border-indigo-500/30 transition-all"
+									className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/60 hover:border-indigo-500/30 hover:shadow-[0_0_15px_rgba(99,102,241,0.05)] transition-all duration-300"
 								>
 									<div className="flex justify-between items-start mb-2">
 										<span className="text-[10px] font-semibold px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded">

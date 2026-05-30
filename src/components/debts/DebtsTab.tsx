@@ -49,10 +49,10 @@ export function DebtsTab() {
 	return (
 		<div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 			{/* Formulario */}
-			<div className="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl p-6 h-fit">
-				<h3 className="text-lg font-semibold text-slate-200 mb-6 flex items-center">
+			<div className="lg:col-span-4 premium-card rounded-2xl p-6 h-fit">
+				<h3 className="font-heading text-lg font-bold text-slate-100 mb-6 flex items-center">
 					<span className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg mr-2">
-						<Icons.CreditCard />
+						<Icons.CreditCard className="w-4 h-4" />
 					</span>
 					Nueva deuda
 				</h3>
@@ -69,7 +69,7 @@ export function DebtsTab() {
 							placeholder="Ej. Préstamo de Coche, Tarjeta..."
 							value={debtForm.desc}
 							onChange={(e) => setDebtForm({ ...debtForm, desc: e.target.value })}
-							className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-600"
+							className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-600"
 						/>
 					</div>
 
@@ -148,7 +148,7 @@ export function DebtsTab() {
 									owner: acc ? acc.owner : debtForm.owner
 								});
 							}}
-							className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
+							className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 						>
 							<option value="">Sin Cuenta (Automático por Propietario)</option>
 							{accounts.map((acc) => (
@@ -173,7 +173,7 @@ export function DebtsTab() {
 									placeholder="Capital inicial"
 									value={debtForm.principal}
 									onChange={(e) => setDebtForm({ ...debtForm, principal: e.target.value })}
-									className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-600"
+									className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-600"
 								/>
 							</div>
 
@@ -190,7 +190,7 @@ export function DebtsTab() {
 										placeholder="Ej. 5.95"
 										value={debtForm.tin}
 										onChange={(e) => setDebtForm({ ...debtForm, tin: e.target.value })}
-										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
+										className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 									/>
 								</div>
 
@@ -207,7 +207,7 @@ export function DebtsTab() {
 										placeholder="Ej. 6.5"
 										value={debtForm.tae}
 										onChange={(e) => setDebtForm({ ...debtForm, tae: e.target.value })}
-										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
+										className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 									/>
 								</div>
 
@@ -223,7 +223,7 @@ export function DebtsTab() {
 										placeholder="Ej. 36"
 										value={debtForm.termMonths}
 										onChange={(e) => setDebtForm({ ...debtForm, termMonths: e.target.value })}
-										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
+										className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 									/>
 								</div>
 							</div>
@@ -249,7 +249,7 @@ export function DebtsTab() {
 										placeholder="Ej. 1000"
 										value={debtForm.financedAmount}
 										onChange={(e) => setDebtForm({ ...debtForm, financedAmount: e.target.value })}
-										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
+										className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 									/>
 								</div>
 								<div>
@@ -264,7 +264,7 @@ export function DebtsTab() {
 										placeholder="Ej. 80"
 										value={debtForm.fees}
 										onChange={(e) => setDebtForm({ ...debtForm, fees: e.target.value })}
-										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
+										className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 									/>
 								</div>
 							</div>
@@ -290,7 +290,7 @@ export function DebtsTab() {
 												placeholder="Ej. 7"
 												value={tranche.months}
 												onChange={(e) => updatePaymentPlanTranche(tranche.id, { months: e.target.value })}
-												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none"
+												className="w-full premium-input rounded-xl px-3 py-2 text-sm text-slate-100 outline-none"
 											/>
 										</div>
 										<div>
@@ -302,7 +302,7 @@ export function DebtsTab() {
 												placeholder="Ej. 100"
 												value={tranche.amount}
 												onChange={(e) => updatePaymentPlanTranche(tranche.id, { amount: e.target.value })}
-												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none"
+												className="w-full premium-input rounded-xl px-3 py-2 text-sm text-slate-100 outline-none"
 											/>
 										</div>
 										<button
@@ -353,7 +353,7 @@ export function DebtsTab() {
 							required
 							value={debtForm.date}
 							onChange={(e) => setDebtForm({ ...debtForm, date: e.target.value })}
-							className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 font-mono outline-none"
+							className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 font-mono outline-none"
 						/>
 					</div>
 
@@ -383,7 +383,7 @@ export function DebtsTab() {
 
 					<button
 						type="submit"
-						className="w-full mt-2 bg-amber-600 hover:bg-amber-500 text-white font-semibold py-2.5 rounded-xl text-sm transition-all shadow-lg active:scale-95"
+						className="w-full mt-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 hover:shadow-[0_0_15px_rgba(245,158,11,0.4)] text-white font-bold py-2.5 rounded-xl text-sm transition-all shadow-md active:scale-95"
 					>
 						Agregar deuda
 					</button>
@@ -392,8 +392,8 @@ export function DebtsTab() {
 
 			{/* Lista de deudas activas */}
 			<div className="lg:col-span-8 space-y-6">
-				<div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-					<h3 className="text-lg font-semibold text-slate-200 mb-6">Listado de deudas existentes</h3>
+				<div className="premium-card rounded-2xl p-6">
+					<h3 className="font-heading text-lg font-bold text-slate-100 mb-6">Listado de deudas existentes</h3>
 
 					{debts.length === 0 ? (
 						<p className="text-slate-500 text-sm">No tienes deudas registradas.</p>
@@ -406,7 +406,7 @@ export function DebtsTab() {
 								return (
 									<div
 										key={d.id}
-										className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4"
+										className="p-4 rounded-xl bg-slate-950/40 border border-slate-800/60 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-300 hover:border-indigo-500/20 hover:shadow-[0_0_15px_rgba(99,102,241,0.05)]"
 									>
 										<div>
 											<div className="flex items-center space-x-2">
@@ -457,7 +457,7 @@ export function DebtsTab() {
 
 				{/* Detalle de deuda */}
 				{selectedDebtSchedule && (
-					<div className="bg-slate-900 border border-indigo-500/30 rounded-2xl p-6">
+					<div className="premium-card border-indigo-500/20 rounded-2xl p-6">
 						<div className="flex justify-between items-center mb-4">
 							<div>
 								<h4 className="font-bold text-slate-100 text-sm">

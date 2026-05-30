@@ -26,10 +26,10 @@ export function TransactionsTab() {
 	return (
 		<div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 			{/* Formulario */}
-			<div className="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl p-6 h-fit">
-				<h3 className="text-lg font-semibold text-slate-200 mb-6 flex items-center">
+			<div className="lg:col-span-4 premium-card rounded-2xl p-6 h-fit">
+				<h3 className="font-heading text-lg font-bold text-slate-100 mb-6 flex items-center">
 					<span className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg mr-2">
-						<Icons.Plus />
+						<Icons.Plus className="w-4 h-4" />
 					</span>
 					Nueva Transacción
 				</h3>
@@ -124,7 +124,7 @@ export function TransactionsTab() {
 									tag: deduced || prev.tag
 								}));
 							}}
-							className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-600"
+							className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-600"
 						/>
 					</div>
 
@@ -141,7 +141,7 @@ export function TransactionsTab() {
 							placeholder="0.00"
 							value={txForm.amount}
 							onChange={(e) => setTxForm({ ...txForm, amount: e.target.value })}
-							className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-600"
+							className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-600"
 						/>
 					</div>
 
@@ -155,7 +155,7 @@ export function TransactionsTab() {
 							required
 							value={txForm.date}
 							onChange={(e) => setTxForm({ ...txForm, date: e.target.value })}
-							className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 font-mono outline-none"
+							className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 font-mono outline-none"
 						/>
 					</div>
 
@@ -169,7 +169,7 @@ export function TransactionsTab() {
 									id="tx-from-account"
 									value={txForm.fromAccountId}
 									onChange={(e) => setTxForm({ ...txForm, fromAccountId: e.target.value })}
-									className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
+									className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 								>
 									{accounts.map((acc) => (
 										<option key={acc.id} value={acc.id}>
@@ -187,7 +187,7 @@ export function TransactionsTab() {
 									id="tx-to-account"
 									value={txForm.toAccountId}
 									onChange={(e) => setTxForm({ ...txForm, toAccountId: e.target.value })}
-									className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
+									className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 								>
 									{accounts.filter((acc) => acc.id !== txForm.fromAccountId).map((acc) => (
 										<option key={acc.id} value={acc.id}>
@@ -215,7 +215,7 @@ export function TransactionsTab() {
 											owner: acc ? acc.owner : txForm.owner
 										});
 									}}
-									className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
+									className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 								>
 									<option value="">Sin Cuenta (Manual)</option>
 									{accounts.map((acc) => (
@@ -318,7 +318,7 @@ export function TransactionsTab() {
 							value={txForm.tag}
 							onChange={(e) => setTxForm({ ...txForm, tag: e.target.value })}
 							placeholder="Elige o escribe una etiqueta"
-							className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
+							className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 						/>
 						<datalist id="tx-tags-list">
 							{DEFAULT_TAGS[txForm.type].map((tag) => (
@@ -329,7 +329,7 @@ export function TransactionsTab() {
 
 					<button
 						type="submit"
-						className="w-full mt-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl text-sm transition-all shadow-lg active:scale-95"
+						className="w-full mt-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] text-white font-bold py-2.5 rounded-xl text-sm transition-all shadow-md active:scale-95"
 					>
 						Agregar Transacción
 					</button>
@@ -337,8 +337,8 @@ export function TransactionsTab() {
 			</div>
 
 			{/* Listado de Historial */}
-			<div className="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl p-6">
-				<h3 className="text-lg font-semibold text-slate-200 mb-6">Historial para el mes {selectedMonth}</h3>
+			<div className="lg:col-span-8 premium-card rounded-2xl p-6">
+				<h3 className="font-heading text-lg font-bold text-slate-100 mb-6">Historial para el mes {selectedMonth}</h3>
 
 				{filteredTransactions.length === 0 ? (
 					<div className="text-center py-12 text-slate-500">
@@ -451,13 +451,13 @@ export function TransactionsTab() {
 						<div className="hidden md:block overflow-x-auto">
 							<table className="w-full text-left border-collapse">
 								<thead>
-									<tr className="border-b border-slate-800 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-										<th className="pb-3 pl-2">Fecha</th>
-										<th className="pb-3">Concepto</th>
-										<th className="pb-3">Propietario</th>
-										<th className="pb-3">Etiqueta</th>
-										<th className="pb-3 text-right">Importe</th>
-										<th className="pb-3 text-center">Acciones</th>
+									<tr className="border-b border-slate-800/80 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-950/20">
+										<th className="pb-3 pt-2 pl-2">Fecha</th>
+										<th className="pb-3 pt-2">Concepto</th>
+										<th className="pb-3 pt-2">Propietario</th>
+										<th className="pb-3 pt-2">Etiqueta</th>
+										<th className="pb-3 pt-2 text-right">Importe</th>
+										<th className="pb-3 pt-2 text-center">Acciones</th>
 									</tr>
 								</thead>
 								<tbody className="divide-y divide-slate-800/60 text-sm">

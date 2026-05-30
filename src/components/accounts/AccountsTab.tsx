@@ -51,8 +51,8 @@ export function AccountsTab() {
 		<div className="space-y-8">
 			<div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 				{/* Listado de Cuentas */}
-				<div className="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl p-6">
-					<h3 className="text-lg font-semibold text-slate-200 mb-2 flex items-center gap-2">
+				<div className="lg:col-span-8 premium-card rounded-2xl p-6">
+					<h3 className="font-heading text-lg font-bold text-slate-100 mb-2 flex items-center gap-2">
 						<svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 							<path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
 						</svg>
@@ -68,7 +68,7 @@ export function AccountsTab() {
 							return (
 								<div
 									key={acc.id}
-									className="bg-slate-950 p-5 rounded-xl border border-slate-800/80 hover:border-indigo-500/30 transition-all flex flex-col justify-between"
+									className="bg-slate-950/40 p-5 rounded-xl border border-slate-800/60 hover:border-indigo-500/30 transition-all flex flex-col justify-between hover:shadow-[0_0_15px_rgba(99,102,241,0.05)] duration-300"
 								>
 									<div>
 										<div className="flex justify-between items-start mb-2">
@@ -125,10 +125,10 @@ export function AccountsTab() {
 				</div>
 
 				{/* Formulario de Alta/Edición */}
-				<div className="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl p-6 h-fit">
-					<h3 className="text-lg font-semibold text-slate-200 mb-6 flex items-center">
+				<div className="lg:col-span-4 premium-card rounded-2xl p-6 h-fit">
+					<h3 className="font-heading text-lg font-bold text-slate-100 mb-6 flex items-center">
 						<span className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg mr-2">
-							{editingAccount ? <Icons.Edit /> : <Icons.Plus />}
+							{editingAccount ? <Icons.Edit className="w-4 h-4" /> : <Icons.Plus className="w-4 h-4" />}
 						</span>
 						{editingAccount ? 'Editar Cuenta' : 'Nueva Cuenta'}
 					</h3>
@@ -145,7 +145,7 @@ export function AccountsTab() {
 								placeholder="Ej. Nómina La Caixa, Cuenta Ahorros..."
 								value={accountForm.name}
 								onChange={(e) => setAccountForm({ ...accountForm, name: e.target.value })}
-								className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-600"
+								className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-600"
 							/>
 						</div>
 
@@ -201,14 +201,14 @@ export function AccountsTab() {
 								placeholder="0.00"
 								value={accountForm.initialBalance}
 								onChange={(e) => setAccountForm({ ...accountForm, initialBalance: e.target.value })}
-								className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
+								className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 							/>
 						</div>
 
 						<div className="flex gap-2 pt-2">
 							<button
 								type="submit"
-								className={`font-semibold py-2.5 rounded-xl text-sm transition-all shadow-lg active:scale-95 ${editingAccount ? 'w-1/2 bg-indigo-600 hover:bg-indigo-500 text-white' : 'w-full bg-indigo-600 hover:bg-indigo-500 text-white'}`}
+								className={`font-bold py-2.5 rounded-xl text-sm transition-all active:scale-95 ${editingAccount ? 'w-1/2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] text-white shadow-md' : 'w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] text-white shadow-md'}`}
 							>
 								{editingAccount ? 'Guardar' : 'Agregar Cuenta'}
 							</button>
@@ -229,9 +229,9 @@ export function AccountsTab() {
 				</div>
 			</div>
 
-			{/* Sección de Backup y Restauración */}
-			<div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-				<h3 className="text-lg font-semibold text-slate-200 mb-2 flex items-center gap-2">
+			{/* Copia de Seguridad (Backup) */}
+			<div className="premium-card rounded-2xl p-6">
+				<h3 className="font-heading text-lg font-bold text-slate-100 mb-2 flex items-center gap-2">
 					<svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 						<path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2v-9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
 					</svg>
@@ -242,7 +242,7 @@ export function AccountsTab() {
 				</p>
 
 				<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-					<div className="bg-slate-950 p-5 rounded-xl border border-slate-850 flex flex-col justify-between">
+					<div className="bg-slate-950/40 p-5 rounded-xl border border-slate-850/60 flex flex-col justify-between transition-all hover:border-indigo-500/20 duration-300">
 						<div>
 							<h4 className="font-bold text-slate-100 text-sm mb-1">Exportar Datos</h4>
 							<p className="text-xs text-slate-500 leading-relaxed">
@@ -251,7 +251,7 @@ export function AccountsTab() {
 						</div>
 						<button
 							onClick={handleExportData}
-							className="mt-4 w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md shadow-indigo-600/10"
+							className="mt-4 w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md"
 						>
 							<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 								<path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -260,7 +260,7 @@ export function AccountsTab() {
 						</button>
 					</div>
 
-					<div className="bg-slate-950 p-5 rounded-xl border border-slate-850 flex flex-col justify-between">
+					<div className="bg-slate-950/40 p-5 rounded-xl border border-slate-850/60 flex flex-col justify-between transition-all hover:border-indigo-500/20 duration-300">
 						<div>
 							<h4 className="font-bold text-slate-100 text-sm mb-1">Importar Copia de Seguridad</h4>
 							<p className="text-xs text-slate-500 leading-relaxed">
@@ -277,7 +277,7 @@ export function AccountsTab() {
 							/>
 							<label
 								htmlFor="import-backup-file"
-								className="w-full bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer text-center"
+								className="w-full bg-slate-900/60 hover:bg-slate-850/80 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer text-center"
 							>
 								<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 									<path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
@@ -287,7 +287,7 @@ export function AccountsTab() {
 						</div>
 					</div>
 
-					<div className="bg-slate-950 p-5 rounded-xl border border-slate-850 flex flex-col justify-between">
+					<div className="bg-slate-950/40 p-5 rounded-xl border border-slate-850/60 flex flex-col justify-between transition-all hover:border-indigo-500/20 duration-300">
 						<div>
 							<h4 className="font-bold text-slate-100 text-sm mb-1">Sincronización P2P</h4>
 							<p className="text-xs text-slate-500 leading-relaxed">
@@ -296,7 +296,7 @@ export function AccountsTab() {
 						</div>
 						<button
 							onClick={() => setIsSyncModalOpen(true)}
-							className="mt-4 w-full bg-violet-600 hover:bg-violet-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md shadow-violet-600/10"
+							className="mt-4 w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 hover:shadow-[0_0_15px_rgba(139,92,246,0.4)] text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md"
 						>
 							<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 								<path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />

@@ -32,18 +32,18 @@ export function AiTab() {
 	} = useFinanzas();
 
 	return (
-		<div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 min-h-0 overflow-hidden">
+		<div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 min-h-0 overflow-hidden tab-transition">
 			{/* Panel de Configuración e Información Lateral */}
 			<div className="lg:col-span-4 space-y-6 overflow-y-auto lg:h-full pr-1">
 				{/* Configuración de API Key */}
-				<div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+				<div className="premium-card rounded-2xl p-6">
 					<h3 className="text-base font-bold text-slate-200 mb-2 flex items-center">
-						<span className="p-1 bg-slate-800 rounded mr-2">
+						<span className="p-1 bg-slate-800/60 rounded mr-2">
 							<Icons.Lock />
 						</span>
 						Credenciales de Gemini
 					</h3>
-					<p className="text-xs text-slate-400 mb-4">
+					<p className="text-xs text-slate-400 mb-4 font-normal">
 						Introduce tu API Key de Google Gemini para habilitar el motor de análisis y recibir consejos
 						estructurados en tiempo real.
 					</p>
@@ -54,7 +54,7 @@ export function AiTab() {
 							placeholder="Al pegar tu AI_KEY se guardará localmente"
 							value={geminiApiKey}
 							onChange={(e) => setGeminiApiKey(e.target.value)}
-							className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2 text-sm text-slate-100 font-mono outline-none"
+							className="w-full premium-input focus:border-indigo-500 rounded-xl px-4 py-2 text-sm text-slate-100 font-mono outline-none"
 						/>
 						{geminiApiKey ? (
 							<span className="text-[10px] text-emerald-400 font-semibold block">
@@ -69,38 +69,38 @@ export function AiTab() {
 				</div>
 
 				{/* Resumen del Contexto Financiero del Mes */}
-				<div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+				<div className="premium-card rounded-2xl p-6 space-y-4">
 					<h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
 						<svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 							<path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
 						</svg>
 						Contexto del Mes ({selectedMonth})
 					</h3>
-					<p className="text-xs text-slate-400 leading-relaxed">
+					<p className="text-xs text-slate-400 leading-relaxed font-normal">
 						Los siguientes datos son incluidos automáticamente en la consulta de fondo para contextualizar la conversación:
 					</p>
-					<div className="space-y-2 text-xs border-t border-slate-800 pt-3">
+					<div className="space-y-2 text-xs border-t border-slate-800/40 pt-3">
 						<div className="flex justify-between">
 							<span className="text-slate-500">Ingresos Totales:</span>
-							<span className="font-semibold text-emerald-400">
+							<span className="font-semibold text-emerald-400 font-mono">
 								{totalIncomes.toFixed(2)}€
 								{oneOffIncomes > 0 && ` (Puntual: ${oneOffIncomes.toFixed(2)}€)`}
 							</span>
 						</div>
 						<div className="flex justify-between">
 							<span className="text-slate-500">Gastos Totales:</span>
-							<span className="font-semibold text-rose-400">
+							<span className="font-semibold text-rose-450 font-mono">
 								-{totalExpenses.toFixed(2)}€
 								{oneOffExpenses > 0 && ` (Puntual: -${oneOffExpenses.toFixed(2)}€)`}
 							</span>
 						</div>
 						<div className="flex justify-between">
 							<span className="text-slate-500">Pagos de Deudas:</span>
-							<span className="font-semibold text-amber-500">-{totalMonthlyDebtPayments.toFixed(2)}€</span>
+							<span className="font-semibold text-amber-500 font-mono">-{totalMonthlyDebtPayments.toFixed(2)}€</span>
 						</div>
-						<div className="flex justify-between border-t border-slate-850 pt-2 font-semibold">
+						<div className="flex justify-between border-t border-slate-800/40 pt-2 font-semibold">
 							<span className="text-slate-400">Balance Neto:</span>
-							<span className={netMonthlyBalance >= 0 ? 'text-indigo-400' : 'text-rose-500'}>
+							<span className={`font-mono ${netMonthlyBalance >= 0 ? 'text-indigo-400' : 'text-rose-500'}`}>
 								{netMonthlyBalance.toFixed(2)}€
 							</span>
 						</div>
@@ -113,7 +113,7 @@ export function AiTab() {
 
 				{/* Acciones Adicionales */}
 				{chatMessages.length > 0 && (
-					<div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+					<div className="premium-card rounded-2xl p-6">
 						<h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-3">Opciones de Conversación</h3>
 						<button
 							onClick={handleClearChat}
@@ -127,9 +127,9 @@ export function AiTab() {
 			</div>
 
 			{/* Ventana de Chat */}
-			<div className="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden lg:h-full h-[550px]">
+			<div className="lg:col-span-8 premium-card rounded-2xl flex flex-col overflow-hidden lg:h-full h-[550px]">
 				{/* Cabecera del Chat */}
-				<div className="p-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center">
+				<div className="p-4 bg-slate-950/40 border-b border-slate-800/40 flex justify-between items-center">
 					<div>
 						<h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
 							<Icons.Sparkles />
@@ -177,7 +177,7 @@ export function AiTab() {
 							<Icons.Sparkles />
 						</div>
 						<div>
-							<p className="text-sm font-bold text-slate-350">Comienza a planificar tu mes</p>
+							<p className="text-sm font-bold text-slate-300">Comienza a planificar tu mes</p>
 							<p className="text-xs text-slate-500 max-w-xs mt-1 leading-relaxed">
 								Pregúntame sobre tu balance del mes, recomendaciones de ahorro, o el impacto de tus deudas y simulaciones.
 							</p>
@@ -196,7 +196,7 @@ export function AiTab() {
 										handleAskGemini(q);
 									}}
 									disabled={aiLoading}
-									className="px-3 py-1.5 bg-slate-950 border border-slate-800 hover:border-indigo-500/30 text-slate-300 hover:text-white rounded-lg text-[11px] font-medium transition-all text-left shadow-sm active:scale-95"
+									className="px-3 py-1.5 glass-panel hover:border-indigo-500/30 text-slate-350 hover:text-white rounded-lg text-[11px] font-medium transition-all text-left shadow-sm active:scale-95"
 								>
 									{q}
 								</button>
@@ -208,16 +208,16 @@ export function AiTab() {
 						{chatMessages.map((msg, idx) => (
 							<div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
 								<div className="flex items-center space-x-1.5 mb-1.5">
-									<span className="text-[10px] text-slate-400 font-bold">
+									<span className="text-[10px] text-slate-400 font-bold font-heading">
 										{msg.role === 'user' ? 'Tú' : 'Asesor Gemini'}
 									</span>
-									<span className="text-[9px] text-slate-650 font-mono">({msg.timestamp})</span>
+									<span className="text-[9px] text-slate-500 font-mono">({msg.timestamp})</span>
 								</div>
 								<div
 									className={`p-3.5 rounded-2xl text-sm leading-relaxed max-w-[85%] ${
 										msg.role === 'user'
-											? 'bg-indigo-600 text-white rounded-tr-none shadow-md shadow-indigo-600/10'
-											: 'bg-slate-900 border border-slate-800 text-slate-355 rounded-tl-none shadow-sm'
+											? 'bg-gradient-to-br from-indigo-600 to-violet-700 text-white rounded-tr-none shadow-lg shadow-indigo-500/10'
+											: 'glass-panel text-slate-200 rounded-tl-none shadow-sm'
 									}`}
 								>
 									{msg.role === 'user' ? (
@@ -234,9 +234,9 @@ export function AiTab() {
 									<span className="text-[10px] text-slate-400 font-bold">Asesor Gemini</span>
 									<span className="text-[9px] text-indigo-400 animate-pulse font-medium">escribiendo...</span>
 								</div>
-								<div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl rounded-tl-none text-sm text-slate-400 shadow-md flex items-center space-x-2">
+								<div className="glass-panel p-4 rounded-2xl rounded-tl-none text-sm text-slate-400 shadow-md flex items-center space-x-2">
 									<svg className="animate-spin h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24">
-										<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+										<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4}></circle>
 										<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
 									</svg>
 									<span className="animate-pulse">Analizando flujo de caja...</span>
@@ -257,7 +257,7 @@ export function AiTab() {
 						e.preventDefault();
 						handleAskGemini(customQuestion);
 					}}
-					className="p-3 bg-slate-900 border-t border-slate-800 flex gap-2 items-end"
+					className="p-3 bg-slate-950/40 border-t border-slate-800/40 flex gap-2 items-end"
 				>
 					<textarea
 						rows={1}
@@ -271,7 +271,7 @@ export function AiTab() {
 						}}
 						placeholder={geminiApiKey ? "Escribe tu consulta sobre finanzas..." : "Configura tu API Key para empezar"}
 						disabled={!geminiApiKey}
-						className="flex-1 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none resize-none placeholder:text-slate-650 max-h-24 overflow-y-auto disabled:opacity-40 disabled:cursor-not-allowed"
+						className="flex-1 premium-input focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none resize-none placeholder:text-slate-500 max-h-24 overflow-y-auto disabled:opacity-40 disabled:cursor-not-allowed"
 					/>
 					<button
 						type="submit"

@@ -106,16 +106,20 @@ function MainAppContent() {
 	}
 
 	return (
-		<div className={`min-h-screen ${activeTab === 'ai' ? 'h-screen overflow-hidden' : ''} flex flex-col bg-slate-950 text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white`}>
+		<div className={`min-h-screen ${activeTab === 'ai' ? 'h-screen overflow-hidden' : ''} flex flex-col bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white relative overflow-hidden`}>
+			{/* Ambient glows */}
+			<div className="bg-glow-indigo top-0 left-1/4" />
+			<div className="bg-glow-violet top-1/4 right-1/4" />
+
 			{/* HEADER DE LA APP */}
-			<header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-30">
+			<header className="border-b border-slate-800/40 bg-slate-900/20 backdrop-blur-md sticky top-0 z-30">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
 					<div className="flex items-center space-x-3">
 						<div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
 							<span className="font-black text-white text-lg">%</span>
 						</div>
 						<div>
-							<h1 className="font-bold text-lg tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+							<h1 className="font-heading font-extrabold text-lg tracking-tight bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">
 								FinanzasPro
 							</h1>
 							<p className="text-xs text-slate-500">Gestor de Flujo de Caja, Préstamos y Fraccionamientos</p>
@@ -123,14 +127,16 @@ function MainAppContent() {
 					</div>
 
 					{/* Selector de Pestañas Principal */}
-					<nav className="hidden md:flex bg-slate-800/60 p-1 rounded-xl border border-slate-700/50">
+					<nav className="hidden md:flex bg-slate-900/50 backdrop-blur-md p-1 rounded-xl border border-white/5 shadow-inner">
 						<button
 							onClick={() => {
 								setActiveTab('overview');
 								setSelectedDebtSchedule(null);
 							}}
-							className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-								activeTab === 'overview' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+							className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-300 ${
+								activeTab === 'overview'
+									? 'bg-gradient-to-r from-indigo-600/90 to-violet-600/90 text-white shadow-md shadow-indigo-500/10 border border-indigo-500/20'
+									: 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
 							}`}
 						>
 							Resumen General
@@ -140,8 +146,10 @@ function MainAppContent() {
 								setActiveTab('transactions');
 								setSelectedDebtSchedule(null);
 							}}
-							className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-								activeTab === 'transactions' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+							className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-300 ${
+								activeTab === 'transactions'
+									? 'bg-gradient-to-r from-indigo-600/90 to-violet-600/90 text-white shadow-md shadow-indigo-500/10 border border-indigo-500/20'
+									: 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
 							}`}
 						>
 							Gastos y Cobros
@@ -151,8 +159,10 @@ function MainAppContent() {
 								setActiveTab('debts');
 								setSelectedDebtSchedule(null);
 							}}
-							className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-								activeTab === 'debts' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+							className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-300 ${
+								activeTab === 'debts'
+									? 'bg-gradient-to-r from-indigo-600/90 to-violet-600/90 text-white shadow-md shadow-indigo-500/10 border border-indigo-500/20'
+									: 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
 							}`}
 						>
 							Deudas
@@ -162,8 +172,10 @@ function MainAppContent() {
 								setActiveTab('accounts');
 								setSelectedDebtSchedule(null);
 							}}
-							className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-								activeTab === 'accounts' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+							className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-300 ${
+								activeTab === 'accounts'
+									? 'bg-gradient-to-r from-indigo-600/90 to-violet-600/90 text-white shadow-md shadow-indigo-500/10 border border-indigo-500/20'
+									: 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
 							}`}
 						>
 							Cuentas
@@ -173,8 +185,10 @@ function MainAppContent() {
 								setActiveTab('consolidation');
 								setSelectedDebtSchedule(null);
 							}}
-							className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-								activeTab === 'consolidation' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+							className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-300 ${
+								activeTab === 'consolidation'
+									? 'bg-gradient-to-r from-indigo-600/90 to-violet-600/90 text-white shadow-md shadow-indigo-500/10 border border-indigo-500/20'
+									: 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
 							}`}
 						>
 							Reunificación
@@ -184,11 +198,13 @@ function MainAppContent() {
 								setActiveTab('ai');
 								setSelectedDebtSchedule(null);
 							}}
-							className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1 ${
-								activeTab === 'ai' ? 'bg-slate-700 text-indigo-300 shadow-sm' : 'text-slate-400 hover:text-white'
+							className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-300 flex items-center gap-1 ${
+								activeTab === 'ai'
+									? 'bg-gradient-to-r from-indigo-600/90 to-violet-600/90 text-white shadow-md shadow-indigo-500/10 border border-indigo-500/20'
+									: 'text-slate-400 hover:text-indigo-300 hover:bg-slate-800/30'
 							}`}
 						>
-							<Icons.Sparkles /> Asesor Gemini
+							<Icons.Sparkles className="w-3.5 h-3.5" /> Asesor Gemini
 						</button>
 					</nav>
 					{hasPasswordSet && (
@@ -206,14 +222,14 @@ function MainAppContent() {
 			</header>
 
 			{/* MENÚ MÓVIL INFERIOR FIJO */}
-			<div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-950/80 backdrop-blur-lg border-t border-slate-850 py-2.5 px-1 flex justify-around items-center z-40 shadow-lg shadow-black/80">
+			<div className="md:hidden fixed bottom-3 left-3 right-3 bg-slate-900/80 backdrop-blur-xl border border-white/10 py-2.5 px-1 flex justify-around items-center z-40 shadow-[0_10px_30px_rgba(0,0,0,0.5)] rounded-2xl">
 				<button
 					onClick={() => {
 						setActiveTab('overview');
 						setSelectedDebtSchedule(null);
 					}}
 					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-all rounded-xl ${
-						activeTab === 'overview' ? 'text-indigo-400 font-bold bg-indigo-500/10' : 'text-slate-400 hover:text-slate-200'
+						activeTab === 'overview' ? 'text-indigo-350 font-bold bg-indigo-500/10 shadow-inner' : 'text-slate-400 hover:text-slate-200'
 					}`}
 				>
 					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -227,7 +243,7 @@ function MainAppContent() {
 						setSelectedDebtSchedule(null);
 					}}
 					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-all rounded-xl ${
-						activeTab === 'transactions' ? 'text-indigo-400 font-bold bg-indigo-500/10' : 'text-slate-400 hover:text-slate-200'
+						activeTab === 'transactions' ? 'text-indigo-350 font-bold bg-indigo-500/10 shadow-inner' : 'text-slate-400 hover:text-slate-200'
 					}`}
 				>
 					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -241,7 +257,7 @@ function MainAppContent() {
 						setSelectedDebtSchedule(null);
 					}}
 					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-all rounded-xl ${
-						activeTab === 'debts' ? 'text-indigo-400 font-bold bg-indigo-500/10' : 'text-slate-400 hover:text-slate-200'
+						activeTab === 'debts' ? 'text-indigo-350 font-bold bg-indigo-500/10 shadow-inner' : 'text-slate-400 hover:text-slate-200'
 					}`}
 				>
 					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -255,7 +271,7 @@ function MainAppContent() {
 						setSelectedDebtSchedule(null);
 					}}
 					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-all rounded-xl ${
-						activeTab === 'accounts' ? 'text-indigo-400 font-bold bg-indigo-500/10' : 'text-slate-400 hover:text-slate-200'
+						activeTab === 'accounts' ? 'text-indigo-350 font-bold bg-indigo-500/10 shadow-inner' : 'text-slate-400 hover:text-slate-200'
 					}`}
 				>
 					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -269,7 +285,7 @@ function MainAppContent() {
 						setSelectedDebtSchedule(null);
 					}}
 					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-all rounded-xl ${
-						activeTab === 'consolidation' ? 'text-indigo-400 font-bold bg-indigo-500/10' : 'text-slate-400 hover:text-slate-200'
+						activeTab === 'consolidation' ? 'text-indigo-350 font-bold bg-indigo-500/10 shadow-inner' : 'text-slate-400 hover:text-slate-200'
 					}`}
 				>
 					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -283,10 +299,10 @@ function MainAppContent() {
 						setSelectedDebtSchedule(null);
 					}}
 					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-all rounded-xl ${
-						activeTab === 'ai' ? 'text-indigo-400 font-bold bg-indigo-500/10' : 'text-slate-400 hover:text-slate-200'
+						activeTab === 'ai' ? 'text-indigo-350 font-bold bg-indigo-500/10 shadow-inner' : 'text-slate-400 hover:text-slate-200'
 					}`}
 				>
-					<Icons.Sparkles />
+					<Icons.Sparkles className="w-5 h-5" />
 					<span className="text-[10px]">Asesor</span>
 				</button>
 			</div>
@@ -495,7 +511,7 @@ function MainAppContent() {
 				) : (
 					<>
 						{/* BARRA DE CONTROL DE TIEMPO Y BALANCE */}
-						<div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 p-4 bg-slate-900 border border-slate-800 rounded-2xl">
+						<div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 p-4 premium-card rounded-2xl">
 							<div className="flex flex-wrap items-center gap-2">
 								<span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mes Activo:</span>
 								<select
@@ -506,7 +522,7 @@ function MainAppContent() {
 										setTxForm((prev) => ({ ...prev, date: `${e.target.value}-01` }));
 										setDebtForm((prev) => ({ ...prev, date: e.target.value }));
 									}}
-									className="bg-slate-950 text-slate-100 border border-slate-850 rounded-lg px-3 py-1.5 text-xs font-mono font-bold outline-none focus:border-indigo-500"
+									className="bg-slate-950/65 text-slate-100 border border-slate-800 rounded-lg px-3 py-1.5 text-xs font-mono font-bold outline-none focus:border-indigo-500"
 								>
 									{[...periods]
 										.sort((a, b) => a.month.localeCompare(b.month))
@@ -518,10 +534,10 @@ function MainAppContent() {
 								</select>
 								<button
 									onClick={handleCreateNextMonth}
-									className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-all flex items-center shadow-md shadow-indigo-600/10 active:scale-95"
+									className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-all flex items-center shadow-md active:scale-95"
 									title="Crear mes siguiente bajo demanda"
 								>
-									<Icons.Plus /> <span>Siguiente Mes</span>
+									<Icons.Plus className="w-3.5 h-3.5 mr-1" /> <span>Siguiente Mes</span>
 								</button>
 							</div>
 
@@ -583,30 +599,30 @@ function MainAppContent() {
 						{/* INDICADORES FINANCIEROS MENSUALES */}
 						<section className="grid grid-cols-2 lg:grid-cols-5 gap-2 lg:gap-6 mb-4 lg:mb-8">
 							{/* Tarjeta: Saldo de Apertura */}
-							<div className="bg-slate-900 border border-slate-800 rounded-xl lg:rounded-2xl p-3 lg:p-6 transition-all hover:border-slate-700">
+							<div className="premium-card rounded-xl lg:rounded-2xl p-3 lg:p-6">
 								<div className="flex items-center justify-between mb-1 lg:mb-4">
-									<span className="text-[10px] lg:text-sm font-medium text-slate-400 truncate">Apertura</span>
-									<div className="p-1 lg:p-2 bg-indigo-500/10 rounded-md lg:rounded-lg">
+									<span className="text-[10px] lg:text-sm font-semibold text-slate-400 truncate">Apertura</span>
+									<div className="p-1 lg:p-2 bg-indigo-500/15 rounded-md lg:rounded-lg">
 										<svg className="w-3.5 h-3.5 lg:w-5 lg:h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 											<path strokeLinecap="round" strokeLinejoin="round" d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l3-3m-3 3L9 8m-5 5h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293h3.172a1 1 0 00.707-.293l2.414-2.414a1 1 0 01.707-.293H20" />
 										</svg>
 									</div>
 								</div>
-								<div className="text-base lg:text-3xl font-bold text-slate-200 truncate">
+								<div className="text-base lg:text-3xl font-extrabold text-slate-100 truncate">
 									{currentOpeningBalance.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
 								</div>
 								<p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 hidden lg:block">Saldo inicial del periodo</p>
 							</div>
 
 							{/* Tarjeta: Cobros / Ingresos */}
-							<div className="bg-slate-900 border border-slate-800 rounded-xl lg:rounded-2xl p-3 lg:p-6 transition-all hover:border-slate-700">
+							<div className="premium-card rounded-xl lg:rounded-2xl p-3 lg:p-6">
 								<div className="flex items-center justify-between mb-1 lg:mb-4">
-									<span className="text-[10px] lg:text-sm font-medium text-slate-400 truncate">Ingresos</span>
-									<div className="p-1 lg:p-2 bg-emerald-500/10 rounded-md lg:rounded-lg">
-										<Icons.TrendingUp />
+									<span className="text-[10px] lg:text-sm font-semibold text-slate-400 truncate">Ingresos</span>
+									<div className="p-1 lg:p-2 bg-emerald-500/15 rounded-md lg:rounded-lg">
+										<Icons.TrendingUp className="text-emerald-450" />
 									</div>
 								</div>
-								<div className="text-base lg:text-3xl font-bold text-emerald-400 truncate">
+								<div className="text-base lg:text-3xl font-extrabold text-emerald-400 truncate">
 									+{totalIncomes.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
 								</div>
 								<p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 hidden lg:block">
@@ -619,14 +635,14 @@ function MainAppContent() {
 							</div>
 
 							{/* Tarjeta: Gastos de Flujo Diario */}
-							<div className="bg-slate-900 border border-slate-800 rounded-xl lg:rounded-2xl p-3 lg:p-6 transition-all hover:border-slate-700">
+							<div className="premium-card rounded-xl lg:rounded-2xl p-3 lg:p-6">
 								<div className="flex items-center justify-between mb-1 lg:mb-4">
-									<span className="text-[10px] lg:text-sm font-medium text-slate-400 truncate">Gastos</span>
-									<div className="p-1 lg:p-2 bg-rose-500/10 rounded-md lg:rounded-lg">
-										<Icons.TrendingDown />
+									<span className="text-[10px] lg:text-sm font-semibold text-slate-400 truncate">Gastos</span>
+									<div className="p-1 lg:p-2 bg-rose-500/15 rounded-md lg:rounded-lg">
+										<Icons.TrendingDown className="text-rose-450" />
 									</div>
 								</div>
-								<div className="text-base lg:text-3xl font-bold text-rose-400 truncate">
+								<div className="text-base lg:text-3xl font-extrabold text-rose-400 truncate">
 									-{totalExpenses.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
 								</div>
 								<p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 hidden lg:block">
@@ -639,30 +655,30 @@ function MainAppContent() {
 							</div>
 
 							{/* Tarjeta: Amortización de Deudas (TIN / TAE) */}
-							<div className="bg-slate-900 border border-slate-800 rounded-xl lg:rounded-2xl p-3 lg:p-6 transition-all hover:border-slate-700">
+							<div className="premium-card rounded-xl lg:rounded-2xl p-3 lg:p-6">
 								<div className="flex items-center justify-between mb-1 lg:mb-4">
 									<div className="flex items-center space-x-1">
-										<span className="text-[10px] lg:text-sm font-medium text-slate-400 truncate">Deuda</span>
+										<span className="text-[10px] lg:text-sm font-semibold text-slate-400 truncate">Deuda</span>
 										<span className="hidden lg:inline" title="Préstamos: cuota calculada con TIN/TAE. Fraccionamientos: cuotas pendientes vencidas o exigibles hasta el mes activo.">
-											<Icons.Info />
+											<Icons.Info className="text-slate-400" />
 										</span>
 									</div>
-									<div className="p-1 lg:p-2 bg-amber-500/10 rounded-md lg:rounded-lg">
-										<Icons.CreditCard />
+									<div className="p-1 lg:p-2 bg-amber-500/15 rounded-md lg:rounded-lg">
+										<Icons.CreditCard className="text-amber-450" />
 									</div>
 								</div>
-								<div className="text-base lg:text-3xl font-bold text-amber-500 truncate">
+								<div className="text-base lg:text-3xl font-extrabold text-amber-500 truncate">
 									-{totalMonthlyDebtPayments.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
 								</div>
 								<p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 hidden lg:block">Incluye cuotas activas y vencidas</p>
 							</div>
 
 							{/* Tarjeta: Saldo al Cierre (Acumulado) */}
-							<div className={`bg-slate-900 border rounded-xl lg:rounded-2xl p-3 lg:p-6 transition-all hover:border-indigo-500/30 shadow-md col-span-2 lg:col-span-1 ${currentClosingBalance >= 0 ? 'border-slate-800 hover:border-indigo-500/50' : 'border-rose-900/50 hover:border-rose-800'}`}>
+							<div className={`premium-card rounded-xl lg:rounded-2xl p-3 lg:p-6 col-span-2 lg:col-span-1 border ${currentClosingBalance >= 0 ? 'border-indigo-500/10 hover:border-indigo-500/30 shadow-md' : 'border-rose-900/20 hover:border-rose-800/40 shadow-md'}`}>
 								<div className="flex items-center justify-between mb-1 lg:mb-4">
-									<span className="text-[10px] lg:text-sm font-medium text-slate-300">Cierre ({selectedMonth})</span>
-									<div className="p-1 lg:p-2 bg-indigo-500/10 rounded-md lg:rounded-lg">
-										<Icons.Scale />
+									<span className="text-[10px] lg:text-sm font-semibold text-slate-300">Cierre ({selectedMonth})</span>
+									<div className="p-1 lg:p-2 bg-indigo-500/15 rounded-md lg:rounded-lg">
+										<Icons.Scale className="text-indigo-400" />
 									</div>
 								</div>
 								<div className={`text-lg lg:text-3xl font-black ${currentClosingBalance >= 0 ? 'text-indigo-400' : 'text-rose-500'}`}>
@@ -675,12 +691,14 @@ function MainAppContent() {
 						</section>
 
 						{/* CONTENIDOS DE PESTAÑAS */}
-						{activeTab === 'overview' && <OverviewTab />}
-						{activeTab === 'transactions' && <TransactionsTab />}
-						{activeTab === 'debts' && <DebtsTab />}
-						{activeTab === 'accounts' && <AccountsTab />}
-						{activeTab === 'consolidation' && <ConsolidationTab />}
-						{activeTab === 'ai' && <AiTab />}
+						<div key={activeTab} className="tab-transition flex-1 flex flex-col">
+							{activeTab === 'overview' && <OverviewTab />}
+							{activeTab === 'transactions' && <TransactionsTab />}
+							{activeTab === 'debts' && <DebtsTab />}
+							{activeTab === 'accounts' && <AccountsTab />}
+							{activeTab === 'consolidation' && <ConsolidationTab />}
+							{activeTab === 'ai' && <AiTab />}
+						</div>
 					</>
 				)}
 			</main>
