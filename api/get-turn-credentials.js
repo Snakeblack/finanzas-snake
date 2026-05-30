@@ -27,10 +27,11 @@ export default async function handler(req, res) {
 	// Sanitizar el appName por si el usuario copió el dominio completo o con protocolo
 	let appNameClean = appName;
 	appNameClean = appNameClean.replace(/^https?:\/\//i, '');
-	appNameClean = appNameClean.replace(/\.metered\.ca$/i, '');
+	appNameClean = appNameClean.replace(/\.metered\.(ca|live)$/i, '');
 	appNameClean = appNameClean.replace(/\/+$/, '');
 
-	const targetUrl = `https://${appNameClean}.metered.ca/api/v1/turn/credentials?apiKey=${apiKey}`;
+	// Metered usa el dominio .metered.live y el param secretKey (no apiKey)
+	const targetUrl = `https://${appNameClean}.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`;
 
 	try {
 		const response = await fetch(
