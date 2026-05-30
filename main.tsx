@@ -1,5 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import '@fontsource-variable/plus-jakarta-sans';
+import '@fontsource-variable/outfit';
 import App from './src/components/App';
 import './styles.css';
 
