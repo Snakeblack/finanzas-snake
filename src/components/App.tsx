@@ -112,23 +112,16 @@ function MainAppContent() {
 			<div className="bg-glow-violet top-1/4 right-1/4" />
 
 			{/* HEADER DE LA APP */}
-			<header className="border-b border-slate-800/40 bg-slate-900/20 backdrop-blur-md sticky top-0 z-30">
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-					<div className="flex items-center space-x-3.5">
-						<svg className="w-8 h-8 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.75} strokeLinecap="round" strokeLinejoin="round">
-							<defs>
-								<linearGradient id="logo-grad" x1="0%" y1="100%" x2="100%" y2="0%">
-									<stop offset="0%" stopColor="#6366f1" />
-									<stop offset="50%" stopColor="#a855f7" />
-									<stop offset="100%" stopColor="#ec4899" />
-								</linearGradient>
-							</defs>
-							<path d="M 2 20 c 3 0, 4 -9, 7 -9 s 4 7, 7 7 s 4 -14, 6 -14" stroke="url(#logo-grad)" />
-							<path d="M 17 4 h 5 v 5" stroke="url(#logo-grad)" />
+			<header className="border-b border-slate-900/40 bg-slate-950/20 backdrop-blur-md sticky top-0 z-30">
+				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+					<div className="flex items-center space-x-2.5">
+						<svg className="w-5 h-5 text-indigo-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+							<path d="M 4 18 c 2 -4, 4 -7, 8 -7 s 4 5, 8 5 s 3 -10, 4 -12" />
+							<path d="M 20 4 h 4 v 4" />
 						</svg>
-						<h1 className="font-heading font-black text-sm tracking-widest uppercase bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">
-							Finanzas Snake
-						</h1>
+						<span className="font-heading font-light tracking-[0.25em] text-xs uppercase text-slate-100">
+							Finanzas <span className="font-bold text-indigo-400">Snake</span>
+						</span>
 					</div>
 
 					{/* Selector de Pestañas Principal */}
@@ -317,20 +310,13 @@ function MainAppContent() {
 				{periods.length === 0 ? (
 					<div className="max-w-md mx-auto my-12 bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-3xl p-8 shadow-2xl">
 						<div className="text-center mb-8">
-							<div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-								<svg className="w-12 h-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.75} strokeLinecap="round" strokeLinejoin="round">
-									<defs>
-										<linearGradient id="welcome-logo-grad" x1="0%" y1="100%" x2="100%" y2="0%">
-											<stop offset="0%" stopColor="#6366f1" />
-											<stop offset="50%" stopColor="#a855f7" />
-											<stop offset="100%" stopColor="#ec4899" />
-										</linearGradient>
-									</defs>
-									<path d="M 2 20 c 3 0, 4 -9, 7 -9 s 4 7, 7 7 s 4 -14, 6 -14" stroke="url(#welcome-logo-grad)" />
-									<path d="M 17 4 h 5 v 5" stroke="url(#welcome-logo-grad)" />
+							<div className="w-12 h-12 mx-auto mb-3 flex items-center justify-center">
+								<svg className="w-10 h-10 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+									<path d="M 4 18 c 2 -4, 4 -7, 8 -7 s 4 5, 8 5 s 3 -10, 4 -12" />
+									<path d="M 20 4 h 4 v 4" />
 								</svg>
 							</div>
-							<h2 className="text-2xl font-black bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+							<h2 className="text-xl font-bold text-slate-100 font-heading tracking-wide">
 								Bienvenido a Finanzas Snake
 							</h2>
 							<p className="text-xs text-slate-400 mt-2 leading-relaxed">
