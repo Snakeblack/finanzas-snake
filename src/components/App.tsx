@@ -11,6 +11,13 @@ import { AiTab } from './ai/AiTab';
 import { DEFAULT_TAGS } from '../constants';
 import { deduceTagFromConcept } from '../services/financeService';
 import { SyncModal } from './sync/SyncModal';
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription
+} from '@/components/ui/dialog';
 
 /**
  * Contenido principal de la aplicación, consumiendo el contexto de finanzas.
@@ -198,48 +205,94 @@ function MainAppContent() {
 				</div>
 			</header>
 
-			{/* MENÚ MÓVIL RESPONSIVO */}
-			<div className="md:hidden flex justify-around bg-slate-900 border-b border-slate-800 p-2 text-xs">
+			{/* MENÚ MÓVIL INFERIOR FIJO */}
+			<div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-950/80 backdrop-blur-lg border-t border-slate-850 py-2.5 px-1 flex justify-around items-center z-40 shadow-lg shadow-black/80">
 				<button
-					onClick={() => setActiveTab('overview')}
-					className={`p-2 rounded ${activeTab === 'overview' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}
+					onClick={() => {
+						setActiveTab('overview');
+						setSelectedDebtSchedule(null);
+					}}
+					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-all rounded-xl ${
+						activeTab === 'overview' ? 'text-indigo-400 font-bold bg-indigo-500/10' : 'text-slate-400 hover:text-slate-200'
+					}`}
 				>
-					Resumen
+					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+						<path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+					</svg>
+					<span className="text-[10px]">Resumen</span>
 				</button>
 				<button
-					onClick={() => setActiveTab('transactions')}
-					className={`p-2 rounded ${activeTab === 'transactions' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}
+					onClick={() => {
+						setActiveTab('transactions');
+						setSelectedDebtSchedule(null);
+					}}
+					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-all rounded-xl ${
+						activeTab === 'transactions' ? 'text-indigo-400 font-bold bg-indigo-500/10' : 'text-slate-400 hover:text-slate-200'
+					}`}
 				>
-					Movs
+					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+						<path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+					</svg>
+					<span className="text-[10px]">Movs</span>
 				</button>
 				<button
-					onClick={() => setActiveTab('debts')}
-					className={`p-2 rounded ${activeTab === 'debts' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}
+					onClick={() => {
+						setActiveTab('debts');
+						setSelectedDebtSchedule(null);
+					}}
+					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-all rounded-xl ${
+						activeTab === 'debts' ? 'text-indigo-400 font-bold bg-indigo-500/10' : 'text-slate-400 hover:text-slate-200'
+					}`}
 				>
-					Deudas
+					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+						<path strokeLinecap="round" strokeLinejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+					</svg>
+					<span className="text-[10px]">Deudas</span>
 				</button>
 				<button
-					onClick={() => setActiveTab('accounts')}
-					className={`p-2 rounded ${activeTab === 'accounts' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}
+					onClick={() => {
+						setActiveTab('accounts');
+						setSelectedDebtSchedule(null);
+					}}
+					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-all rounded-xl ${
+						activeTab === 'accounts' ? 'text-indigo-400 font-bold bg-indigo-500/10' : 'text-slate-400 hover:text-slate-200'
+					}`}
 				>
-					Cuentas
+					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+						<path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+					</svg>
+					<span className="text-[10px]">Cuentas</span>
 				</button>
 				<button
-					onClick={() => setActiveTab('consolidation')}
-					className={`p-2 rounded ${activeTab === 'consolidation' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}
+					onClick={() => {
+						setActiveTab('consolidation');
+						setSelectedDebtSchedule(null);
+					}}
+					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-all rounded-xl ${
+						activeTab === 'consolidation' ? 'text-indigo-400 font-bold bg-indigo-500/10' : 'text-slate-400 hover:text-slate-200'
+					}`}
 				>
-					Reunificar
+					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+						<path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+					</svg>
+					<span className="text-[10px]">Reunificar</span>
 				</button>
 				<button
-					onClick={() => setActiveTab('ai')}
-					className={`p-2 rounded flex items-center gap-1 ${activeTab === 'ai' ? 'text-indigo-400 font-bold' : 'text-slate-400'}`}
+					onClick={() => {
+						setActiveTab('ai');
+						setSelectedDebtSchedule(null);
+					}}
+					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-all rounded-xl ${
+						activeTab === 'ai' ? 'text-indigo-400 font-bold bg-indigo-500/10' : 'text-slate-400 hover:text-slate-200'
+					}`}
 				>
-					<Icons.Sparkles /> IA
+					<Icons.Sparkles />
+					<span className="text-[10px]">Asesor</span>
 				</button>
 			</div>
 
 			{/* CUERPO PRINCIPAL */}
-			<main className={`flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col ${activeTab === 'ai' ? 'min-h-0 overflow-hidden' : ''}`}>
+			<main className={`flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:py-8 flex flex-col ${activeTab === 'ai' ? 'min-h-0 overflow-hidden' : ''}`}>
 				{periods.length === 0 ? (
 					<div className="max-w-md mx-auto my-12 bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-3xl p-8 shadow-2xl">
 						<div className="text-center mb-8">
@@ -645,329 +698,286 @@ function MainAppContent() {
 			)}
 
 			{/* MODAL DE CONFIGURACIÓN DE EXPORTACIÓN PDF */}
-			{isExportPdfModalOpen && (
-				<div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-					<div 
-						className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 relative"
-						onClick={(e) => e.stopPropagation()}
-					>
-						<button 
-							onClick={() => setIsExportPdfModalOpen(false)}
-							className="absolute top-4 right-4 text-slate-500 hover:text-slate-200 transition-colors"
-							aria-label="Cerrar modal"
-						>
-							<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-								<path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+			<Dialog open={isExportPdfModalOpen} onOpenChange={setIsExportPdfModalOpen}>
+				<DialogContent className="max-w-md p-6 sm:p-8">
+					<DialogHeader className="text-center">
+						<div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+							<svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+								<path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
 							</svg>
-						</button>
+						</div>
+						<DialogTitle>Exportar PDF Personalizado</DialogTitle>
+						<DialogDescription>
+							Selecciona las secciones que deseas incluir en el documento PDF final.
+						</DialogDescription>
+					</DialogHeader>
 
-						<div className="text-center">
-							<div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-								<svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-									<path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-								</svg>
-							</div>
-							<h2 className="text-xl font-bold text-slate-100">Exportar PDF Personalizado</h2>
-							<p className="text-xs text-slate-400 mt-1">
-								Selecciona las secciones que deseas incluir en el documento PDF final.
-							</p>
+					<div className="space-y-4">
+						<div className="space-y-3">
+							{/* Opción 1: Contexto Financiero */}
+							<label className="flex items-start gap-3 p-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-xl cursor-pointer transition-all">
+								<input 
+									type="checkbox"
+									checked={pdfExportOptions.showContext}
+									onChange={(e) => setPdfExportOptions({ ...pdfExportOptions, showContext: e.target.checked })}
+									className="mt-1 w-4 h-4 text-indigo-600 border-slate-700 bg-slate-950 rounded focus:ring-indigo-500 focus:ring-offset-slate-900"
+								/>
+								<div>
+									<span className="text-sm font-semibold text-slate-200 block">Contexto Financiero de la Vista</span>
+									<span className="text-[11px] text-slate-500 leading-relaxed block">
+										Resumen de ingresos, gastos, balance y desglose por etiquetas.
+									</span>
+								</div>
+							</label>
+
+							{/* Opción 2: Registro de Deudas */}
+							<label className="flex items-start gap-3 p-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-xl cursor-pointer transition-all">
+								<input 
+									type="checkbox"
+									checked={pdfExportOptions.showDebts}
+									onChange={(e) => setPdfExportOptions({ ...pdfExportOptions, showDebts: e.target.checked })}
+									className="mt-1 w-4 h-4 text-indigo-600 border-slate-700 bg-slate-950 rounded focus:ring-indigo-500 focus:ring-offset-slate-900"
+								/>
+								<div>
+									<span className="text-sm font-semibold text-slate-200 block">Registro de Deudas del Mes</span>
+									<span className="text-[11px] text-slate-500 leading-relaxed block">
+										Listado detallado de deudas y cuotas del mes analizado.
+									</span>
+								</div>
+							</label>
+
+							{/* Opción 3: Movimientos Detallados */}
+							<label className="flex items-start gap-3 p-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-xl cursor-pointer transition-all">
+								<input 
+									type="checkbox"
+									checked={pdfExportOptions.showTransactions}
+									onChange={(e) => setPdfExportOptions({ ...pdfExportOptions, showTransactions: e.target.checked })}
+									className="mt-1 w-4 h-4 text-indigo-600 border-slate-700 bg-slate-950 rounded focus:ring-indigo-500 focus:ring-offset-slate-900"
+								/>
+								<div>
+									<span className="text-sm font-semibold text-slate-200 block">Movimientos Detallados del Mes</span>
+									<span className="text-[11px] text-slate-500 leading-relaxed block">
+										Historial de ingresos, gastos y transferencias ejecutadas.
+									</span>
+								</div>
+							</label>
+
+							{/* Opción 4: Historial de Chat */}
+							<label className="flex items-start gap-3 p-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-xl cursor-pointer transition-all">
+								<input 
+									type="checkbox"
+									checked={pdfExportOptions.showChat}
+									onChange={(e) => setPdfExportOptions({ ...pdfExportOptions, showChat: e.target.checked })}
+									className="mt-1 w-4 h-4 text-indigo-600 border-slate-700 bg-slate-950 rounded focus:ring-indigo-500 focus:ring-offset-slate-900"
+								/>
+								<div>
+									<span className="text-sm font-semibold text-slate-200 block">Historial de Conversación con el Asesor</span>
+									<span className="text-[11px] text-slate-500 leading-relaxed block">
+										Mensajes del chat interactivo formateados.
+									</span>
+								</div>
+							</label>
 						</div>
 
-						<div className="space-y-4">
-							<div className="space-y-3">
-								{/* Opción 1: Contexto Financiero */}
-								<label className="flex items-start gap-3 p-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-xl cursor-pointer transition-all">
-									<input 
-										type="checkbox"
-										checked={pdfExportOptions.showContext}
-										onChange={(e) => setPdfExportOptions({ ...pdfExportOptions, showContext: e.target.checked })}
-										className="mt-1 w-4 h-4 text-indigo-600 border-slate-700 bg-slate-950 rounded focus:ring-indigo-500 focus:ring-offset-slate-900"
-									/>
-									<div>
-										<span className="text-sm font-semibold text-slate-200 block">Contexto Financiero de la Vista</span>
-										<span className="text-[11px] text-slate-500 leading-relaxed block">
-											Resumen de ingresos, gastos, balance y desglose por etiquetas.
-										</span>
-									</div>
-								</label>
+						{/* Botones de Acción */}
+						<div className="flex gap-2 pt-2">
+							<button
+								type="button"
+								onClick={() => {
+									handleDownloadChatPDF(pdfExportOptions);
+									setIsExportPdfModalOpen(false);
+								}}
+								disabled={!pdfExportOptions.showContext && !pdfExportOptions.showDebts && !pdfExportOptions.showTransactions && !pdfExportOptions.showChat}
+								className="w-1/2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 disabled:opacity-40 disabled:hover:from-indigo-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all active:scale-95 shadow-md shadow-indigo-600/10"
+							>
+								Descargar
+							</button>
+							<button
+								type="button"
+								onClick={() => setIsExportPdfModalOpen(false)}
+								className="w-1/2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition-all"
+							>
+								Cancelar
+							</button>
+						</div>
+					</div>
+				</DialogContent>
+			</Dialog>
 
-								{/* Opción 2: Registro de Deudas */}
-								<label className="flex items-start gap-3 p-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-xl cursor-pointer transition-all">
-									<input 
-										type="checkbox"
-										checked={pdfExportOptions.showDebts}
-										onChange={(e) => setPdfExportOptions({ ...pdfExportOptions, showDebts: e.target.checked })}
-										className="mt-1 w-4 h-4 text-indigo-600 border-slate-700 bg-slate-950 rounded focus:ring-indigo-500 focus:ring-offset-slate-900"
-									/>
-									<div>
-										<span className="text-sm font-semibold text-slate-200 block">Registro de Deudas del Mes</span>
-										<span className="text-[11px] text-slate-500 leading-relaxed block">
-											Listado detallado de deudas y cuotas del mes analizado.
-										</span>
-									</div>
-								</label>
+			{/* MODAL DE RECONFIGURACIÓN DE CUENTA */}
+			<Dialog open={isReconfiguring} onOpenChange={setIsReconfiguring}>
+				<DialogContent className="max-w-md p-6 sm:p-8 max-h-[85vh] overflow-y-auto">
+					<DialogHeader className="text-center">
+						<div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+							<svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+								<path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+								<path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+							</svg>
+						</div>
+						<DialogTitle>Configurar Cuenta</DialogTitle>
+						<DialogDescription>
+							Modificá el saldo de apertura, cambiá el mes de inicio o reiniciá la cuenta.
+						</DialogDescription>
+					</DialogHeader>
 
-								{/* Opción 3: Movimientos Detallados */}
-								<label className="flex items-start gap-3 p-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-xl cursor-pointer transition-all">
-									<input 
-										type="checkbox"
-										checked={pdfExportOptions.showTransactions}
-										onChange={(e) => setPdfExportOptions({ ...pdfExportOptions, showTransactions: e.target.checked })}
-										className="mt-1 w-4 h-4 text-indigo-600 border-slate-700 bg-slate-950 rounded focus:ring-indigo-500 focus:ring-offset-slate-900"
-									/>
-									<div>
-										<span className="text-sm font-semibold text-slate-200 block">Movimientos Detallados del Mes</span>
-										<span className="text-[11px] text-slate-500 leading-relaxed block">
-											Historial de ingresos, gastos y transferencias ejecutadas.
-										</span>
-									</div>
-								</label>
-
-								{/* Opción 4: Historial de Chat */}
-								<label className="flex items-start gap-3 p-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 rounded-xl cursor-pointer transition-all">
-									<input 
-										type="checkbox"
-										checked={pdfExportOptions.showChat}
-										onChange={(e) => setPdfExportOptions({ ...pdfExportOptions, showChat: e.target.checked })}
-										className="mt-1 w-4 h-4 text-indigo-600 border-slate-700 bg-slate-950 rounded focus:ring-indigo-500 focus:ring-offset-slate-900"
-									/>
-									<div>
-										<span className="text-sm font-semibold text-slate-200 block">Historial de Conversación con el Asesor</span>
-										<span className="text-[11px] text-slate-500 leading-relaxed block">
-											Mensajes del chat interactivo formateados.
-										</span>
-									</div>
-								</label>
-							</div>
-
-							{/* Botones de Acción */}
-							<div className="flex gap-2 pt-2">
+					<form onSubmit={handleInitAccount} className="space-y-4">
+						<div>
+							<label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">Flujo de Inicio</label>
+							<div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
 								<button
 									type="button"
 									onClick={() => {
-										handleDownloadChatPDF(pdfExportOptions);
-										setIsExportPdfModalOpen(false);
+										setInitFlow('current');
+										setInitMonth(currentMonthString);
 									}}
-									disabled={!pdfExportOptions.showContext && !pdfExportOptions.showDebts && !pdfExportOptions.showTransactions && !pdfExportOptions.showChat}
-									className="w-1/2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 disabled:opacity-40 disabled:hover:from-indigo-600 text-white font-bold py-2.5 rounded-xl text-xs transition-all active:scale-95 shadow-md shadow-indigo-600/10"
+									className={`py-2 rounded-lg text-xs font-bold transition-all ${
+										initFlow === 'current'
+											? 'bg-indigo-600 text-white shadow-md'
+											: 'text-slate-400 hover:text-slate-200'
+									}`}
 								>
-									Descargar
+									Mes en Curso
 								</button>
 								<button
 									type="button"
-									onClick={() => setIsExportPdfModalOpen(false)}
-									className="w-1/2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition-all"
+									onClick={() => setInitFlow('past')}
+									className={`py-2 rounded-lg text-xs font-bold transition-all ${
+										initFlow === 'past'
+											? 'bg-indigo-600 text-white shadow-md'
+											: 'text-slate-400 hover:text-slate-200'
+									}`}
 								>
-									Cancelar
+									Desde el Pasado
 								</button>
 							</div>
 						</div>
-					</div>
-				</div>
-			)}
 
-			{/* MODAL DE RECONFIGURACIÓN DE CUENTA */}
-			{isReconfiguring && (
-				<div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-					<div 
-						className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 relative"
-						onClick={(e) => e.stopPropagation()}
-					>
-						<button 
-							onClick={() => setIsReconfiguring(false)}
-							className="absolute top-4 right-4 text-slate-500 hover:text-slate-200 transition-colors"
-							aria-label="Cerrar modal"
-						>
-							<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-								<path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-							</svg>
-						</button>
-
-						<div className="text-center">
-							<div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-								<svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-									<path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-									<path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-								</svg>
-							</div>
-							<h2 className="text-xl font-bold text-slate-100">Configurar Cuenta</h2>
-							<p className="text-xs text-slate-400 mt-1">
-								Modificá el saldo de apertura, cambiá el mes de inicio o reiniciá la cuenta.
-							</p>
-						</div>
-
-						<form onSubmit={handleInitAccount} className="space-y-4">
+						{initFlow === 'past' ? (
 							<div>
-								<label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">Flujo de Inicio</label>
-								<div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
-									<button
-										type="button"
-										onClick={() => {
-											setInitFlow('current');
-											setInitMonth(currentMonthString);
-										}}
-										className={`py-2 rounded-lg text-xs font-bold transition-all ${
-											initFlow === 'current'
-												? 'bg-indigo-600 text-white shadow-md'
-												: 'text-slate-400 hover:text-slate-200'
-										}`}
-									>
-										Mes en Curso
-									</button>
-									<button
-										type="button"
-										onClick={() => setInitFlow('past')}
-										className={`py-2 rounded-lg text-xs font-bold transition-all ${
-											initFlow === 'past'
-												? 'bg-indigo-600 text-white shadow-md'
-												: 'text-slate-400 hover:text-slate-200'
-										}`}
-									>
-										Desde el Pasado
-									</button>
-								</div>
+								<label htmlFor="modal-init-month" className="block text-xs font-medium text-slate-400 mb-1">
+									Mes de Partida
+								</label>
+								<input
+									id="modal-init-month"
+									type="month"
+									required
+									max={currentMonthString}
+									value={initMonth}
+									onChange={(e) => setInitMonth(e.target.value)}
+									className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-sm text-slate-100 font-mono outline-none"
+								/>
 							</div>
+						) : (
+							<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-400">
+								<span className="font-semibold text-slate-300">Mes Activo de Inicio:</span> {currentMonthString}
+							</div>
+						)}
 
-							{initFlow === 'past' ? (
+						<div className="space-y-4 border-t border-slate-800/80 pt-4">
+							<h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Perfiles de Usuario</h3>
+							<div className="grid grid-cols-2 gap-4">
 								<div>
-									<label htmlFor="modal-init-month" className="block text-xs font-medium text-slate-400 mb-1">
-										Mes de Partida
-									</label>
+									<label htmlFor="modal-user-a-name" className="block text-[11px] font-medium text-slate-500 mb-1">Nombre {userAName || 'Usuario A'}</label>
 									<input
-										id="modal-init-month"
-										type="month"
+										id="modal-user-a-name"
+										type="text"
 										required
-										max={currentMonthString}
-										value={initMonth}
-										onChange={(e) => setInitMonth(e.target.value)}
-										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-sm text-slate-100 font-mono outline-none"
+										value={userAName}
+										onChange={(e) => setUserAName(e.target.value)}
+										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-slate-100 outline-none"
 									/>
 								</div>
-							) : (
-								<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-400">
-									<span className="font-semibold text-slate-300">Mes Activo de Inicio:</span> {currentMonthString}
-								</div>
-							)}
-
-							<div className="space-y-4 border-t border-slate-800/80 pt-4">
-								<h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Perfiles de Usuario</h3>
-								<div className="grid grid-cols-2 gap-4">
-									<div>
-										<label htmlFor="modal-user-a-name" className="block text-[11px] font-medium text-slate-500 mb-1">Nombre {userAName || 'Usuario A'}</label>
-										<input
-											id="modal-user-a-name"
-											type="text"
-											required
-											value={userAName}
-											onChange={(e) => setUserAName(e.target.value)}
-											className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-slate-100 outline-none"
-										/>
-									</div>
-									<div>
-										<label htmlFor="modal-user-b-name" className="block text-[11px] font-medium text-slate-500 mb-1">Nombre {userBName || 'Usuario B'}</label>
-										<input
-											id="modal-user-b-name"
-											type="text"
-											required
-											value={userBName}
-											onChange={(e) => setUserBName(e.target.value)}
-											className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-slate-100 outline-none"
-										/>
-									</div>
+								<div>
+									<label htmlFor="modal-user-b-name" className="block text-[11px] font-medium text-slate-500 mb-1">Nombre {userBName || 'Usuario B'}</label>
+									<input
+										id="modal-user-b-name"
+										type="text"
+										required
+										value={userBName}
+										onChange={(e) => setUserBName(e.target.value)}
+										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-slate-100 outline-none"
+									/>
 								</div>
 							</div>
-
-							<div className="space-y-4 border-t border-slate-800/80 pt-4">
-								<h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Balances de Apertura (€)</h3>
-								<div className="space-y-3">
-									{reconfigAccounts.map((acc, index) => (
-										<div key={acc.id} className="flex flex-col">
-											<label htmlFor={`init-balance-modal-${acc.id}`} className="block text-[11px] font-medium text-slate-500 mb-1">
-												Saldo inicial: {acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
-											</label>
-											<input
-												id={`init-balance-modal-${acc.id}`}
-												type="number"
-												step="0.01"
-												required
-												min="0"
-												value={acc.initialBalance}
-												onChange={(e) => {
-													const val = parseFloat(e.target.value) || 0;
-													setReconfigAccounts((prev) =>
-														prev.map((a, i) => (i === index ? { ...a, initialBalance: val } : a))
-													);
-												}}
-												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs text-slate-100 outline-none"
-											/>
-										</div>
-									))}
-								</div>
-								<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs flex justify-between items-center text-slate-400">
-									<span>Total Conjunto:</span>
-									<span className="font-bold text-slate-200 text-sm">
-										{reconfigAccounts.reduce((sum, a) => sum + (a.initialBalance || 0), 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
-									</span>
-								</div>
-							</div>
-
-							<div className="flex gap-2 pt-2">
-								<button
-									type="submit"
-									className="w-1/2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-bold py-2.5 rounded-xl text-xs transition-all active:scale-95 shadow-md shadow-indigo-600/10"
-								>
-									Guardar
-								</button>
-								<button
-									type="button"
-									onClick={() => setIsReconfiguring(false)}
-									className="w-1/2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition-all"
-								>
-									Cancelar
-								</button>
-							</div>
-
-							<div className="border-t border-slate-800/80 pt-4 mt-2">
-								<button
-									type="button"
-									onClick={handleResetAccount}
-									className="w-full bg-rose-950/20 hover:bg-rose-950/40 border border-rose-900/30 text-rose-400 hover:text-rose-350 font-bold py-2 rounded-xl text-xs transition-all active:scale-95"
-								>
-									Reiniciar Base de Datos
-								</button>
-							</div>
-						</form>
-					</div>
-				</div>
-			)}
-
-			{/* MODAL DE EDICIÓN DE TRANSACCIÓN */}
-			{editingTx && (
-				<div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-					<div 
-						className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 relative"
-						onClick={(e) => e.stopPropagation()}
-					>
-						<button 
-							onClick={() => setEditingTx(null)}
-							className="absolute top-4 right-4 text-slate-500 hover:text-slate-200 transition-colors"
-							aria-label="Cerrar modal"
-						>
-							<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-								<path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-							</svg>
-						</button>
-
-						<div className="text-center">
-							<div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-								<Icons.Edit />
-							</div>
-							<h2 className="text-xl font-bold text-slate-100">Editar Transacción</h2>
-							<p className="text-xs text-slate-400 mt-1">
-								Modifica los valores del movimiento seleccionado.
-							</p>
 						</div>
 
+						<div className="space-y-4 border-t border-slate-800/80 pt-4">
+							<h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Balances de Apertura (€)</h3>
+							<div className="space-y-3">
+								{reconfigAccounts.map((acc, index) => (
+									<div key={acc.id} className="flex flex-col">
+										<label htmlFor={`init-balance-modal-${acc.id}`} className="block text-[11px] font-medium text-slate-500 mb-1">
+											Saldo inicial: {acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+										</label>
+										<input
+											id={`init-balance-modal-${acc.id}`}
+											type="number"
+											step="0.01"
+											required
+											min="0"
+											value={acc.initialBalance}
+											onChange={(e) => {
+												const val = parseFloat(e.target.value) || 0;
+												setReconfigAccounts((prev) =>
+													prev.map((a, i) => (i === index ? { ...a, initialBalance: val } : a))
+												);
+											}}
+											className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs text-slate-100 outline-none"
+										/>
+									</div>
+								))}
+							</div>
+							<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs flex justify-between items-center text-slate-400">
+								<span>Total Conjunto:</span>
+								<span className="font-bold text-slate-200 text-sm">
+									{reconfigAccounts.reduce((sum, a) => sum + (a.initialBalance || 0), 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+								</span>
+							</div>
+						</div>
+
+						<div className="flex gap-2 pt-2">
+							<button
+								type="submit"
+								className="w-1/2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-bold py-2.5 rounded-xl text-xs transition-all active:scale-95 shadow-md shadow-indigo-600/10"
+							>
+								Guardar
+							</button>
+							<button
+								type="button"
+								onClick={() => setIsReconfiguring(false)}
+								className="w-1/2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition-all"
+							>
+								Cancelar
+							</button>
+						</div>
+
+						<div className="border-t border-slate-800/80 pt-4 mt-2">
+							<button
+								type="button"
+								onClick={handleResetAccount}
+								className="w-full bg-rose-950/20 hover:bg-rose-950/40 border border-rose-900/30 text-rose-400 hover:text-rose-350 font-bold py-2 rounded-xl text-xs transition-all active:scale-95"
+							>
+								Reiniciar Base de Datos
+							</button>
+						</div>
+					</form>
+				</DialogContent>
+			</Dialog>
+
+			{/* MODAL DE EDICIÓN DE TRANSACCIÓN */}
+			<Dialog open={!!editingTx} onOpenChange={(open) => !open && setEditingTx(null)}>
+				<DialogContent className="max-w-md p-6 sm:p-8 max-h-[85vh] overflow-y-auto">
+					<DialogHeader className="text-center">
+						<div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+							<Icons.Edit />
+						</div>
+						<DialogTitle>Editar Transacción</DialogTitle>
+						<DialogDescription>
+							Modifica los valores del movimiento seleccionado.
+						</DialogDescription>
+					</DialogHeader>
+
+					{editingTx && (
 						<form onSubmit={handleSaveEditTransaction} className="space-y-4">
 							<div>
 								<label className="block text-xs font-medium text-slate-400 mb-1.5">Tipo de Movimiento</label>
@@ -1316,9 +1326,9 @@ function MainAppContent() {
 								</button>
 							</div>
 						</form>
-					</div>
-				</div>
-			)}
+					)}
+				</DialogContent>
+			</Dialog>
 
 			<SyncModal isOpen={isSyncModalOpen} onClose={() => setIsSyncModalOpen(false)} />
 		</div>

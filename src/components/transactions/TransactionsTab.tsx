@@ -346,59 +346,70 @@ export function TransactionsTab() {
 						<p className="text-xs">Usa el formulario para añadir cobros o gastos corrientes.</p>
 					</div>
 				) : (
-					<div className="overflow-x-auto">
-						<table className="w-full text-left border-collapse">
-							<thead>
-								<tr className="border-b border-slate-800 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-									<th className="pb-3 pl-2">Fecha</th>
-									<th className="pb-3">Concepto</th>
-									<th className="pb-3">Propietario</th>
-									<th className="pb-3">Etiqueta</th>
-									<th className="pb-3 text-right">Importe</th>
-									<th className="pb-3 text-center">Acciones</th>
-								</tr>
-							</thead>
-							<tbody className="divide-y divide-slate-800/60 text-sm">
-								{filteredTransactions.map((t) => (
-									<tr key={t.id} className="hover:bg-slate-800/20 transition-colors">
-										<td className="py-3.5 pl-2 text-slate-400 font-mono text-xs">{t.date}</td>
-										<td className="py-3.5 font-medium text-slate-200">
-											<div className="flex flex-col">
-												<div className="flex items-center space-x-2">
-													<span>{t.desc}</span>
-													{t.recurrence === 'recurring' && (
-														<span 
-															title="Movimiento Recurrente"
-															className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
-														>
-															<svg className="w-3 h-3 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-																<path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.5" />
-															</svg>
-															Recurrente
-														</span>
-													)}
-												</div>
+					<>
+						{/* Vista de Tarjetas para Móviles */}
+						<div className="md:hidden space-y-3">
+							{filteredTransactions.map((t) => (
+								<div
+									key={t.id}
+									className="bg-slate-950 p-4 rounded-xl border border-slate-850 flex flex-col justify-between space-y-3 hover:border-slate-800 transition-all"
+								>
+									<div className="flex justify-between items-start">
+										<div className="space-y-1">
+											<div className="flex items-center gap-1.5 flex-wrap">
+												<span className="font-semibold text-slate-100 text-sm">{t.desc}</span>
+												{t.recurrence === 'recurring' && (
+													<span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+														Recurrente
+													</span>
+												)}
+											</div>
+											<div className="text-[10px] text-slate-500 font-mono">
+												{t.date}
 												{t.type === 'transfer' ? (
-													<div className="text-[10px] text-slate-500 font-mono mt-0.5">
-														{accounts.find((a) => a.id === t.fromAccountId)?.name || 'Sin origen'} ➔ {accounts.find((a) => a.id === t.toAccountId)?.name || 'Sin destino'}
-													</div>
+													<span className="block mt-0.5">
+														{accounts.find((a) => a.id === t.fromAccountId)?.name || 'Origen'} ➔ {accounts.find((a) => a.id === t.toAccountId)?.name || 'Destino'}
+													</span>
 												) : (
 													t.accountId && (
-														<div className="text-[10px] text-slate-500 font-mono mt-0.5">
+														<span className="block mt-0.5">
 															Cuenta: {accounts.find((a) => a.id === t.accountId)?.name || 'Desconocida'}
-														</div>
+														</span>
 													)
 												)}
 											</div>
-										</td>
-										<td className="py-3.5">
+										</div>
+
+										<div className="text-right">
 											{t.type === 'transfer' ? (
-												<span className="inline-block px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-bold">
-													Traspaso
+												<span className="text-sky-400 font-bold text-sm">
+													{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
 												</span>
 											) : (
+												<span className={`font-bold text-sm ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
+													{t.type === 'income' ? '+' : '-'}
+													{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+												</span>
+											)}
+										</div>
+									</div>
+
+									<div className="flex justify-between items-center pt-2.5 border-t border-slate-900/60">
+										<div className="flex gap-1 flex-wrap">
+											<span
+												className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold ${
+													t.type === 'income'
+														? 'bg-emerald-500/10 text-emerald-400'
+														: t.type === 'transfer'
+															? 'bg-sky-500/10 text-sky-400'
+															: 'bg-rose-500/10 text-rose-400'
+												}`}
+											>
+												{t.tag}
+											</span>
+											{t.type !== 'transfer' && (
 												<span
-													className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+													className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold ${
 														t.owner === 'userA'
 															? 'bg-indigo-500/15 text-indigo-400'
 															: t.owner === 'userB'
@@ -411,83 +422,175 @@ export function TransactionsTab() {
 														: t.owner === 'userB'
 															? userBName
 															: 'Conjunto'}
-													{t.owner === 'joint' && t.type === 'expense' && ` (${t.paidBy === 'userA' ? userAName : t.paidBy === 'userB' ? userBName : 'Común'})`}
 												</span>
 											)}
-										</td>
-										<td className="py-3.5">
-											<span
-												className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
-													t.type === 'income'
-														? 'bg-emerald-500/10 text-emerald-400'
-														: t.type === 'transfer'
-															? 'bg-sky-500/10 text-sky-400'
-															: 'bg-rose-500/10 text-rose-400'
-												}`}
-											>
-												{t.tag}
-											</span>
-										</td>
-										<td className="py-3.5 text-right">
-											{(() => {
-												if (t.type === 'transfer') {
-													const getWeight = (owner: 'userA' | 'userB' | 'joint') => {
-														if (viewMode === 'all') return 1;
-														if (viewMode === 'userA') {
-															if (owner === 'userA') return 1;
-															if (owner === 'joint') return 0.5;
-															return 0;
-														}
-														if (viewMode === 'userB') {
-															if (owner === 'userB') return 1;
-															if (owner === 'joint') return 0.5;
-															return 0;
-														}
-														return 0;
-													};
-													const fromAcc = accounts.find((a) => a.id === t.fromAccountId);
-													const toAcc = accounts.find((a) => a.id === t.toAccountId);
-													if (fromAcc && toAcc) {
-														const toW = getWeight(toAcc.owner);
-														const fromW = getWeight(fromAcc.owner);
-														const netChange = (toW - fromW) * t.amount;
-														if (netChange > 0.001) {
-															return <span className="text-emerald-400 font-bold">+{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</span>;
-														} else if (netChange < -0.001) {
-															return <span className="text-rose-400 font-bold">-{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</span>;
-														}
-													}
-													return <span className="text-sky-400 font-bold">{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</span>;
-												}
-												return (
-													<span className={`font-bold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
-														{t.type === 'income' ? '+' : '-'}
-														{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
-													</span>
-												);
-											})()}
-										</td>
-										<td className="py-3.5 text-center">
+										</div>
+
+										<div className="flex gap-2">
 											<button
 												onClick={() => handleStartEditTransaction(t)}
-												className="text-slate-500 hover:text-indigo-400 p-1.5 rounded-lg transition-colors mr-1"
+												className="text-slate-450 hover:text-indigo-400 p-2 rounded-lg transition-all border border-slate-800 bg-slate-900 shadow-sm min-h-[40px] min-w-[40px] flex items-center justify-center"
 												title="Editar transacción"
 											>
 												<Icons.Edit />
 											</button>
 											<button
 												onClick={() => handleDeleteTransaction(t.id)}
-												className="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg transition-colors"
+												className="text-slate-450 hover:text-rose-400 p-2 rounded-lg transition-all border border-slate-800 bg-slate-900 shadow-sm min-h-[40px] min-w-[40px] flex items-center justify-center"
 												title="Eliminar transacción"
 											>
 												<Icons.Trash />
 											</button>
-										</td>
+										</div>
+									</div>
+								</div>
+							))}
+						</div>
+
+						{/* Vista de Tabla para Pantallas Grandes */}
+						<div className="hidden md:block overflow-x-auto">
+							<table className="w-full text-left border-collapse">
+								<thead>
+									<tr className="border-b border-slate-800 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+										<th className="pb-3 pl-2">Fecha</th>
+										<th className="pb-3">Concepto</th>
+										<th className="pb-3">Propietario</th>
+										<th className="pb-3">Etiqueta</th>
+										<th className="pb-3 text-right">Importe</th>
+										<th className="pb-3 text-center">Acciones</th>
 									</tr>
-								))}
-							</tbody>
-						</table>
-					</div>
+								</thead>
+								<tbody className="divide-y divide-slate-800/60 text-sm">
+									{filteredTransactions.map((t) => (
+										<tr key={t.id} className="hover:bg-slate-800/20 transition-colors">
+											<td className="py-3.5 pl-2 text-slate-400 font-mono text-xs">{t.date}</td>
+											<td className="py-3.5 font-medium text-slate-200">
+												<div className="flex flex-col">
+													<div className="flex items-center space-x-2">
+														<span>{t.desc}</span>
+														{t.recurrence === 'recurring' && (
+															<span 
+																title="Movimiento Recurrente"
+																className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+															>
+																<svg className="w-3 h-3 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+																	<path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.5" />
+																</svg>
+																Recurrente
+															</span>
+														)}
+													</div>
+													{t.type === 'transfer' ? (
+														<div className="text-[10px] text-slate-500 font-mono mt-0.5">
+															{accounts.find((a) => a.id === t.fromAccountId)?.name || 'Sin origen'} ➔ {accounts.find((a) => a.id === t.toAccountId)?.name || 'Sin destino'}
+														</div>
+													) : (
+														t.accountId && (
+															<div className="text-[10px] text-slate-500 font-mono mt-0.5">
+																Cuenta: {accounts.find((a) => a.id === t.accountId)?.name || 'Desconocida'}
+															</div>
+														)
+													)}
+												</div>
+											</td>
+											<td className="py-3.5">
+												{t.type === 'transfer' ? (
+													<span className="inline-block px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-bold">
+														Traspaso
+													</span>
+												) : (
+													<span
+														className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+															t.owner === 'userA'
+																? 'bg-indigo-500/15 text-indigo-400'
+																: t.owner === 'userB'
+																	? 'bg-violet-500/15 text-violet-400'
+																	: 'bg-emerald-500/15 text-emerald-400'
+														}`}
+													>
+														{t.owner === 'userA'
+															? userAName
+															: t.owner === 'userB'
+																? userBName
+																: 'Conjunto'}
+														{t.owner === 'joint' && t.type === 'expense' && ` (${t.paidBy === 'userA' ? userAName : t.paidBy === 'userB' ? userBName : 'Común'})`}
+													</span>
+												)}
+											</td>
+											<td className="py-3.5">
+												<span
+													className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
+														t.type === 'income'
+															? 'bg-emerald-500/10 text-emerald-400'
+															: t.type === 'transfer'
+																? 'bg-sky-500/10 text-sky-400'
+																: 'bg-rose-500/10 text-rose-400'
+													}`}
+												>
+													{t.tag}
+												</span>
+											</td>
+											<td className="py-3.5 text-right">
+												{(() => {
+													if (t.type === 'transfer') {
+														const getWeight = (owner: 'userA' | 'userB' | 'joint') => {
+															if (viewMode === 'all') return 1;
+															if (viewMode === 'userA') {
+																if (owner === 'userA') return 1;
+																if (owner === 'joint') return 0.5;
+																return 0;
+															}
+															if (viewMode === 'userB') {
+																if (owner === 'userB') return 1;
+																if (owner === 'joint') return 0.5;
+																return 0;
+															}
+															return 0;
+														};
+														const fromAcc = accounts.find((a) => a.id === t.fromAccountId);
+														const toAcc = accounts.find((a) => a.id === t.toAccountId);
+														if (fromAcc && toAcc) {
+															const toW = getWeight(toAcc.owner);
+															const fromW = getWeight(fromAcc.owner);
+															const netChange = (toW - fromW) * t.amount;
+															if (netChange > 0.001) {
+																return <span className="text-emerald-400 font-bold">+{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</span>;
+															} else if (netChange < -0.001) {
+																return <span className="text-rose-400 font-bold">-{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</span>;
+															}
+														}
+														return <span className="text-sky-400 font-bold">{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</span>;
+													}
+													return (
+														<span className={`font-bold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
+															{t.type === 'income' ? '+' : '-'}
+															{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+														</span>
+													);
+												})()}
+											</td>
+											<td className="py-3.5 text-center font-semibold">
+												<button
+													onClick={() => handleStartEditTransaction(t)}
+													className="text-slate-550 hover:text-indigo-400 p-1.5 rounded-lg transition-colors mr-1"
+													title="Editar transacción"
+												>
+													<Icons.Edit />
+												</button>
+												<button
+													onClick={() => handleDeleteTransaction(t.id)}
+													className="text-slate-550 hover:text-rose-400 p-1.5 rounded-lg transition-colors"
+													title="Eliminar transacción"
+												>
+													<Icons.Trash />
+												</button>
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
+					</>
 				)}
 			</div>
 		</div>

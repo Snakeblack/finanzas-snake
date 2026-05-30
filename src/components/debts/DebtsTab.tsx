@@ -425,25 +425,24 @@ export function DebtsTab() {
 												{overdueAmount > 0 ? ` · Vencido: ${overdueAmount.toFixed(2)}€` : ''}
 											</p>
 										</div>
-
-										<div className="flex items-center space-x-3">
-											<div className="text-right">
+										<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+											<div className="text-left sm:text-right shrink-0">
 												<span className="block text-[10px] text-slate-500">
 													{isPlan ? 'Exigible este mes' : 'Cuota Mensual'}
 												</span>
 												<span className="text-base font-extrabold text-amber-500">{cuota.toFixed(2)}€</span>
 											</div>
 
-											<div className="flex flex-col space-y-1">
+											<div className="flex sm:flex-col gap-1.5 w-full sm:w-auto">
 												<button
 													onClick={() => setSelectedDebtSchedule(d)}
-													className="px-2.5 py-1 bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-indigo-500/20 text-xs font-semibold rounded"
+													className="flex-1 sm:flex-initial px-3 py-2 bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-indigo-500/20 text-xs font-semibold rounded-lg transition-colors min-h-[40px] flex items-center justify-center"
 												>
 													{isPlan ? 'Calendario' : 'Plan Amort.'}
 												</button>
 												<button
 													onClick={() => handleDeleteDebt(d.id)}
-													className="px-2.5 py-1 bg-rose-500/15 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/20 text-xs font-semibold rounded"
+													className="flex-1 sm:flex-initial px-3 py-2 bg-rose-500/15 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/20 text-xs font-semibold rounded-lg transition-colors min-h-[40px] flex items-center justify-center"
 												>
 													Eliminar
 												</button>
@@ -473,15 +472,15 @@ export function DebtsTab() {
 							</div>
 							<button
 								onClick={() => setSelectedDebtSchedule(null)}
-								className="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1 rounded"
+								className="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-lg font-semibold"
 							>
 								Cerrar
 							</button>
 						</div>
 
-						<div className="max-h-72 overflow-y-auto border border-slate-800 rounded-lg">
+						<div className="max-h-72 overflow-y-auto border border-slate-800 rounded-lg overflow-x-auto">
 							{isPaymentPlanDebt(selectedDebtSchedule) ? (
-								<table className="w-full text-left text-xs">
+								<table className="w-full text-left text-xs min-w-[450px]">
 									<thead className="bg-slate-950 sticky top-0 border-b border-slate-800">
 										<tr className="text-slate-400">
 											<th className="p-2">Mes</th>
@@ -516,7 +515,7 @@ export function DebtsTab() {
 									</tbody>
 								</table>
 							) : (
-								<table className="w-full text-left text-xs">
+								<table className="w-full text-left text-xs min-w-[500px]">
 									<thead className="bg-slate-950 sticky top-0 border-b border-slate-800">
 										<tr className="text-slate-400">
 											<th className="p-2">Mes</th>

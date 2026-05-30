@@ -41,7 +41,7 @@ export function OverviewTab() {
 				<div className="h-64 flex items-end justify-around space-x-4 pt-4 border-b border-slate-800">
 					{/* Ingresos */}
 					<div className="flex flex-col items-center w-full max-w-[80px] group">
-						<div className="text-xs font-bold text-emerald-400 mb-2 opacity-0 group-hover:opacity-100 transition-opacity">
+						<div className="text-xs font-bold text-emerald-400 mb-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
 							{totalIncomes.toFixed(0)}€
 						</div>
 						<div
@@ -55,7 +55,7 @@ export function OverviewTab() {
 
 					{/* Gastos Regulares */}
 					<div className="flex flex-col items-center w-full max-w-[80px] group">
-						<div className="text-xs font-bold text-rose-400 mb-2 opacity-0 group-hover:opacity-100 transition-opacity">
+						<div className="text-xs font-bold text-rose-400 mb-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
 							{totalExpenses.toFixed(0)}€
 						</div>
 						<div
@@ -69,7 +69,7 @@ export function OverviewTab() {
 
 					{/* Cuota Deuda */}
 					<div className="flex flex-col items-center w-full max-w-[80px] group">
-						<div className="text-xs font-bold text-amber-400 mb-2 opacity-0 group-hover:opacity-100 transition-opacity">
+						<div className="text-xs font-bold text-amber-400 mb-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
 							{totalMonthlyDebtPayments.toFixed(0)}€
 						</div>
 						<div
@@ -84,7 +84,7 @@ export function OverviewTab() {
 					{/* Balance Neto */}
 					<div className="flex flex-col items-center w-full max-w-[80px] group">
 						<div
-							className={`text-xs font-bold ${netMonthlyBalance >= 0 ? 'text-indigo-400' : 'text-rose-500'} mb-2 opacity-0 group-hover:opacity-100 transition-opacity`}
+							className={`text-xs font-bold ${netMonthlyBalance >= 0 ? 'text-indigo-400' : 'text-rose-500'} mb-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity`}
 						>
 							{netMonthlyBalance.toFixed(0)}€
 						</div>
