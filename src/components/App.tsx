@@ -101,7 +101,7 @@ function MainAppContent() {
 
 	return (
 		<div
-			className={`min-h-screen ${activeTab === 'ai' || activeTab === 'transactions' ? 'lg:h-screen lg:overflow-hidden' : ''} flex flex-col bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white relative overflow-hidden`}
+			className={`min-h-screen ${activeTab === 'ai' ? 'h-screen overflow-hidden' : activeTab === 'transactions' ? 'lg:h-screen lg:overflow-hidden' : ''} flex flex-col bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white relative overflow-hidden`}
 		>
 			{/* Ambient glows */}
 			<div className="bg-glow-indigo top-0 left-1/4" />
@@ -347,7 +347,7 @@ function MainAppContent() {
 
 			{/* CUERPO PRINCIPAL */}
 			<main
-				className={`flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:py-8 flex flex-col ${activeTab === 'ai' || activeTab === 'transactions' ? 'lg:min-h-0 lg:overflow-hidden' : ''}`}
+				className={`flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:py-8 flex flex-col ${activeTab === 'ai' ? 'min-h-0 overflow-hidden' : activeTab === 'transactions' ? 'lg:min-h-0 lg:overflow-hidden' : ''}`}
 			>
 				{periods.length === 0 ? (
 					<div className="max-w-md mx-auto my-12 bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-3xl p-8 shadow-2xl">

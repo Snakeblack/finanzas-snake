@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useFinanzas } from '../../hooks/useFinanzas';
 import { Icons } from '../common/Icons';
 import { MarkdownRenderer } from '../common/MarkdownRenderer';
@@ -33,6 +33,37 @@ export function AiTab() {
 	} = useFinanzas();
 
 	const [activeMobileView, setActiveMobileView] = useState<'chat' | 'config'>('chat');
+	const [isAtBottom, setIsAtBottom] = useState(true);
+	const textareaRef = useRef<HTMLTextAreaElement>(null);
+	const chatEndRef = useRef<HTMLDivElement>(null);
+	const chatContainerRef = useRef<HTMLDivElement>(null);
+
+	const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+		chatEndRef.current?.scrollIntoView({ behavior });
+	}, []);
+
+	// Auto-scroll to bottom only when user is near bottom or AI starts/finishes
+	useEffect(() => {
+		if (isAtBottom) {
+			scrollToBottom();
+		}
+	}, [chatMessages, aiLoading, isAtBottom, scrollToBottom]);
+
+	const handleChatScroll = useCallback(() => {
+		const el = chatContainerRef.current;
+		if (!el) return;
+		const threshold = 80;
+		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+		setIsAtBottom(atBottom);
+	}, []);
+
+	const handleTextareaInput = () => {
+		const el = textareaRef.current;
+		if (el) {
+			el.style.height = 'auto';
+			el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+		}
+	};
 
 	return (
 		<div className="flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-6 lg:gap-8 min-h-0 overflow-hidden tab-transition">
@@ -262,49 +293,71 @@ export function AiTab() {
 						</div>
 					</div>
 				) : (
-					<div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950/20" style={{ WebkitOverflowScrolling: 'touch' }}>
-						{chatMessages.map((msg, idx) => (
-							<div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-								<div className="flex items-center space-x-1.5 mb-1.5">
-									<span className="text-[10px] text-slate-400 font-bold font-heading">
-										{msg.role === 'user' ? 'Tú' : 'Asesor Gemini'}
-									</span>
-									<span className="text-[9px] text-slate-500 font-mono">({msg.timestamp})</span>
+					<div className="flex-1 relative min-h-0">
+						<div
+							ref={chatContainerRef}
+							onScroll={handleChatScroll}
+							className="absolute inset-0 overflow-y-auto p-4 space-y-4 bg-slate-950/20"
+							style={{ WebkitOverflowScrolling: 'touch' }}
+						>
+							{chatMessages.map((msg, idx) => (
+								<div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+									<div className="flex items-center space-x-1.5 mb-1.5">
+										<span className="text-[10px] text-slate-400 font-bold font-heading">
+											{msg.role === 'user' ? 'Tú' : 'Asesor Gemini'}
+										</span>
+										<span className="text-[9px] text-slate-500 font-mono">({msg.timestamp})</span>
+									</div>
+									<div
+										className={`p-3.5 rounded-2xl text-sm leading-relaxed max-w-[85%] ${
+											msg.role === 'user'
+												? 'bg-gradient-to-br from-indigo-600 to-violet-700 text-white rounded-tr-none shadow-lg shadow-indigo-500/10'
+												: 'glass-panel text-slate-200 rounded-tl-none shadow-sm'
+										}`}
+									>
+										{msg.role === 'user' ? (
+											<div className="whitespace-pre-wrap">{msg.content}</div>
+										) : (
+											<MarkdownRenderer text={msg.content} />
+										)}
+									</div>
 								</div>
-								<div
-									className={`p-3.5 rounded-2xl text-sm leading-relaxed max-w-[85%] ${
-										msg.role === 'user'
-											? 'bg-gradient-to-br from-indigo-600 to-violet-700 text-white rounded-tr-none shadow-lg shadow-indigo-500/10'
-											: 'glass-panel text-slate-200 rounded-tl-none shadow-sm'
-									}`}
-								>
-									{msg.role === 'user' ? (
-										<div className="whitespace-pre-wrap">{msg.content}</div>
-									) : (
-										<MarkdownRenderer text={msg.content} />
-									)}
+							))}
+							{aiLoading && (
+								<div className="flex flex-col items-start">
+									<div className="flex items-center space-x-1.5 mb-1.5">
+										<span className="text-[10px] text-slate-400 font-bold">Asesor Gemini</span>
+										<span className="text-[9px] text-indigo-400 animate-pulse font-medium">escribiendo...</span>
+									</div>
+									<div className="glass-panel p-4 rounded-2xl rounded-tl-none text-sm text-slate-400 shadow-md flex items-center space-x-2">
+										<svg className="animate-spin h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24">
+											<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4}></circle>
+											<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+										</svg>
+										<span className="animate-pulse">Analizando flujo de caja...</span>
+									</div>
 								</div>
-							</div>
-						))}
-						{aiLoading && (
-							<div className="flex flex-col items-start">
-								<div className="flex items-center space-x-1.5 mb-1.5">
-									<span className="text-[10px] text-slate-400 font-bold">Asesor Gemini</span>
-									<span className="text-[9px] text-indigo-400 animate-pulse font-medium">escribiendo...</span>
+							)}
+							{aiError && (
+								<div className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-450 text-xs rounded-xl">
+									{aiError}
 								</div>
-								<div className="glass-panel p-4 rounded-2xl rounded-tl-none text-sm text-slate-400 shadow-md flex items-center space-x-2">
-									<svg className="animate-spin h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24">
-										<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4}></circle>
-										<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-									</svg>
-									<span className="animate-pulse">Analizando flujo de caja...</span>
-								</div>
-							</div>
-						)}
-						{aiError && (
-							<div className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-450 text-xs rounded-xl">
-								{aiError}
-							</div>
+							)}
+							<div ref={chatEndRef} />
+						</div>
+
+						{/* Scroll to bottom FAB */}
+						{!isAtBottom && (
+							<button
+								type="button"
+								onClick={() => scrollToBottom()}
+								className="absolute bottom-3 right-3 z-10 w-9 h-9 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 flex items-center justify-center transition-all active:scale-90 animate-in fade-in"
+								title="Ir al final"
+							>
+								<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+									<path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+								</svg>
+							</button>
 						)}
 					</div>
 				)}
@@ -318,18 +371,24 @@ export function AiTab() {
 					className="p-3 bg-slate-950/40 border-t border-slate-800/40 flex gap-2 items-end shrink-0"
 				>
 					<textarea
+						ref={textareaRef}
 						rows={1}
 						value={customQuestion}
-						onChange={(e) => setCustomQuestion(e.target.value)}
+						onChange={(e) => {
+							setCustomQuestion(e.target.value);
+							handleTextareaInput();
+						}}
 						onKeyDown={(e) => {
 							if (e.key === 'Enter' && !e.shiftKey) {
 								e.preventDefault();
 								handleAskGemini(customQuestion);
+								// Reset textarea height after send
+								if (textareaRef.current) textareaRef.current.style.height = 'auto';
 							}
 						}}
 						placeholder={geminiApiKey ? "Escribe tu consulta sobre finanzas..." : "Configura tu API Key para empezar"}
 						disabled={!geminiApiKey}
-						className="flex-1 premium-input focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none resize-none placeholder:text-slate-500 max-h-24 overflow-y-auto disabled:opacity-40 disabled:cursor-not-allowed"
+						className="flex-1 premium-input focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none resize-none placeholder:text-slate-500 max-h-32 overflow-y-auto disabled:opacity-40 disabled:cursor-not-allowed"
 					/>
 					<button
 						type="submit"
