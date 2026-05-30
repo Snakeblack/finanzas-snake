@@ -511,7 +511,7 @@ function MainAppContent() {
 				) : (
 					<>
 						{/* BARRA DE CONTROL DE TIEMPO Y BALANCE */}
-						<div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 p-4 premium-card rounded-2xl">
+						<div className={`flex-col md:flex-row md:items-center justify-between gap-4 mb-6 p-4 premium-card rounded-2xl ${activeTab === 'ai' ? 'hidden lg:flex' : 'flex'}`}>
 							<div className="flex flex-wrap items-center gap-2">
 								<span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mes Activo:</span>
 								<select
@@ -597,7 +597,7 @@ function MainAppContent() {
 						</div>
 
 						{/* INDICADORES FINANCIEROS MENSUALES */}
-						<section className="grid grid-cols-2 lg:grid-cols-5 gap-2 lg:gap-6 mb-4 lg:mb-8">
+						<section className={`grid-cols-2 lg:grid-cols-5 gap-2 lg:gap-6 mb-4 lg:mb-8 ${activeTab === 'ai' ? 'hidden lg:grid' : 'grid'}`}>
 							{/* Tarjeta: Saldo de Apertura */}
 							<div className="premium-card rounded-xl lg:rounded-2xl p-3 lg:p-6">
 								<div className="flex items-center justify-between mb-1 lg:mb-4">
