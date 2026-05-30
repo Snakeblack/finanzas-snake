@@ -1,4 +1,4 @@
-import { useState, useEffect, type SyntheticEvent } from 'react';
+import { useState, useEffect, Fragment, type SyntheticEvent, type ReactNode } from 'react';
 
 // === CONSTANTES Y VALORES POR DEFECTO ===
 const DEFAULT_TAGS = {
@@ -12,7 +12,8 @@ const STORAGE_KEYS = {
 	transactions: 'finanzas_v3_transactions',
 	debts: 'finanzas_v3_debts',
 	periods: 'finanzas_v3_periods',
-	geminiKey: 'finanzas_v2_gemini_key'
+	geminiKey: 'finanzas_v2_gemini_key',
+	aiChat: 'finanzas_v3_ai_chat'
 } as const;
 
 // Limpieza de base de datos de una sola vez para arrancar limpio y desde cero
@@ -32,6 +33,12 @@ type RateMode = 'tae' | 'tin';
 type DebtKind = 'classic' | 'paymentPlan';
 type InstallmentStatus = 'pending' | 'paid';
 type TransactionRecurrence = 'one-off' | 'recurring';
+
+type ChatMessage = {
+	role: 'user' | 'model';
+	content: string;
+	timestamp: string;
+};
 
 type Account = {
 	id: string;
@@ -550,6 +557,146 @@ const getInitialData = () => {
 	};
 };
 
+function renderInlineCode(text: string, key: string): ReactNode[] {
+	const codeParts = text.split(/(`.*?`)/g);
+	return codeParts.map((part, cIdx) => {
+		if (part.startsWith('`') && part.endsWith('`')) {
+			const codeText = part.slice(1, -1);
+			return (
+				<code key={`${key}-${cIdx}`} className="bg-slate-900 border border-slate-800 text-indigo-300 px-1.5 py-0.5 rounded font-mono text-xs mx-0.5 font-semibold">
+					{codeText}
+				</code>
+			);
+		}
+		return <span key={`${key}-${cIdx}`}>{part}</span>;
+	});
+}
+
+function renderInlineMarkdown(text: string): ReactNode[] {
+	const boldParts = text.split(/(\*\*.*?\*\*)/g);
+	return boldParts.flatMap((part, bIdx) => {
+		if (part.startsWith('**') && part.endsWith('**')) {
+			const boldText = part.slice(2, -2);
+			return renderInlineCode(boldText, `bold-${bIdx}`);
+		}
+		return renderInlineCode(part, `text-${bIdx}`);
+	});
+}
+
+function MarkdownRenderer({ text }: { text: string }) {
+	const parts = text.split(/(```[\s\S]*?```)/g);
+
+	return (
+		<div className="space-y-3">
+			{parts.map((part, index) => {
+				if (part.startsWith('```')) {
+					const lines = part.split('\n');
+					let language = 'text';
+					let code = part;
+					if (lines[0].startsWith('```')) {
+						language = lines[0].replace('```', '').trim() || 'text';
+						code = lines.slice(1, -1).join('\n');
+					}
+					return (
+						<pre key={index} className="bg-slate-900 border border-slate-800 p-4 rounded-xl font-mono text-xs overflow-x-auto text-slate-200 my-2">
+							{language !== 'text' && <span className="block text-[10px] text-slate-500 uppercase tracking-widest mb-2 font-sans font-bold">{language}</span>}
+							<code>{code}</code>
+						</pre>
+					);
+				} else {
+					const lines = part.split('\n');
+					const renderedElements: ReactNode[] = [];
+					let listItems: string[] = [];
+					let listType: 'ol' | 'ul' | null = null;
+
+					const flushList = (key: number) => {
+						if (listItems.length > 0) {
+							if (listType === 'ul') {
+								renderedElements.push(
+									<ul key={`ul-${key}`} className="list-disc list-inside pl-4 space-y-1.5 my-2 text-slate-300">
+										{listItems.map((item, idx) => (
+											<li key={idx}>{renderInlineMarkdown(item)}</li>
+										))}
+									</ul>
+								);
+							} else if (listType === 'ol') {
+								renderedElements.push(
+									<ol key={`ol-${key}`} className="list-decimal list-inside pl-4 space-y-1.5 my-2 text-slate-300">
+										{listItems.map((item, idx) => (
+											<li key={idx}>{renderInlineMarkdown(item)}</li>
+										))}
+									</ol>
+								);
+							}
+							listItems = [];
+							listType = null;
+						}
+					};
+
+					for (let i = 0; i < lines.length; i++) {
+						const line = lines[i];
+						const trimmedLine = line.trim();
+
+						if (trimmedLine === '') {
+							flushList(i);
+							continue;
+						}
+
+						const headerMatch = line.match(/^(#{1,6})\s+(.*)$/);
+						if (headerMatch) {
+							flushList(i);
+							const level = headerMatch[1].length;
+							const content = headerMatch[2];
+							const headerClasses = 
+								level === 1 ? 'text-lg font-black text-white mt-3 mb-1.5' :
+								level === 2 ? 'text-base font-extrabold text-slate-200 mt-3 mb-1.5' :
+								level === 3 ? 'text-sm font-bold text-slate-200 mt-2 mb-1' :
+								'text-xs font-bold text-slate-300 mt-2 mb-1';
+							
+							renderedElements.push(
+								level === 1 ? <h3 key={i} className={headerClasses}>{renderInlineMarkdown(content)}</h3> :
+								level === 2 ? <h4 key={i} className={headerClasses}>{renderInlineMarkdown(content)}</h4> :
+								level === 3 ? <h5 key={i} className={headerClasses}>{renderInlineMarkdown(content)}</h5> :
+								<h6 key={i} className={headerClasses}>{renderInlineMarkdown(content)}</h6>
+							);
+							continue;
+						}
+
+						const ulMatch = line.match(/^[\*\-\+]\s+(.*)$/);
+						if (ulMatch) {
+							if (listType !== 'ul') {
+								flushList(i);
+								listType = 'ul';
+							}
+							listItems.push(ulMatch[1]);
+							continue;
+						}
+
+						const olMatch = line.match(/^\d+\.\s+(.*)$/);
+						if (olMatch) {
+							if (listType !== 'ol') {
+								flushList(i);
+								listType = 'ol';
+							}
+							listItems.push(olMatch[1]);
+							continue;
+						}
+
+						flushList(i);
+						renderedElements.push(
+							<p key={i} className="my-1.5 text-slate-300 leading-relaxed text-sm">
+								{renderInlineMarkdown(line)}
+							</p>
+						);
+					}
+					flushList(lines.length);
+					return <Fragment key={index}>{renderedElements}</Fragment>;
+				}
+			})}
+		</div>
+	);
+}
+
 export default function App() {
 	const currentMonthString = new Date().toISOString().substring(0, 7); // "YYYY-MM"
 
@@ -658,7 +805,14 @@ export default function App() {
 		return localStorage.getItem(STORAGE_KEYS.geminiKey) || '';
 	});
 	const [customQuestion, setCustomQuestion] = useState('');
-	const [aiResponse, setAiResponse] = useState('');
+	const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
+		try {
+			const stored = localStorage.getItem(STORAGE_KEYS.aiChat);
+			return stored ? JSON.parse(stored) : [];
+		} catch {
+			return [];
+		}
+	});
 	const [aiLoading, setAiLoading] = useState(false);
 	const [aiError, setAiError] = useState('');
 
@@ -682,6 +836,10 @@ export default function App() {
 	useEffect(() => {
 		localStorage.setItem(STORAGE_KEYS.geminiKey, geminiApiKey);
 	}, [geminiApiKey]);
+
+	useEffect(() => {
+		localStorage.setItem(STORAGE_KEYS.aiChat, JSON.stringify(chatMessages));
+	}, [chatMessages]);
 
 	useEffect(() => {
 		localStorage.setItem('finanzas_v3_userA_name', userAName);
@@ -1645,23 +1803,35 @@ export default function App() {
 	};
 
 	// === INTEGRACIÓN CON GEMINI ===
-	const handleAskGemini = async () => {
+	const handleAskGemini = async (questionText: string) => {
 		if (!geminiApiKey) {
 			setAiError('Por favor, introduce tu API Key de Gemini en el apartado correspondiente.');
 			return;
 		}
+		if (!questionText.trim()) return;
+
 		setAiLoading(true);
 		setAiError('');
-		setAiResponse('');
+
+		const userMsg: ChatMessage = {
+			role: 'user',
+			content: questionText,
+			timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+		};
+		const updatedMessages = [...chatMessages, userMsg];
+		setChatMessages(updatedMessages);
+		setCustomQuestion('');
 
 		const activeKey = geminiApiKey;
 		const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${activeKey}`;
 
 		const financeDataPrompt = `
-      El usuario solicita consejos y auditoría financiera basada en la siguiente estructura real mensual (para dos usuarios conjuntos):
+      Eres un analista financiero experto. Analiza el flujo de caja, balance neto, listado detallado de movimientos (inspecciona los conceptos/descripciones de las transacciones para deducir/corregir si alguna categoría/etiqueta es incorrecta o sugerir mejores agrupaciones) y deudas (tanto activas como futuras, prestando especial atención a préstamos o fraccionamientos que empiecen en meses futuros). Ofrece una respuesta directa, concisa y altamente práctica. Utiliza un formato limpio (negritas, viñetas) y da siempre una crítica rigurosa de los riesgos ocultos en plazos de deudas.
+
+      Contexto financiero mensual actual de la aplicación (para dos usuarios conjuntos):
 
       - Nombres de los Usuarios: ${userAName} y ${userBName}
-      - Vista activa analizada: ${viewMode === 'all' ? 'Conjunta' : viewMode === 'userA' ? `Individual de ${userAName}` : `Individual de ${userBName}`}
+      - Vista activa analizada: ${viewMode === 'all' ? 'Conjunta' : viewMode === 'userA' ? `Individual de ${userAName}` : `Individual de ${viewMode === 'userB' ? userBName : ''}`}
       - Mes Analizado: ${selectedMonth}
       - Total Ingresos (en esta vista): ${totalIncomes.toFixed(2)}€
       - Total Gastos Regulares (en esta vista): ${totalExpenses.toFixed(2)}€
@@ -1706,17 +1876,17 @@ export default function App() {
       `
 					: 'No se ha configurado simulación de reunificación de deudas actualmente.'
 			}
-
-      Pregunta específica del usuario:
-      "${customQuestion || 'Haz un análisis de salud financiera general sobre mi balance y deudas actuales, y dime si me conviene hacer una reunificación con ampliación de capital.'}"
     `;
 
 		const payload = {
-			contents: [{ parts: [{ text: financeDataPrompt }] }],
+			contents: updatedMessages.map((msg) => ({
+				role: msg.role,
+				parts: [{ text: msg.content }]
+			})),
 			systemInstruction: {
 				parts: [
 					{
-						text: 'Eres un analista financiero experto. Analiza el flujo de caja, balance neto, listado detallado de movimientos (inspecciona los conceptos/descripciones de las transacciones para deducir/corregir si alguna categoría/etiqueta es incorrecta o sugerir mejores agrupaciones) y deudas (tanto activas como futuras, prestando especial atención a préstamos o fraccionamientos que empiecen en meses futuros). Ofrece una respuesta directa, concisa y altamente práctica. Utiliza un formato limpio (negritas, viñetas) y da siempre una crítica rigurosa de los riesgos ocultos en plazos de deudas.'
+						text: financeDataPrompt
 					}
 				]
 			}
@@ -1740,7 +1910,7 @@ export default function App() {
 				fetchedText = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No se ha obtenido respuesta de Gemini.';
 				success = true;
 				break;
-			} catch (error) {
+			} catch (error: any) {
 				if (attempt === 5) {
 					setAiError(`Error tras 5 intentos: ${error.message}`);
 					setAiLoading(false);
@@ -1752,8 +1922,20 @@ export default function App() {
 		}
 
 		if (success) {
-			setAiResponse(fetchedText);
+			const aiMsg: ChatMessage = {
+				role: 'model',
+				content: fetchedText,
+				timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+			};
+			setChatMessages((prev) => [...prev, aiMsg]);
 			setAiLoading(false);
+		}
+	};
+
+	const handleClearChat = () => {
+		if (window.confirm('¿Seguro que quieres borrar el historial de la conversación?')) {
+			setChatMessages([]);
+			localStorage.removeItem(STORAGE_KEYS.aiChat);
 		}
 	};
 
@@ -3823,8 +4005,8 @@ export default function App() {
 				{/* 5. ASESOR GEMINI AI */}
 				{activeTab === 'ai' && (
 					<div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-						{/* Panel de Configuración e Input */}
-						<div className="lg:col-span-5 space-y-6">
+						{/* Panel de Configuración e Información Lateral */}
+						<div className="lg:col-span-4 space-y-6">
 							{/* Configuración de API Key */}
 							<div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
 								<h3 className="text-base font-bold text-slate-200 mb-2 flex items-center">
@@ -3858,86 +4040,188 @@ export default function App() {
 								</div>
 							</div>
 
-							{/* Pregunta Personalizada */}
-							<div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-								<h3 className="text-lg font-semibold text-slate-200 mb-4">Consultar al Asesor de FinanzasPro</h3>
-								<p className="text-xs text-slate-400 mb-4">
-									La IA leerá automáticamente tus ingresos del mes ({selectedMonth}), tus etiquetas de gasto, tus
-									préstamos activos y la simulación de reunificación si tienes una activa.
+							{/* Resumen del Contexto Financiero del Mes */}
+							<div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+								<h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+									<svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+										<path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+									</svg>
+									Contexto del Mes ({selectedMonth})
+								</h3>
+								<p className="text-xs text-slate-400 leading-relaxed">
+									Los siguientes datos son incluidos automáticamente en la consulta de fondo para contextualizar la conversación:
 								</p>
-
-								<div className="space-y-4">
-									<textarea
-										rows={4}
-										placeholder="Haz una pregunta específica (ej. ¿Qué gastos de este mes debería priorizar recortar? o Analiza los pros y contras de mi plan de reunificación)"
-										value={customQuestion}
-										onChange={(e) => setCustomQuestion(e.target.value)}
-										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl p-3.5 text-sm text-slate-100 outline-none resize-none placeholder:text-slate-600"
-									/>
-
-									<button
-										onClick={handleAskGemini}
-										disabled={aiLoading}
-										className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
-									>
-										{aiLoading ? (
-											<span className="flex items-center space-x-2">
-												<svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-													<circle
-														className="opacity-25"
-														cx="12"
-														cy="12"
-														r="10"
-														stroke="currentColor"
-														strokeWidth="4"
-													></circle>
-													<path
-														className="opacity-75"
-														fill="currentColor"
-														d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-													></path>
-												</svg>
-												<span>Analizando datos...</span>
-											</span>
-										) : (
-											<>
-												<Icons.Sparkles />
-												<span>Analizar con Gemini IA</span>
-											</>
-										)}
-									</button>
+								<div className="space-y-2 text-xs border-t border-slate-800 pt-3">
+									<div className="flex justify-between">
+										<span className="text-slate-500">Ingresos Totales:</span>
+										<span className="font-semibold text-emerald-400">{totalIncomes.toFixed(2)}€</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-slate-500">Gastos Regulares:</span>
+										<span className="font-semibold text-rose-400">-{totalExpenses.toFixed(2)}€</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-slate-500">Pagos de Deudas:</span>
+										<span className="font-semibold text-amber-500">-{totalMonthlyDebtPayments.toFixed(2)}€</span>
+									</div>
+									<div className="flex justify-between border-t border-slate-850 pt-2 font-semibold">
+										<span className="text-slate-400">Balance Neto:</span>
+										<span className={netMonthlyBalance >= 0 ? 'text-indigo-400' : 'text-rose-500'}>
+											{netMonthlyBalance.toFixed(2)}€
+										</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-slate-500">Deudas Registradas:</span>
+										<span className="font-semibold text-slate-300">{debts.length}</span>
+									</div>
 								</div>
 							</div>
+
+							{/* Acciones Adicionales */}
+							{chatMessages.length > 0 && (
+								<div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+									<h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-3">Opciones de Conversación</h3>
+									<button
+										onClick={handleClearChat}
+										className="w-full py-2 bg-rose-950/20 hover:bg-rose-950/40 border border-rose-900/30 hover:border-rose-900/50 text-rose-400 hover:text-rose-350 font-semibold rounded-xl text-xs transition-all active:scale-95 flex items-center justify-center gap-1.5"
+									>
+										<Icons.Trash />
+										<span>Borrar Historial</span>
+									</button>
+								</div>
+							)}
 						</div>
 
-						{/* Resultado de la IA */}
-						<div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-6">
-							<h3 className="text-lg font-bold text-slate-200 mb-4 flex items-center gap-2">
-								<span className="text-indigo-400">
-									<Icons.Sparkles />
-								</span>
-								Análisis y Recomendaciones de la IA
-							</h3>
-
-							{aiError && (
-								<div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm rounded-xl mb-4">
-									{aiError}
-								</div>
-							)}
-
-							{aiResponse ? (
-								<div className="bg-slate-950 p-6 rounded-xl border border-slate-800 text-sm leading-relaxed text-slate-300 max-h-[500px] overflow-y-auto whitespace-pre-wrap">
-									{aiResponse}
-								</div>
-							) : (
-								<div className="h-64 flex flex-col items-center justify-center text-slate-500 border border-dashed border-slate-800 rounded-xl bg-slate-950/40">
-									<Icons.Sparkles />
-									<p className="text-sm mt-3 font-semibold">Esperando análisis...</p>
-									<p className="text-xs text-slate-600 max-w-xs text-center mt-1">
-										Configura tu API Key e inicia la consulta para recibir consejos financieros personalizados.
+						{/* Ventana de Chat */}
+						<div className="lg:col-span-8 bg-slate-900 border border-slate-800 rounded-2xl h-[550px] flex flex-col overflow-hidden">
+							{/* Cabecera del Chat */}
+							<div className="p-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center">
+								<div>
+									<h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+										<Icons.Sparkles />
+										Asesor Gemini
+									</h3>
+									<p className="text-[10px] text-slate-500">
+										Análisis financiero avanzado en base a tus movimientos y deudas
 									</p>
 								</div>
+								<span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/25">
+									Contexto Activo
+								</span>
+							</div>
+
+							{/* Cuerpo del Chat */}
+							{chatMessages.length === 0 ? (
+								<div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-500 space-y-4">
+									<div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 shadow-md">
+										<Icons.Sparkles />
+									</div>
+									<div>
+										<p className="text-sm font-bold text-slate-350">Comienza a planificar tu mes</p>
+										<p className="text-xs text-slate-500 max-w-xs mt-1 leading-relaxed">
+											Pregúntame sobre tu balance del mes, recomendaciones de ahorro, o el impacto de tus deudas y simulaciones.
+										</p>
+									</div>
+									<div className="flex flex-wrap gap-2 justify-center max-w-md pt-2">
+										{[
+											'¿Cómo está mi salud financiera este mes?',
+											'¿Tengo deudas con alto coste de intereses?',
+											'¿Cómo puedo recortar gastos comunes?',
+											'Analiza la reunificación de deudas propuesta.'
+										].map((q) => (
+											<button
+												key={q}
+												onClick={() => {
+													setCustomQuestion(q);
+													handleAskGemini(q);
+												}}
+												disabled={aiLoading}
+												className="px-3 py-1.5 bg-slate-950 border border-slate-800 hover:border-indigo-500/30 text-slate-300 hover:text-white rounded-lg text-[11px] font-medium transition-all text-left shadow-sm active:scale-95"
+											>
+												{q}
+											</button>
+										))}
+									</div>
+								</div>
+							) : (
+								<div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950/20">
+									{chatMessages.map((msg, idx) => (
+										<div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+											<div className="flex items-center space-x-1.5 mb-1.5">
+												<span className="text-[10px] text-slate-400 font-bold">
+													{msg.role === 'user' ? 'Tú' : 'Asesor Gemini'}
+												</span>
+												<span className="text-[9px] text-slate-650 font-mono">({msg.timestamp})</span>
+											</div>
+											<div
+												className={`p-3.5 rounded-2xl text-sm leading-relaxed max-w-[85%] ${
+													msg.role === 'user'
+														? 'bg-indigo-600 text-white rounded-tr-none shadow-md shadow-indigo-600/10'
+														: 'bg-slate-900 border border-slate-800 text-slate-350 rounded-tl-none shadow-sm'
+												}`}
+											>
+												{msg.role === 'user' ? (
+													<div className="whitespace-pre-wrap">{msg.content}</div>
+												) : (
+													<MarkdownRenderer text={msg.content} />
+												)}
+											</div>
+										</div>
+									))}
+									{aiLoading && (
+										<div className="flex flex-col items-start">
+											<div className="flex items-center space-x-1.5 mb-1.5">
+												<span className="text-[10px] text-slate-400 font-bold">Asesor Gemini</span>
+												<span className="text-[9px] text-indigo-400 animate-pulse font-medium">escribiendo...</span>
+											</div>
+											<div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl rounded-tl-none text-sm text-slate-400 shadow-md flex items-center space-x-2">
+												<svg className="animate-spin h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24">
+													<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+													<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+												</svg>
+												<span className="animate-pulse">Analizando flujo de caja...</span>
+											</div>
+										</div>
+									)}
+									{aiError && (
+										<div className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-450 text-xs rounded-xl">
+											{aiError}
+										</div>
+									)}
+								</div>
 							)}
+
+							{/* Formulario de Input al pie */}
+							<form
+								onSubmit={(e) => {
+									e.preventDefault();
+									handleAskGemini(customQuestion);
+								}}
+								className="p-3 bg-slate-900 border-t border-slate-800 flex gap-2 items-end"
+							>
+								<textarea
+									rows={1}
+									value={customQuestion}
+									onChange={(e) => setCustomQuestion(e.target.value)}
+									onKeyDown={(e) => {
+										if (e.key === 'Enter' && !e.shiftKey) {
+											e.preventDefault();
+											handleAskGemini(customQuestion);
+										}
+									}}
+									placeholder={geminiApiKey ? "Escribe tu consulta sobre finanzas..." : "Configura tu API Key para empezar"}
+									disabled={!geminiApiKey}
+									className="flex-1 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none resize-none placeholder:text-slate-650 max-h-24 overflow-y-auto disabled:opacity-40 disabled:cursor-not-allowed"
+								/>
+								<button
+									type="submit"
+									disabled={aiLoading || !customQuestion.trim() || !geminiApiKey}
+									className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-md shadow-indigo-600/10"
+								>
+									<Icons.Sparkles />
+									<span className="hidden sm:inline">Enviar</span>
+								</button>
+							</form>
 						</div>
 					</div>
 				)}
