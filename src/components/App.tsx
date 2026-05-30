@@ -602,10 +602,10 @@ function MainAppContent() {
 					<>
 						{/* BARRA DE CONTROL DE TIEMPO Y BALANCE */}
 						<div
-							className={`flex-col md:flex-row md:items-center justify-between gap-4 mb-6 p-4 premium-card rounded-2xl ${activeTab === 'ai' ? 'hidden lg:flex' : 'flex'}`}
+							className={`flex items-center justify-between gap-3 mb-4 lg:mb-6 p-2 lg:p-3 premium-card rounded-xl lg:rounded-2xl ${activeTab === 'ai' ? 'hidden lg:flex' : 'flex'}`}
 						>
-							<div className="flex flex-wrap items-center gap-2">
-								<span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mes Activo:</span>
+							<div className="flex items-center gap-1.5 shrink-0">
+								<span className="text-[10px] lg:text-xs font-semibold text-slate-400 uppercase tracking-wider hidden sm:inline">Mes:</span>
 								<select
 									id="global-month-selector"
 									value={selectedMonth}
@@ -614,7 +614,7 @@ function MainAppContent() {
 										setTxForm((prev) => ({ ...prev, date: `${e.target.value}-01` }));
 										setDebtForm((prev) => ({ ...prev, date: e.target.value }));
 									}}
-									className="bg-slate-950/65 text-slate-100 border border-slate-800 rounded-lg px-3 py-1.5 text-xs font-mono font-bold outline-none focus:border-indigo-500"
+									className="bg-slate-950/60 text-slate-100 border border-slate-800 rounded-lg px-2 py-1 lg:px-3 lg:py-1.5 text-xs font-mono font-bold outline-none focus:border-indigo-500 cursor-pointer"
 								>
 									{[...periods]
 										.sort((a, b) => a.month.localeCompare(b.month))
@@ -626,41 +626,46 @@ function MainAppContent() {
 								</select>
 								<button
 									onClick={handleCreateNextMonth}
-									className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-all flex items-center shadow-md active:scale-95"
+									className="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-400 hover:text-indigo-305 border border-indigo-500/20 p-1 lg:p-1.5 rounded-lg transition-all flex items-center justify-center shadow-sm active:scale-95"
 									title="Crear mes siguiente bajo demanda"
 								>
-									<Icons.Plus className="w-3.5 h-3.5 mr-1" /> <span>Siguiente Mes</span>
+									<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+										<path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+									</svg>
 								</button>
 							</div>
 
-							<div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 self-center">
+							<div className="flex bg-slate-950/80 p-0.5 lg:p-1 rounded-lg lg:rounded-xl border border-slate-850">
 								<button
 									onClick={() => setViewMode('all')}
-									className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+									className={`px-2 py-1 lg:px-4 lg:py-1.5 rounded-md lg:rounded-lg text-[10px] lg:text-xs font-semibold transition-all ${
 										viewMode === 'all' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
 									}`}
 								>
-									Conjunto
+									<span className="hidden sm:inline">Conjunto</span>
+									<span className="sm:hidden">Conj.</span>
 								</button>
 								<button
 									onClick={() => setViewMode('userA')}
-									className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+									className={`px-2 py-1 lg:px-4 lg:py-1.5 rounded-md lg:rounded-lg text-[10px] lg:text-xs font-semibold transition-all ${
 										viewMode === 'userA' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
 									}`}
 								>
-									{userAName}
+									<span className="hidden sm:inline">{userAName}</span>
+									<span className="sm:hidden">{userAName ? userAName.substring(0, 3) : 'A'}</span>
 								</button>
 								<button
 									onClick={() => setViewMode('userB')}
-									className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+									className={`px-2 py-1 lg:px-4 lg:py-1.5 rounded-md lg:rounded-lg text-[10px] lg:text-xs font-semibold transition-all ${
 										viewMode === 'userB' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
 									}`}
 								>
-									{userBName}
+									<span className="hidden sm:inline">{userBName}</span>
+									<span className="sm:hidden">{userBName ? userBName.substring(0, 3) : 'B'}</span>
 								</button>
 							</div>
 
-							<div>
+							<div className="shrink-0">
 								<button
 									onClick={() => {
 										const sorted = [...periods].sort((a, b) => a.month.localeCompare(b.month));
@@ -671,14 +676,15 @@ function MainAppContent() {
 										setReconfigAccounts(accounts.map((acc) => ({ ...acc })));
 										setIsReconfiguring(true);
 									}}
-									className="px-3 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-750 text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
+									className="p-1.5 lg:px-3 lg:py-1.5 bg-slate-900/60 hover:bg-slate-800/80 text-slate-350 hover:text-white border border-slate-800 rounded-lg lg:rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
+									title="Reconfigurar Cuenta"
 								>
 									<svg
-										className="w-3.5 h-3.5 text-slate-400"
+										className="w-3.5 h-3.5 text-slate-450 shrink-0"
 										fill="none"
 										viewBox="0 0 24 24"
 										stroke="currentColor"
-										strokeWidth={2}
+										strokeWidth={2.25}
 									>
 										<path
 											strokeLinecap="round"
@@ -687,7 +693,7 @@ function MainAppContent() {
 										/>
 										<path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
 									</svg>
-									<span>Reconfigurar Cuenta</span>
+									<span className="hidden lg:inline text-xs font-semibold">Configurar</span>
 								</button>
 							</div>
 						</div>
