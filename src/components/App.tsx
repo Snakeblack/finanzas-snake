@@ -914,6 +914,34 @@ function MainAppContent() {
 							</div>
 
 							<div>
+								<label className="block text-xs font-medium text-slate-400 mb-1.5">Recurrencia</label>
+								<div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+									<button
+										type="button"
+										onClick={() => setEditForm({ ...editForm, recurrence: 'one-off' })}
+										className={`py-2 rounded-lg text-xs font-semibold transition-all ${
+											editForm.recurrence === 'one-off' || !editForm.recurrence
+												? 'bg-indigo-600 text-white shadow-md'
+												: 'text-slate-400 hover:text-slate-200'
+										}`}
+									>
+										Puntual
+									</button>
+									<button
+										type="button"
+										onClick={() => setEditForm({ ...editForm, recurrence: 'recurring' })}
+										className={`py-2 rounded-lg text-xs font-semibold transition-all ${
+											editForm.recurrence === 'recurring'
+												? 'bg-indigo-600 text-white shadow-md'
+												: 'text-slate-400 hover:text-slate-200'
+										}`}
+									>
+										Recurrente
+									</button>
+								</div>
+							</div>
+
+							<div>
 								<label htmlFor="edit-desc" className="block text-xs font-medium text-slate-400 mb-1.5">
 									Concepto
 								</label>

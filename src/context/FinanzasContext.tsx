@@ -14,7 +14,8 @@ import type {
 	InstallmentStatus,
 	ClassicDebt,
 	PaymentPlanDebt,
-	TagBreakdown
+	TagBreakdown,
+	TransactionRecurrence
 } from '../types';
 import { DEFAULT_TAGS, STORAGE_KEYS, LEGACY_DATA_KEYS } from '../constants';
 import { 
@@ -737,8 +738,11 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			toAccountId: editForm.type === 'transfer' ? editForm.toAccountId : undefined
 		};
 
-		setTransactions((prev) =>
-			prev.map((t) => {
+		const wasOneOff = editingTx.recurrence !== 'recurring';
+		const isNowRecurring = editForm.recurrence === 'recurring';
+
+		setTransactions((prev) => {
+			let updatedTxs = prev.map((t): Transaction => {
 				const isTarget = t.id === editingTx.id;
 				
 				if (editingTx.recurrence === 'recurring') {
@@ -758,21 +762,27 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 							t.id === editingTx.id ||
 							(t.originId === rootId && t.date.substring(0, 7) >= currentMonth);
 						if (isFutureOccurrence) {
+							const targetRecurrence: TransactionRecurrence = editForm.recurrence || 'one-off';
 							return {
 								...t,
 								...updatedFields,
 								amount: updatedAmount,
-								date: t.id === editingTx.id ? editForm.date : t.date
+								date: t.id === editingTx.id ? editForm.date : t.date,
+								recurrence: targetRecurrence,
+								originId: targetRecurrence === 'recurring' ? t.originId : undefined
 							};
 						}
 					} else if (editScope === 'all') {
 						const isAnyOccurrence = t.id === rootId || t.originId === rootId;
 						if (isAnyOccurrence) {
+							const targetRecurrence: TransactionRecurrence = editForm.recurrence || 'one-off';
 							return {
 								...t,
 								...updatedFields,
 								amount: updatedAmount,
-								date: t.id === editingTx.id ? editForm.date : t.date
+								date: t.id === editingTx.id ? editForm.date : t.date,
+								recurrence: targetRecurrence,
+								originId: targetRecurrence === 'recurring' ? t.originId : undefined
 							};
 						}
 					}
@@ -783,13 +793,41 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 							...updatedFields,
 							amount: updatedAmount,
 							date: editForm.date,
-							recurrence: editForm.recurrence || 'one-off'
+							recurrence: (editForm.recurrence || 'one-off') as TransactionRecurrence
 						};
 					}
 				}
 				return t;
-			})
-		);
+			});
+
+			if (wasOneOff && isNowRecurring) {
+				const currentMonth = editForm.date.substring(0, 7);
+				const dayPart = editForm.date.substring(8, 10);
+				const futureMonths = periods
+					.map((p) => p.month)
+					.filter((m) => m > currentMonth)
+					.sort();
+
+				const propagatedClones: Transaction[] = [];
+				futureMonths.forEach((m) => {
+					const cloneId = `${editingTx.id}-${m}`;
+					if (!updatedTxs.some((t) => t.id === cloneId)) {
+						propagatedClones.push({
+							...editingTx,
+							...updatedFields,
+							amount: updatedAmount,
+							id: cloneId,
+							date: getValidDateForMonth(m, dayPart),
+							recurrence: 'recurring',
+							originId: editingTx.id
+						});
+					}
+				});
+				updatedTxs = [...propagatedClones, ...updatedTxs];
+			}
+
+			return updatedTxs;
+		});
 
 		setEditingTx(null);
 	};
