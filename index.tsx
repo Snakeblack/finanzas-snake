@@ -2,8 +2,9 @@ import { useState, useEffect, type SyntheticEvent } from 'react';
 
 // === CONSTANTES Y VALORES POR DEFECTO ===
 const DEFAULT_TAGS = {
-	income: ['Sueldo', 'Inversiones', 'Freelance', 'Otros Ingresos'],
-	expense: ['Alquiler/Hipoteca', 'Alimentación', 'Transporte', 'Suministros', 'Ocio', 'Salud', 'Otros Gastos'],
+	income: ['Sueldo', 'Inversiones', 'Freelance', 'Bizum/Regalo', 'Reembolso', 'Otros Ingresos'],
+	expense: ['Alquiler/Hipoteca', 'Alimentación', 'Transporte', 'Suministros', 'Ocio/Restauración', 'Suscripciones', 'Salud/Belleza', 'Educación', 'Viajes', 'Compras/Ropa', 'Otros Gastos'],
+	transfer: ['Traspaso', 'Ahorro/Inversión', 'Gasto Común', 'Ajuste de Saldo', 'Otros Traspasos'],
 	debt: ['Hipoteca', 'Préstamo Coche', 'Tarjeta de Crédito', 'Préstamo Personal', 'Otros Préstamos']
 } as const;
 
@@ -161,6 +162,35 @@ const toNumber = (value: NumericInput | undefined) => {
 	return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const deduceTagFromConcept = (concept: string, type: TransactionType): string | null => {
+	const lower = concept.toLowerCase().trim();
+	if (!lower) return null;
+
+	if (type === 'income') {
+		if (lower.includes('sueldo') || lower.includes('nómina') || lower.includes('nomina') || lower.includes('salary') || lower.includes('empresa')) return 'Sueldo';
+		if (lower.includes('inversion') || lower.includes('dividend') || lower.includes('interes') || lower.includes('cripto') || lower.includes('crypto')) return 'Inversiones';
+		if (lower.includes('freelance') || lower.includes('proyecto') || lower.includes('autónomo') || lower.includes('curro')) return 'Freelance';
+		if (lower.includes('bizum') || lower.includes('regalo') || lower.includes('donación')) return 'Bizum/Regalo';
+		if (lower.includes('reembolso') || lower.includes('devolucion') || lower.includes('refund')) return 'Reembolso';
+	} else if (type === 'expense') {
+		if (lower.includes('alquiler') || lower.includes('hipoteca') || lower.includes('rent') || lower.includes('comunidad')) return 'Alquiler/Hipoteca';
+		if (lower.includes('mercadona') || lower.includes('carrefour') || lower.includes('lidl') || lower.includes('dia') || lower.includes('supermercado') || lower.includes('comida') || lower.includes('alimentacion') || lower.includes('compra') || lower.includes('alcampo') || lower.includes('ahorramas') || lower.includes('fruta') || lower.includes('panadería')) return 'Alimentación';
+		if (lower.includes('gasolina') || lower.includes('uber') || lower.includes('cabify') || lower.includes('metro') || lower.includes('bus') || lower.includes('tren') || lower.includes('taxi') || lower.includes('peaje') || lower.includes('parking') || lower.includes('renfe')) return 'Transporte';
+		if (lower.includes('luz') || lower.includes('agua') || lower.includes('gas') || lower.includes('internet') || lower.includes('telefono') || lower.includes('móvil') || lower.includes('fibra') || lower.includes('electricidad') || lower.includes('iberdrola') || lower.includes('endesa') || lower.includes('naturgy')) return 'Suministros';
+		if (lower.includes('cine') || lower.includes('restaurante') || lower.includes('bar') || lower.includes('ocio') || lower.includes('fiesta') || lower.includes('concierto') || lower.includes('cerveza') || lower.includes('cafe') || lower.includes('burger') || lower.includes('pizza') || lower.includes('cañas') || lower.includes('copas') || lower.includes('pub')) return 'Ocio/Restauración';
+		if (lower.includes('netflix') || lower.includes('spotify') || lower.includes('prime') || lower.includes('suscripcion') || lower.includes('hbo') || lower.includes('disney') || lower.includes('youtube premium')) return 'Suscripciones';
+		if (lower.includes('medico') || lower.includes('farmacia') || lower.includes('salud') || lower.includes('dentista') || lower.includes('optica') || lower.includes('doctor') || lower.includes('clinica')) return 'Salud/Belleza';
+		if (lower.includes('colegio') || lower.includes('universidad') || lower.includes('curso') || lower.includes('academia') || lower.includes('libro') || lower.includes('estudio') || lower.includes('educacion')) return 'Educación';
+		if (lower.includes('viaje') || lower.includes('vuelo') || lower.includes('hotel') || lower.includes('booking') || lower.includes('vacaciones') || lower.includes('airbnb') || lower.includes('avion')) return 'Viajes';
+		if (lower.includes('ropa') || lower.includes('zara') || lower.includes('hm ') || lower.includes('nike') || lower.includes('amazon') || lower.includes('tienda') || lower.includes('shopping') || lower.includes('compras')) return 'Compras/Ropa';
+	} else if (type === 'transfer') {
+		if (lower.includes('ahorro') || lower.includes('hucha') || lower.includes('inversion') || lower.includes('crypto') || lower.includes('cripto') || lower.includes('deposito')) return 'Ahorro/Inversión';
+		if (lower.includes('comun') || lower.includes('compartido') || lower.includes('juntos') || lower.includes('pareja') || lower.includes('casa')) return 'Gasto Común';
+		if (lower.includes('ajuste') || lower.includes('correccion') || lower.includes('cuadrar') || lower.includes('saldo')) return 'Ajuste de Saldo';
+	}
+	return null;
+};
+
 const normalizeMonth = (value?: string) => {
 	return value?.substring(0, 7) || new Date().toISOString().substring(0, 7);
 };
@@ -303,7 +333,7 @@ const migrateTransaction = (rawTransaction: any, index: number): Transaction => 
 		desc: String(rawTransaction?.desc ?? 'Movimiento sin nombre'),
 		amount: Math.abs(toNumber(rawTransaction?.amount)),
 		type,
-		tag: String(rawTransaction?.tag ?? (type === 'transfer' ? 'Traspaso' : DEFAULT_TAGS[type][0])),
+		tag: String(rawTransaction?.tag ?? (type === 'transfer' ? DEFAULT_TAGS.transfer[0] : (type === 'income' ? DEFAULT_TAGS.income[0] : DEFAULT_TAGS.expense[0]))),
 		date: String(rawTransaction?.date ?? new Date().toISOString().substring(0, 10)).substring(0, 10),
 		recurrence: rawTransaction?.recurrence === 'recurring' ? 'recurring' : 'one-off',
 		originId: rawTransaction?.originId ? String(rawTransaction.originId) : undefined,
@@ -1150,7 +1180,7 @@ export default function App() {
 			desc: txForm.desc,
 			amount: Math.abs(parseFloat(txForm.amount)),
 			type: txForm.type,
-			tag: txForm.type === 'transfer' ? 'Traspaso' : txForm.tag,
+			tag: txForm.tag,
 			date: txForm.date,
 			recurrence: txForm.recurrence || 'one-off',
 			owner: effectiveOwner,
@@ -1256,7 +1286,7 @@ export default function App() {
 		const updatedFields = {
 			desc: editForm.desc,
 			type: editForm.type,
-			tag: editForm.type === 'transfer' ? 'Traspaso' : editForm.tag,
+			tag: editForm.tag,
 			owner: effectiveOwner,
 			paidBy: effectivePaidBy,
 			accountId: editForm.type !== 'transfer' && editForm.accountId ? editForm.accountId : undefined,
@@ -1606,11 +1636,12 @@ export default function App() {
 	const newConsolidatedInterests = Math.max(0, newTotalConsolidatedPayment - totalNewPrincipal);
 
 	const describeDebtForPrompt = (debt: Debt) => {
+		const ownerLabel = debt.owner === 'userA' ? userAName : debt.owner === 'userB' ? userBName : 'Conjunta';
 		if (isClassicDebt(debt)) {
-			return `- ${debt.desc}: Préstamo clásico. Capital: ${debt.principal}€, ${getDebtRateLabel(debt)}, Plazo: ${debt.termMonths} meses, Cuota: ${calculateDebtMonthlyPayment(debt).toFixed(2)}€`;
+			return `- ${debt.desc} (Propietario: ${ownerLabel}, Fecha Inicio: ${debt.date}): Préstamo clásico. Capital: ${debt.principal}€, ${getDebtRateLabel(debt)}, Plazo: ${debt.termMonths} meses, Cuota: ${calculateDebtMonthlyPayment(debt).toFixed(2)}€`;
 		}
 
-		return `- ${debt.desc}: Fraccionamiento manual. Importe financiado: ${debt.financedAmount}€, comisiones/intereses: ${debt.fees}€, total pactado: ${debt.totalToPay}€, pendiente: ${getPaymentPlanRemainingAmount(debt).toFixed(2)}€, vencido a ${selectedMonth}: ${getPaymentPlanOverdueAmount(debt, selectedMonth).toFixed(2)}€, flujo exigible este mes: ${calculateDebtMonthlyPayment(debt).toFixed(2)}€`;
+		return `- ${debt.desc} (Propietario: ${ownerLabel}, Fecha Inicio: ${debt.date}): Fraccionamiento manual. Importe financiado: ${debt.financedAmount}€, comisiones/intereses: ${debt.fees}€, total pactado: ${debt.totalToPay}€, pendiente: ${getPaymentPlanRemainingAmount(debt).toFixed(2)}€, vencido a ${selectedMonth}: ${getPaymentPlanOverdueAmount(debt, selectedMonth).toFixed(2)}€, flujo exigible este mes: ${calculateDebtMonthlyPayment(debt).toFixed(2)}€`;
 	};
 
 	// === INTEGRACIÓN CON GEMINI ===
@@ -1642,11 +1673,25 @@ export default function App() {
       - Gastos conjuntos pagados por ${userBName}: ${jointPaidByB.toFixed(2)}€
       - Liquidación: ${netOwed === 0 ? 'Cuentas al día' : netOwed > 0 ? `${userBName} debe a ${userAName} ${netOwed.toFixed(2)}€` : `${userAName} debe a ${userBName} ${Math.abs(netOwed).toFixed(2)}€`}
 
-      Lista de Gastos por Etiqueta (en esta vista):
+      Lista de Gastos Agrupados por Etiqueta (en esta vista):
       ${tagData.map((t) => `- ${t.tag}: ${t.amount.toFixed(2)}€`).join('\n')}
 
-      Deudas Activas:
-      ${filteredDebts.map(describeDebtForPrompt).join('\n')}
+      Listado Detallado de Movimientos (Ingresos y Gastos) de este mes:
+      ${filteredTransactions.length > 0
+        ? filteredTransactions.map((t) => `- Concepto: "${t.desc}", Importe: ${t.amount.toFixed(2)}€, Tipo: ${t.type}, Etiqueta/Categoría actual: "${t.tag}", Propietario: ${t.owner}`).join('\n')
+        : 'No hay movimientos registrados para este mes.'
+      }
+
+      Deudas Registradas (Activas, futuras o pasadas):
+      ${debts.length > 0 
+        ? debts.map((d) => {
+            const isActive = filteredDebts.some((fd) => fd.id === d.id);
+            const isFuture = d.date > selectedMonth;
+            const status = isActive ? 'Activa este mes' : isFuture ? `Futura (empieza en ${d.date})` : 'Finalizada o inactiva en este mes';
+            return `${describeDebtForPrompt(d)} [Estado en ${selectedMonth}: ${status}]`;
+          }).join('\n')
+        : 'No hay deudas registradas.'
+      }
 
       Simulación de Reunificación Actual con Ampliación de Capital:
       ${
@@ -1671,7 +1716,7 @@ export default function App() {
 			systemInstruction: {
 				parts: [
 					{
-						text: 'Eres un analista financiero experto. Analiza el flujo de caja, balance neto y deudas. Ofrece una respuesta directa, concisa y altamente práctica. Utiliza un formato limpio (negritas, viñetas) y da siempre una crítica rigurosa de los riesgos ocultos en plazos de deudas.'
+						text: 'Eres un analista financiero experto. Analiza el flujo de caja, balance neto, listado detallado de movimientos (inspecciona los conceptos/descripciones de las transacciones para deducir/corregir si alguna categoría/etiqueta es incorrecta o sugerir mejores agrupaciones) y deudas (tanto activas como futuras, prestando especial atención a préstamos o fraccionamientos que empiecen en meses futuros). Ofrece una respuesta directa, concisa y altamente práctica. Utiliza un formato limpio (negritas, viñetas) y da siempre una crítica rigurosa de los riesgos ocultos en plazos de deudas.'
 					}
 				]
 			}
@@ -2461,7 +2506,7 @@ export default function App() {
 										</button>
 										<button
 											type="button"
-											onClick={() => setTxForm({ ...txForm, type: 'transfer', tag: 'Traspaso' })}
+											onClick={() => setTxForm({ ...txForm, type: 'transfer', tag: DEFAULT_TAGS.transfer[0] })}
 											className={`py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 												txForm.type === 'transfer'
 													? 'bg-sky-500 text-white shadow-md'
@@ -2514,7 +2559,15 @@ export default function App() {
 										required
 										placeholder="Ej. Nómina, Compra semanal..."
 										value={txForm.desc}
-										onChange={(e) => setTxForm({ ...txForm, desc: e.target.value })}
+										onChange={(e) => {
+											const desc = e.target.value;
+											const deduced = deduceTagFromConcept(desc, txForm.type);
+											setTxForm((prev) => ({
+												...prev,
+												desc,
+												tag: deduced || prev.tag
+											}));
+										}}
 										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all placeholder:text-slate-600"
 									/>
 								</div>
@@ -2696,32 +2749,27 @@ export default function App() {
 												</div>
 											</div>
 										)}
-
-										<div>
-											<label htmlFor="tx-tag" className="block text-xs font-medium text-slate-400 mb-1.5">
-												Etiqueta
-											</label>
-											<select
-												id="tx-tag"
-												value={txForm.tag}
-												onChange={(e) => setTxForm({ ...txForm, tag: e.target.value })}
-												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
-											>
-												{txForm.type === 'income'
-													? DEFAULT_TAGS.income.map((tag) => (
-															<option key={tag} value={tag}>
-																{tag}
-															</option>
-														))
-													: DEFAULT_TAGS.expense.map((tag) => (
-															<option key={tag} value={tag}>
-																{tag}
-															</option>
-														))}
-											</select>
-										</div>
 									</>
 								)}
+
+								<div>
+									<label htmlFor="tx-tag" className="block text-xs font-medium text-slate-400 mb-1.5">
+										Etiqueta
+									</label>
+									<input
+										id="tx-tag"
+										list="tx-tags-list"
+										value={txForm.tag}
+										onChange={(e) => setTxForm({ ...txForm, tag: e.target.value })}
+										placeholder="Elige o escribe una etiqueta"
+										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
+									/>
+									<datalist id="tx-tags-list">
+										{DEFAULT_TAGS[txForm.type].map((tag) => (
+											<option key={tag} value={tag} />
+										))}
+									</datalist>
+								</div>
 
 								<button
 									type="submit"
@@ -4125,7 +4173,7 @@ export default function App() {
 										</button>
 										<button
 											type="button"
-											onClick={() => setEditForm({ ...editForm, type: 'transfer', tag: 'Traspaso' })}
+											onClick={() => setEditForm({ ...editForm, type: 'transfer', tag: DEFAULT_TAGS.transfer[0] })}
 											className={`py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 												editForm.type === 'transfer'
 													? 'bg-sky-500 text-white shadow-md'
@@ -4146,7 +4194,15 @@ export default function App() {
 										type="text"
 										required
 										value={editForm.desc}
-										onChange={(e) => setEditForm({ ...editForm, desc: e.target.value })}
+										onChange={(e) => {
+											const desc = e.target.value;
+											const deduced = deduceTagFromConcept(desc, editForm.type);
+											setEditForm((prev) => ({
+												...prev,
+												desc,
+												tag: deduced || prev.tag
+											}));
+										}}
 										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-600"
 									/>
 								</div>
@@ -4327,32 +4383,27 @@ export default function App() {
 												</div>
 											</div>
 										)}
-
-										<div>
-											<label htmlFor="edit-tag" className="block text-xs font-medium text-slate-400 mb-1.5">
-												Etiqueta
-											</label>
-											<select
-												id="edit-tag"
-												value={editForm.tag}
-												onChange={(e) => setEditForm({ ...editForm, tag: e.target.value })}
-												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
-											>
-												{editForm.type === 'income'
-													? DEFAULT_TAGS.income.map((tag) => (
-															<option key={tag} value={tag}>
-																{tag}
-															</option>
-														))
-													: DEFAULT_TAGS.expense.map((tag) => (
-															<option key={tag} value={tag}>
-																{tag}
-															</option>
-														))}
-											</select>
-										</div>
 									</>
 								)}
+
+								<div>
+									<label htmlFor="edit-tag" className="block text-xs font-medium text-slate-400 mb-1.5">
+										Etiqueta
+									</label>
+									<input
+										id="edit-tag"
+										list="edit-tags-list"
+										value={editForm.tag}
+										onChange={(e) => setEditForm({ ...editForm, tag: e.target.value })}
+										placeholder="Elige o escribe una etiqueta"
+										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
+									/>
+									<datalist id="edit-tags-list">
+										{DEFAULT_TAGS[editForm.type].map((tag) => (
+											<option key={tag} value={tag} />
+										))}
+									</datalist>
+								</div>
 
 								{/* Rango de Edición para recurrentes */}
 								{editingTx.recurrence === 'recurring' && (
