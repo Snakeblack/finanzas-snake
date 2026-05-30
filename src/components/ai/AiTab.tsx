@@ -160,7 +160,7 @@ export function AiTab() {
 			{/* Ventana de Chat */}
 			<div className={`lg:col-span-8 premium-card rounded-2xl flex flex-col overflow-hidden lg:h-full flex-1 min-h-0 ${activeMobileView === 'chat' ? 'flex' : 'hidden lg:flex'}`}>
 				{/* Cabecera del Chat */}
-				<div className="p-4 bg-slate-950/40 border-b border-slate-800/40 flex justify-between items-center">
+				<div className="p-4 bg-slate-950/40 border-b border-slate-800/40 flex justify-between items-center shrink-0">
 					<div>
 						<h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
 							<Icons.Sparkles />
@@ -230,7 +230,7 @@ export function AiTab() {
 
 				{/* Cuerpo del Chat */}
 				{chatMessages.length === 0 ? (
-					<div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-500 space-y-4 overflow-y-auto">
+					<div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-500 space-y-4 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
 						<div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 shadow-md">
 							<Icons.Sparkles />
 						</div>
@@ -262,7 +262,7 @@ export function AiTab() {
 						</div>
 					</div>
 				) : (
-					<div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950/20">
+					<div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950/20" style={{ WebkitOverflowScrolling: 'touch' }}>
 						{chatMessages.map((msg, idx) => (
 							<div key={idx} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
 								<div className="flex items-center space-x-1.5 mb-1.5">
@@ -315,7 +315,7 @@ export function AiTab() {
 						e.preventDefault();
 						handleAskGemini(customQuestion);
 					}}
-					className="p-3 bg-slate-950/40 border-t border-slate-800/40 flex gap-2 items-end"
+					className="p-3 bg-slate-950/40 border-t border-slate-800/40 flex gap-2 items-end shrink-0"
 				>
 					<textarea
 						rows={1}

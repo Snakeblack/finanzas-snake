@@ -691,7 +691,7 @@ function MainAppContent() {
 						</section>
 
 						{/* CONTENIDOS DE PESTAÑAS */}
-						<div key={activeTab} className="tab-transition flex-1 flex flex-col">
+						<div key={activeTab} className="tab-transition flex-1 flex flex-col min-h-0">
 							{activeTab === 'overview' && <OverviewTab />}
 							{activeTab === 'transactions' && <TransactionsTab />}
 							{activeTab === 'debts' && <DebtsTab />}
