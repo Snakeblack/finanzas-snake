@@ -30,10 +30,13 @@ type NumericInput = number | string;
 type RateMode = 'tae' | 'tin';
 type DebtKind = 'classic' | 'paymentPlan';
 type InstallmentStatus = 'pending' | 'paid';
+type TransactionRecurrence = 'one-off' | 'recurring';
 
 type Period = {
 	month: string;
 	openingBalance: number;
+	openingBalanceA?: number;
+	openingBalanceB?: number;
 	isManualInit?: boolean;
 };
 
@@ -44,6 +47,10 @@ type Transaction = {
 	type: TransactionType;
 	tag: string;
 	date: string;
+	recurrence?: TransactionRecurrence;
+	originId?: string;
+	owner?: 'userA' | 'userB' | 'joint';
+	paidBy?: 'userA' | 'userB' | 'shared';
 };
 
 type DebtBase = {
@@ -52,6 +59,7 @@ type DebtBase = {
 	desc: string;
 	tag: string;
 	date: string;
+	owner?: 'userA' | 'userB' | 'joint';
 };
 
 type ClassicDebt = DebtBase & {
@@ -86,6 +94,9 @@ type TxForm = {
 	type: TransactionType;
 	tag: string;
 	date: string;
+	recurrence?: TransactionRecurrence;
+	owner: 'userA' | 'userB' | 'joint';
+	paidBy: 'userA' | 'userB' | 'shared';
 };
 
 type PaymentPlanTrancheForm = {
@@ -106,6 +117,7 @@ type DebtForm = {
 	tranches: PaymentPlanTrancheForm[];
 	tag: string;
 	date: string;
+	owner: 'userA' | 'userB' | 'joint';
 };
 
 type ConsolidationForm = {
@@ -144,6 +156,15 @@ const addMonthsToMonth = (month: string, monthsToAdd: number) => {
 	return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 };
 
+const getValidDateForMonth = (monthStr: string, preferredDayStr: string) => {
+	const [year, monthIndex] = monthStr.split('-').map(Number);
+	const preferredDay = parseInt(preferredDayStr, 10);
+	const lastDayOfMonth = new Date(year, monthIndex, 0).getDate();
+	const clampedDay = Math.min(preferredDay, lastDayOfMonth);
+	const dayStr = String(clampedDay).padStart(2, '0');
+	return `${monthStr}-${dayStr}`;
+};
+
 const isClassicDebt = (debt: Debt): debt is ClassicDebt => debt.kind === 'classic';
 const isPaymentPlanDebt = (debt: Debt): debt is PaymentPlanDebt => debt.kind === 'paymentPlan';
 const hasTin = (debt: ClassicDebt) => toNumber(debt.tin) > 0;
@@ -169,6 +190,7 @@ const migrateDebt = (rawDebt: any): Debt => {
 	const desc = String(rawDebt?.desc ?? 'Deuda sin nombre');
 	const tag = String(rawDebt?.tag ?? DEFAULT_TAGS.debt[0]);
 	const date = normalizeMonth(rawDebt?.date);
+	const owner = rawDebt?.owner === 'userA' || rawDebt?.owner === 'userB' || rawDebt?.owner === 'joint' ? rawDebt.owner : 'joint';
 
 	if (rawDebt?.kind === 'paymentPlan') {
 		const installments: PaymentPlanInstallment[] = Array.isArray(rawDebt.installments)
@@ -189,6 +211,7 @@ const migrateDebt = (rawDebt: any): Debt => {
 			desc,
 			tag,
 			date,
+			owner,
 			financedAmount,
 			fees,
 			totalToPay,
@@ -202,6 +225,7 @@ const migrateDebt = (rawDebt: any): Debt => {
 		desc,
 		tag,
 		date,
+		owner,
 		principal: Math.abs(toNumber(rawDebt?.principal)),
 		tin: rawDebt?.tin === undefined ? undefined : Math.abs(toNumber(rawDebt.tin)),
 		tae: Math.abs(toNumber(rawDebt?.tae)),
@@ -260,7 +284,11 @@ const migrateTransaction = (rawTransaction: any, index: number): Transaction => 
 		amount: Math.abs(toNumber(rawTransaction?.amount)),
 		type,
 		tag: String(rawTransaction?.tag ?? DEFAULT_TAGS[type][0]),
-		date: String(rawTransaction?.date ?? new Date().toISOString().substring(0, 10)).substring(0, 10)
+		date: String(rawTransaction?.date ?? new Date().toISOString().substring(0, 10)).substring(0, 10),
+		recurrence: rawTransaction?.recurrence === 'recurring' ? 'recurring' : 'one-off',
+		originId: rawTransaction?.originId ? String(rawTransaction.originId) : undefined,
+		owner: rawTransaction?.owner === 'userA' || rawTransaction?.owner === 'userB' || rawTransaction?.owner === 'joint' ? rawTransaction.owner : 'joint',
+		paidBy: rawTransaction?.paidBy === 'userA' || rawTransaction?.paidBy === 'userB' || rawTransaction?.paidBy === 'shared' ? rawTransaction.paidBy : 'shared'
 	};
 };
 
@@ -278,7 +306,16 @@ const readStoredPeriods = (existingTx: Transaction[], existingDebts: Debt[]): Pe
 		if (stored) {
 			const parsed = JSON.parse(stored);
 			if (Array.isArray(parsed) && parsed.length > 0) {
-				return parsed;
+				return parsed.map((rawPeriod: any) => {
+					const openingBalance = toNumber(rawPeriod?.openingBalance);
+					return {
+						month: normalizeMonth(rawPeriod?.month),
+						openingBalance,
+						openingBalanceA: rawPeriod?.openingBalanceA !== undefined ? toNumber(rawPeriod.openingBalanceA) : openingBalance / 2,
+						openingBalanceB: rawPeriod?.openingBalanceB !== undefined ? toNumber(rawPeriod.openingBalanceB) : openingBalance / 2,
+						isManualInit: !!rawPeriod?.isManualInit
+					};
+				});
 			}
 		}
 	} catch {}
@@ -306,7 +343,9 @@ const readStoredPeriods = (existingTx: Transaction[], existingDebts: Debt[]): Pe
 	while (iterMonth <= endMonth) {
 		generatedPeriods.push({
 			month: iterMonth,
-			openingBalance: 0
+			openingBalance: 0,
+			openingBalanceA: 0,
+			openingBalanceB: 0
 		});
 		iterMonth = addMonthsToMonth(iterMonth, 1);
 	}
@@ -390,6 +429,15 @@ const Icons = {
 				d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
 			/>
 		</svg>
+	),
+	Edit: () => (
+		<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+			<path
+				strokeLinecap="round"
+				strokeLinejoin="round"
+				d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+			/>
+		</svg>
 	)
 };
 
@@ -397,6 +445,24 @@ export default function App() {
 	const currentMonthString = new Date().toISOString().substring(0, 7); // "YYYY-MM"
 
 	// === ESTADOS GLOBALES ===
+	const [userAName, setUserAName] = useState(() => localStorage.getItem('finanzas_v3_userA_name') || 'Usuario A');
+	const [userBName, setUserBName] = useState(() => localStorage.getItem('finanzas_v3_userB_name') || 'Usuario B');
+	const [viewMode, setViewMode] = useState<'all' | 'userA' | 'userB'>('all');
+
+	// Estados de Edición de Transacción
+	const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+	const [editForm, setEditForm] = useState<TxForm>({
+		desc: '',
+		amount: '',
+		type: 'expense',
+		tag: DEFAULT_TAGS.expense[0],
+		date: `${currentMonthString}-01`,
+		recurrence: 'one-off',
+		owner: 'joint',
+		paidBy: 'shared'
+	});
+	const [editScope, setEditScope] = useState<'only-this' | 'future' | 'all'>('only-this');
+
 	const [periods, setPeriods] = useState<Period[]>(() =>
 		readStoredPeriods(readStoredTransactions(), readStoredDebts())
 	);
@@ -425,7 +491,10 @@ export default function App() {
 		amount: '',
 		type: 'expense',
 		tag: DEFAULT_TAGS.expense[0],
-		date: `${selectedMonth}-01`
+		date: `${selectedMonth}-01`,
+		recurrence: 'one-off',
+		owner: 'joint',
+		paidBy: 'shared'
 	});
 	const [debtForm, setDebtForm] = useState<DebtForm>({
 		kind: 'classic',
@@ -438,7 +507,8 @@ export default function App() {
 		termMonths: '',
 		tranches: [{ id: 'initial-tranche', months: '', amount: '' }],
 		tag: DEFAULT_TAGS.debt[0],
-		date: selectedMonth
+		date: selectedMonth,
+		owner: 'joint'
 	});
 	const [debtFormError, setDebtFormError] = useState('');
 
@@ -446,6 +516,8 @@ export default function App() {
 	const [initFlow, setInitFlow] = useState<'past' | 'current'>('current');
 	const [initMonth, setInitMonth] = useState(currentMonthString);
 	const [initBalance, setInitBalance] = useState('0');
+	const [initBalanceA, setInitBalanceA] = useState('0');
+	const [initBalanceB, setInitBalanceB] = useState('0');
 	const [isReconfiguring, setIsReconfiguring] = useState(false);
 
 	// === SIMULADOR DE REUNIFICACIÓN ===
@@ -486,6 +558,14 @@ export default function App() {
 		localStorage.setItem(STORAGE_KEYS.geminiKey, geminiApiKey);
 	}, [geminiApiKey]);
 
+	useEffect(() => {
+		localStorage.setItem('finanzas_v3_userA_name', userAName);
+	}, [userAName]);
+
+	useEffect(() => {
+		localStorage.setItem('finanzas_v3_userB_name', userBName);
+	}, [userBName]);
+
 	// Auto-generación de periodos faltantes si el mes actual es posterior al último registrado
 	useEffect(() => {
 		if (periods.length === 0) return;
@@ -494,18 +574,33 @@ export default function App() {
 		const currentMonth = new Date().toISOString().substring(0, 7);
 
 		if (currentMonth > latestMonth) {
-			const updated = [...periods];
+			const updatedPeriods = [...periods];
+			let newTransactions = [...transactions];
 			let iter = latestMonth;
 			while (iter < currentMonth) {
+				const prevMonth = iter;
 				iter = addMonthsToMonth(iter, 1);
-				updated.push({
+				updatedPeriods.push({
 					month: iter,
 					openingBalance: 0
 				});
+
+				// Copiar movimientos recurrentes del mes previo al nuevo mes iterado
+				const recurringTxsInPrev = newTransactions.filter(
+					(t) => t.date.substring(0, 7) === prevMonth && t.recurrence === 'recurring'
+				);
+				const cloned = recurringTxsInPrev.map((t) => ({
+					...t,
+					id: `${t.id}-${iter}`,
+					date: getValidDateForMonth(iter, t.date.substring(8, 10)),
+					originId: t.originId || t.id
+				}));
+				newTransactions = [...cloned, ...newTransactions];
 			}
-			setPeriods(updated);
+			setPeriods(updatedPeriods);
+			setTransactions(newTransactions);
 		}
-	}, [periods]);
+	}, [periods, transactions]);
 
 	// === CÁLCULOS FINANCIEROS (SISTEMA FRANCÉS - TIN / TAE) ===
 	const getMonthlyRate = (annualRate: NumericInput, mode: RateMode) => {
@@ -605,28 +700,73 @@ export default function App() {
 	sortedPeriods.forEach((period, idx) => {
 		const m = period.month;
 		const mTx = transactions.filter((t) => t.date.substring(0, 7) === m);
-		const incomes = mTx.filter((t) => t.type === 'income').reduce((sum, t) => sum + toNumber(t.amount), 0);
-		const expenses = mTx.filter((t) => t.type === 'expense').reduce((sum, t) => sum + toNumber(t.amount), 0);
+
+		const getEffectiveAmount = (t: Transaction) => {
+			const owner = t.owner ?? 'joint';
+			if (viewMode === 'all') return toNumber(t.amount);
+			if (viewMode === 'userA') {
+				if (owner === 'userA') return toNumber(t.amount);
+				if (owner === 'joint') return toNumber(t.amount) * 0.5;
+				return 0;
+			}
+			if (viewMode === 'userB') {
+				if (owner === 'userB') return toNumber(t.amount);
+				if (owner === 'joint') return toNumber(t.amount) * 0.5;
+				return 0;
+			}
+			return 0;
+		};
+
+		const incomes = mTx
+			.filter((t) => t.type === 'income')
+			.reduce((sum, t) => sum + getEffectiveAmount(t), 0);
+		const expenses = mTx
+			.filter((t) => t.type === 'expense')
+			.reduce((sum, t) => sum + getEffectiveAmount(t), 0);
+
+		const getEffectiveDebtPayment = (d: Debt, rawPayment: number) => {
+			const owner = d.owner ?? 'joint';
+			if (viewMode === 'all') return rawPayment;
+			if (viewMode === 'userA') {
+				if (owner === 'userA') return rawPayment;
+				if (owner === 'joint') return rawPayment * 0.5;
+				return 0;
+			}
+			if (viewMode === 'userB') {
+				if (owner === 'userB') return rawPayment;
+				if (owner === 'joint') return rawPayment * 0.5;
+				return 0;
+			}
+			return 0;
+		};
 
 		const debtPayments = debts.reduce((sum, d) => {
 			const dStart = normalizeMonth(d.date);
+			let rawPayment = 0;
 			if (isPaymentPlanDebt(d)) {
 				if (dStart <= m) {
-					return sum + calculateDebtMonthlyPayment(d, m);
+					rawPayment = calculateDebtMonthlyPayment(d, m);
 				}
-				return sum;
 			} else {
 				const dEnd = addMonthsToMonth(dStart, d.termMonths - 1);
 				if (m >= dStart && m <= dEnd) {
-					return sum + calculateDebtMonthlyPayment(d, m);
+					rawPayment = calculateDebtMonthlyPayment(d, m);
 				}
-				return sum;
 			}
+			return sum + getEffectiveDebtPayment(d, rawPayment);
 		}, 0);
 
 		let openingBalance = previousClosingBalance;
 		if (idx === 0 || period.isManualInit) {
-			openingBalance = period.openingBalance;
+			const balA = period.openingBalanceA !== undefined ? period.openingBalanceA : period.openingBalance / 2;
+			const balB = period.openingBalanceB !== undefined ? period.openingBalanceB : period.openingBalance / 2;
+			if (viewMode === 'userA') {
+				openingBalance = balA;
+			} else if (viewMode === 'userB') {
+				openingBalance = balB;
+			} else {
+				openingBalance = balA + balB;
+			}
 		}
 
 		const netBalance = incomes - (expenses + debtPayments);
@@ -676,30 +816,36 @@ export default function App() {
 		return getPaymentPlanRemainingAmount(d) > 0 || getPaymentPlanOverdueAmount(d, selectedMonth) > 0;
 	});
 
+	// Gastos conjuntos pagados por cada uno (en el mes activo)
+	const jointPaidByA = filteredTransactions
+		.filter((t) => t.type === 'expense' && t.owner === 'joint' && t.paidBy === 'userA')
+		.reduce((sum, t) => sum + toNumber(t.amount), 0);
+
+	const jointPaidByB = filteredTransactions
+		.filter((t) => t.type === 'expense' && t.owner === 'joint' && t.paidBy === 'userB')
+		.reduce((sum, t) => sum + toNumber(t.amount), 0);
+
+	const netOwed = (jointPaidByA - jointPaidByB) / 2;
+
 	// === GESTORES DE ACCIONES ===
 	const handleInitAccount = (e: SyntheticEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		const balance = parseFloat(initBalance);
-		const parsedBalance = Number.isFinite(balance) ? Math.abs(balance) : 0;
+		const balA = parseFloat(initBalanceA);
+		const parsedA = Number.isFinite(balA) ? Math.abs(balA) : 0;
+		const balB = parseFloat(initBalanceB);
+		const parsedB = Number.isFinite(balB) ? Math.abs(balB) : 0;
+		const totalBalance = parsedA + parsedB;
 
-		if (initFlow === 'current') {
-			const currentMonth = new Date().toISOString().substring(0, 7);
-			const newPeriod: Period = {
-				month: currentMonth,
-				openingBalance: parsedBalance,
-				isManualInit: true
-			};
-			setPeriods([newPeriod]);
-			setSelectedMonth(currentMonth);
-		} else {
-			const newPeriod: Period = {
-				month: initMonth,
-				openingBalance: parsedBalance,
-				isManualInit: true
-			};
-			setPeriods([newPeriod]);
-			setSelectedMonth(initMonth);
-		}
+		const targetMonth = initFlow === 'current' ? new Date().toISOString().substring(0, 7) : initMonth;
+		const newPeriod: Period = {
+			month: targetMonth,
+			openingBalance: totalBalance,
+			openingBalanceA: parsedA,
+			openingBalanceB: parsedB,
+			isManualInit: true
+		};
+		setPeriods([newPeriod]);
+		setSelectedMonth(targetMonth);
 		setIsReconfiguring(false);
 	};
 
@@ -728,7 +874,22 @@ export default function App() {
 			month: nextMonth,
 			openingBalance: 0
 		};
+
+		// Copiar movimientos recurrentes del último mes al nuevo
+		const recurringTxsInLatest = transactions.filter(
+			(t) => t.date.substring(0, 7) === latestMonth && t.recurrence === 'recurring'
+		);
+		const cloned = recurringTxsInLatest.map((t) => ({
+			...t,
+			id: `${t.id}-${nextMonth}`,
+			date: getValidDateForMonth(nextMonth, t.date.substring(8, 10)),
+			originId: t.originId || t.id
+		}));
+
 		setPeriods([...periods, newPeriod]);
+		if (cloned.length > 0) {
+			setTransactions((prev) => [...cloned, ...prev]);
+		}
 		setSelectedMonth(nextMonth);
 	};
 
@@ -736,18 +897,137 @@ export default function App() {
 		e.preventDefault();
 		if (!txForm.desc || !txForm.amount) return;
 
-		const newTx = {
-			id: Date.now().toString(),
+		const newTxId = Date.now().toString();
+		const newTx: Transaction = {
+			id: newTxId,
 			desc: txForm.desc,
 			amount: Math.abs(parseFloat(txForm.amount)),
 			type: txForm.type,
 			tag: txForm.tag,
-			date: txForm.date
+			date: txForm.date,
+			recurrence: txForm.recurrence || 'one-off',
+			owner: txForm.owner,
+			paidBy: txForm.owner === 'joint' ? txForm.paidBy : 'shared'
 		};
 
-		setTransactions([newTx, ...transactions]);
+		let newTransactions = [newTx, ...transactions];
+
+		// Si es recurrente, propagar a todos los meses futuros que ya existan en periods
+		if (newTx.recurrence === 'recurring') {
+			const currentMonth = newTx.date.substring(0, 7);
+			const dayPart = newTx.date.substring(8, 10);
+			const futureMonths = periods
+				.map((p) => p.month)
+				.filter((m) => m > currentMonth)
+				.sort();
+
+			const propagatedClones: Transaction[] = [];
+			futureMonths.forEach((m) => {
+				const cloneId = `${newTxId}-${m}`;
+				propagatedClones.push({
+					...newTx,
+					id: cloneId,
+					date: getValidDateForMonth(m, dayPart),
+					originId: newTxId
+				});
+			});
+			newTransactions = [...propagatedClones, ...newTransactions];
+		}
+
+		setTransactions(newTransactions);
 		// Mantener la fecha del filtro actual para usabilidad
-		setTxForm({ ...txForm, desc: '', amount: '' });
+		setTxForm({ ...txForm, desc: '', amount: '', recurrence: 'one-off', owner: 'joint', paidBy: 'shared' });
+	};
+
+	const handleStartEditTransaction = (tx: Transaction) => {
+		setEditingTx(tx);
+		setEditForm({
+			desc: tx.desc,
+			amount: String(tx.amount),
+			type: tx.type,
+			tag: tx.tag,
+			date: tx.date,
+			recurrence: tx.recurrence || 'one-off',
+			owner: tx.owner || 'joint',
+			paidBy: tx.paidBy || 'shared'
+		});
+		setEditScope('only-this');
+	};
+
+	const handleSaveEditTransaction = (e: SyntheticEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		if (!editingTx || !editForm.desc || !editForm.amount) return;
+
+		const updatedAmount = Math.abs(parseFloat(editForm.amount));
+		const rootId = editingTx.originId || editingTx.id;
+		const currentMonth = editingTx.date.substring(0, 7);
+
+		const updatedFields = {
+			desc: editForm.desc,
+			type: editForm.type,
+			tag: editForm.tag,
+			owner: editForm.owner,
+			paidBy: editForm.owner === 'joint' ? editForm.paidBy : 'shared'
+		};
+
+		setTransactions((prev) =>
+			prev.map((t) => {
+				const isTarget = t.id === editingTx.id;
+				
+				if (editingTx.recurrence === 'recurring') {
+					if (editScope === 'only-this') {
+						if (isTarget) {
+							// Se desvincula de la recurrencia convirtiéndose en puntual
+							return {
+								...t,
+								...updatedFields,
+								amount: updatedAmount,
+								date: editForm.date,
+								recurrence: 'one-off',
+								originId: undefined
+							};
+						}
+					} else if (editScope === 'future') {
+						const isFutureOccurrence =
+							t.id === editingTx.id ||
+							(t.originId === rootId && t.date.substring(0, 7) >= currentMonth);
+						if (isFutureOccurrence) {
+							// Se actualiza el importe y campos pero manteniendo la recurrencia
+							return {
+								...t,
+								...updatedFields,
+								amount: updatedAmount,
+								date: t.id === editingTx.id ? editForm.date : t.date
+							};
+						}
+					} else if (editScope === 'all') {
+						const isAnyOccurrence = t.id === rootId || t.originId === rootId;
+						if (isAnyOccurrence) {
+							return {
+								...t,
+								...updatedFields,
+								amount: updatedAmount,
+								date: t.id === editingTx.id ? editForm.date : t.date
+							};
+						}
+					}
+				} else {
+					// Movimiento no recurrente puntual
+					if (isTarget) {
+						return {
+							...t,
+							...updatedFields,
+							amount: updatedAmount,
+							date: editForm.date,
+							recurrence: editForm.recurrence || 'one-off'
+						};
+					}
+				}
+				return t;
+			})
+		);
+
+		setEditingTx(null);
 	};
 
 	const handleAddDebt = (e: SyntheticEvent<HTMLFormElement>) => {
@@ -769,11 +1049,12 @@ export default function App() {
 				tae: Math.abs(parseFloat(debtForm.tae)),
 				termMonths: Math.abs(parseInt(debtForm.termMonths)),
 				tag: debtForm.tag,
-				date: normalizeMonth(debtForm.date)
+				date: normalizeMonth(debtForm.date),
+				owner: debtForm.owner
 			};
 
 			setDebts([newDebt, ...debts]);
-			setDebtForm({ ...debtForm, desc: '', principal: '', tin: '', tae: '', termMonths: '' });
+			setDebtForm({ ...debtForm, desc: '', principal: '', tin: '', tae: '', termMonths: '', owner: 'joint' });
 			return;
 		}
 
@@ -812,7 +1093,8 @@ export default function App() {
 			totalToPay,
 			installments: generatePaymentPlanInstallments(id, normalizeMonth(debtForm.date), validTranches),
 			tag: debtForm.tag,
-			date: normalizeMonth(debtForm.date)
+			date: normalizeMonth(debtForm.date),
+			owner: debtForm.owner
 		};
 
 		setDebts([newDebt, ...debts]);
@@ -821,11 +1103,33 @@ export default function App() {
 			desc: '',
 			financedAmount: '',
 			fees: '',
-			tranches: [{ id: `tranche-${Date.now()}`, months: '', amount: '' }]
+			tranches: [{ id: `tranche-${Date.now()}`, months: '', amount: '' }],
+			owner: 'joint'
 		});
 	};
 
 	const handleDeleteTransaction = (id: string) => {
+		const targetTx = transactions.find((t) => t.id === id);
+		if (!targetTx) return;
+
+		if (targetTx.recurrence === 'recurring') {
+			const deleteFuture = window.confirm(
+				'Este es un movimiento recurrente. ¿Querés eliminarlo también de los meses futuros?'
+			);
+			if (deleteFuture) {
+				const rootId = targetTx.originId || targetTx.id;
+				const currentMonth = targetTx.date.substring(0, 7);
+				setTransactions(
+					transactions.filter(
+						(t) =>
+							t.id !== id &&
+							!(t.date.substring(0, 7) >= currentMonth && (t.id === rootId || t.originId === rootId))
+					)
+				);
+				return;
+			}
+		}
+
 		setTransactions(transactions.filter((t) => t.id !== id));
 	};
 
@@ -952,15 +1256,22 @@ export default function App() {
 		const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${activeKey}`;
 
 		const financeDataPrompt = `
-      El usuario solicita consejos y auditoría financiera basada en la siguiente estructura real mensual:
-      
+      El usuario solicita consejos y auditoría financiera basada en la siguiente estructura real mensual (para dos usuarios conjuntos):
+
+      - Nombres de los Usuarios: ${userAName} y ${userBName}
+      - Vista activa analizada: ${viewMode === 'all' ? 'Conjunta' : viewMode === 'userA' ? `Individual de ${userAName}` : `Individual de ${userBName}`}
       - Mes Analizado: ${selectedMonth}
-      - Total Ingresos: ${totalIncomes.toFixed(2)}€
-      - Total Gastos Regulares: ${totalExpenses.toFixed(2)}€
-      - Cuota Total Deudas Actuales: ${totalMonthlyDebtPayments.toFixed(2)}€
-      - Balance Neto Mensual Disponible: ${netMonthlyBalance.toFixed(2)}€
-      
-      Lista de Gastos por Etiqueta:
+      - Total Ingresos (en esta vista): ${totalIncomes.toFixed(2)}€
+      - Total Gastos Regulares (en esta vista): ${totalExpenses.toFixed(2)}€
+      - Cuota Total Deudas Actuales (en esta vista): ${totalMonthlyDebtPayments.toFixed(2)}€
+      - Balance Neto Mensual Disponible (en esta vista): ${netMonthlyBalance.toFixed(2)}€
+
+      Estado de Cuentas Conjuntas para el mes:
+      - Gastos conjuntos pagados por ${userAName}: ${jointPaidByA.toFixed(2)}€
+      - Gastos conjuntos pagados por ${userBName}: ${jointPaidByB.toFixed(2)}€
+      - Liquidación: ${netOwed === 0 ? 'Cuentas al día' : netOwed > 0 ? `${userBName} debe a ${userAName} ${netOwed.toFixed(2)}€` : `${userAName} debe a ${userBName} ${Math.abs(netOwed).toFixed(2)}€`}
+
+      Lista de Gastos por Etiqueta (en esta vista):
       ${tagData.map((t) => `- ${t.tag}: ${t.amount.toFixed(2)}€`).join('\n')}
 
       Deudas Activas:
@@ -1225,24 +1536,72 @@ export default function App() {
 								</div>
 							)}
 
-							<div>
-								<label htmlFor="init-balance-input" className="block text-xs font-medium text-slate-400 mb-1.5">
-									Capital Inicial / Balance de Apertura (€)
-								</label>
-								<input
-									id="init-balance-input"
-									type="number"
-									step="0.01"
-									required
-									min="0"
-									placeholder="0.00"
-									value={initBalance}
-									onChange={(e) => setInitBalance(e.target.value)}
-									className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-600"
-								/>
-								<p className="text-[10px] text-slate-500 mt-1">
-									Monto con el que querés arrancar este periodo (por ejemplo, tu saldo bancario actual).
-								</p>
+							<div className="space-y-4 border-t border-slate-800/80 pt-4">
+								<h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Perfiles de Usuario</h3>
+								<div className="grid grid-cols-2 gap-4">
+									<div>
+										<label htmlFor="user-a-name-input" className="block text-[11px] font-medium text-slate-500 mb-1">Nombre {userAName || 'Usuario A'}</label>
+										<input
+											id="user-a-name-input"
+											type="text"
+											required
+											value={userAName}
+											onChange={(e) => setUserAName(e.target.value)}
+											className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-slate-100 outline-none"
+										/>
+									</div>
+									<div>
+										<label htmlFor="user-b-name-input" className="block text-[11px] font-medium text-slate-500 mb-1">Nombre {userBName || 'Usuario B'}</label>
+										<input
+											id="user-b-name-input"
+											type="text"
+											required
+											value={userBName}
+											onChange={(e) => setUserBName(e.target.value)}
+											className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-slate-100 outline-none"
+										/>
+									</div>
+								</div>
+							</div>
+
+							<div className="space-y-4 border-t border-slate-800/80 pt-4">
+								<h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Balances de Apertura (€)</h3>
+								<div className="grid grid-cols-2 gap-4">
+									<div>
+										<label htmlFor="init-balance-a-input" className="block text-[11px] font-medium text-slate-500 mb-1">Saldo inicial {userAName || 'Usuario A'}</label>
+										<input
+											id="init-balance-a-input"
+											type="number"
+											step="0.01"
+											required
+											min="0"
+											placeholder="0.00"
+											value={initBalanceA}
+											onChange={(e) => setInitBalanceA(e.target.value)}
+											className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs text-slate-100 outline-none"
+										/>
+									</div>
+									<div>
+										<label htmlFor="init-balance-b-input" className="block text-[11px] font-medium text-slate-500 mb-1">Saldo inicial {userBName || 'Usuario B'}</label>
+										<input
+											id="init-balance-b-input"
+											type="number"
+											step="0.01"
+											required
+											min="0"
+											placeholder="0.00"
+											value={initBalanceB}
+											onChange={(e) => setInitBalanceB(e.target.value)}
+											className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs text-slate-100 outline-none"
+										/>
+									</div>
+								</div>
+								<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs flex justify-between items-center text-slate-400">
+									<span>Total Conjunto:</span>
+									<span className="font-bold text-slate-200 text-sm">
+										{((parseFloat(initBalanceA) || 0) + (parseFloat(initBalanceB) || 0)).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+									</span>
+								</div>
 							</div>
 
 							<button
@@ -1256,8 +1615,8 @@ export default function App() {
 				) : (
 					<>
 						{/* BARRA DE CONTROL DE TIEMPO Y BALANCE */}
-						<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 p-4 bg-slate-900 border border-slate-800 rounded-2xl">
-							<div className="flex items-center gap-2">
+						<div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 p-4 bg-slate-900 border border-slate-800 rounded-2xl">
+							<div className="flex flex-wrap items-center gap-2">
 								<span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mes Activo:</span>
 								<select
 									id="global-month-selector"
@@ -1285,6 +1644,40 @@ export default function App() {
 									<Icons.Plus /> <span>Siguiente Mes</span>
 								</button>
 							</div>
+
+							<div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 self-center">
+								<button
+									onClick={() => setViewMode('all')}
+									className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+										viewMode === 'all'
+											? 'bg-indigo-600 text-white shadow-md'
+											: 'text-slate-400 hover:text-slate-200'
+									}`}
+								>
+									Conjunto
+								</button>
+								<button
+									onClick={() => setViewMode('userA')}
+									className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+										viewMode === 'userA'
+											? 'bg-indigo-600 text-white shadow-md'
+											: 'text-slate-400 hover:text-slate-200'
+									}`}
+								>
+									{userAName}
+								</button>
+								<button
+									onClick={() => setViewMode('userB')}
+									className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+										viewMode === 'userB'
+											? 'bg-indigo-600 text-white shadow-md'
+											: 'text-slate-400 hover:text-slate-200'
+									}`}
+								>
+									{userBName}
+								</button>
+							</div>
+
 							<div>
 								<button
 									onClick={() => {
@@ -1292,6 +1685,8 @@ export default function App() {
 										if (sorted.length > 0) {
 											setInitMonth(sorted[0].month);
 											setInitBalance(String(sorted[0].openingBalance));
+											setInitBalanceA(String(sorted[0].openingBalanceA ?? (sorted[0].openingBalance / 2)));
+											setInitBalanceB(String(sorted[0].openingBalanceB ?? (sorted[0].openingBalance / 2)));
 											setInitFlow(sorted[0].month === currentMonthString ? 'current' : 'past');
 										}
 										setIsReconfiguring(true);
@@ -1512,6 +1907,60 @@ export default function App() {
 							)}
 						</div>
 
+						{/* Tarjeta: Hacer Cuentas (Liquidación de Gastos Conjuntos) */}
+						<div className="lg:col-span-12 bg-slate-900 border border-slate-800 rounded-2xl p-6">
+							<h3 className="text-lg font-semibold text-slate-200 mb-2 flex items-center gap-2">
+								<svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+									<path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+								</svg>
+								Cuentas del Mes ({selectedMonth})
+							</h3>
+							<p className="text-xs text-slate-400 mb-6">
+								Desglose de los gastos comunes y quién los ha pagado para cuadrar cuentas a final de mes.
+							</p>
+
+							<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+								{/* Columna Usuario A */}
+								<div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+									<div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">Gastos comunes pagados por</div>
+									<div className="text-xl font-bold text-slate-200">{userAName}</div>
+									<div className="text-2xl font-black text-indigo-400 mt-2">{jointPaidByA.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</div>
+									<p className="text-[10px] text-slate-500 mt-1">Aportación correspondiente: {(jointPaidByA / 2).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€ por persona</p>
+								</div>
+
+								{/* Columna Usuario B */}
+								<div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+									<div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">Gastos comunes pagados por</div>
+									<div className="text-xl font-bold text-slate-200">{userBName}</div>
+									<div className="text-2xl font-black text-indigo-400 mt-2">{jointPaidByB.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</div>
+									<p className="text-[10px] text-slate-500 mt-1">Aportación correspondiente: {(jointPaidByB / 2).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€ por persona</p>
+								</div>
+
+								{/* Columna Liquidación */}
+								<div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+									<div>
+										<div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">Estado de Cuentas</div>
+										{netOwed === 0 ? (
+											<div className="text-emerald-400 font-bold text-lg mt-2">¡Cuentas al día!</div>
+										) : netOwed > 0 ? (
+											<div>
+												<div className="text-rose-400 font-bold text-lg mt-1">{userBName} debe a {userAName}</div>
+												<div className="text-3xl font-black text-rose-400 mt-2">{netOwed.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</div>
+											</div>
+										) : (
+											<div>
+												<div className="text-rose-400 font-bold text-lg mt-1">{userAName} debe a {userBName}</div>
+												<div className="text-3xl font-black text-rose-400 mt-2">{Math.abs(netOwed).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</div>
+											</div>
+										)}
+									</div>
+									<p className="text-[10px] text-slate-500 mt-2">
+										Calculado en base a gastos compartidos 50/50 donde uno adelanta el pago.
+									</p>
+								</div>
+							</div>
+						</div>
+
 						{/* Resumen de Deudas Activas */}
 						<div className="lg:col-span-12 bg-slate-900 border border-slate-800 rounded-2xl p-6">
 							<h3 className="text-lg font-semibold text-slate-200 mb-4">Deudas Activas al Mes {selectedMonth}</h3>
@@ -1633,6 +2082,37 @@ export default function App() {
 								</div>
 
 								<div>
+									<label className="block text-xs font-medium text-slate-400 mb-1.5">Recurrencia</label>
+									<div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+										<button
+											type="button"
+											onClick={() => setTxForm({ ...txForm, recurrence: 'one-off' })}
+											className={`py-2 rounded-lg text-xs font-semibold transition-all ${
+												txForm.recurrence === 'one-off' || !txForm.recurrence
+													? 'bg-indigo-600 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											Puntual
+										</button>
+										<button
+											type="button"
+											onClick={() => setTxForm({ ...txForm, recurrence: 'recurring' })}
+											className={`py-2 rounded-lg text-xs font-semibold transition-all ${
+												txForm.recurrence === 'recurring'
+													? 'bg-indigo-600 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											Recurrente
+										</button>
+									</div>
+									<p className="text-[10px] text-slate-500 mt-1">
+										Los movimientos recurrentes se añadirán automáticamente a los meses siguientes.
+									</p>
+								</div>
+
+								<div>
 									<label htmlFor="tx-desc" className="block text-xs font-medium text-slate-400 mb-1.5">
 										Concepto
 									</label>
@@ -1677,6 +2157,86 @@ export default function App() {
 										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 font-mono outline-none"
 									/>
 								</div>
+
+								<div>
+									<label className="block text-xs font-medium text-slate-400 mb-1.5">¿De quién es?</label>
+									<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+										<button
+											type="button"
+											onClick={() => setTxForm({ ...txForm, owner: 'userA' })}
+											className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+												txForm.owner === 'userA'
+													? 'bg-indigo-600 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											{userAName}
+										</button>
+										<button
+											type="button"
+											onClick={() => setTxForm({ ...txForm, owner: 'userB' })}
+											className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+												txForm.owner === 'userB'
+													? 'bg-indigo-600 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											{userBName}
+										</button>
+										<button
+											type="button"
+											onClick={() => setTxForm({ ...txForm, owner: 'joint' })}
+											className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+												txForm.owner === 'joint' || !txForm.owner
+													? 'bg-indigo-600 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											Conjunto
+										</button>
+									</div>
+								</div>
+
+								{txForm.owner === 'joint' && txForm.type === 'expense' && (
+									<div>
+										<label className="block text-xs font-medium text-slate-400 mb-1.5">Pagado por</label>
+										<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+											<button
+												type="button"
+												onClick={() => setTxForm({ ...txForm, paidBy: 'userA' })}
+												className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+													txForm.paidBy === 'userA'
+														? 'bg-slate-750 text-white shadow-md'
+														: 'text-slate-400 hover:text-slate-200'
+												}`}
+											>
+												{userAName}
+											</button>
+											<button
+												type="button"
+												onClick={() => setTxForm({ ...txForm, paidBy: 'userB' })}
+												className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+													txForm.paidBy === 'userB'
+														? 'bg-slate-750 text-white shadow-md'
+														: 'text-slate-400 hover:text-slate-200'
+												}`}
+											>
+												{userBName}
+											</button>
+											<button
+												type="button"
+												onClick={() => setTxForm({ ...txForm, paidBy: 'shared' })}
+												className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+													txForm.paidBy === 'shared' || !txForm.paidBy
+														? 'bg-slate-750 text-white shadow-md'
+														: 'text-slate-400 hover:text-slate-200'
+												}`}
+											>
+												Cuenta Común
+											</button>
+										</div>
+									</div>
+								)}
 
 								<div>
 									<label htmlFor="tx-tag" className="block text-xs font-medium text-slate-400 mb-1.5">
@@ -1727,6 +2287,7 @@ export default function App() {
 											<tr className="border-b border-slate-800 text-xs font-semibold text-slate-500 uppercase tracking-wider">
 												<th className="pb-3 pl-2">Fecha</th>
 												<th className="pb-3">Concepto</th>
+												<th className="pb-3">Propietario</th>
 												<th className="pb-3">Etiqueta</th>
 												<th className="pb-3 text-right">Importe</th>
 												<th className="pb-3 text-center">Acciones</th>
@@ -1736,7 +2297,40 @@ export default function App() {
 											{filteredTransactions.map((t) => (
 												<tr key={t.id} className="hover:bg-slate-800/20 transition-colors">
 													<td className="py-3.5 pl-2 text-slate-400 font-mono text-xs">{t.date}</td>
-													<td className="py-3.5 font-medium text-slate-200">{t.desc}</td>
+													<td className="py-3.5 font-medium text-slate-200">
+														<div className="flex items-center space-x-2">
+															<span>{t.desc}</span>
+															{t.recurrence === 'recurring' && (
+																<span 
+																	title="Movimiento Recurrente"
+																	className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+																>
+																	<svg className="w-3 h-3 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+																		<path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.5" />
+																	</svg>
+																	Recurrente
+																</span>
+															)}
+														</div>
+													</td>
+													<td className="py-3.5">
+														<span
+															className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+																t.owner === 'userA'
+																	? 'bg-indigo-500/15 text-indigo-400'
+																	: t.owner === 'userB'
+																		? 'bg-violet-500/15 text-violet-400'
+																		: 'bg-emerald-500/15 text-emerald-400'
+															}`}
+														>
+															{t.owner === 'userA'
+																? userAName
+																: t.owner === 'userB'
+																	? userBName
+																	: 'Conjunto'}
+															{t.owner === 'joint' && t.type === 'expense' && ` (${t.paidBy === 'userA' ? userAName : t.paidBy === 'userB' ? userBName : 'Común'})`}
+														</span>
+													</td>
 													<td className="py-3.5">
 														<span
 															className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
@@ -1756,8 +2350,16 @@ export default function App() {
 													</td>
 													<td className="py-3.5 text-center">
 														<button
+															onClick={() => handleStartEditTransaction(t)}
+															className="text-slate-500 hover:text-indigo-400 p-1.5 rounded-lg transition-colors mr-1"
+															title="Editar transacción"
+														>
+															<Icons.Edit />
+														</button>
+														<button
 															onClick={() => handleDeleteTransaction(t.id)}
 															className="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg transition-colors"
+															title="Eliminar transacción"
 														>
 															<Icons.Trash />
 														</button>
@@ -1816,6 +2418,45 @@ export default function App() {
 											className={`py-2 rounded-lg text-xs font-semibold transition-all ${debtForm.kind === 'paymentPlan' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
 										>
 											Fraccionamiento manual
+										</button>
+									</div>
+								</div>
+
+								<div>
+									<label className="block text-xs font-medium text-slate-400 mb-1.5">¿De quién es la deuda?</label>
+									<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+										<button
+											type="button"
+											onClick={() => setDebtForm({ ...debtForm, owner: 'userA' })}
+											className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+												debtForm.owner === 'userA'
+													? 'bg-indigo-600 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											{userAName}
+										</button>
+										<button
+											type="button"
+											onClick={() => setDebtForm({ ...debtForm, owner: 'userB' })}
+											className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+												debtForm.owner === 'userB'
+													? 'bg-indigo-600 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											{userBName}
+										</button>
+										<button
+											type="button"
+											onClick={() => setDebtForm({ ...debtForm, owner: 'joint' })}
+											className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+												debtForm.owner === 'joint' || !debtForm.owner
+													? 'bg-indigo-600 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											Conjunta
 										</button>
 									</div>
 								</div>
@@ -2613,20 +3254,70 @@ export default function App() {
 									</div>
 								)}
 
-								<div>
-									<label htmlFor="modal-init-balance" className="block text-xs font-medium text-slate-400 mb-1">
-										Capital Inicial / Balance de Apertura (€)
-									</label>
-									<input
-										id="modal-init-balance"
-										type="number"
-										step="0.01"
-										required
-										min="0"
-										value={initBalance}
-										onChange={(e) => setInitBalance(e.target.value)}
-										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none"
-									/>
+								<div className="space-y-4 border-t border-slate-800/80 pt-4">
+									<h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Perfiles de Usuario</h3>
+									<div className="grid grid-cols-2 gap-4">
+										<div>
+											<label htmlFor="modal-user-a-name" className="block text-[11px] font-medium text-slate-500 mb-1">Nombre {userAName || 'Usuario A'}</label>
+											<input
+												id="modal-user-a-name"
+												type="text"
+												required
+												value={userAName}
+												onChange={(e) => setUserAName(e.target.value)}
+												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-slate-100 outline-none"
+											/>
+										</div>
+										<div>
+											<label htmlFor="modal-user-b-name" className="block text-[11px] font-medium text-slate-500 mb-1">Nombre {userBName || 'Usuario B'}</label>
+											<input
+												id="modal-user-b-name"
+												type="text"
+												required
+												value={userBName}
+												onChange={(e) => setUserBName(e.target.value)}
+												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-slate-100 outline-none"
+											/>
+										</div>
+									</div>
+								</div>
+
+								<div className="space-y-4 border-t border-slate-800/80 pt-4">
+									<h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Balances de Apertura (€)</h3>
+									<div className="grid grid-cols-2 gap-4">
+										<div>
+											<label htmlFor="modal-init-balance-a" className="block text-[11px] font-medium text-slate-500 mb-1">Saldo inicial {userAName || 'Usuario A'}</label>
+											<input
+												id="modal-init-balance-a"
+												type="number"
+												step="0.01"
+												required
+												min="0"
+												value={initBalanceA}
+												onChange={(e) => setInitBalanceA(e.target.value)}
+												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs text-slate-100 outline-none"
+											/>
+										</div>
+										<div>
+											<label htmlFor="modal-init-balance-b" className="block text-[11px] font-medium text-slate-500 mb-1">Saldo inicial {userBName || 'Usuario B'}</label>
+											<input
+												id="modal-init-balance-b"
+												type="number"
+												step="0.01"
+												required
+												min="0"
+												value={initBalanceB}
+												onChange={(e) => setInitBalanceB(e.target.value)}
+												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs text-slate-100 outline-none"
+											/>
+										</div>
+									</div>
+									<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs flex justify-between items-center text-slate-400">
+										<span>Total Conjunto:</span>
+										<span className="font-bold text-slate-200 text-sm">
+											{((parseFloat(initBalanceA) || 0) + (parseFloat(initBalanceB) || 0)).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+										</span>
+									</div>
 								</div>
 
 								<div className="flex gap-2 pt-2">
@@ -2652,6 +3343,274 @@ export default function App() {
 										className="w-full bg-rose-950/20 hover:bg-rose-950/40 border border-rose-900/30 text-rose-400 hover:text-rose-350 font-bold py-2 rounded-xl text-xs transition-all active:scale-95"
 									>
 										Reiniciar Base de Datos
+									</button>
+								</div>
+							</form>
+						</div>
+					</div>
+				)}
+
+				{/* MODAL DE EDICIÓN DE TRANSACCIÓN */}
+				{editingTx && (
+					<div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+						<div 
+							className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 relative"
+							onClick={(e) => e.stopPropagation()}
+						>
+							<button 
+								onClick={() => setEditingTx(null)}
+								className="absolute top-4 right-4 text-slate-500 hover:text-slate-200 transition-colors"
+								aria-label="Cerrar modal"
+							>
+								<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+									<path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+								</svg>
+							</button>
+
+							<div className="text-center">
+								<div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+									<Icons.Edit />
+								</div>
+								<h2 className="text-xl font-bold text-slate-100">Editar Transacción</h2>
+								<p className="text-xs text-slate-400 mt-1">
+									Modifica los valores del movimiento seleccionado.
+								</p>
+							</div>
+
+							<form onSubmit={handleSaveEditTransaction} className="space-y-4">
+								<div>
+									<label className="block text-xs font-medium text-slate-400 mb-1.5">Tipo de Movimiento</label>
+									<div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+										<button
+											type="button"
+											onClick={() => setEditForm({ ...editForm, type: 'expense', tag: DEFAULT_TAGS.expense[0] })}
+											className={`py-2 rounded-lg text-xs font-semibold transition-all ${
+												editForm.type === 'expense'
+													? 'bg-rose-500 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											Gasto
+										</button>
+										<button
+											type="button"
+											onClick={() => setEditForm({ ...editForm, type: 'income', tag: DEFAULT_TAGS.income[0] })}
+											className={`py-2 rounded-lg text-xs font-semibold transition-all ${
+												editForm.type === 'income'
+													? 'bg-emerald-500 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											Cobro / Ingreso
+										</button>
+									</div>
+								</div>
+
+								<div>
+									<label htmlFor="edit-desc" className="block text-xs font-medium text-slate-400 mb-1.5">
+										Concepto
+									</label>
+									<input
+										id="edit-desc"
+										type="text"
+										required
+										value={editForm.desc}
+										onChange={(e) => setEditForm({ ...editForm, desc: e.target.value })}
+										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-600"
+									/>
+								</div>
+
+								<div>
+									<label htmlFor="edit-amount" className="block text-xs font-medium text-slate-400 mb-1.5">
+										Importe (€)
+									</label>
+									<input
+										id="edit-amount"
+										type="number"
+										step="0.01"
+										required
+										min="0.01"
+										value={editForm.amount}
+										onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
+										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
+									/>
+								</div>
+
+								<div>
+									<label htmlFor="edit-date" className="block text-xs font-medium text-slate-400 mb-1.5">
+										Fecha
+									</label>
+									<input
+										id="edit-date"
+										type="date"
+										required
+										value={editForm.date}
+										onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 font-mono outline-none"
+									/>
+								</div>
+
+								<div>
+									<label className="block text-xs font-medium text-slate-400 mb-1.5">¿De quién es?</label>
+									<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+										<button
+											type="button"
+											onClick={() => setEditForm({ ...editForm, owner: 'userA' })}
+											className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+												editForm.owner === 'userA'
+													? 'bg-indigo-600 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											{userAName}
+										</button>
+										<button
+											type="button"
+											onClick={() => setEditForm({ ...editForm, owner: 'userB' })}
+											className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+												editForm.owner === 'userB'
+													? 'bg-indigo-600 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											{userBName}
+										</button>
+										<button
+											type="button"
+											onClick={() => setEditForm({ ...editForm, owner: 'joint' })}
+											className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+												editForm.owner === 'joint'
+													? 'bg-indigo-600 text-white shadow-md'
+													: 'text-slate-400 hover:text-slate-200'
+											}`}
+										>
+											Conjunto
+										</button>
+									</div>
+								</div>
+
+								{editForm.owner === 'joint' && editForm.type === 'expense' && (
+									<div>
+										<label className="block text-xs font-medium text-slate-400 mb-1.5">Pagado por</label>
+										<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+											<button
+												type="button"
+												onClick={() => setEditForm({ ...editForm, paidBy: 'userA' })}
+												className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+													editForm.paidBy === 'userA'
+														? 'bg-slate-750 text-white shadow-md'
+														: 'text-slate-400 hover:text-slate-200'
+												}`}
+											>
+												{userAName}
+											</button>
+											<button
+												type="button"
+												onClick={() => setEditForm({ ...editForm, paidBy: 'userB' })}
+												className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+													editForm.paidBy === 'userB'
+														? 'bg-slate-750 text-white shadow-md'
+														: 'text-slate-400 hover:text-slate-200'
+												}`}
+											>
+												{userBName}
+											</button>
+											<button
+												type="button"
+												onClick={() => setEditForm({ ...editForm, paidBy: 'shared' })}
+												className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+													editForm.paidBy === 'shared'
+														? 'bg-slate-750 text-white shadow-md'
+														: 'text-slate-400 hover:text-slate-200'
+												}`}
+											>
+												Común
+											</button>
+										</div>
+									</div>
+								)}
+
+								<div>
+									<label htmlFor="edit-tag" className="block text-xs font-medium text-slate-400 mb-1.5">
+										Etiqueta
+									</label>
+									<select
+										id="edit-tag"
+										value={editForm.tag}
+										onChange={(e) => setEditForm({ ...editForm, tag: e.target.value })}
+										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
+									>
+										{editForm.type === 'income'
+											? DEFAULT_TAGS.income.map((tag) => (
+													<option key={tag} value={tag}>
+														{tag}
+													</option>
+												))
+											: DEFAULT_TAGS.expense.map((tag) => (
+													<option key={tag} value={tag}>
+														{tag}
+													</option>
+												))}
+									</select>
+								</div>
+
+								{/* Rango de Edición para recurrentes */}
+								{editingTx.recurrence === 'recurring' && (
+									<div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+										<label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
+											Alcance del cambio recurrente
+										</label>
+										<div className="space-y-2">
+											<label className="flex items-center space-x-3 text-xs text-slate-300 cursor-pointer">
+												<input
+													type="radio"
+													name="editScope"
+													value="only-this"
+													checked={editScope === 'only-this'}
+													onChange={() => setEditScope('only-this')}
+													className="w-4 h-4 rounded-full border-slate-850 text-indigo-600 focus:ring-0 bg-slate-900"
+												/>
+												<span>Solo este mes ({selectedMonth})</span>
+											</label>
+											<label className="flex items-center space-x-3 text-xs text-slate-300 cursor-pointer">
+												<input
+													type="radio"
+													name="editScope"
+													value="future"
+													checked={editScope === 'future'}
+													onChange={() => setEditScope('future')}
+													className="w-4 h-4 rounded-full border-slate-850 text-indigo-600 focus:ring-0 bg-slate-900"
+												/>
+												<span>Este y todos los meses futuros</span>
+											</label>
+											<label className="flex items-center space-x-3 text-xs text-slate-300 cursor-pointer">
+												<input
+													type="radio"
+													name="editScope"
+													value="all"
+													checked={editScope === 'all'}
+													onChange={() => setEditScope('all')}
+													className="w-4 h-4 rounded-full border-slate-850 text-indigo-600 focus:ring-0 bg-slate-900"
+												/>
+												<span>Toda la serie (pasado y futuro)</span>
+											</label>
+										</div>
+									</div>
+								)}
+
+								<div className="flex gap-2 pt-2">
+									<button
+										type="submit"
+										className="w-1/2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-bold py-2.5 rounded-xl text-xs transition-all active:scale-95 shadow-md shadow-indigo-600/10"
+									>
+										Guardar
+									</button>
+									<button
+										type="button"
+										onClick={() => setEditingTx(null)}
+										className="w-1/2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition-all"
+									>
+										Cancelar
 									</button>
 								</div>
 							</form>
