@@ -918,11 +918,12 @@ export default function App() {
 		const closingBalance = getModeBalance(runningAccountBalances, runningUnassignedBalances);
 
 		const getTransactionOwner = (t: Transaction) => {
+			if (t.owner) return t.owner;
 			if (t.accountId) {
 				const acc = accounts.find((a) => a.id === t.accountId);
 				if (acc) return acc.owner;
 			}
-			return t.owner || 'joint';
+			return 'joint';
 		};
 
 		const getEffectiveAmount = (t: Transaction) => {
@@ -1123,15 +1124,27 @@ export default function App() {
 			if (txForm.type === 'transfer') {
 				return getTransferOwner(txForm.fromAccountId, txForm.toAccountId);
 			}
-			if (txForm.accountId) {
-				const acc = accounts.find((a) => a.id === txForm.accountId);
-				if (acc) return acc.owner;
-			}
 			return txForm.owner;
+		};
+
+		const getEffectivePaidBy = (effectiveOwner: 'userA' | 'userB' | 'joint') => {
+			if (effectiveOwner !== 'joint') {
+				return 'shared';
+			}
+			if (txForm.type !== 'transfer' && txForm.accountId) {
+				const acc = accounts.find((a) => a.id === txForm.accountId);
+				if (acc) {
+					if (acc.owner === 'userA') return 'userA';
+					if (acc.owner === 'userB') return 'userB';
+					return 'shared';
+				}
+			}
+			return txForm.paidBy;
 		};
 
 		const newTxId = Date.now().toString();
 		const effectiveOwner = getEffectiveOwner();
+		const effectivePaidBy = getEffectivePaidBy(effectiveOwner);
 		const newTx: Transaction = {
 			id: newTxId,
 			desc: txForm.desc,
@@ -1141,7 +1154,7 @@ export default function App() {
 			date: txForm.date,
 			recurrence: txForm.recurrence || 'one-off',
 			owner: effectiveOwner,
-			paidBy: effectiveOwner === 'joint' ? txForm.paidBy : 'shared',
+			paidBy: effectivePaidBy,
 			accountId: txForm.type !== 'transfer' && txForm.accountId ? txForm.accountId : undefined,
 			fromAccountId: txForm.type === 'transfer' ? txForm.fromAccountId : undefined,
 			toAccountId: txForm.type === 'transfer' ? txForm.toAccountId : undefined
@@ -1220,20 +1233,32 @@ export default function App() {
 			if (editForm.type === 'transfer') {
 				return getTransferOwner(editForm.fromAccountId, editForm.toAccountId);
 			}
-			if (editForm.accountId) {
-				const acc = accounts.find((a) => a.id === editForm.accountId);
-				if (acc) return acc.owner;
-			}
 			return editForm.owner;
 		};
 
+		const getEffectivePaidBy = (effectiveOwner: 'userA' | 'userB' | 'joint') => {
+			if (effectiveOwner !== 'joint') {
+				return 'shared';
+			}
+			if (editForm.type !== 'transfer' && editForm.accountId) {
+				const acc = accounts.find((a) => a.id === editForm.accountId);
+				if (acc) {
+					if (acc.owner === 'userA') return 'userA';
+					if (acc.owner === 'userB') return 'userB';
+					return 'shared';
+				}
+			}
+			return editForm.paidBy;
+		};
+
 		const effectiveOwner = getEffectiveOwner();
+		const effectivePaidBy = getEffectivePaidBy(effectiveOwner);
 		const updatedFields = {
 			desc: editForm.desc,
 			type: editForm.type,
 			tag: editForm.type === 'transfer' ? 'Traspaso' : editForm.tag,
 			owner: effectiveOwner,
-			paidBy: effectiveOwner === 'joint' ? editForm.paidBy : 'shared',
+			paidBy: effectivePaidBy,
 			accountId: editForm.type !== 'transfer' && editForm.accountId ? editForm.accountId : undefined,
 			fromAccountId: editForm.type === 'transfer' ? editForm.fromAccountId : undefined,
 			toAccountId: editForm.type === 'transfer' ? editForm.toAccountId : undefined
@@ -2592,88 +2617,84 @@ export default function App() {
 											</select>
 										</div>
 
-										{!txForm.accountId && (
-											<>
-												<div>
-													<label className="block text-xs font-medium text-slate-400 mb-1.5">¿De quién es?</label>
-													<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
-														<button
-															type="button"
-															onClick={() => setTxForm({ ...txForm, owner: 'userA' })}
-															className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
-																txForm.owner === 'userA'
-																	? 'bg-indigo-600 text-white shadow-md'
-																	: 'text-slate-400 hover:text-slate-200'
-															}`}
-														>
-															{userAName}
-														</button>
-														<button
-															type="button"
-															onClick={() => setTxForm({ ...txForm, owner: 'userB' })}
-															className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
-																txForm.owner === 'userB'
-																	? 'bg-indigo-600 text-white shadow-md'
-																	: 'text-slate-400 hover:text-slate-200'
-															}`}
-														>
-															{userBName}
-														</button>
-														<button
-															type="button"
-															onClick={() => setTxForm({ ...txForm, owner: 'joint' })}
-															className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
-																txForm.owner === 'joint' || !txForm.owner
-																	? 'bg-indigo-600 text-white shadow-md'
-																	: 'text-slate-400 hover:text-slate-200'
-															}`}
-														>
-															Conjunto
-														</button>
-													</div>
-												</div>
+										<div>
+											<label className="block text-xs font-medium text-slate-400 mb-1.5">¿De quién es?</label>
+											<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+												<button
+													type="button"
+													onClick={() => setTxForm({ ...txForm, owner: 'userA' })}
+													className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+														txForm.owner === 'userA'
+															? 'bg-indigo-600 text-white shadow-md'
+															: 'text-slate-400 hover:text-slate-200'
+													}`}
+												>
+													{userAName}
+												</button>
+												<button
+													type="button"
+													onClick={() => setTxForm({ ...txForm, owner: 'userB' })}
+													className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+														txForm.owner === 'userB'
+															? 'bg-indigo-600 text-white shadow-md'
+															: 'text-slate-400 hover:text-slate-200'
+													}`}
+												>
+													{userBName}
+												</button>
+												<button
+													type="button"
+													onClick={() => setTxForm({ ...txForm, owner: 'joint' })}
+													className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+														txForm.owner === 'joint' || !txForm.owner
+															? 'bg-indigo-600 text-white shadow-md'
+															: 'text-slate-400 hover:text-slate-200'
+													}`}
+												>
+													Conjunto
+												</button>
+											</div>
+										</div>
 
-												{txForm.owner === 'joint' && txForm.type === 'expense' && (
-													<div>
-														<label className="block text-xs font-medium text-slate-400 mb-1.5">Pagado por</label>
-														<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
-															<button
-																type="button"
-																onClick={() => setTxForm({ ...txForm, paidBy: 'userA' })}
-																className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
-																	txForm.paidBy === 'userA'
-																		? 'bg-slate-750 text-white shadow-md'
-																		: 'text-slate-400 hover:text-slate-200'
-																}`}
-															>
-																{userAName}
-															</button>
-															<button
-																type="button"
-																onClick={() => setTxForm({ ...txForm, paidBy: 'userB' })}
-																className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
-																	txForm.paidBy === 'userB'
-																		? 'bg-slate-750 text-white shadow-md'
-																		: 'text-slate-400 hover:text-slate-200'
-																}`}
-															>
-																{userBName}
-															</button>
-															<button
-																type="button"
-																onClick={() => setTxForm({ ...txForm, paidBy: 'shared' })}
-																className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
-																	txForm.paidBy === 'shared' || !txForm.paidBy
-																		? 'bg-slate-750 text-white shadow-md'
-																		: 'text-slate-400 hover:text-slate-200'
-																}`}
-															>
-																Cuenta Común
-															</button>
-														</div>
-													</div>
-												)}
-											</>
+										{!txForm.accountId && txForm.owner === 'joint' && txForm.type === 'expense' && (
+											<div>
+												<label className="block text-xs font-medium text-slate-400 mb-1.5">Pagado por</label>
+												<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+													<button
+														type="button"
+														onClick={() => setTxForm({ ...txForm, paidBy: 'userA' })}
+														className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+															txForm.paidBy === 'userA'
+																? 'bg-slate-750 text-white shadow-md'
+																: 'text-slate-400 hover:text-slate-200'
+														}`}
+													>
+														{userAName}
+													</button>
+													<button
+														type="button"
+														onClick={() => setTxForm({ ...txForm, paidBy: 'userB' })}
+														className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+															txForm.paidBy === 'userB'
+																? 'bg-slate-750 text-white shadow-md'
+																: 'text-slate-400 hover:text-slate-200'
+														}`}
+													>
+														{userBName}
+													</button>
+													<button
+														type="button"
+														onClick={() => setTxForm({ ...txForm, paidBy: 'shared' })}
+														className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+															txForm.paidBy === 'shared' || !txForm.paidBy
+																? 'bg-slate-750 text-white shadow-md'
+																: 'text-slate-400 hover:text-slate-200'
+														}`}
+													>
+														Cuenta Común
+													</button>
+												</div>
+											</div>
 										)}
 
 										<div>
@@ -4227,88 +4248,84 @@ export default function App() {
 											</select>
 										</div>
 
-										{!editForm.accountId && (
-											<>
-												<div>
-													<label className="block text-xs font-medium text-slate-400 mb-1.5">¿De quién es?</label>
-													<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
-														<button
-															type="button"
-															onClick={() => setEditForm({ ...editForm, owner: 'userA' })}
-															className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
-																editForm.owner === 'userA'
-																	? 'bg-indigo-600 text-white shadow-md'
-																	: 'text-slate-400 hover:text-slate-200'
-															}`}
-														>
-															{userAName}
-														</button>
-														<button
-															type="button"
-															onClick={() => setEditForm({ ...editForm, owner: 'userB' })}
-															className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
-																editForm.owner === 'userB'
-																	? 'bg-indigo-600 text-white shadow-md'
-																	: 'text-slate-400 hover:text-slate-200'
-															}`}
-														>
-															{userBName}
-														</button>
-														<button
-															type="button"
-															onClick={() => setEditForm({ ...editForm, owner: 'joint' })}
-															className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
-																editForm.owner === 'joint'
-																	? 'bg-indigo-600 text-white shadow-md'
-																	: 'text-slate-400 hover:text-slate-200'
-															}`}
-														>
-															Conjunto
-														</button>
-													</div>
-												</div>
+										<div>
+											<label className="block text-xs font-medium text-slate-400 mb-1.5">¿De quién es?</label>
+											<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+												<button
+													type="button"
+													onClick={() => setEditForm({ ...editForm, owner: 'userA' })}
+													className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+														editForm.owner === 'userA'
+															? 'bg-indigo-600 text-white shadow-md'
+															: 'text-slate-400 hover:text-slate-200'
+													}`}
+												>
+													{userAName}
+												</button>
+												<button
+													type="button"
+													onClick={() => setEditForm({ ...editForm, owner: 'userB' })}
+													className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+														editForm.owner === 'userB'
+															? 'bg-indigo-600 text-white shadow-md'
+															: 'text-slate-400 hover:text-slate-200'
+													}`}
+												>
+													{userBName}
+												</button>
+												<button
+													type="button"
+													onClick={() => setEditForm({ ...editForm, owner: 'joint' })}
+													className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+														editForm.owner === 'joint'
+															? 'bg-indigo-600 text-white shadow-md'
+															: 'text-slate-400 hover:text-slate-200'
+													}`}
+												>
+													Conjunto
+												</button>
+											</div>
+										</div>
 
-												{editForm.owner === 'joint' && editForm.type === 'expense' && (
-													<div>
-														<label className="block text-xs font-medium text-slate-400 mb-1.5">Pagado por</label>
-														<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
-															<button
-																type="button"
-																onClick={() => setEditForm({ ...editForm, paidBy: 'userA' })}
-																className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
-																	editForm.paidBy === 'userA'
-																		? 'bg-slate-750 text-white shadow-md'
-																		: 'text-slate-400 hover:text-slate-200'
-																}`}
-															>
-																{userAName}
-															</button>
-															<button
-																type="button"
-																onClick={() => setEditForm({ ...editForm, paidBy: 'userB' })}
-																className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
-																	editForm.paidBy === 'userB'
-																		? 'bg-slate-750 text-white shadow-md'
-																		: 'text-slate-400 hover:text-slate-200'
-																}`}
-															>
-																{userBName}
-															</button>
-															<button
-																type="button"
-																onClick={() => setEditForm({ ...editForm, paidBy: 'shared' })}
-																className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
-																	editForm.paidBy === 'shared'
-																		? 'bg-slate-750 text-white shadow-md'
-																		: 'text-slate-400 hover:text-slate-200'
-																}`}
-															>
-																Común
-															</button>
-														</div>
-													</div>
-												)}
-											</>
+										{!editForm.accountId && editForm.owner === 'joint' && editForm.type === 'expense' && (
+											<div>
+												<label className="block text-xs font-medium text-slate-400 mb-1.5">Pagado por</label>
+												<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+													<button
+														type="button"
+														onClick={() => setEditForm({ ...editForm, paidBy: 'userA' })}
+														className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+															editForm.paidBy === 'userA'
+																? 'bg-slate-750 text-white shadow-md'
+																: 'text-slate-400 hover:text-slate-200'
+														}`}
+													>
+														{userAName}
+													</button>
+													<button
+														type="button"
+														onClick={() => setEditForm({ ...editForm, paidBy: 'userB' })}
+														className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+															editForm.paidBy === 'userB'
+																? 'bg-slate-750 text-white shadow-md'
+																: 'text-slate-400 hover:text-slate-200'
+														}`}
+													>
+														{userBName}
+													</button>
+													<button
+														type="button"
+														onClick={() => setEditForm({ ...editForm, paidBy: 'shared' })}
+														className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+															editForm.paidBy === 'shared'
+																? 'bg-slate-750 text-white shadow-md'
+																: 'text-slate-400 hover:text-slate-200'
+														}`}
+													>
+														Común
+													</button>
+												</div>
+											</div>
 										)}
 
 										<div>
