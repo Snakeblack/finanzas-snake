@@ -16,7 +16,7 @@ export const sanitizeString = (str: string): string => {
 /**
  * Valida un campo de texto simple y lo sanitiza.
  */
-const validateAndSanitizeText = (val: unknown, fieldName: string, maxLength = 200, required = true): string => {
+const validateAndSanitizeText = (val: unknown, fieldName: string, maxLength = 200, required = true, escapeHtml = true): string => {
 	if (val === undefined || val === null) {
 		if (required) {
 			throw new Error(`El campo '${fieldName}' es requerido.`);
@@ -33,7 +33,7 @@ const validateAndSanitizeText = (val: unknown, fieldName: string, maxLength = 20
 	if (trimmed.length > maxLength) {
 		throw new Error(`El campo '${fieldName}' supera la longitud máxima permitida de ${maxLength} caracteres.`);
 	}
-	return sanitizeString(trimmed);
+	return escapeHtml ? sanitizeString(trimmed) : trimmed;
 };
 
 /**
@@ -330,7 +330,7 @@ const validateAiChat = (chat: unknown): ChatMessage[] => {
 			throw new Error(`El rol del mensaje en ${prefix}.role debe ser 'user' o 'model'.`);
 		}
 
-		const content = validateAndSanitizeText(rawMsg.content, `${prefix}.content`, 10000); // Permitimos un texto de chat más largo
+		const content = validateAndSanitizeText(rawMsg.content, `${prefix}.content`, 10000, true, false); // Permitimos un texto de chat más largo y no escapamos HTML
 		const timestamp = validateAndSanitizeText(rawMsg.timestamp, `${prefix}.timestamp`, 30);
 
 		return {

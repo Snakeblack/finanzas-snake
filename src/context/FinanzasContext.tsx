@@ -50,7 +50,8 @@ import {
 	normalizeMonth 
 } from '../utils/dateUtils';
 import { 
-	toNumber 
+	toNumber,
+	decodeHtmlEntities
 } from '../utils/formatters';
 import { 
 	calculateDebtMonthlyPayment, 
@@ -1226,10 +1227,11 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 
 			const systemPrompt = buildFinanceDataPrompt(promptParams);
 			const responseText = await askGemini(geminiApiKey, updatedMessages, systemPrompt);
+			const cleanedResponse = decodeHtmlEntities(responseText);
 
 			const aiMsg: ChatMessage = {
 				role: 'model',
-				content: responseText,
+				content: cleanedResponse,
 				timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 			};
 			setChatMessages((prev) => [...prev, aiMsg]);
@@ -1493,25 +1495,35 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			minute: '2-digit'
 		});
 
+		const escapeHtml = (str: string): string => {
+			if (!str) return '';
+			return str
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;')
+				.replace(/'/g, '&#039;');
+		};
+
 		const vistaActiva = viewMode === 'all' 
 			? 'Conjunta' 
 			: viewMode === 'userA' 
-				? `Individual de ${userAName}` 
-				: `Individual de ${userBName}`;
+				? `Individual de ${escapeHtml(userAName)}` 
+				: `Individual de ${escapeHtml(userBName)}`;
 
 		const liquidacionText = netOwed === 0 
 			? 'Cuentas al día' 
 			: netOwed > 0 
-				? `${userBName} debe a ${userAName} ${netOwed.toFixed(2)}€` 
-				: `${userAName} debe a ${userBName} ${Math.abs(netOwed).toFixed(2)}€`;
+				? `${escapeHtml(userBName)} debe a ${escapeHtml(userAName)} ${netOwed.toFixed(2)}€` 
+				: `${escapeHtml(userAName)} debe a ${escapeHtml(userBName)} ${Math.abs(netOwed).toFixed(2)}€`;
 
 		const accountsListHtml = accounts.map(acc => {
 			const bal = activePeriodData.accountBalances?.[acc.id] ?? acc.initialBalance;
 			const ownerLabel = acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Conjunta';
 			return `
 				<tr>
-					<td>${acc.name}</td>
-					<td>${ownerLabel}</td>
+					<td>${escapeHtml(acc.name)}</td>
+					<td>${escapeHtml(ownerLabel)}</td>
 					<td style="text-align: right; font-weight: bold; color: ${bal >= 0 ? '#10b981' : '#ef4444'}">${bal.toFixed(2)}€</td>
 				</tr>
 			`;
@@ -1533,9 +1545,9 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 
 			return `
 				<tr>
-					<td><strong>${d.desc}</strong><br/><small style="color: #64748b;">${details}</small></td>
-					<td>${ownerLabel}</td>
-					<td>${statusLabel}</td>
+					<td><strong>${escapeHtml(d.desc)}</strong><br/><small style="color: #64748b;">${escapeHtml(details)}</small></td>
+					<td>${escapeHtml(ownerLabel)}</td>
+					<td>${escapeHtml(statusLabel)}</td>
 					<td style="text-align: right; font-weight: bold; color: #f59e0b;">${cuota.toFixed(2)}€</td>
 				</tr>
 			`;
@@ -1545,10 +1557,10 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			const ownerLabel = t.owner === 'userA' ? userAName : t.owner === 'userB' ? userBName : 'Conjunta';
 			return `
 				<tr>
-					<td>${t.desc}</td>
-					<td><span style="background-color: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${t.tag}</span></td>
+					<td>${escapeHtml(t.desc)}</td>
+					<td><span style="background-color: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${escapeHtml(t.tag)}</span></td>
 					<td>${t.recurrence === 'recurring' ? 'Recurrente' : 'Puntual'}</td>
-					<td>${ownerLabel}</td>
+					<td>${escapeHtml(ownerLabel)}</td>
 					<td style="text-align: right; font-weight: bold; color: ${t.type === 'income' ? '#10b981' : '#ef4444'}">
 						${t.type === 'income' ? '+' : '-'}${t.amount.toFixed(2)}€
 					</td>
@@ -1561,12 +1573,12 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			const sender = isUser ? 'Tú' : 'Asesor Gemini';
 			const bubbleClass = isUser ? 'message-user' : 'message-model';
 			const contentHtml = isUser 
-				? `<div style="white-space: pre-wrap;">${msg.content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>` 
+				? `<div style="white-space: pre-wrap;">${escapeHtml(msg.content)}</div>` 
 				: convertMarkdownToHtml(msg.content);
 
 			return `
 				<div class="message-bubble ${bubbleClass}">
-					<div class="message-meta">${sender} (${msg.timestamp})</div>
+					<div class="message-meta">${escapeHtml(sender)} (${escapeHtml(msg.timestamp)})</div>
 					<div>${contentHtml}</div>
 				</div>
 			`;
@@ -1574,7 +1586,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 
 		const tagBreakdownHtml = tagData.map(t => `
 			<tr>
-				<td>${t.tag}</td>
+				<td>${escapeHtml(t.tag)}</td>
 				<td style="text-align: right; font-weight: bold;">${t.amount.toFixed(2)}€</td>
 			</tr>
 		`).join('');

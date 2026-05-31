@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toNumber } from '../utils/formatters';
+import { toNumber, decodeHtmlEntities } from '../utils/formatters';
 
 describe('toNumber', () => {
 	it('debe retornar el número si la entrada es un número válido', () => {
@@ -45,3 +45,22 @@ describe('toNumber', () => {
 		expect(toNumber('  ')).toBe(0);
 	});
 });
+
+describe('decodeHtmlEntities', () => {
+	it('debe retornar string vacía para entrada vacía o falsy', () => {
+		expect(decodeHtmlEntities('')).toBe('');
+		expect(decodeHtmlEntities((null as unknown) as string)).toBe('');
+	});
+
+	it('debe decodificar entidades HTML básicas correctamente', () => {
+		expect(decodeHtmlEntities('3. Estrategia &quot;bajo control&quot;')).toBe('3. Estrategia "bajo control"');
+		expect(decodeHtmlEntities('a &lt; b &amp;&amp; c &gt; d')).toBe('a < b && c > d');
+		expect(decodeHtmlEntities('It&#039;s a test')).toBe("It's a test");
+	});
+
+	it('debe decodificar entidades HTML doble-escapadas', () => {
+		expect(decodeHtmlEntities('3. Estrategia &amp;quot;bajo control&amp;quot;')).toBe('3. Estrategia "bajo control"');
+		expect(decodeHtmlEntities('a &amp;lt; b &amp;amp;&amp;amp; c &amp;gt; d')).toBe('a < b && c > d');
+	});
+});
+

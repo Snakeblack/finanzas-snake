@@ -1,6 +1,6 @@
 import { STORAGE_KEYS, DEFAULT_TAGS } from '../constants';
 import type { Transaction, Debt, Period, Account, ChatMessage, TransactionType, PaymentPlanInstallment } from '../types';
-import { toNumber } from '../utils/formatters';
+import { toNumber, decodeHtmlEntities } from '../utils/formatters';
 import { normalizeMonth, addMonthsToMonth } from '../utils/dateUtils';
 import { encryptWithKey, decryptWithKey } from './cryptoService';
 
@@ -505,7 +505,10 @@ export const saveGeminiApiKey = async (key: string): Promise<void> => {
  */
 export const readAiChat = async (): Promise<ChatMessage[]> => {
 	const rawArray = await readStoredArray(STORAGE_KEYS.aiChat);
-	return rawArray as ChatMessage[];
+	return (rawArray as ChatMessage[]).map((msg) => ({
+		...msg,
+		content: decodeHtmlEntities(msg.content || '')
+	}));
 };
 
 /**
@@ -519,7 +522,12 @@ export const readAiChatSync = (): ChatMessage[] => {
 	if (!stored) return [];
 	try {
 		const parsed = JSON.parse(stored);
-		return Array.isArray(parsed) ? parsed : [];
+		return Array.isArray(parsed)
+			? parsed.map((msg: any) => ({
+					...msg,
+					content: decodeHtmlEntities(msg.content || '')
+				}))
+			: [];
 	} catch {
 		return [];
 	}

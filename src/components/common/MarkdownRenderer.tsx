@@ -1,4 +1,6 @@
 import { Fragment, type ReactNode } from 'react';
+import { decodeHtmlEntities } from '../../utils/formatters';
+
 
 /**
  * Renderiza código inline envuelto en comillas simples invertidas (`).
@@ -40,7 +42,8 @@ interface MarkdownRendererProps {
  * Componente principal que procesa un bloque de texto en formato Markdown (soporta negritas, listas ordenadas/desordenadas, encabezados y tablas estructuradas con piping).
  */
 export function MarkdownRenderer({ text }: MarkdownRendererProps) {
-	const parts = text.split(/(```[\s\S]*?```)/g);
+	const decodedText = decodeHtmlEntities(text);
+	const parts = decodedText.split(/(```[\s\S]*?```)/g);
 
 	return (
 		<div className="space-y-3 text-left">
