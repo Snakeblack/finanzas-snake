@@ -214,9 +214,9 @@ export interface FinanzasContextType {
 	handleInitAccount: (e: SyntheticEvent<HTMLFormElement>) => void;
 	handleResetAccount: () => void;
 	handleCreateNextMonth: () => void;
-	handleAddTransaction: (e: SyntheticEvent<HTMLFormElement>) => void;
+	handleAddTransaction: (e: SyntheticEvent<HTMLFormElement>, customForm?: TxForm) => void;
 	handleStartEditTransaction: (tx: Transaction) => void;
-	handleSaveEditTransaction: (e: SyntheticEvent<HTMLFormElement>) => void;
+	handleSaveEditTransaction: (e: SyntheticEvent<HTMLFormElement>, customForm?: TxForm) => void;
 	handleDeleteTransaction: (id: string) => void;
 	handleDeleteDebt: (id: string) => void;
 	handleAddDebt: (e: SyntheticEvent<HTMLFormElement>) => void;
@@ -788,9 +788,10 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		setSelectedMonth(nextMonth);
 	};
 
-	const handleAddTransaction = (e: SyntheticEvent<HTMLFormElement>) => {
+	const handleAddTransaction = (e: SyntheticEvent<HTMLFormElement>, customForm?: TxForm) => {
 		e.preventDefault();
-		if (!txForm.desc || !txForm.amount) return;
+		const formToUse = customForm || txForm;
+		if (!formToUse.desc || !formToUse.amount) return;
 
 		const getTransferOwner = (fromId?: string, toId?: string) => {
 			const fromAcc = accounts.find((a) => a.id === fromId);
@@ -802,25 +803,25 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		};
 
 		const getEffectiveOwner = () => {
-			if (txForm.type === 'transfer') {
-				return getTransferOwner(txForm.fromAccountId, txForm.toAccountId);
+			if (formToUse.type === 'transfer') {
+				return getTransferOwner(formToUse.fromAccountId, formToUse.toAccountId);
 			}
-			return txForm.owner;
+			return formToUse.owner;
 		};
 
 		const getEffectivePaidBy = (effectiveOwner: 'userA' | 'userB' | 'joint') => {
 			if (effectiveOwner !== 'joint') {
 				return 'shared';
 			}
-			if (txForm.type !== 'transfer' && txForm.accountId) {
-				const acc = accounts.find((a) => a.id === txForm.accountId);
+			if (formToUse.type !== 'transfer' && formToUse.accountId) {
+				const acc = accounts.find((a) => a.id === formToUse.accountId);
 				if (acc) {
 					if (acc.owner === 'userA') return 'userA';
 					if (acc.owner === 'userB') return 'userB';
 					return 'shared';
 				}
 			}
-			return txForm.paidBy;
+			return formToUse.paidBy;
 		};
 
 		const newTxId = Date.now().toString();
@@ -828,20 +829,20 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		const effectivePaidBy = getEffectivePaidBy(effectiveOwner);
 		const newTx: Transaction = {
 			id: newTxId,
-			desc: txForm.desc,
+			desc: formToUse.desc,
 			money: {
-				amount: Math.abs(parseFloat(txForm.amount)).toFixed(2),
-				currency: txForm.currency || 'EUR'
+				amount: Math.abs(parseFloat(formToUse.amount)).toFixed(2),
+				currency: formToUse.currency || 'EUR'
 			},
-			type: txForm.type,
-			tag: txForm.tag,
-			date: txForm.date,
-			recurrence: txForm.recurrence || 'one-off',
+			type: formToUse.type,
+			tag: formToUse.tag,
+			date: formToUse.date,
+			recurrence: formToUse.recurrence || 'one-off',
 			owner: effectiveOwner,
 			paidBy: effectivePaidBy,
-			accountId: txForm.type !== 'transfer' && txForm.accountId ? txForm.accountId : undefined,
-			fromAccountId: txForm.type === 'transfer' ? txForm.fromAccountId : undefined,
-			toAccountId: txForm.type === 'transfer' ? txForm.toAccountId : undefined
+			accountId: formToUse.type !== 'transfer' && formToUse.accountId ? formToUse.accountId : undefined,
+			fromAccountId: formToUse.type === 'transfer' ? formToUse.fromAccountId : undefined,
+			toAccountId: formToUse.type === 'transfer' ? formToUse.toAccountId : undefined
 		};
 
 		let newTransactions = [newTx, ...transactions];
@@ -896,11 +897,12 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		setEditScope('only-this');
 	};
 
-	const handleSaveEditTransaction = (e: SyntheticEvent<HTMLFormElement>) => {
+	const handleSaveEditTransaction = (e: SyntheticEvent<HTMLFormElement>, customForm?: TxForm) => {
 		e.preventDefault();
-		if (!editingTx || !editForm.desc || !editForm.amount) return;
+		const formToUse = customForm || editForm;
+		if (!editingTx || !formToUse.desc || !formToUse.amount) return;
 
-		const updatedAmount = Math.abs(parseFloat(editForm.amount));
+		const updatedAmount = Math.abs(parseFloat(formToUse.amount));
 		const rootId = editingTx.originId || editingTx.id;
 		const currentMonth = editingTx.date.substring(0, 7);
 
@@ -914,42 +916,42 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		};
 
 		const getEffectiveOwner = () => {
-			if (editForm.type === 'transfer') {
-				return getTransferOwner(editForm.fromAccountId, editForm.toAccountId);
+			if (formToUse.type === 'transfer') {
+				return getTransferOwner(formToUse.fromAccountId, formToUse.toAccountId);
 			}
-			return editForm.owner;
+			return formToUse.owner;
 		};
 
 		const getEffectivePaidBy = (effectiveOwner: 'userA' | 'userB' | 'joint') => {
 			if (effectiveOwner !== 'joint') {
 				return 'shared';
 			}
-			if (editForm.type !== 'transfer' && editForm.accountId) {
-				const acc = accounts.find((a) => a.id === editForm.accountId);
+			if (formToUse.type !== 'transfer' && formToUse.accountId) {
+				const acc = accounts.find((a) => a.id === formToUse.accountId);
 				if (acc) {
 					if (acc.owner === 'userA') return 'userA';
 					if (acc.owner === 'userB') return 'userB';
 					return 'shared';
 				}
 			}
-			return editForm.paidBy;
+			return formToUse.paidBy;
 		};
 
 		const effectiveOwner = getEffectiveOwner();
 		const effectivePaidBy = getEffectivePaidBy(effectiveOwner);
 		const updatedFields = {
-			desc: editForm.desc,
-			type: editForm.type,
-			tag: editForm.tag,
+			desc: formToUse.desc,
+			type: formToUse.type,
+			tag: formToUse.tag,
 			owner: effectiveOwner,
 			paidBy: effectivePaidBy,
-			accountId: editForm.type !== 'transfer' && editForm.accountId ? editForm.accountId : undefined,
-			fromAccountId: editForm.type === 'transfer' ? editForm.fromAccountId : undefined,
-			toAccountId: editForm.type === 'transfer' ? editForm.toAccountId : undefined
+			accountId: formToUse.type !== 'transfer' && formToUse.accountId ? formToUse.accountId : undefined,
+			fromAccountId: formToUse.type === 'transfer' ? formToUse.fromAccountId : undefined,
+			toAccountId: formToUse.type === 'transfer' ? formToUse.toAccountId : undefined
 		};
 
 		const wasOneOff = editingTx.recurrence !== 'recurring';
-		const isNowRecurring = editForm.recurrence === 'recurring';
+		const isNowRecurring = formToUse.recurrence === 'recurring';
 
 		setTransactions((prev) => {
 			let updatedTxs = prev.map((t): Transaction => {
@@ -963,9 +965,9 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 								...updatedFields,
 								money: {
 									amount: updatedAmount.toFixed(2),
-									currency: editForm.currency || 'EUR'
+									currency: formToUse.currency || 'EUR'
 								},
-								date: editForm.date,
+								date: formToUse.date,
 								recurrence: 'one-off',
 								originId: undefined
 							};
@@ -974,15 +976,15 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 						const isFutureOccurrence =
 							t.id === editingTx.id || (t.originId === rootId && t.date.substring(0, 7) >= currentMonth);
 						if (isFutureOccurrence) {
-							const targetRecurrence: TransactionRecurrence = editForm.recurrence || 'one-off';
+							const targetRecurrence: TransactionRecurrence = formToUse.recurrence || 'one-off';
 							return {
 								...t,
 								...updatedFields,
 								money: {
 									amount: updatedAmount.toFixed(2),
-									currency: editForm.currency || 'EUR'
+									currency: formToUse.currency || 'EUR'
 								},
-								date: t.id === editingTx.id ? editForm.date : t.date,
+								date: t.id === editingTx.id ? formToUse.date : t.date,
 								recurrence: targetRecurrence,
 								originId: targetRecurrence === 'recurring' ? t.originId : undefined
 							};
@@ -990,15 +992,15 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 					} else if (editScope === 'all') {
 						const isAnyOccurrence = t.id === rootId || t.originId === rootId;
 						if (isAnyOccurrence) {
-							const targetRecurrence: TransactionRecurrence = editForm.recurrence || 'one-off';
+							const targetRecurrence: TransactionRecurrence = formToUse.recurrence || 'one-off';
 							return {
 								...t,
 								...updatedFields,
 								money: {
 									amount: updatedAmount.toFixed(2),
-									currency: editForm.currency || 'EUR'
+									currency: formToUse.currency || 'EUR'
 								},
-								date: t.id === editingTx.id ? editForm.date : t.date,
+								date: t.id === editingTx.id ? formToUse.date : t.date,
 								recurrence: targetRecurrence,
 								originId: targetRecurrence === 'recurring' ? t.originId : undefined
 							};
@@ -1011,10 +1013,10 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 							...updatedFields,
 							money: {
 								amount: updatedAmount.toFixed(2),
-								currency: editForm.currency || 'EUR'
+								currency: formToUse.currency || 'EUR'
 							},
-							date: editForm.date,
-							recurrence: (editForm.recurrence || 'one-off') as TransactionRecurrence
+							date: formToUse.date,
+							recurrence: (formToUse.recurrence || 'one-off') as TransactionRecurrence
 						};
 					}
 				}
@@ -1022,8 +1024,8 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			});
 
 			if (wasOneOff && isNowRecurring) {
-				const currentMonth = editForm.date.substring(0, 7);
-				const dayPart = editForm.date.substring(8, 10);
+				const currentMonth = formToUse.date.substring(0, 7);
+				const dayPart = formToUse.date.substring(8, 10);
 				const futureMonths = periods
 					.map((p) => p.month)
 					.filter((m) => m > currentMonth)
@@ -1038,7 +1040,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 							...updatedFields,
 							money: {
 								amount: updatedAmount.toFixed(2),
-								currency: editForm.currency || 'EUR'
+								currency: formToUse.currency || 'EUR'
 							},
 							id: cloneId,
 							date: getValidDateForMonth(m, dayPart),
