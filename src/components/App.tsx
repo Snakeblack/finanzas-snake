@@ -12,6 +12,14 @@ import { DEFAULT_TAGS } from '../constants';
 import { deduceTagFromConcept } from '../services/financeService';
 import { SyncModal } from './sync/SyncModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Input } from './ui/input';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue
+} from './ui/select';
 
 /**
  * Contenido principal de la aplicación, consumiendo el contexto de finanzas.
@@ -454,14 +462,14 @@ function MainAppContent() {
 									<label htmlFor="init-month-input" className="block text-xs font-medium text-slate-400 mb-1.5">
 										Seleccionar Mes de Partida
 									</label>
-									<input
+									<Input
 										id="init-month-input"
 										type="month"
 										required
 										max={currentMonthString}
 										value={initMonth}
 										onChange={(e) => setInitMonth(e.target.value)}
-										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 font-mono outline-none"
+										className="font-mono"
 									/>
 									<p className="text-[10px] text-slate-400 mt-1">
 										Vas a poder ingresar transacciones históricas desde este mes seleccionado.
@@ -483,26 +491,26 @@ function MainAppContent() {
 										<label htmlFor="user-a-name-input" className="block text-[11px] font-medium text-slate-500 mb-1">
 											Nombre {userAName || 'Usuario A'}
 										</label>
-										<input
+										<Input
 											id="user-a-name-input"
 											type="text"
 											required
 											value={userAName}
 											onChange={(e) => setUserAName(e.target.value)}
-											className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-slate-100 outline-none"
+											className="px-3 py-2 text-xs"
 										/>
 									</div>
 									<div>
 										<label htmlFor="user-b-name-input" className="block text-[11px] font-medium text-slate-500 mb-1">
 											Nombre {userBName || 'Usuario B'}
 										</label>
-										<input
+										<Input
 											id="user-b-name-input"
 											type="text"
 											required
 											value={userBName}
 											onChange={(e) => setUserBName(e.target.value)}
-											className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-slate-100 outline-none"
+											className="px-3 py-2 text-xs"
 										/>
 									</div>
 								</div>
@@ -520,7 +528,7 @@ function MainAppContent() {
 												Saldo inicial: {acc.name} (
 												{acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
 											</label>
-											<input
+											<Input
 												id={`init-balance-welcome-${acc.id}`}
 												type="number"
 												step="0.01"
@@ -532,7 +540,7 @@ function MainAppContent() {
 													const val = parseFloat(e.target.value) || 0;
 													setAccounts((prev) => prev.map((a, i) => (i === index ? { ...a, initialBalance: val } : a)));
 												}}
-												className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs text-slate-100 outline-none"
+												className="px-3 py-2.5 text-xs"
 											/>
 										</div>
 									))}
@@ -651,24 +659,27 @@ function MainAppContent() {
 								<span className="text-[10px] lg:text-xs font-semibold text-slate-400 uppercase tracking-wider hidden sm:inline">
 									Mes:
 								</span>
-								<select
-									id="global-month-selector"
+								<Select
 									value={selectedMonth}
-									onChange={(e) => {
-										setSelectedMonth(e.target.value);
-										setTxForm((prev) => ({ ...prev, date: `${e.target.value}-01` }));
-										setDebtForm((prev) => ({ ...prev, date: e.target.value }));
+									onValueChange={(val) => {
+										setSelectedMonth(val);
+										setTxForm((prev) => ({ ...prev, date: `${val}-01` }));
+										setDebtForm((prev) => ({ ...prev, date: val }));
 									}}
-									className="bg-slate-950/60 text-slate-100 border border-slate-800 rounded-lg px-2 py-1 lg:px-3 lg:py-1.5 text-xs font-mono font-bold outline-none focus:border-indigo-500 cursor-pointer"
 								>
-									{[...periods]
-										.sort((a, b) => a.month.localeCompare(b.month))
-										.map((p) => (
-											<option key={p.month} value={p.month}>
-												{p.month}
-											</option>
-										))}
-								</select>
+									<SelectTrigger id="global-month-selector" className="bg-slate-950/60 text-slate-100 border border-slate-800 rounded-lg px-2 py-1 lg:px-3 lg:py-1.5 text-xs font-mono font-bold outline-none focus:border-indigo-500 cursor-pointer w-auto h-auto min-w-[100px]">
+										<SelectValue placeholder="Mes" />
+									</SelectTrigger>
+									<SelectContent>
+										{[...periods]
+											.sort((a, b) => a.month.localeCompare(b.month))
+											.map((p) => (
+												<SelectItem key={p.month} value={p.month} className="font-mono">
+													{p.month}
+												</SelectItem>
+											))}
+									</SelectContent>
+								</Select>
 								<button
 									onClick={handleCreateNextMonth}
 									className="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-400 hover:text-indigo-305 border border-indigo-500/20 p-1 lg:p-1.5 rounded-lg transition-all flex items-center justify-center shadow-sm active:scale-95"
@@ -1051,14 +1062,14 @@ function MainAppContent() {
 								<label htmlFor="modal-init-month" className="block text-xs font-medium text-slate-400 mb-1">
 									Mes de Partida
 								</label>
-								<input
+								<Input
 									id="modal-init-month"
 									type="month"
 									required
 									max={currentMonthString}
 									value={initMonth}
 									onChange={(e) => setInitMonth(e.target.value)}
-									className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-sm text-slate-100 font-mono outline-none"
+									className="px-3 py-2 text-sm font-mono"
 								/>
 							</div>
 						) : (
@@ -1074,26 +1085,26 @@ function MainAppContent() {
 									<label htmlFor="modal-user-a-name" className="block text-[11px] font-medium text-slate-500 mb-1">
 										Nombre {userAName || 'Usuario A'}
 									</label>
-									<input
+									<Input
 										id="modal-user-a-name"
 										type="text"
 										required
 										value={userAName}
 										onChange={(e) => setUserAName(e.target.value)}
-										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-slate-100 outline-none"
+										className="px-3 py-2 text-xs"
 									/>
 								</div>
 								<div>
 									<label htmlFor="modal-user-b-name" className="block text-[11px] font-medium text-slate-500 mb-1">
 										Nombre {userBName || 'Usuario B'}
 									</label>
-									<input
+									<Input
 										id="modal-user-b-name"
 										type="text"
 										required
 										value={userBName}
 										onChange={(e) => setUserBName(e.target.value)}
-										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2 text-xs text-slate-100 outline-none"
+										className="px-3 py-2 text-xs"
 									/>
 								</div>
 							</div>
@@ -1111,7 +1122,7 @@ function MainAppContent() {
 											Saldo inicial: {acc.name} (
 											{acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
 										</label>
-										<input
+										<Input
 											id={`init-balance-modal-${acc.id}`}
 											type="number"
 											step="0.01"
@@ -1124,7 +1135,7 @@ function MainAppContent() {
 													prev.map((a, i) => (i === index ? { ...a, initialBalance: val } : a))
 												);
 											}}
-											className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs text-slate-100 outline-none"
+											className="px-3 py-2.5 text-xs"
 										/>
 									</div>
 								))}
@@ -1253,7 +1264,7 @@ function MainAppContent() {
 								<label htmlFor="edit-desc" className="block text-xs font-medium text-slate-400 mb-1.5">
 									Concepto
 								</label>
-								<input
+								<Input
 									id="edit-desc"
 									type="text"
 									required
@@ -1267,7 +1278,6 @@ function MainAppContent() {
 											tag: deduced || prev.tag
 										}));
 									}}
-									className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-600"
 								/>
 							</div>
 
@@ -1275,7 +1285,7 @@ function MainAppContent() {
 								<label htmlFor="edit-amount" className="block text-xs font-medium text-slate-400 mb-1.5">
 									Importe (€)
 								</label>
-								<input
+								<Input
 									id="edit-amount"
 									type="number"
 									step="0.01"
@@ -1283,7 +1293,6 @@ function MainAppContent() {
 									min="0.01"
 									value={editForm.amount}
 									onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
-									className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 								/>
 							</div>
 
@@ -1291,13 +1300,13 @@ function MainAppContent() {
 								<label htmlFor="edit-date" className="block text-xs font-medium text-slate-400 mb-1.5">
 									Fecha
 								</label>
-								<input
+								<Input
 									id="edit-date"
 									type="date"
 									required
 									value={editForm.date}
 									onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
-									className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 font-mono outline-none"
+									className="font-mono"
 								/>
 							</div>
 
@@ -1307,40 +1316,44 @@ function MainAppContent() {
 										<label htmlFor="edit-from-account" className="block text-xs font-medium text-slate-400 mb-1.5">
 											Cuenta de Origen
 										</label>
-										<select
-											id="edit-from-account"
+										<Select
 											value={editForm.fromAccountId}
-											onChange={(e) => setEditForm({ ...editForm, fromAccountId: e.target.value })}
-											className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
+											onValueChange={(val) => setEditForm({ ...editForm, fromAccountId: val })}
 										>
-											{accounts.map((acc) => (
-												<option key={acc.id} value={acc.id}>
-													{acc.name} (
-													{acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
-												</option>
-											))}
-										</select>
+											<SelectTrigger id="edit-from-account">
+												<SelectValue placeholder="Selecciona cuenta de origen" />
+											</SelectTrigger>
+											<SelectContent>
+												{accounts.map((acc) => (
+													<SelectItem key={acc.id} value={acc.id}>
+														{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
 									</div>
 
 									<div>
 										<label htmlFor="edit-to-account" className="block text-xs font-medium text-slate-400 mb-1.5">
 											Cuenta de Destino
 										</label>
-										<select
-											id="edit-to-account"
+										<Select
 											value={editForm.toAccountId}
-											onChange={(e) => setEditForm({ ...editForm, toAccountId: e.target.value })}
-											className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
+											onValueChange={(val) => setEditForm({ ...editForm, toAccountId: val })}
 										>
-											{accounts
-												.filter((acc) => acc.id !== editForm.fromAccountId)
-												.map((acc) => (
-													<option key={acc.id} value={acc.id}>
-														{acc.name} (
-														{acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
-													</option>
-												))}
-										</select>
+											<SelectTrigger id="edit-to-account">
+												<SelectValue placeholder="Selecciona cuenta de destino" />
+											</SelectTrigger>
+											<SelectContent>
+												{accounts
+													.filter((acc) => acc.id !== editForm.fromAccountId)
+													.map((acc) => (
+														<SelectItem key={acc.id} value={acc.id}>
+															{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+														</SelectItem>
+													))}
+											</SelectContent>
+										</Select>
 									</div>
 								</>
 							) : (
@@ -1349,11 +1362,10 @@ function MainAppContent() {
 										<label htmlFor="edit-account" className="block text-xs font-medium text-slate-400 mb-1.5">
 											Cuenta Asociada
 										</label>
-										<select
-											id="edit-account"
-											value={editForm.accountId}
-											onChange={(e) => {
-												const accId = e.target.value;
+										<Select
+											value={editForm.accountId || 'none'}
+											onValueChange={(val) => {
+												const accId = val === 'none' ? '' : val;
 												const acc = accounts.find((a) => a.id === accId);
 												setEditForm({
 													...editForm,
@@ -1361,16 +1373,19 @@ function MainAppContent() {
 													owner: acc ? acc.owner : editForm.owner
 												});
 											}}
-											className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none transition-all"
 										>
-											<option value="">Sin Cuenta (Manual)</option>
-											{accounts.map((acc) => (
-												<option key={acc.id} value={acc.id}>
-													{acc.name} (
-													{acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
-												</option>
-											))}
-										</select>
+											<SelectTrigger id="edit-account">
+												<SelectValue placeholder="Selecciona cuenta asociada" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="none">Sin Cuenta (Manual)</SelectItem>
+												{accounts.map((acc) => (
+													<SelectItem key={acc.id} value={acc.id}>
+														{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
 									</div>
 
 									<div>
@@ -1459,13 +1474,12 @@ function MainAppContent() {
 								<label htmlFor="edit-tag" className="block text-xs font-medium text-slate-400 mb-1.5">
 									Etiqueta
 								</label>
-								<input
+								<Input
 									id="edit-tag"
 									list="edit-tags-list"
 									value={editForm.tag}
 									onChange={(e) => setEditForm({ ...editForm, tag: e.target.value })}
 									placeholder="Elige o escribe una etiqueta"
-									className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 								/>
 								<datalist id="edit-tags-list">
 									{DEFAULT_TAGS[editForm.type].map((tag) => (
@@ -1620,7 +1634,7 @@ function LockScreen() {
 						>
 							{!hasPasswordSet ? 'Nuevo PIN (mínimo 4 caracteres)' : 'Introduce tu PIN'}
 						</label>
-						<input
+						<Input
 							id="pin-input"
 							type="password"
 							required
@@ -1628,7 +1642,7 @@ function LockScreen() {
 							value={pin}
 							onChange={(e) => setPin(e.target.value)}
 							placeholder="••••"
-							className="w-full bg-slate-950/80 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-3 text-center text-lg tracking-widest text-white outline-none transition-all placeholder:text-slate-700"
+							className="py-3 text-center text-lg tracking-widest text-white placeholder:text-slate-700"
 						/>
 					</div>
 
@@ -1640,14 +1654,14 @@ function LockScreen() {
 							>
 								Confirmar PIN
 							</label>
-							<input
+							<Input
 								id="confirm-pin-input"
 								type="password"
 								required
 								value={confirmPin}
 								onChange={(e) => setConfirmPin(e.target.value)}
 								placeholder="••••"
-								className="w-full bg-slate-950/80 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-3 text-center text-lg tracking-widest text-white outline-none transition-all placeholder:text-slate-700"
+								className="py-3 text-center text-lg tracking-widest text-white placeholder:text-slate-700"
 							/>
 						</div>
 					)}

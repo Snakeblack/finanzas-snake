@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useFinanzas } from '../../hooks/useFinanzas';
 import { Icons } from '../common/Icons';
 import { SyncModal } from '../sync/SyncModal';
+import { Input } from '../ui/input';
 
 /**
  * Componente que renderiza la pestaña de Cuentas y Configuración.
@@ -139,14 +140,13 @@ export function AccountsTab() {
 							<label htmlFor="acc-name" className="block text-xs font-medium text-slate-400 mb-1.5">
 								Nombre de la Cuenta
 							</label>
-							<input
+							<Input
 								id="acc-name"
 								type="text"
 								required
 								placeholder="Ej. Nómina La Caixa, Cuenta Ahorros..."
 								value={accountForm.name}
 								onChange={(e) => setAccountForm({ ...accountForm, name: e.target.value })}
-								className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-600"
 							/>
 						</div>
 
@@ -193,7 +193,7 @@ export function AccountsTab() {
 							<label htmlFor="acc-balance" className="block text-xs font-medium text-slate-400 mb-1.5">
 								Saldo Inicial (€)
 							</label>
-							<input
+							<Input
 								id="acc-balance"
 								type="number"
 								step="0.01"
@@ -202,7 +202,6 @@ export function AccountsTab() {
 								placeholder="0.00"
 								value={accountForm.initialBalance}
 								onChange={(e) => setAccountForm({ ...accountForm, initialBalance: e.target.value })}
-								className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 							/>
 						</div>
 

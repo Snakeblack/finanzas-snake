@@ -5,6 +5,7 @@ import {
 	getDebtRateLabel, 
 	getPaymentPlanRemainingAmount 
 } from '../../services/financeService';
+import { Input } from '../ui/input';
 
 /**
  * Componente que renderiza la pestaña de Reunificación de Deudas (Simulador).
@@ -101,25 +102,25 @@ export function ConsolidationTab() {
 								<label htmlFor="new-tae" className="block text-xs font-medium text-slate-400 mb-1.5">
 									Nuevo TAE Propuesto (%)
 								</label>
-								<input
+								<Input
 									id="new-tae"
 									type="number"
 									step="0.01"
 									value={consolidationForm.tae}
 									onChange={(e) => setConsolidationForm({ ...consolidationForm, tae: e.target.value })}
-									className="w-full premium-input focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none font-mono"
+									className="font-mono"
 								/>
 							</div>
 							<div>
 								<label htmlFor="new-term" className="block text-xs font-medium text-slate-400 mb-1.5">
 									Nuevo Plazo (Meses)
 								</label>
-								<input
+								<Input
 									id="new-term"
 									type="number"
 									value={consolidationForm.termMonths}
 									onChange={(e) => setConsolidationForm({ ...consolidationForm, termMonths: e.target.value })}
-									className="w-full premium-input focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none font-mono"
+									className="font-mono"
 								/>
 							</div>
 						</div>
@@ -130,14 +131,14 @@ export function ConsolidationTab() {
 								Capital Adicional Requerido (€){' '}
 								<span className="text-slate-500">(Opcional para x cosa / compra nueva)</span>
 							</label>
-							<input
+							<Input
 								id="extra-capital"
 								type="number"
 								min="0"
 								placeholder="Ej. 500 para un nuevo proyecto"
 								value={consolidationForm.extraCapital}
 								onChange={(e) => setConsolidationForm({ ...consolidationForm, extraCapital: e.target.value })}
-								className="w-full premium-input focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none font-mono"
+								className="font-mono"
 							/>
 						</div>
 					</div>

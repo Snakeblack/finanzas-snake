@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useFinanzas } from '../../hooks/useFinanzas';
 import { Icons } from '../common/Icons';
 import { MarkdownRenderer } from '../common/MarkdownRenderer';
+import { Input } from '../ui/input';
 
 /**
  * Componente que renderiza la pestaña del Asesor de Inteligencia Artificial (Gemini AI).
@@ -119,12 +120,12 @@ export function AiTab() {
 					</p>
 
 					<div className="space-y-3">
-						<input
+						<Input
 							type="password"
 							placeholder="Al pegar tu AI_KEY se guardará localmente"
 							value={geminiApiKey}
 							onChange={(e) => setGeminiApiKey(e.target.value)}
-							className="w-full premium-input focus:border-indigo-500 rounded-xl px-4 py-2 text-sm text-slate-100 font-mono outline-none"
+							className="font-mono px-4 py-2"
 						/>
 						{geminiApiKey ? (
 							<span className="text-[10px] text-emerald-400 font-semibold block">
