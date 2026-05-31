@@ -1,5 +1,6 @@
 import type { ChatMessage, Debt, Transaction, TagBreakdown } from '../types';
 import { calculateDebtMonthlyPayment, getPaymentPlanRemainingAmount, getPaymentPlanOverdueAmount, isClassicDebt, getDebtRateLabel } from './financeService';
+import { toNumber } from '../utils/formatters';
 
 /**
  * Parámetros requeridos para construir el prompt de contexto financiero.
@@ -56,7 +57,7 @@ export const buildFinanceDataPrompt = (params: PromptContextParams): string => {
 	const tagBreakdownText = params.tagData.map((t) => `- ${t.tag}: ${t.amount.toFixed(2)}€`).join('\n');
 
 	const transactionsText = params.filteredTransactions.length > 0
-		? params.filteredTransactions.map((t) => `- Concepto: "${t.desc}", Importe: ${t.amount.toFixed(2)}€, Tipo: ${t.type}, Frecuencia: ${t.recurrence === 'recurring' ? 'Recurrente' : 'Puntual/Único'}, Etiqueta/Categoría actual: "${t.tag}", Propietario: ${t.owner}`).join('\n')
+		? params.filteredTransactions.map((t) => `- Concepto: "${t.desc}", Importe: ${t.money ? toNumber(t.money.amount).toFixed(2) : '0.00'}€, Tipo: ${t.type}, Frecuencia: ${t.recurrence === 'recurring' ? 'Recurrente' : 'Puntual/Único'}, Etiqueta/Categoría actual: "${t.tag}", Propietario: ${t.owner}`).join('\n')
 		: 'No hay movimientos registrados para este mes.';
 
 	const describeDebtForPrompt = (debt: Debt) => {

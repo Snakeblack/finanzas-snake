@@ -1,21 +1,25 @@
 import React from 'react';
 
+interface IconProps {
+	className?: string;
+}
+
 /**
  * Diccionario de iconos SVG utilizados en la aplicación.
  */
 export const Icons = {
-	TrendingUp: () => (
-		<svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+	TrendingUp: ({ className = "w-5 h-5 text-emerald-500" }: IconProps) => (
+		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
 		</svg>
 	),
-	TrendingDown: () => (
-		<svg className="w-5 h-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+	TrendingDown: ({ className = "w-5 h-5 text-rose-500" }: IconProps) => (
+		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path strokeLinecap="round" strokeLinejoin="round" d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6" />
 		</svg>
 	),
-	CreditCard: () => (
-		<svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+	CreditCard: ({ className = "w-5 h-5 text-amber-500" }: IconProps) => (
+		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path
 				strokeLinecap="round"
 				strokeLinejoin="round"
@@ -23,8 +27,8 @@ export const Icons = {
 			/>
 		</svg>
 	),
-	Scale: () => (
-		<svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+	Scale: ({ className = "w-5 h-5 text-indigo-500" }: IconProps) => (
+		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path
 				strokeLinecap="round"
 				strokeLinejoin="round"
@@ -32,8 +36,8 @@ export const Icons = {
 			/>
 		</svg>
 	),
-	Trash: () => (
-		<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+	Trash: ({ className = "w-4 h-4" }: IconProps) => (
+		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path
 				strokeLinecap="round"
 				strokeLinejoin="round"
@@ -41,14 +45,14 @@ export const Icons = {
 			/>
 		</svg>
 	),
-	Plus: () => (
-		<svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+	Plus: ({ className = "w-4 h-4 mr-1" }: IconProps) => (
+		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
 		</svg>
 	),
-	Info: () => (
+	Info: ({ className = "w-4 h-4 text-slate-400 inline cursor-help" }: IconProps) => (
 		<svg
-			className="w-4 h-4 text-slate-400 inline cursor-help"
+			className={className}
 			fill="none"
 			viewBox="0 0 24 24"
 			stroke="currentColor"
@@ -61,8 +65,8 @@ export const Icons = {
 			/>
 		</svg>
 	),
-	Sparkles: () => (
-		<svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+	Sparkles: ({ className = "w-5 h-5 text-indigo-400" }: IconProps) => (
+		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path
 				strokeLinecap="round"
 				strokeLinejoin="round"
@@ -70,8 +74,8 @@ export const Icons = {
 			/>
 		</svg>
 	),
-	Lock: () => (
-		<svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+	Lock: ({ className = "w-4 h-4 text-slate-500" }: IconProps) => (
+		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path
 				strokeLinecap="round"
 				strokeLinejoin="round"
@@ -79,8 +83,8 @@ export const Icons = {
 			/>
 		</svg>
 	),
-	Edit: () => (
-		<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+	Edit: ({ className = "w-4 h-4" }: IconProps) => (
+		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path
 				strokeLinecap="round"
 				strokeLinejoin="round"
@@ -88,7 +92,7 @@ export const Icons = {
 			/>
 		</svg>
 	),
-	Eye: ({ className = 'w-4 h-4' }: { className?: string }) => (
+	Eye: ({ className = 'w-4 h-4' }: IconProps) => (
 		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
 			<path
@@ -98,7 +102,7 @@ export const Icons = {
 			/>
 		</svg>
 	),
-	EyeOff: ({ className = 'w-4 h-4' }: { className?: string }) => (
+	EyeOff: ({ className = 'w-4 h-4' }: IconProps) => (
 		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path
 				strokeLinecap="round"

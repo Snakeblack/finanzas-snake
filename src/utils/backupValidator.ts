@@ -108,7 +108,28 @@ const validateTransactions = (transactions: unknown): Transaction[] => {
 		const rawTx = tx as Record<string, unknown>;
 		const id = validateAndSanitizeText(rawTx.id, `${prefix}.id`, 50);
 		const desc = validateAndSanitizeText(rawTx.desc, `${prefix}.desc`, 150);
-		const amount = validateNumber(rawTx.amount, `${prefix}.amount`, true);
+		
+		const moneyObj = rawTx.money as Record<string, unknown> | undefined;
+		let moneyAmountStr: string;
+		let moneyCurrencyStr = 'EUR';
+		if (moneyObj) {
+			moneyAmountStr = String(moneyObj.amount);
+			moneyCurrencyStr = String(moneyObj.currency);
+		} else {
+			moneyAmountStr = String(rawTx.amount ?? '0');
+		}
+
+		const parsedAmount = parseFloat(moneyAmountStr);
+		const amountVal = validateNumber(Number.isFinite(parsedAmount) ? parsedAmount : 0, `${prefix}.amount`, true);
+		
+		if (moneyCurrencyStr !== 'EUR' && moneyCurrencyStr !== 'USD' && moneyCurrencyStr !== 'GBP') {
+			throw new Error(`La divisa en ${prefix}.currency debe ser 'EUR', 'USD' o 'GBP'.`);
+		}
+
+		const money = {
+			amount: amountVal.toFixed(2),
+			currency: moneyCurrencyStr as 'EUR' | 'USD' | 'GBP'
+		};
 
 		const type = rawTx.type;
 		if (type !== 'income' && type !== 'expense' && type !== 'transfer') {
@@ -144,7 +165,7 @@ const validateTransactions = (transactions: unknown): Transaction[] => {
 		return {
 			id,
 			desc,
-			amount,
+			money,
 			type,
 			tag,
 			date,
@@ -250,7 +271,7 @@ const validateDebts = (debts: unknown): Debt[] => {
 					id: instId,
 					dueMonth,
 					amount,
-					status,
+					status: status as 'paid' | 'pending',
 					label
 				};
 			});

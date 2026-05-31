@@ -1,3 +1,4 @@
+import Big from 'big.js';
 import { DEFAULT_TAGS } from '../constants';
 import type { 
 	Transaction, 
@@ -12,10 +13,29 @@ import type {
 	TransactionType, 
 	NumericInput, 
 	RateMode,
-	TagBreakdown
+	TagBreakdown,
+	Money,
+	CurrencyCode
 } from '../types';
 import { toNumber } from '../utils/formatters';
 import { normalizeMonth, addMonthsToMonth, getValidDateForMonth } from '../utils/dateUtils';
+
+/**
+ * Agrega una colección de objetos Money asegurando consistencia de divisa.
+ */
+export const sumMoney = (values: Money[], targetCurrency: CurrencyCode): Money => {
+	const total = values.reduce((acc, curr) => {
+		if (curr.currency !== targetCurrency) {
+			throw new Error(`Operación multi-divisa no soportada sin estrategia FX explícita: ${curr.currency} a ${targetCurrency}`);
+		}
+		return acc.plus(new Big(curr.amount));
+	}, new Big('0.00'));
+
+	return { 
+		amount: total.toFixed(2), 
+		currency: targetCurrency 
+	};
+};
 
 /**
  * Deduce automáticamente la etiqueta apropiada basándose en las palabras clave del concepto.
@@ -208,15 +228,17 @@ export const getEffectiveAmount = (
 	accounts: Account[]
 ): number => {
 	const owner = getTransactionOwner(t, accounts);
-	if (viewMode === 'all') return toNumber(t.amount);
+	if (!t.money) return 0;
+	const amt = new Big(t.money.amount);
+	if (viewMode === 'all') return toNumber(amt.toString());
 	if (viewMode === 'userA') {
-		if (owner === 'userA') return toNumber(t.amount);
-		if (owner === 'joint') return toNumber(t.amount) * 0.5;
+		if (owner === 'userA') return toNumber(amt.toString());
+		if (owner === 'joint') return toNumber(amt.times(0.5).toString());
 		return 0;
 	}
 	if (viewMode === 'userB') {
-		if (owner === 'userB') return toNumber(t.amount);
-		if (owner === 'joint') return toNumber(t.amount) * 0.5;
+		if (owner === 'userB') return toNumber(amt.toString());
+		if (owner === 'joint') return toNumber(amt.times(0.5).toString());
 		return 0;
 	}
 	return 0;
@@ -275,7 +297,7 @@ export const calculateTimelineBalances = (
 
 		// Aplicar movimientos del mes sobre saldos correspondientes
 		mTx.forEach((t) => {
-			const amount = toNumber(t.amount);
+			const amount = toNumber(t.money?.amount ?? '0');
 			if (t.type === 'income') {
 				if (t.accountId && runningAccountBalances[t.accountId] !== undefined) {
 					runningAccountBalances[t.accountId] += amount;
@@ -433,7 +455,7 @@ export const getTagBreakdown = (
 	
 	filteredTransactions.forEach((t) => {
 		if (t.type === 'expense') {
-			breakdown[t.tag] = (breakdown[t.tag] || 0) + toNumber(t.amount);
+			breakdown[t.tag] = (breakdown[t.tag] || 0) + toNumber(t.money?.amount ?? '0');
 		}
 	});
 

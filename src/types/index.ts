@@ -63,23 +63,30 @@ export type Period = {
 	isManualInit?: boolean;
 };
 
+export type CurrencyCode = 'EUR' | 'USD' | 'GBP';
+
+export type Money = {
+	readonly amount: string; // Serializado estrictamente como string para preservar precisión en el almacenamiento
+	readonly currency: CurrencyCode;
+};
+
 /**
  * Estructura de una transacción financiera (ingreso, gasto, traspaso).
  */
 export type Transaction = {
-	id: string;
-	desc: string;
-	amount: number;
-	type: TransactionType;
-	tag: string;
-	date: string;
-	recurrence?: TransactionRecurrence;
-	originId?: string; // ID de la transacción original para elementos recurrentes propagados
-	owner?: 'userA' | 'userB' | 'joint';
-	paidBy?: 'userA' | 'userB' | 'shared';
-	accountId?: string;
-	fromAccountId?: string;
-	toAccountId?: string;
+	readonly id: string;
+	readonly desc: string;
+	readonly money: Money; // Refactor de campo numérico plano a Value Object
+	readonly type: TransactionType;
+	readonly tag: string;
+	readonly date: string; // Formato YYYY-MM-DD
+	readonly recurrence?: TransactionRecurrence;
+	readonly originId?: string; // ID de la transacción original para elementos recurrentes propagados
+	readonly owner?: 'userA' | 'userB' | 'joint';
+	readonly paidBy?: 'userA' | 'userB' | 'shared';
+	readonly accountId?: string;
+	readonly fromAccountId?: string;
+	readonly toAccountId?: string;
 };
 
 /**
@@ -139,6 +146,7 @@ export type Debt = ClassicDebt | PaymentPlanDebt;
 export type TxForm = {
 	desc: string;
 	amount: string;
+	currency: CurrencyCode;
 	type: TransactionType;
 	tag: string;
 	date: string;
