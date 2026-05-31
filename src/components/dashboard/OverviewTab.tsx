@@ -385,6 +385,7 @@ export function OverviewTab() {
 										x={x + barWidth / 2}
 										y={y - 8}
 										textAnchor="middle"
+										fill="currentColor"
 										className={`font-semibold text-[10px] md:text-xs transition-all duration-300 ${step.textColor}`}
 										style={{ opacity: hoveredIndex === null ? 1.0 : isHovered ? 1.0 : 0.3 }}
 									>
@@ -539,6 +540,7 @@ export function OverviewTab() {
 										x={isZero ? xStart : x + barWidthMobile / 2}
 										y={y - 4}
 										textAnchor="middle"
+										fill="currentColor"
 										className={`font-semibold text-[10px] transition-all duration-300 ${step.textColor}`}
 										style={{ opacity: hoveredIndex === null ? 1.0 : isHovered ? 1.0 : 0.3 }}
 									>
