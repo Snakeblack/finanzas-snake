@@ -177,6 +177,11 @@ export interface FinanzasContextType {
 	handleUnlock: (password: string) => Promise<boolean>;
 	handleLockApp: () => void;
 
+	// Ocultar Datos Sensibles
+	hideSensitiveData: boolean;
+	toggleSensitiveData: () => void;
+	formatAmount: (amount: number, options?: { showSign?: boolean; decimals?: number; forceShow?: boolean }) => string;
+
 	// Valores calculados
 	activePeriodData: any;
 	totalIncomes: number;
@@ -245,6 +250,34 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	const [userAName, setUserAName] = useState(() => localStorage.getItem(STORAGE_KEYS.userAName) || 'Usuario A');
 	const [userBName, setUserBName] = useState(() => localStorage.getItem(STORAGE_KEYS.userBName) || 'Usuario B');
 	const [viewMode, setViewMode] = useState<'all' | 'userA' | 'userB'>('all');
+
+	// Estado para ocultar datos sensibles
+	const [hideSensitiveData, setHideSensitiveData] = useState<boolean>(() => {
+		if (typeof window !== 'undefined') {
+			return localStorage.getItem('finanzas_hide_sensitive_data') === 'true';
+		}
+		return false;
+	});
+
+	const toggleSensitiveData = () => {
+		setHideSensitiveData((prev) => {
+			const newVal = !prev;
+			localStorage.setItem('finanzas_hide_sensitive_data', String(newVal));
+			return newVal;
+		});
+	};
+
+	const formatAmount = (amount: number, options?: { showSign?: boolean; decimals?: number; forceShow?: boolean }) => {
+		if (hideSensitiveData && !options?.forceShow) {
+			const sign = amount < 0 ? '-' : (options?.showSign && amount > 0 ? '+' : '');
+			return `${sign}***€`;
+		}
+		const decimals = options?.decimals !== undefined ? options.decimals : 2;
+		const absoluteAmount = Math.abs(amount);
+		const formatted = absoluteAmount.toLocaleString('es-ES', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+		const sign = amount < 0 ? '-' : (options?.showSign && amount > 0 ? '+' : '');
+		return `${sign}${formatted}€`;
+	};
 
 	// Estados de Seguridad y PIN (OWASP)
 	const [isLocked, setIsLocked] = useState(() => {
@@ -2193,6 +2226,11 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			handleSetupPassword,
 			handleUnlock,
 			handleLockApp,
+			
+			// Ocultar Datos Sensibles
+			hideSensitiveData,
+			toggleSensitiveData,
+			formatAmount,
 			
 			// Valores calculados
 			activePeriodData,

@@ -25,7 +25,8 @@ export function ConsolidationTab() {
 		newConsolidatedCuota,
 		currentConsolidatedMonthlySum,
 		currentTotalInterests,
-		newConsolidatedInterests
+		newConsolidatedInterests,
+		formatAmount
 	} = useFinanzas();
 
 	return (
@@ -70,15 +71,15 @@ export function ConsolidationTab() {
 											<h4 className="font-bold text-slate-200 text-sm">{d.desc}</h4>
 											<p className="text-xs text-slate-400">
 												{isPlan
-													? `Fraccionamiento: pendiente ${getPaymentPlanRemainingAmount(d).toFixed(2)}€ · no se reunifica automáticamente`
-													: `Capital: ${d.principal}€ | ${getDebtRateLabel(d)}`}
+													? `Fraccionamiento: pendiente ${formatAmount(getPaymentPlanRemainingAmount(d))} · no se reunifica automáticamente`
+													: `Capital: ${formatAmount(d.principal)} | ${getDebtRateLabel(d)}`}
 											</p>
 										</div>
 									</div>
 									<div className="text-right">
 										<span className="block text-[10px] text-slate-500">{isPlan ? 'Exigible' : 'Cuota'}</span>
 										<span className="text-sm font-bold text-slate-350">
-											{cuota.toFixed(2)}€{isPlan ? '' : '/mes'}
+											{formatAmount(cuota)}{isPlan ? '' : '/mes'}
 										</span>
 									</div>
 								</div>
@@ -152,16 +153,16 @@ export function ConsolidationTab() {
 								<span className="text-xs text-slate-500 block">Estructura del Capital</span>
 								<div className="space-y-1 mt-1 font-mono text-xs">
 									<span className="text-sm block text-slate-300">
-										Deuda actual: {consolidatedPrincipal.toLocaleString()}€
+										Deuda actual: {formatAmount(consolidatedPrincipal)}
 									</span>
 									{additionalCapital > 0 && (
 										<span className="text-xs block text-indigo-400 font-semibold">
-											+ Nuevo capital: {additionalCapital.toLocaleString()}€
+											+ Nuevo capital: {formatAmount(additionalCapital)}
 										</span>
 									)}
 									<div className="border-t border-slate-800 pt-1 mt-1">
 										<span className="text-sm font-bold text-slate-150">
-											Préstamo Total: {totalNewPrincipal.toLocaleString()}€
+											Préstamo Total: {formatAmount(totalNewPrincipal)}
 										</span>
 									</div>
 								</div>
@@ -171,12 +172,12 @@ export function ConsolidationTab() {
 								<div>
 									<span className="text-xs text-slate-500 block">Nueva Cuota Mensual</span>
 									<span className="text-xl font-black text-indigo-400 font-mono">
-										{newConsolidatedCuota.toFixed(2)}€/mes
+										{formatAmount(newConsolidatedCuota)}/mes
 									</span>
 								</div>
 								<span className="block text-[10px] text-emerald-400 mt-2 font-medium">
 									{newConsolidatedCuota < currentConsolidatedMonthlySum
-										? `Ahorras ${(currentConsolidatedMonthlySum - newConsolidatedCuota).toFixed(2)}€/mes respecto a deudas previas`
+										? `Ahorras ${formatAmount(currentConsolidatedMonthlySum - newConsolidatedCuota)}/mes respecto a deudas previas`
 										: 'La cuota mensual aumenta'}
 								</span>
 							</div>
@@ -186,11 +187,11 @@ export function ConsolidationTab() {
 						<div className="glass-panel p-4 rounded-xl space-y-2 text-sm">
 							<div className="flex justify-between">
 								<span className="text-slate-400">Intereses Totales Actuales:</span>
-								<span className="font-semibold text-slate-300 font-mono">{currentTotalInterests.toFixed(2)}€</span>
+								<span className="font-semibold text-slate-300 font-mono">{formatAmount(currentTotalInterests)}</span>
 							</div>
 							<div className="flex justify-between">
 								<span className="text-slate-400">Intereses Préstamo Unificado (incl. nuevo dinero):</span>
-								<span className="font-semibold text-slate-300 font-mono">{newConsolidatedInterests.toFixed(2)}€</span>
+								<span className="font-semibold text-slate-300 font-mono">{formatAmount(newConsolidatedInterests)}</span>
 							</div>
 							<div className="border-t border-slate-800/60 pt-2 flex justify-between font-bold">
 								<span className="text-slate-300">Diferencial de Interés Neto:</span>
@@ -199,7 +200,7 @@ export function ConsolidationTab() {
 										newConsolidatedInterests > currentTotalInterests ? 'text-rose-400' : 'text-emerald-400'
 									}`}
 								>
-									{(newConsolidatedInterests - currentTotalInterests).toFixed(2)}€
+									{formatAmount(newConsolidatedInterests - currentTotalInterests)}
 									{newConsolidatedInterests > currentTotalInterests
 										? ' (Mayor coste financiero)'
 										: ' (Menor coste financiero)'}

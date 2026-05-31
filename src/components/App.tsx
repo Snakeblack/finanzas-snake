@@ -76,7 +76,10 @@ function MainAppContent() {
 		handleLockApp,
 		handleImportData,
 		importError,
-		importSuccess
+		importSuccess,
+		hideSensitiveData,
+		toggleSensitiveData,
+		formatAmount
 	} = useFinanzas();
 
 	// Adaptador para el input del archivo JSON de copia de seguridad
@@ -209,21 +212,38 @@ function MainAppContent() {
 							<Icons.Sparkles className="w-3.5 h-3.5" /> Asesor Gemini
 						</button>
 					</nav>
-					{hasPasswordSet && (
+					<div className="flex items-center space-x-2 ml-auto md:ml-3">
 						<button
-							onClick={handleLockApp}
-							className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all border border-slate-800 hover:border-rose-500/20 bg-slate-900/80 shadow-md ml-3"
-							title="Bloquear Aplicación"
+							onClick={toggleSensitiveData}
+							className={`p-2 rounded-xl transition-all border shadow-md flex items-center justify-center ${
+								hideSensitiveData
+									? 'text-indigo-400 border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20'
+									: 'text-slate-400 border-slate-800 bg-slate-900/80 hover:text-slate-200 hover:border-slate-700'
+							}`}
+							title={hideSensitiveData ? 'Mostrar datos sensibles' : 'Ocultar datos sensibles'}
 						>
-							<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-								<path
-									strokeLinecap="round"
-									strokeLinejoin="round"
-									d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-								/>
-							</svg>
+							{hideSensitiveData ? (
+								<Icons.EyeOff className="w-4 h-4 text-indigo-400" />
+							) : (
+								<Icons.Eye className="w-4 h-4 text-slate-400 hover:text-slate-200" />
+							)}
 						</button>
-					)}
+						{hasPasswordSet && (
+							<button
+								onClick={handleLockApp}
+								className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all border border-slate-800 hover:border-rose-500/20 bg-slate-900/80 shadow-md"
+								title="Bloquear Aplicación"
+							>
+								<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+									/>
+								</svg>
+							</button>
+						)}
+					</div>
 				</div>
 			</header>
 
@@ -725,7 +745,7 @@ function MainAppContent() {
 									</div>
 								</div>
 								<div className="text-base lg:text-3xl font-extrabold text-slate-100 truncate">
-									{currentOpeningBalance.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+									{formatAmount(currentOpeningBalance)}
 								</div>
 								<p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 hidden lg:block">
 									Saldo inicial del periodo
@@ -741,11 +761,11 @@ function MainAppContent() {
 									</div>
 								</div>
 								<div className="text-base lg:text-3xl font-extrabold text-emerald-400 truncate">
-									+{totalIncomes.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+									{formatAmount(totalIncomes, { showSign: true })}
 								</div>
 								<p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 hidden lg:block">
 									{oneOffIncomes > 0
-										? `Recurrentes: +${recurringIncomes.toFixed(2)}€ | Puntuales: +${oneOffIncomes.toFixed(2)}€`
+										? `Recurrentes: ${formatAmount(recurringIncomes, { showSign: true })} | Puntuales: ${formatAmount(oneOffIncomes, { showSign: true })}`
 										: 'Registrados para este mes'}
 								</p>
 							</div>
@@ -759,11 +779,11 @@ function MainAppContent() {
 									</div>
 								</div>
 								<div className="text-base lg:text-3xl font-extrabold text-rose-400 truncate">
-									-{totalExpenses.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+									{formatAmount(-totalExpenses)}
 								</div>
 								<p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 hidden lg:block">
 									{oneOffExpenses > 0
-										? `Recurrentes: -${recurringExpenses.toFixed(2)}€ | Puntuales: -${oneOffExpenses.toFixed(2)}€`
+										? `Recurrentes: ${formatAmount(-recurringExpenses)} | Puntuales: ${formatAmount(-oneOffExpenses)}`
 										: 'Sin contar amortización de deudas'}
 								</p>
 							</div>
@@ -785,7 +805,7 @@ function MainAppContent() {
 									</div>
 								</div>
 								<div className="text-base lg:text-3xl font-extrabold text-amber-500 truncate">
-									-{totalMonthlyDebtPayments.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+									{formatAmount(-totalMonthlyDebtPayments)}
 								</div>
 								<p className="text-[9px] lg:text-xs text-slate-500 mt-0.5 lg:mt-1 hidden lg:block">
 									Incluye cuotas activas y vencidas
@@ -805,7 +825,7 @@ function MainAppContent() {
 								<div
 									className={`text-lg lg:text-3xl font-black ${currentClosingBalance >= 0 ? 'text-indigo-400' : 'text-rose-500'}`}
 								>
-									{currentClosingBalance.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+									{formatAmount(currentClosingBalance)}
 								</div>
 								<p className="text-[9px] lg:text-xs text-slate-400 mt-0.5 lg:mt-1">
 									{currentClosingBalance >= 0 ? 'Saldo neto acumulado positivo' : 'Déficit acumulado al cierre'}
