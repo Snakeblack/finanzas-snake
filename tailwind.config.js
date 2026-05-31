@@ -47,6 +47,25 @@ export default {
 				card: {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
+				},
+				slate: {
+					50: 'hsl(var(--slate-50) / <alpha-value>)',
+					100: 'hsl(var(--slate-100) / <alpha-value>)',
+					200: 'hsl(var(--slate-200) / <alpha-value>)',
+					300: 'hsl(var(--slate-300) / <alpha-value>)',
+					350: 'hsl(var(--slate-350) / <alpha-value>)',
+					400: 'hsl(var(--slate-400) / <alpha-value>)',
+					450: 'hsl(var(--slate-450) / <alpha-value>)',
+					500: 'hsl(var(--slate-500) / <alpha-value>)',
+					600: 'hsl(var(--slate-600) / <alpha-value>)',
+					700: 'hsl(var(--slate-700) / <alpha-value>)',
+					750: 'hsl(var(--slate-750) / <alpha-value>)',
+					755: 'hsl(var(--slate-750) / <alpha-value>)',
+					800: 'hsl(var(--slate-800) / <alpha-value>)',
+					850: 'hsl(var(--slate-850) / <alpha-value>)',
+					900: 'hsl(var(--slate-900) / <alpha-value>)',
+					955: 'hsl(var(--slate-950) / <alpha-value>)', // Add 955 as alias just in case, but standard is 950
+					950: 'hsl(var(--slate-950) / <alpha-value>)'
 				}
 			},
 			borderRadius: {

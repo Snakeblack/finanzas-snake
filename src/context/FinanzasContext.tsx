@@ -182,6 +182,10 @@ export interface FinanzasContextType {
 	toggleSensitiveData: () => void;
 	formatAmount: (amount: number, options?: { showSign?: boolean; decimals?: number; forceShow?: boolean }) => string;
 
+	// Tema (Modo Claro/Oscuro)
+	theme: 'light' | 'dark';
+	toggleTheme: () => void;
+
 	// Valores calculados
 	activePeriodData: any;
 	totalIncomes: number;
@@ -266,6 +270,33 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			return newVal;
 		});
 	};
+
+	// === TEMA (MODO CLARO / OSCURO) ===
+	const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+		if (typeof window !== 'undefined') {
+			return (localStorage.getItem('finanzas_theme') as 'light' | 'dark') || 'dark';
+		}
+		return 'dark';
+	});
+
+	const toggleTheme = () => {
+		setTheme((prev) => {
+			const newVal = prev === 'dark' ? 'light' : 'dark';
+			localStorage.setItem('finanzas_theme', newVal);
+			return newVal;
+		});
+	};
+
+	useEffect(() => {
+		if (typeof window !== 'undefined') {
+			const root = window.document.documentElement;
+			if (theme === 'light') {
+				root.classList.add('light');
+			} else {
+				root.classList.remove('light');
+			}
+		}
+	}, [theme]);
 
 	const formatAmount = (amount: number, options?: { showSign?: boolean; decimals?: number; forceShow?: boolean }) => {
 		if (hideSensitiveData && !options?.forceShow) {
@@ -2231,6 +2262,10 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			hideSensitiveData,
 			toggleSensitiveData,
 			formatAmount,
+
+			// Tema (Modo Claro/Oscuro)
+			theme,
+			toggleTheme,
 			
 			// Valores calculados
 			activePeriodData,

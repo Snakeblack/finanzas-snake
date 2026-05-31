@@ -79,7 +79,9 @@ function MainAppContent() {
 		importSuccess,
 		hideSensitiveData,
 		toggleSensitiveData,
-		formatAmount
+		formatAmount,
+		theme,
+		toggleTheme
 	} = useFinanzas();
 
 	// Adaptador para el input del archivo JSON de copia de seguridad
@@ -104,7 +106,7 @@ function MainAppContent() {
 
 	return (
 		<div
-			className={`min-h-screen ${activeTab === 'ai' ? 'h-screen overflow-hidden' : activeTab === 'transactions' ? 'lg:h-screen lg:overflow-hidden' : ''} flex flex-col bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white relative overflow-hidden`}
+			className={`min-h-screen ${activeTab === 'ai' ? 'h-screen overflow-hidden' : activeTab === 'transactions' ? 'lg:h-screen lg:overflow-hidden' : ''} flex flex-col bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white relative overflow-hidden`}
 		>
 			{/* Ambient glows */}
 			<div className="bg-glow-indigo top-0 left-1/4" />
@@ -213,6 +215,27 @@ function MainAppContent() {
 						</button>
 					</nav>
 					<div className="flex items-center space-x-2 ml-auto md:ml-3">
+						<button
+							onClick={toggleTheme}
+							className={`p-2 rounded-xl transition-all border shadow-md flex items-center justify-center ${
+								theme === 'light'
+									? 'text-amber-500 border-amber-500/20 bg-amber-500/10 hover:bg-amber-500/20'
+									: 'text-slate-400 border-slate-800 bg-slate-900/80 hover:text-slate-200 hover:border-slate-700'
+							}`}
+							title={theme === 'light' ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro'}
+						>
+							{theme === 'light' ? (
+								<svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+									<circle cx="12" cy="12" r="4" />
+									<path strokeLinecap="round" strokeLinejoin="round" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.31 11.31l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41m14.14-14.14l-1.41 1.41" />
+								</svg>
+							) : (
+								<svg className="w-4 h-4 text-slate-400 hover:text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+									<path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+								</svg>
+							)}
+						</button>
+
 						<button
 							onClick={toggleSensitiveData}
 							className={`p-2 rounded-xl transition-all border shadow-md flex items-center justify-center ${
