@@ -27,7 +27,8 @@ export function AccountsTab() {
 		handleExportData,
 		handleImportData,
 		importError,
-		importSuccess
+		importSuccess,
+		formatAmount
 	} = useFinanzas();
 
 	// Adaptador para el input del archivo JSON de copia de seguridad
@@ -90,7 +91,7 @@ export function AccountsTab() {
 											</span>
 										</div>
 										<div className="text-xs text-slate-500 font-mono mt-1 space-y-1">
-											<div>Saldo Inicial: {acc.initialBalance.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</div>
+											<div>Saldo Inicial: {formatAmount(acc.initialBalance)}</div>
 										</div>
 									</div>
 
@@ -98,7 +99,7 @@ export function AccountsTab() {
 										<div>
 											<span className="block text-[10px] text-slate-500">Saldo en {selectedMonth}:</span>
 											<span className={`text-sm font-extrabold ${closingBal >= 0 ? 'text-indigo-400' : 'text-rose-500'}`}>
-												{closingBal.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+												{formatAmount(closingBal)}
 											</span>
 										</div>
 										<div className="flex space-x-1.5">

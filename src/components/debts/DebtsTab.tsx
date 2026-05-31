@@ -36,7 +36,8 @@ export function DebtsTab() {
 		addPaymentPlanTranche,
 		removePaymentPlanTranche,
 		updatePaymentPlanTranche,
-		togglePaymentPlanInstallmentStatus
+		togglePaymentPlanInstallmentStatus,
+		formatAmount
 	} = useFinanzas();
 
 	// Cálculos locales para el fraccionamiento manual en el formulario
@@ -457,12 +458,12 @@ export function DebtsTab() {
 											</div>
 											<p className="text-xs text-slate-400 mt-1">
 												{isPlan
-													? `Financiado: ${d.financedAmount}€ | Comisiones: ${d.fees}€ | Pendiente: ${getPaymentPlanRemainingAmount(d).toFixed(2)}€`
-													: `Capital: ${d.principal}€ | ${getDebtRateLabel(d)} | Plazo: ${d.termMonths} meses`}
+													? `Financiado: ${formatAmount(d.financedAmount)} | Comisiones: ${formatAmount(d.fees)} | Pendiente: ${formatAmount(getPaymentPlanRemainingAmount(d))}`
+													: `Capital: ${formatAmount(d.principal)} | ${getDebtRateLabel(d)} | Plazo: ${d.termMonths} meses`}
 											</p>
 											<p className="text-[10px] text-slate-500">
 												Iniciado en: {normalizeMonth(d.date)}
-												{overdueAmount > 0 ? ` · Vencido: ${overdueAmount.toFixed(2)}€` : ''}
+												{overdueAmount > 0 ? ` · Vencido: ${formatAmount(overdueAmount)}` : ''}
 											</p>
 										</div>
 										<div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
@@ -470,7 +471,7 @@ export function DebtsTab() {
 												<span className="block text-[10px] text-slate-500">
 													{isPlan ? 'Exigible este mes' : 'Cuota Mensual'}
 												</span>
-												<span className="text-base font-extrabold text-amber-500">{cuota.toFixed(2)}€</span>
+												<span className="text-base font-extrabold text-amber-500">{formatAmount(cuota)}</span>
 											</div>
 
 											<div className="flex sm:flex-col gap-1.5 w-full sm:w-auto">
@@ -506,7 +507,7 @@ export function DebtsTab() {
 								</h4>
 								<p className="text-xs text-slate-400">
 									{isPaymentPlanDebt(selectedDebtSchedule)
-										? `Total ${selectedDebtSchedule.totalToPay.toFixed(2)}€ · Pagado ${getPaymentPlanPaidAmount(selectedDebtSchedule).toFixed(2)}€ · Pendiente ${getPaymentPlanRemainingAmount(selectedDebtSchedule).toFixed(2)}€ · Vencido ${getPaymentPlanOverdueAmount(selectedDebtSchedule, selectedMonth).toFixed(2)}€`
+										? `Total ${formatAmount(selectedDebtSchedule.totalToPay)} · Pagado ${formatAmount(getPaymentPlanPaidAmount(selectedDebtSchedule))} · Pendiente ${formatAmount(getPaymentPlanRemainingAmount(selectedDebtSchedule))} · Vencido ${formatAmount(getPaymentPlanOverdueAmount(selectedDebtSchedule, selectedMonth))}`
 										: `${selectedDebtSchedule.termMonths} meses, ${getDebtRateLabel(selectedDebtSchedule)}`}
 								</p>
 							</div>
@@ -535,7 +536,7 @@ export function DebtsTab() {
 											return (
 												<tr key={installment.id} className="hover:bg-slate-800/10">
 													<td className="p-2 font-mono text-slate-500">{installment.dueMonth}</td>
-													<td className="p-2 font-mono">{installment.amount.toFixed(2)}€</td>
+													<td className="p-2 font-mono">{formatAmount(installment.amount)}</td>
 													<td className={isOverdue ? 'p-2 text-rose-400 font-semibold' : 'p-2 text-slate-300'}>
 														{installment.status === 'paid' ? 'Pagada' : isOverdue ? 'Vencida' : 'Pendiente'}
 													</td>
@@ -569,10 +570,10 @@ export function DebtsTab() {
 										{generateAmortizationSchedule(selectedDebtSchedule).map((row) => (
 											<tr key={row.month} className="hover:bg-slate-800/10">
 												<td className="p-2 text-slate-500">{row.month}</td>
-												<td className="p-2">{row.cuota.toFixed(2)}€</td>
-												<td className="p-2 text-emerald-400">{row.principalPaid.toFixed(2)}€</td>
-												<td className="p-2 text-rose-400">{row.interestPayment.toFixed(2)}€</td>
-												<td className="p-2 text-right text-slate-400">{row.remainingPrincipal.toFixed(2)}€</td>
+												<td className="p-2">{formatAmount(row.cuota)}</td>
+												<td className="p-2 text-emerald-400">{formatAmount(row.principalPaid)}</td>
+												<td className="p-2 text-rose-400">{formatAmount(row.interestPayment)}</td>
+												<td className="p-2 text-right text-slate-400">{formatAmount(row.remainingPrincipal)}</td>
 											</tr>
 										))}
 									</tbody>

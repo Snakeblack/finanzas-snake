@@ -27,7 +27,8 @@ export function OverviewTab() {
 		jointPaidByA,
 		jointPaidByB,
 		netOwed,
-		filteredDebts
+		filteredDebts,
+		formatAmount
 	} = useFinanzas();
 
 	return (
@@ -42,7 +43,7 @@ export function OverviewTab() {
 					{/* Ingresos */}
 					<div className="flex flex-col items-center w-full max-w-[80px] group">
 						<div className="text-xs font-bold text-emerald-400 mb-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-							{totalIncomes.toFixed(0)}€
+							{formatAmount(totalIncomes, { decimals: 0, showSign: true })}
 						</div>
 						<div
 							className="w-full bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t-lg transition-all duration-500 hover:brightness-110"
@@ -56,7 +57,7 @@ export function OverviewTab() {
 					{/* Gastos Regulares */}
 					<div className="flex flex-col items-center w-full max-w-[80px] group">
 						<div className="text-xs font-bold text-rose-400 mb-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-							{totalExpenses.toFixed(0)}€
+							{formatAmount(-totalExpenses, { decimals: 0 })}
 						</div>
 						<div
 							className="w-full bg-gradient-to-t from-rose-600 to-rose-400 rounded-t-lg transition-all duration-500 hover:brightness-110"
@@ -70,7 +71,7 @@ export function OverviewTab() {
 					{/* Cuota Deuda */}
 					<div className="flex flex-col items-center w-full max-w-[80px] group">
 						<div className="text-xs font-bold text-amber-400 mb-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-							{totalMonthlyDebtPayments.toFixed(0)}€
+							{formatAmount(-totalMonthlyDebtPayments, { decimals: 0 })}
 						</div>
 						<div
 							className="w-full bg-gradient-to-t from-amber-600 to-amber-400 rounded-t-lg transition-all duration-500 hover:brightness-110"
@@ -86,7 +87,7 @@ export function OverviewTab() {
 						<div
 							className={`text-xs font-bold ${netMonthlyBalance >= 0 ? 'text-indigo-400' : 'text-rose-500'} mb-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity`}
 						>
-							{netMonthlyBalance.toFixed(0)}€
+							{formatAmount(netMonthlyBalance, { decimals: 0 })}
 						</div>
 						<div
 							className={`w-full rounded-t-lg transition-all duration-500 hover:brightness-110 ${netMonthlyBalance >= 0 ? 'bg-gradient-to-t from-indigo-600 to-indigo-400' : 'bg-gradient-to-t from-rose-950 to-rose-800'}`}
@@ -134,7 +135,7 @@ export function OverviewTab() {
 									<div className="flex justify-between text-xs font-medium text-slate-300">
 										<span>{tag}</span>
 										<span className="text-slate-400">
-											{amount.toFixed(2)}€ ({pct}%)
+											{formatAmount(amount)} ({pct}%)
 										</span>
 									</div>
 									<div className="w-full bg-slate-950/60 h-2.5 rounded-full overflow-hidden border border-white/5">
@@ -167,16 +168,16 @@ export function OverviewTab() {
 					<div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/60 backdrop-blur-sm shadow-inner transition-all hover:border-indigo-500/20">
 						<div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">Gastos comunes pagados por</div>
 						<div className="text-xl font-bold text-slate-200">{userAName}</div>
-						<div className="text-2xl font-black text-indigo-400 mt-2">{jointPaidByA.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</div>
-						<p className="text-[10px] text-slate-500 mt-1">Aportación correspondiente: {(jointPaidByA / 2).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€ por persona</p>
+						<div className="text-2xl font-black text-indigo-400 mt-2">{formatAmount(jointPaidByA)}</div>
+						<p className="text-[10px] text-slate-500 mt-1">Aportación correspondiente: {formatAmount(jointPaidByA / 2)} por persona</p>
 					</div>
 
 					{/* Columna Usuario B */}
 					<div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/60 backdrop-blur-sm shadow-inner transition-all hover:border-indigo-500/20">
 						<div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">Gastos comunes pagados por</div>
 						<div className="text-xl font-bold text-slate-200">{userBName}</div>
-						<div className="text-2xl font-black text-indigo-400 mt-2">{jointPaidByB.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</div>
-						<p className="text-[10px] text-slate-500 mt-1">Aportación correspondiente: {(jointPaidByB / 2).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€ por persona</p>
+						<div className="text-2xl font-black text-indigo-400 mt-2">{formatAmount(jointPaidByB)}</div>
+						<p className="text-[10px] text-slate-500 mt-1">Aportación correspondiente: {formatAmount(jointPaidByB / 2)} por persona</p>
 					</div>
 
 					{/* Columna Liquidación */}
@@ -188,12 +189,12 @@ export function OverviewTab() {
 							) : netOwed > 0 ? (
 								<div>
 									<div className="text-rose-400 font-bold text-lg mt-1">{userBName} debe a {userAName}</div>
-									<div className="text-3xl font-black text-rose-400 mt-2">{netOwed.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</div>
+									<div className="text-3xl font-black text-rose-400 mt-2">{formatAmount(netOwed)}</div>
 								</div>
 							) : (
 								<div>
 									<div className="text-rose-400 font-bold text-lg mt-1">{userAName} debe a {userBName}</div>
-									<div className="text-3xl font-black text-rose-400 mt-2">{Math.abs(netOwed).toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</div>
+									<div className="text-3xl font-black text-rose-400 mt-2">{formatAmount(Math.abs(netOwed))}</div>
 								</div>
 							)}
 						</div>
@@ -237,7 +238,7 @@ export function OverviewTab() {
 										<div>
 											<span className="text-slate-500 block">{isPlan ? 'Financiado:' : 'Capital Inicial:'}</span>
 											<span className="font-semibold text-slate-300">
-												{(isPlan ? d.financedAmount : d.principal).toLocaleString('es-ES')}€
+												{formatAmount(isPlan ? d.financedAmount : d.principal, { decimals: 0 })}
 											</span>
 										</div>
 										<div>
@@ -245,7 +246,7 @@ export function OverviewTab() {
 												{isPlan ? 'Comisiones:' : 'Intereses Totales:'}
 											</span>
 											<span className="font-semibold text-rose-400">
-												{totalIntereses.toLocaleString('es-ES', { maximumFractionDigits: 2 })}€
+												{formatAmount(totalIntereses)}
 											</span>
 										</div>
 									</div>
@@ -256,12 +257,12 @@ export function OverviewTab() {
 											</span>
 											<span className="font-semibold text-slate-300">
 												{isPlan
-													? `Fraccionamiento · ${getPaymentPlanRemainingAmount(d).toFixed(2)}€`
+													? `Fraccionamiento · ${formatAmount(getPaymentPlanRemainingAmount(d))}`
 													: `${d.termMonths}m / ${getDebtRateLabel(d)}`}
 											</span>
 											{overdueAmount > 0 && (
 												<span className="block text-[10px] text-rose-400">
-													Vencido: {overdueAmount.toFixed(2)}€
+													Vencido: {formatAmount(overdueAmount)}
 												</span>
 											)}
 										</div>
@@ -270,7 +271,7 @@ export function OverviewTab() {
 												{isPlan ? 'Exigible este mes:' : 'Cuota Mensual:'}
 											</span>
 											<span className="font-bold text-sm text-indigo-400">
-												{cuota.toLocaleString('es-ES', { maximumFractionDigits: 2 })}€
+												{formatAmount(cuota)}
 											</span>
 										</div>
 									</div>

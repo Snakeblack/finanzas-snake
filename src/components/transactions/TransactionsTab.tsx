@@ -21,7 +21,8 @@ export function TransactionsTab() {
 		handleStartEditTransaction,
 		handleDeleteTransaction,
 		viewMode,
-		selectedMonth
+		selectedMonth,
+		formatAmount
 	} = useFinanzas();
 
 	const [isMobileFormOpen, setIsMobileFormOpen] = useState(false);
@@ -423,12 +424,11 @@ export function TransactionsTab() {
 										<div className="text-right">
 											{t.type === 'transfer' ? (
 												<span className="text-sky-400 font-bold text-sm">
-													{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+													{formatAmount(t.amount)}
 												</span>
 											) : (
 												<span className={`font-bold text-sm ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
-													{t.type === 'income' ? '+' : '-'}
-													{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+													{formatAmount(t.amount, { showSign: true })}
 												</span>
 											)}
 										</div>
@@ -594,17 +594,16 @@ export function TransactionsTab() {
 															const fromW = getWeight(fromAcc.owner);
 															const netChange = (toW - fromW) * t.amount;
 															if (netChange > 0.001) {
-																return <span className="text-emerald-400 font-bold">+{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</span>;
+																return <span className="text-emerald-400 font-bold">{formatAmount(t.amount, { showSign: true })}</span>;
 															} else if (netChange < -0.001) {
-																return <span className="text-rose-400 font-bold">-{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</span>;
+																return <span className="text-rose-400 font-bold">{formatAmount(-t.amount)}</span>;
 															}
 														}
-														return <span className="text-sky-400 font-bold">{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€</span>;
+														return <span className="text-sky-400 font-bold">{formatAmount(t.amount)}</span>;
 													}
 													return (
 														<span className={`font-bold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
-															{t.type === 'income' ? '+' : '-'}
-															{t.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })}€
+															{formatAmount(t.amount, { showSign: t.type === 'income' })}
 														</span>
 													);
 												})()}

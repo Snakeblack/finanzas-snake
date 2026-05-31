@@ -1752,6 +1752,65 @@ code block sin lenguaje
 		createElementSpy.mockRestore();
 		appendChildSpy.mockRestore();
 	});
+
+	describe('Ocultación de datos sensibles', () => {
+		beforeEach(() => {
+			localStorage.clear();
+		});
+
+		it('debe inicializar hideSensitiveData en false por defecto', () => {
+			renderCtx();
+			expect(ctxRef.hideSensitiveData).toBe(false);
+		});
+
+		it('debe alternar hideSensitiveData y guardarlo en localStorage', () => {
+			renderCtx();
+			expect(ctxRef.hideSensitiveData).toBe(false);
+
+			act(() => {
+				ctxRef.toggleSensitiveData();
+			});
+			expect(ctxRef.hideSensitiveData).toBe(true);
+			expect(localStorage.getItem('finanzas_hide_sensitive_data')).toBe('true');
+
+			act(() => {
+				ctxRef.toggleSensitiveData();
+			});
+			expect(ctxRef.hideSensitiveData).toBe(false);
+			expect(localStorage.getItem('finanzas_hide_sensitive_data')).toBe('false');
+		});
+
+		it('debe inicializar hideSensitiveData desde localStorage si está guardado', () => {
+			localStorage.setItem('finanzas_hide_sensitive_data', 'true');
+			renderCtx();
+			expect(ctxRef.hideSensitiveData).toBe(true);
+		});
+
+		it('debe formatear los importes con formatAmount según el estado hideSensitiveData', () => {
+			renderCtx();
+			
+			// Con hideSensitiveData = false
+			expect(ctxRef.formatAmount(300)).toBe('300,00€');
+			expect(ctxRef.formatAmount(-150.5)).toBe('-150,50€');
+			expect(ctxRef.formatAmount(100, { showSign: true })).toBe('+100,00€');
+			expect(ctxRef.formatAmount(120, { decimals: 0 })).toBe('120€');
+
+			// Alternamos a true
+			act(() => {
+				ctxRef.toggleSensitiveData();
+			});
+			expect(ctxRef.hideSensitiveData).toBe(true);
+
+			// Con hideSensitiveData = true
+			expect(ctxRef.formatAmount(300)).toBe('***€');
+			expect(ctxRef.formatAmount(-150.5)).toBe('-***€');
+			expect(ctxRef.formatAmount(100, { showSign: true })).toBe('+***€');
+
+			// Con forceShow = true (ignora la ocultación)
+			expect(ctxRef.formatAmount(300, { forceShow: true })).toBe('300,00€');
+			expect(ctxRef.formatAmount(-150.5, { forceShow: true })).toBe('-150,50€');
+		});
+	});
 });
 
 
