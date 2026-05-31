@@ -1,0 +1,21 @@
+# Finanzas Snake
+
+> Aplicación web SPA (Single Page Application) local y gratuita para la gestión de finanzas personales, control de presupuestos, deudas y asesoría financiera con IA[cite: 1].
+
+## Visión General de la Naturaleza del Proyecto
+Finanzas Snake es una herramienta diseñada bajo un enfoque de **privacidad absoluta en el cliente (Zero-Knowledge / No-Backend)**[cite: 1]. Toda la persistencia se realiza en el navegador web del usuario y las comunicaciones entre dispositivos son totalmente descentralizadas[cite: 1].
+
+### Detalles de Arquitectura y Tecnologías
+- **Core Técnico:** React 19, TypeScript, Vite 8 y Tailwind CSS[cite: 1].
+- **Gestión de Paquetes:** Estrictamente pnpm[cite: 1].
+- **Seguridad y Cifrado:** Cifrado local simétrico AES-GCM (256-bit) mediante la API nativa Web Cryptography[cite: 1]. Derivación de claves con PBKDF2 basada en un PIN definido por el usuario (Cumple estándares OWASP para almacenamiento local)[cite: 1].
+- **Sincronización:** Conexión P2P directa entre dispositivos (Móvil/PC) utilizando PeerJS (WebRTC) sin almacenar datos en servidores intermedios[cite: 1].
+- **Motor Financiero:** Implementa el sistema de amortización francés para préstamos clásicos (cálculo de TIN/TAE) y planes de pago por tramos para fraccionamientos manuales[cite: 1].
+
+## Capacidades de Inteligencia Artificial (Gemini)
+La aplicación integra un asistente financiero embebido mediante la API de Google Gemini (modelo `gemini-3.5-flash`)[cite: 1].
+- **Seguridad de la Key:** La API Key se proporciona por el usuario y se almacena exclusivamente en su `localStorage` de forma cifrada[cite: 1].
+- **Inferencia Contextual:** El sistema genera dinámicamente un prompt estructurado con el estado financiero consolidado del mes seleccionado (balances, ingresos/gastos recurrentes vs puntuales, deudas líquidas y simulaciones de reunificación) para alimentar el contexto de la IA en cada consulta[cite: 1].
+
+## Documentación del Repositorio
+- [Guía de Instalación y Desarrollo](README.md): Requisitos de Node.js, comandos de ejecución local con `pnpm dev` y scripts útiles[cite: 1].

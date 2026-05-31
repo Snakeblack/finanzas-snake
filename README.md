@@ -1,52 +1,51 @@
-# FinanzasPro
+# Finanzas Snake
 
-App local para planificar finanzas personales, gastos, deudas y simulación de reunificación.
+Aplicación web gratuita y de ejecución local/cliente para la gestión de finanzas personales, presupuestos, control de deudas y asesoría con Inteligencia Artificial.
 
-## Ejecutar en local
+Desplegado en producción: [finanzas.mretamozo.com](https://finanzas.mretamozo.com)
 
-Requisitos:
+## 🚀 Arquitectura y Filosofía
+Finanzas Snake está diseñada bajo el principio de **Privacidad Absoluta (Zero-Knowledge)**. Es una SPA (Single Page Application) sin base de datos en servidor:
+- **Persistencia Local:** Los datos se guardan en el navegador (`localStorage`).
+- **Cifrado AES-GCM (256-bit):** Protección local opcional mediante criptografía nativa y derivación de claves PBKDF2 basada en un PIN de usuario.
+- **Sincronización P2P:** Transferencia de datos segura entre dispositivos vía WebRTC (PeerJS) sin intermediarios.
 
-- Node.js 20.19+ o 22.12+
-- pnpm instalado (`npm i -g pnpm` si no lo tenés)
+## 🛠️ Requisitos previos
+- **Node.js:** Versiones `20.19+` o `22.12+`.
+- **Gestor de paquetes:** Estrictamente `pnpm` (instalar globalmente con `npm i -g pnpm` si no se dispone de él).
 
-### Opción fácil: doble clic
+## 💻 Ejecución en Local
 
-En Windows, abrí este archivo con doble clic:
-
+### Opción Rápida (Windows)
+Doble clic sobre el archivo ejecutable por lotes (Nota: Se recomienda renombrarlo a la identidad actual de la app):
 ```text
-Abrir FinanzasPro.bat
+abrir-finanzaspro.bat
 ```
+*Este script automatiza la instalación de dependencias, levanta el servidor Vite en el puerto `42873` y abre el navegador por defecto*.
 
-Qué hace:
-
-1. instala dependencias si todavía no existe `node_modules/`;
-2. levanta el servidor local en `http://127.0.0.1:42873/`;
-3. abre Chrome automáticamente si está instalado; si no, abre el navegador predeterminado.
-
-Dejá abierta la ventana del servidor mientras uses la app. Si la cerrás, la app local deja de responder.
-
-### Opción manual
-
+### Opción Manual (Cualquier SO)
 ```bash
+# 1. Instalar dependencias
 pnpm install
+
+# 2. Levantar entorno de desarrollo
 pnpm dev
 ```
+Accede a la aplicación en: `http://127.0.0.1:42873/`.
 
-Después abrí la URL que imprime Vite, normalmente:
+## 📜 Scripts Disponibles
 
-```text
-http://127.0.0.1:42873/
-```
+| Comando | Descripción |
+| :--- | :--- |
+| `pnpm dev` | Levanta el servidor local de desarrollo en el puerto estricto `42873`. |
+| `pnpm build` | Compila la aplicación optimizada para producción en la carpeta `dist/`. |
+| `pnpm preview` | Previsualiza localmente la compilación de producción. |
+| `pnpm typecheck` | Ejecuta el compilador de TypeScript sin emitir archivos para validar tipos. |
+| `pnpm test` | Ejecuta la suite de pruebas unitarias con Vitest. |
+| `pnpm test:coverage` | Genera un reporte detallado de cobertura de código (V8) en formato HTML/JSON. |
+| `pnpm audit` | Realiza una auditoría de seguridad de las dependencias. |
 
-## Comandos útiles
-
-```bash
-pnpm dev      # modo desarrollo
-pnpm build      # compila una versión de producción en dist/
-pnpm typecheck  # valida TypeScript sin generar archivos
-pnpm preview    # sirve la build localmente
-```
-
-## Gemini
-
-La API key de Gemini se carga desde la pantalla **Asesor Gemini** y queda guardada solo en `localStorage` del navegador. No hace falta crear un archivo `.env` para correr la app.
+## 🤖 Integración con Gemini AI
+El **Asesor Gemini** utiliza el modelo `gemini-3.5-flash`. 
+- **No requiere variables de entorno (`.env`) en desarrollo o producción**.
+- La API Key se introduce directamente desde la interfaz, cifrándose antes de guardarse en el almacenamiento local del cliente.
