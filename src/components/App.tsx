@@ -159,7 +159,7 @@ function MainAppContent() {
 									: 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
 							}`}
 						>
-							Gastos y Cobros
+							Gastos e Ingresos
 						</button>
 						<button
 							onClick={() => {
@@ -775,7 +775,7 @@ function MainAppContent() {
 								</p>
 							</div>
 
-							{/* Tarjeta: Cobros / Ingresos */}
+							{/* Tarjeta: Ingresos */}
 							<div className="premium-card rounded-xl lg:rounded-2xl p-3 lg:p-6">
 								<div className="flex items-center justify-between mb-1 lg:mb-4">
 									<span className="text-[10px] lg:text-sm font-semibold text-slate-400 truncate">Ingresos</span>
@@ -1205,7 +1205,7 @@ function MainAppContent() {
 												: 'text-slate-400 hover:text-slate-200'
 										}`}
 									>
-										Cobro
+										Ingreso
 									</button>
 									<button
 										type="button"

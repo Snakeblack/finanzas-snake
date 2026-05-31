@@ -6,7 +6,7 @@ import { Icons } from '../common/Icons';
 
 /**
  * Componente que renderiza la pestaña de Transacciones.
- * Permite dar de alta cobros, gastos y traspasos, y muestra el
+ * Permite dar de alta ingresos, gastos y traspasos, y muestra el
  * historial detallado del mes seleccionado.
  */
 export function TransactionsTab() {
@@ -90,7 +90,7 @@ export function TransactionsTab() {
 										: 'text-slate-400 hover:text-slate-200'
 								}`}
 							>
-								Cobro
+								Ingreso
 							</button>
 							<button
 								type="button"
@@ -384,7 +384,7 @@ export function TransactionsTab() {
 				{filteredTransactions.length === 0 ? (
 					<div className="text-center py-12 text-slate-500 flex-1 flex flex-col justify-center">
 						<p className="text-sm">No hay transacciones registradas este mes.</p>
-						<p className="text-xs">Usa el formulario para añadir cobros o gastos corrientes.</p>
+						<p className="text-xs">Usa el formulario para añadir ingresos o gastos corrientes.</p>
 					</div>
 				) : (
 					<div className="flex-1 lg:overflow-y-auto pr-1" style={{ WebkitOverflowScrolling: 'touch' }}>

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useFinanzas } from '../../hooks/useFinanzas';
 import { 
 	calculateDebtMonthlyPayment, 
@@ -7,6 +8,40 @@ import {
 	getDebtRateLabel 
 } from '../../services/financeService';
 import { normalizeMonth } from '../../utils/dateUtils';
+
+/**
+ * Genera marcas de graduación del eje Y legibles y redondeadas.
+ */
+function calculateNiceTicks(min: number, max: number, maxTicks = 5): number[] {
+	const range = max - min;
+	if (range === 0) return [min];
+
+	// Encontrar un paso limpio aproximado
+	const tempStep = range / (maxTicks - 1);
+	const magnitude = Math.pow(10, Math.floor(Math.log10(tempStep)));
+	const residual = tempStep / magnitude;
+
+	let niceStep = magnitude;
+	if (residual < 1.5) {
+		niceStep = magnitude * 1;
+	} else if (residual < 3) {
+		niceStep = magnitude * 2;
+	} else if (residual < 7) {
+		niceStep = magnitude * 5;
+	} else {
+		niceStep = magnitude * 10;
+	}
+
+	// Ticks alineados al paso limpio
+	const startTick = Math.floor(min / niceStep) * niceStep;
+	const endTick = Math.ceil(max / niceStep) * niceStep;
+
+	const ticks: number[] = [];
+	for (let val = startTick; val <= endTick + 0.1 * niceStep; val += niceStep) {
+		ticks.push(Math.round(val * 100) / 100);
+	}
+	return ticks;
+}
 
 /**
  * Componente que renderiza la pestaña de Resumen General (Dashboard).
@@ -31,86 +66,556 @@ export function OverviewTab() {
 		formatAmount
 	} = useFinanzas();
 
+	// Estado para interactividad del gráfico de cascada
+	const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+	const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+
+	// Manejo del hover y movimiento de cursor
+	const handleMouseMove = (e: React.MouseEvent, idx: number) => {
+		setHoveredIndex(idx);
+		const card = document.getElementById('waterfall-card');
+		if (card) {
+			const cardRect = card.getBoundingClientRect();
+			setTooltipPos({
+				x: e.clientX - cardRect.left,
+				y: e.clientY - cardRect.top
+			});
+		}
+	};
+
+	// Manejo táctil para dispositivos móviles
+	const handleTouchStart = (e: React.TouchEvent, idx: number) => {
+		const touch = e.touches[0];
+		if (!touch) return;
+		setHoveredIndex(idx);
+		const card = document.getElementById('waterfall-card');
+		if (card) {
+			const cardRect = card.getBoundingClientRect();
+			setTooltipPos({
+				x: touch.clientX - cardRect.left,
+				y: touch.clientY - cardRect.top
+			});
+		}
+	};
+
+	const handleTouchMove = (e: React.TouchEvent, idx: number) => {
+		const touch = e.touches[0];
+		if (!touch) return;
+		setHoveredIndex(idx);
+		const card = document.getElementById('waterfall-card');
+		if (card) {
+			const cardRect = card.getBoundingClientRect();
+			setTooltipPos({
+				x: touch.clientX - cardRect.left,
+				y: touch.clientY - cardRect.top
+			});
+		}
+	};
+
+	const handleMouseLeave = () => {
+		setHoveredIndex(null);
+		setTooltipPos(null);
+	};
+
+	// Definición de pasos para el Gráfico de Cascada (Waterfall)
+	const steps = [
+		{
+			name: 'Ingresos',
+			amount: totalIncomes,
+			type: 'inflow' as const,
+			start: 0,
+			end: totalIncomes,
+			colorClass: 'from-emerald-600 to-emerald-400',
+			textColor: 'text-emerald-400',
+			dotColor: 'bg-emerald-500',
+			description: 'Ingresos totales del mes'
+		},
+		{
+			name: 'G. Comunes',
+			amount: -totalExpenses,
+			type: 'outflow' as const,
+			start: totalIncomes,
+			end: totalIncomes - totalExpenses,
+			colorClass: 'from-rose-600 to-rose-400',
+			textColor: 'text-rose-400',
+			dotColor: 'bg-rose-500',
+			description: 'Gastos comunes y compartidos'
+		},
+		{
+			name: 'Cuota Deuda',
+			amount: -totalMonthlyDebtPayments,
+			type: 'outflow' as const,
+			start: totalIncomes - totalExpenses,
+			end: totalIncomes - totalExpenses - totalMonthlyDebtPayments,
+			colorClass: 'from-amber-600 to-amber-400',
+			textColor: 'text-amber-400',
+			dotColor: 'bg-amber-500',
+			description: 'Cuotas de deudas activas'
+		},
+		{
+			name: 'Neto',
+			amount: netMonthlyBalance,
+			type: 'total' as const,
+			start: 0,
+			end: netMonthlyBalance,
+			colorClass: netMonthlyBalance >= 0 ? 'from-emerald-600 to-emerald-400' : 'from-rose-600 to-rose-400',
+			textColor: netMonthlyBalance >= 0 ? 'text-emerald-400' : 'text-rose-400',
+			dotColor: netMonthlyBalance >= 0 ? 'bg-emerald-500' : 'bg-rose-500',
+			description: 'Balance mensual neto final'
+		}
+	];
+
+	// Dimensiones del SVG de escritorio
+	const width = 600;
+	const height = 260;
+	const marginTop = 30;
+	const marginBottom = 45;
+	const marginLeft = 70;
+	const marginRight = 20;
+	const chartHeight = height - marginTop - marginBottom;
+	const chartWidth = width - marginLeft - marginRight;
+
+	// Dimensiones del SVG móvil
+	const widthMobile = 350;
+	const heightMobile = 280;
+	const marginTopMobile = 35;
+	const marginBottomMobile = 15;
+	const marginLeftMobile = 85;
+	const marginRightMobile = 15;
+	const chartWidthMobile = widthMobile - marginLeftMobile - marginRightMobile;
+	const chartHeightMobile = heightMobile - marginTopMobile - marginBottomMobile;
+
+	// Valores acumulados para calcular el rango del eje Y (o eje X en móvil)
+	const cumValues = [0, totalIncomes, totalIncomes - totalExpenses, netMonthlyBalance];
+	const minVal = Math.min(...cumValues);
+	const maxVal = Math.max(...cumValues);
+	
+	// Obtener ticks limpios y dinámicos para el eje de importes
+	const rawMin = minVal < 0 ? minVal : 0;
+	const rawMax = maxVal;
+	const ticks = calculateNiceTicks(rawMin, rawMax, 5);
+	const yMin = ticks[0];
+	const yMax = ticks[ticks.length - 1];
+
+	// Función para escalar los valores al eje Y del SVG de escritorio
+	const getScaleY = (val: number) => {
+		const scaleRange = yMax - yMin || 1;
+		const ratio = (val - yMin) / scaleRange;
+		return marginTop + chartHeight - ratio * chartHeight;
+	};
+
+	// Columnas (eje X de escritorio)
+	const colWidth = chartWidth / steps.length;
+	const barWidth = colWidth * 0.55; // 55% ancho barra, resto espaciado
+	const getScaleX = (idx: number) => {
+		return marginLeft + idx * colWidth + (colWidth - barWidth) / 2;
+	};
+
+	// Función para escalar los valores al eje X del SVG móvil
+	const getScaleXMobile = (val: number) => {
+		const scaleRange = yMax - yMin || 1;
+		const ratio = (val - yMin) / scaleRange;
+		return marginLeftMobile + ratio * chartWidthMobile;
+	};
+
+	// Filas (eje Y móvil)
+	const colHeightMobile = chartHeightMobile / steps.length;
+	const barHeightMobile = colHeightMobile * 0.55; // 55% alto de la fila para la barra
+	const getScaleYMobile = (idx: number) => {
+		return marginTopMobile + idx * colHeightMobile + (colHeightMobile - barHeightMobile) / 2;
+	};
+
+	// Obtener ID del gradiente para escritorio
+	const getGradientId = (name: string, isPositive: boolean) => {
+		if (name === 'Ingresos') return 'url(#gradient-emerald)';
+		if (name === 'G. Comunes') return 'url(#gradient-rose)';
+		if (name === 'Cuota Deuda') return 'url(#gradient-amber)';
+		if (name === 'Neto') return isPositive ? 'url(#gradient-emerald)' : 'url(#gradient-rose)';
+		return 'url(#gradient-indigo)';
+	};
+
+	// Obtener ID del gradiente para móvil
+	const getGradientIdMobile = (name: string, isPositive: boolean) => {
+		if (name === 'Ingresos') return 'url(#gradient-emerald-mobile)';
+		if (name === 'G. Comunes') return 'url(#gradient-rose-mobile)';
+		if (name === 'Cuota Deuda') return 'url(#gradient-amber-mobile)';
+		if (name === 'Neto') return isPositive ? 'url(#gradient-emerald-mobile)' : 'url(#gradient-rose-mobile)';
+		return 'url(#gradient-indigo-mobile)';
+	};
+
+	// Formateador de etiquetas de barra (evita +0€ o -0€)
+	const getLabelText = (amount: number) => {
+		if (Math.abs(amount) < 0.01) return formatAmount(0, { decimals: 0 });
+		return formatAmount(amount, { decimals: 0, showSign: true });
+	};
+
 	return (
 		<div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-			{/* Gráfico SVG de Barras de Composición */}
-			<div className="lg:col-span-7 premium-card rounded-2xl p-6">
+			{/* Gráfico SVG de Cascada de Composición */}
+			<div id="waterfall-card" className="lg:col-span-7 premium-card rounded-2xl p-6 relative overflow-visible">
 				<h3 className="font-heading text-lg font-bold text-slate-100 mb-6">
 					Composición del Flujo Mensual en {selectedMonth}
 				</h3>
 
-				<div className="h-64 flex items-end justify-around space-x-4 pt-4 border-b border-slate-800">
-					{/* Ingresos */}
-					<div className="flex flex-col items-center w-full max-w-[80px] group">
-						<div className="text-xs font-bold text-emerald-400 mb-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-							{formatAmount(totalIncomes, { decimals: 0, showSign: true })}
-						</div>
-						<div
-							className="w-full bg-gradient-to-t from-emerald-600 to-emerald-400 rounded-t-lg transition-all duration-500 hover:brightness-110"
-							style={{
-								height: `${Math.min(180, Math.max(8, (totalIncomes / (Math.max(totalIncomes, totalExpenses, totalMonthlyDebtPayments) || 1)) * 180))}px`
-							}}
-						></div>
-						<span className="text-xs text-slate-400 mt-2 truncate w-full text-center">Cobros</span>
-					</div>
+				{/* Vista de Escritorio: Gráfico de Cascada Horizontal */}
+				<div className="hidden md:block w-full h-64 relative select-none">
+					<svg 
+						viewBox={`0 0 ${width} ${height}`} 
+						className="w-full h-full"
+						preserveAspectRatio="xMidYMid meet"
+					>
+						<defs>
+							<linearGradient id="gradient-emerald" x1="0" y1="0" x2="0" y2="1">
+								<stop offset="0%" stopColor="#34d399" />
+								<stop offset="100%" stopColor="#059669" />
+							</linearGradient>
+							<linearGradient id="gradient-rose" x1="0" y1="0" x2="0" y2="1">
+								<stop offset="0%" stopColor="#f87171" />
+								<stop offset="100%" stopColor="#e11d48" />
+							</linearGradient>
+							<linearGradient id="gradient-amber" x1="0" y1="0" x2="0" y2="1">
+								<stop offset="0%" stopColor="#fbbf24" />
+								<stop offset="100%" stopColor="#d97706" />
+							</linearGradient>
+						</defs>
 
-					{/* Gastos Regulares */}
-					<div className="flex flex-col items-center w-full max-w-[80px] group">
-						<div className="text-xs font-bold text-rose-400 mb-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-							{formatAmount(-totalExpenses, { decimals: 0 })}
-						</div>
-						<div
-							className="w-full bg-gradient-to-t from-rose-600 to-rose-400 rounded-t-lg transition-all duration-500 hover:brightness-110"
-							style={{
-								height: `${Math.min(180, Math.max(8, (totalExpenses / (Math.max(totalIncomes, totalExpenses, totalMonthlyDebtPayments) || 1)) * 180))}px`
-							}}
-						></div>
-						<span className="text-xs text-slate-400 mt-2 truncate w-full text-center">G. Comunes</span>
-					</div>
+						{/* Líneas de cuadrícula y etiquetas del eje Y */}
+						{ticks.map((tick, idx) => {
+							const y = getScaleY(tick);
+							return (
+								<g key={idx} className="opacity-75">
+									<line
+										x1={marginLeft}
+										y1={y}
+										x2={width - marginRight}
+										y2={y}
+										stroke="#1e293b"
+										strokeWidth={tick === 0 ? 1.5 : 1}
+										strokeDasharray={tick === 0 ? "0" : "3 3"}
+									/>
+									<text
+										x={marginLeft - 10}
+										y={y + 4}
+										textAnchor="end"
+										className="fill-slate-400 text-[10px] font-mono font-medium"
+									>
+										{formatAmount(tick, { decimals: 0 })}
+									</text>
+								</g>
+							);
+						})}
 
-					{/* Cuota Deuda */}
-					<div className="flex flex-col items-center w-full max-w-[80px] group">
-						<div className="text-xs font-bold text-amber-400 mb-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-							{formatAmount(-totalMonthlyDebtPayments, { decimals: 0 })}
-						</div>
-						<div
-							className="w-full bg-gradient-to-t from-amber-600 to-amber-400 rounded-t-lg transition-all duration-500 hover:brightness-110"
-							style={{
-								height: `${Math.min(180, Math.max(8, (totalMonthlyDebtPayments / (Math.max(totalIncomes, totalExpenses, totalMonthlyDebtPayments) || 1)) * 180))}px`
-							}}
-						></div>
-						<span className="text-xs text-slate-400 mt-2 truncate w-full text-center">Cuota Deuda</span>
-					</div>
+						{/* Líneas conectoras de Cascada */}
+						{steps.map((step, idx) => {
+							// Solo conectamos Ingresos -> G. Comunes, y G. Comunes -> Cuota Deuda.
+							if (idx >= steps.length - 2) return null;
+							const x1 = getScaleX(idx) + barWidth;
+							const y1 = getScaleY(step.end);
+							const x2 = getScaleX(idx + 1);
+							const y2 = getScaleY(step.end);
+							return (
+								<line
+									key={`connect-${idx}`}
+									x1={x1}
+									y1={y1}
+									x2={x2}
+									y2={y2}
+									stroke="#475569"
+									strokeWidth={1.5}
+									strokeDasharray="4 4"
+								/>
+							);
+						})}
 
-					{/* Balance Neto */}
-					<div className="flex flex-col items-center w-full max-w-[80px] group">
-						<div
-							className={`text-xs font-bold ${netMonthlyBalance >= 0 ? 'text-indigo-400' : 'text-rose-500'} mb-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity`}
-						>
-							{formatAmount(netMonthlyBalance, { decimals: 0 })}
-						</div>
-						<div
-							className={`w-full rounded-t-lg transition-all duration-500 hover:brightness-110 ${netMonthlyBalance >= 0 ? 'bg-gradient-to-t from-indigo-600 to-indigo-400' : 'bg-gradient-to-t from-rose-950 to-rose-800'}`}
-							style={{
-								height: `${Math.min(180, Math.max(8, (Math.abs(netMonthlyBalance) / (Math.max(totalIncomes, totalExpenses, totalMonthlyDebtPayments) || 1)) * 180))}px`
-							}}
-						></div>
-						<span className="text-xs text-slate-400 mt-2 truncate w-full text-center">Neto</span>
-					</div>
+						{/* Barras de la Cascada */}
+						{steps.map((step, idx) => {
+							const x = getScaleX(idx);
+							const yStart = getScaleY(step.start);
+							const yEnd = getScaleY(step.end);
+							const y = Math.min(yStart, yEnd);
+							const barHeight = Math.abs(yStart - yEnd);
+							const isZero = Math.abs(step.amount) < 0.01;
+
+							const isHovered = hoveredIndex === idx;
+							const opacity = isHovered || hoveredIndex === null ? 0.9 : 0.4;
+							const isPositiveNet = step.name === 'Neto' ? netMonthlyBalance >= 0 : step.amount >= 0;
+
+							return (
+								<g 
+									key={idx}
+									className="cursor-pointer"
+									onMouseEnter={(e) => handleMouseMove(e, idx)}
+									onMouseMove={(e) => handleMouseMove(e, idx)}
+									onMouseLeave={handleMouseLeave}
+								>
+									{/* Área interactiva invisible */}
+									<rect
+										x={x - (colWidth - barWidth) / 4}
+										y={marginTop}
+										width={colWidth * 0.8}
+										height={chartHeight}
+										fill="transparent"
+									/>
+
+									{/* Elemento visual real: rect (con relleno) o line plana (si es 0€) */}
+									{isZero ? (
+										<line
+											x1={x}
+											y1={yStart}
+											x2={x + barWidth}
+											y2={yStart}
+											stroke={step.name === 'Cuota Deuda' ? '#f59e0b' : '#64748b'}
+											strokeWidth={3}
+											strokeLinecap="round"
+											className="transition-all duration-300"
+											style={{ opacity }}
+										/>
+									) : (
+										<rect
+											x={x}
+											y={y}
+											width={barWidth}
+											height={barHeight}
+											rx={6}
+											ry={6}
+											fill={getGradientId(step.name, isPositiveNet)}
+											className="transition-all duration-300 hover:brightness-110"
+											style={{ opacity }}
+										/>
+									)}
+
+									{/* Etiqueta de valor encima de la barra o línea */}
+									<text
+										x={x + barWidth / 2}
+										y={y - 8}
+										textAnchor="middle"
+										className={`font-semibold text-[10px] md:text-xs transition-all duration-300 ${step.textColor}`}
+										style={{ opacity: hoveredIndex === null ? 1.0 : (isHovered ? 1.0 : 0.3) }}
+									>
+										{getLabelText(step.amount)}
+									</text>
+
+									{/* Etiqueta de nombre del eje X */}
+									<text
+										x={x + barWidth / 2}
+										y={height - marginBottom + 20}
+										textAnchor="middle"
+										className="fill-slate-400 text-xs font-semibold"
+									>
+										{step.name}
+									</text>
+								</g>
+							);
+						})}
+					</svg>
 				</div>
 
-				<div className="flex justify-between items-center mt-6 text-xs text-slate-500">
-					<p>* Escala normalizada respecto al flujo mensual máximo.</p>
-					<div className="flex space-x-3">
-						<span className="flex items-center">
-							<span className="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-1"></span> Cobro
-						</span>
-						<span className="flex items-center">
-							<span className="w-2.5 h-2.5 rounded-full bg-rose-500 mr-1"></span> Gasto
-						</span>
-						<span className="flex items-center">
-							<span className="w-2.5 h-2.5 rounded-full bg-amber-500 mr-1"></span> Cuota
-						</span>
+				{/* Vista Móvil: Gráfico de Cascada Vertical */}
+				<div className="block md:hidden w-full h-[280px] relative select-none">
+					<svg
+						viewBox={`0 0 ${widthMobile} ${heightMobile}`}
+						className="w-full h-full"
+						preserveAspectRatio="xMidYMid meet"
+					>
+						<defs>
+							<linearGradient id="gradient-emerald-mobile" x1="0" y1="0" x2="1" y2="0">
+								<stop offset="0%" stopColor="#059669" />
+								<stop offset="100%" stopColor="#34d399" />
+							</linearGradient>
+							<linearGradient id="gradient-rose-mobile" x1="0" y1="0" x2="1" y2="0">
+								<stop offset="0%" stopColor="#e11d48" />
+								<stop offset="100%" stopColor="#f87171" />
+							</linearGradient>
+							<linearGradient id="gradient-amber-mobile" x1="0" y1="0" x2="1" y2="0">
+								<stop offset="0%" stopColor="#d97706" />
+								<stop offset="100%" stopColor="#fbbf24" />
+							</linearGradient>
+						</defs>
+
+						{/* Líneas de cuadrícula y etiquetas del eje X (Montos) */}
+						{ticks.map((tick, idx) => {
+							const x = getScaleXMobile(tick);
+							return (
+								<g key={`grid-mobile-${idx}`} className="opacity-75">
+									<line
+										x1={x}
+										y1={marginTopMobile}
+										x2={x}
+										y2={marginTopMobile + chartHeightMobile}
+										stroke="#1e293b"
+										strokeWidth={tick === 0 ? 1.5 : 1}
+										strokeDasharray={tick === 0 ? "0" : "3 3"}
+									/>
+									<text
+										x={x}
+										y={marginTopMobile - 8}
+										textAnchor="middle"
+										className="fill-slate-400 text-[10px] font-mono font-medium"
+									>
+										{formatAmount(tick, { decimals: 0 })}
+									</text>
+								</g>
+							);
+						})}
+
+						{/* Líneas conectoras de Cascada en Vertical */}
+						{steps.map((step, idx) => {
+							if (idx >= steps.length - 2) return null;
+							const x = getScaleXMobile(step.end);
+							const y1 = getScaleYMobile(idx) + barHeightMobile;
+							const y2 = getScaleYMobile(idx + 1);
+							return (
+								<line
+									key={`connect-mobile-${idx}`}
+									x1={x}
+									y1={y1}
+									x2={x}
+									y2={y2}
+									stroke="#475569"
+									strokeWidth={1.5}
+									strokeDasharray="4 4"
+								/>
+							);
+						})}
+
+						{/* Barras de la Cascada en Vertical */}
+						{steps.map((step, idx) => {
+							const y = getScaleYMobile(idx);
+							const xStart = getScaleXMobile(step.start);
+							const xEnd = getScaleXMobile(step.end);
+							const x = Math.min(xStart, xEnd);
+							const barWidthMobile = Math.abs(xStart - xEnd);
+							const isZero = Math.abs(step.amount) < 0.01;
+
+							const isHovered = hoveredIndex === idx;
+							const opacity = isHovered || hoveredIndex === null ? 0.9 : 0.4;
+							const isPositiveNet = step.name === 'Neto' ? netMonthlyBalance >= 0 : step.amount >= 0;
+
+							return (
+								<g 
+									key={`bar-mobile-${idx}`}
+									className="cursor-pointer"
+									onMouseEnter={(e) => handleMouseMove(e, idx)}
+									onMouseMove={(e) => handleMouseMove(e, idx)}
+									onMouseLeave={handleMouseLeave}
+									onTouchStart={(e) => handleTouchStart(e, idx)}
+									onTouchMove={(e) => handleTouchMove(e, idx)}
+									onTouchEnd={handleMouseLeave}
+								>
+									{/* Área interactiva invisible (facilita el hover/tap en móvil) */}
+									<rect
+										x={marginLeftMobile}
+										y={y - (colHeightMobile - barHeightMobile) / 4}
+										width={chartWidthMobile}
+										height={colHeightMobile * 0.8}
+										fill="transparent"
+									/>
+
+									{/* Elemento visual real: rect (con relleno) o line vertical (si es 0€) */}
+									{isZero ? (
+										<line
+											x1={xStart}
+											y1={y}
+											x2={xStart}
+											y2={y + barHeightMobile}
+											stroke={step.name === 'Cuota Deuda' ? '#f59e0b' : '#64748b'}
+											strokeWidth={3}
+											strokeLinecap="round"
+											className="transition-all duration-300"
+											style={{ opacity }}
+										/>
+									) : (
+										<rect
+											x={x}
+											y={y}
+											width={barWidthMobile}
+											height={barHeightMobile}
+											rx={4}
+											ry={4}
+											fill={getGradientIdMobile(step.name, isPositiveNet)}
+											className="transition-all duration-300 hover:brightness-110"
+											style={{ opacity }}
+										/>
+									)}
+
+									{/* Etiqueta de valor encima de la barra o línea */}
+									<text
+										x={isZero ? xStart : x + barWidthMobile / 2}
+										y={y - 4}
+										textAnchor="middle"
+										className={`font-semibold text-[10px] transition-all duration-300 ${step.textColor}`}
+										style={{ opacity: hoveredIndex === null ? 1.0 : (isHovered ? 1.0 : 0.3) }}
+									>
+										{getLabelText(step.amount)}
+									</text>
+
+									{/* Etiqueta de nombre del eje Y (Categorías) a la izquierda */}
+									<text
+										x={marginLeftMobile - 10}
+										y={y + barHeightMobile / 2 + 4}
+										textAnchor="end"
+										className="fill-slate-400 text-xs font-semibold"
+									>
+										{step.name}
+									</text>
+								</g>
+							);
+						})}
+					</svg>
+				</div>
+
+				{/* Tooltip Interactivo HTML (Renderizado fuera del contenedor con scroll para evitar cortes y scrollbars) */}
+				{hoveredIndex !== null && tooltipPos && (
+					(() => {
+						let translateX = '-50%';
+						const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+						const rightThreshold = isMobile ? 240 : 490;
+						if (tooltipPos.x < 110) {
+							translateX = '-10%';
+						} else if (tooltipPos.x > rightThreshold) {
+							translateX = '-90%';
+						}
+
+						return (
+							<div
+								className="absolute bg-slate-950/95 border border-slate-800/80 text-slate-100 rounded-xl p-3 shadow-2xl backdrop-blur-md pointer-events-none transition-all duration-200 z-50 flex flex-col gap-1 w-48 text-xs font-sans animate-in fade-in zoom-in-95 duration-150"
+								style={{
+									left: `${tooltipPos.x}px`,
+									top: `${tooltipPos.y - 15}px`,
+									transform: `translate(${translateX}, -100%)`,
+								}}
+							>
+								<div className="font-bold flex justify-between items-center text-slate-200">
+									<span>{steps[hoveredIndex].name}</span>
+									<span className={steps[hoveredIndex].textColor}>
+										{getLabelText(steps[hoveredIndex].amount)}
+									</span>
+								</div>
+								<p className="text-[10px] text-slate-400">
+									{steps[hoveredIndex].description}
+								</p>
+								{steps[hoveredIndex].name !== 'Ingresos' && totalIncomes > 0 && (
+									<div className="text-[10px] text-slate-500 mt-1 border-t border-slate-800/60 pt-1 flex justify-between">
+										<span>Proporción:</span>
+										<span className="font-mono font-medium text-slate-400">
+											{Math.abs((steps[hoveredIndex].amount / totalIncomes) * 100).toFixed(1)}%
+										</span>
+									</div>
+								)}
+							</div>
+						);
+					})()
+				)}
+
+				<div className="flex flex-wrap justify-between items-center mt-6 text-xs text-slate-500 gap-4 border-t border-slate-900 pt-4">
+					<p>* Escala absoluta del flujo mensual acumulado.</p>
+					<div className="flex flex-wrap gap-x-4 gap-y-2">
+						{steps.map((step) => (
+							<span key={step.name} className="flex items-center">
+								<span className={`w-2.5 h-2.5 rounded-full ${step.dotColor} mr-1.5`}></span>
+								<span className="text-slate-400 font-medium">{step.name}</span>
+							</span>
+						))}
 					</div>
 				</div>
 			</div>
