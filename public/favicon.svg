@@ -1,5 +1,75 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
-  <circle cx="16" cy="16" r="15" fill="#090d16" stroke="#1e1b4b" stroke-width="1"/>
-  <path d="M 6 24 c 4 0, 5 -12, 9 -12 s 5 9, 9 9 s 5 -18, 8 -18" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-  <path d="M 26 3 h 6 v 6" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <defs>
+    <!-- Gradiente de fondo ultra-premium -->
+    <linearGradient id="bg-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1E1B4B" />
+      <stop offset="100%" stop-color="#030712" />
+    </linearGradient>
+
+    <!-- Filtro de sombra suave para elevar los trazos blancos de forma profesional -->
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="2" flood-color="#000000" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- Contenedor base de fondo con radio squircle moderno (Apple/Figma standard) -->
+  <rect width="100" height="100" rx="26" fill="url(#bg-grad)" />
+
+  <!-- Cuadrícula sutil de finanzas (Grid) -->
+  <g opacity="0" stroke="#FFFFFF" stroke-width="0.75" stroke-dasharray="1 1.5">
+    <line x1="20" y1="0" x2="20" y2="100" />
+    <line x1="40" y1="0" x2="40" y2="100" />
+    <line x1="60" y1="0" x2="60" y2="100" />
+    <line x1="80" y1="0" x2="80" y2="100" />
+    <line x1="0" y1="20" x2="100" y2="20" />
+    <line x1="0" y1="40" x2="100" y2="40" />
+    <line x1="0" y1="60" x2="100" y2="60" />
+    <line x1="0" y1="80" x2="100" y2="80" />
+  </g>
+
+  <!-- Grupo con sombra para fundir cuerpo y partes secundarias sin solapes extraños -->
+  <g filter="url(#shadow)">
+    <!-- 
+      EL CUERPO PRINCIPAL (La Gráfica):
+      - Creada con curvas bezier spline de alta precisión.
+      - Comienza en base izquierda, genera la loma alcista, la corrección de mercado y el despegue.
+      - El final gira horizontalmente para formar la cabeza (fiel a image_b25f82.png).
+    -->
+    <path 
+      d="M 18 78 C 28 54, 38 46, 48 46 C 58 46, 68 74, 78 74 C 84 74, 86 52, 86 30 C 86 22, 80 18, 72 18 L 68 18" 
+      stroke="#FFFFFF" 
+      stroke-width="9.5" 
+      stroke-linecap="round" 
+      stroke-linejoin="round" 
+      fill="none" 
+    />
+
+    <!-- 
+      ALA DERECHA DE LA FLECHA (Breakout alcista):
+      - Añade el concepto financiero real sin entorpecer la fisonomía de la serpiente.
+    -->
+    <path 
+      d="M 85.5 32.5 L 92.5 32.5 C 92.5 32.5, 91.5 24, 85.5 21 Z" 
+      fill="#FFFFFF" 
+    />
+
+    <!-- 
+      LENGUA BÍFIDA MINIMALISTA:
+      - Trazado limpio para complementar orgánicamente el rostro en la izquierda.
+    -->
+    <path 
+      d="M 63.5 18 L 57 19.5" 
+      stroke="#FFFFFF" 
+      stroke-width="1.8" 
+      stroke-linecap="round" 
+      opacity="1"
+    />
+  </g>
+
+  <!-- 
+    OJO REVOLUCIONARIO DE RECORTE:
+    - Relleno con el gradiente de fondo exacto para "perforar" la línea blanca sólida.
+    - Otorga un acabado vectorial súper profesional y de gran identidad de marca.
+  -->
+  <circle cx="71.5" cy="18" r="1.8" fill="url(#bg-grad)" />
 </svg>
