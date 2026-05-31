@@ -223,9 +223,9 @@ function MainAppContent() {
 							title={hideSensitiveData ? 'Mostrar datos sensibles' : 'Ocultar datos sensibles'}
 						>
 							{hideSensitiveData ? (
-								<Icons.EyeOff className="w-4.5 h-4.5 text-indigo-400" />
+								<Icons.EyeOff className="w-4 h-4 text-indigo-400" />
 							) : (
-								<Icons.Eye className="w-4.5 h-4.5 text-slate-400 hover:text-slate-200" />
+								<Icons.Eye className="w-4 h-4 text-slate-400 hover:text-slate-200" />
 							)}
 						</button>
 						{hasPasswordSet && (
