@@ -641,11 +641,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			setPeriods([]);
 			setTransactions([]);
 			setDebts([]);
-			setAccounts([
-				{ id: 'default-a', name: `Efectivo ${userAName}`, owner: 'userA', initialBalance: 0 },
-				{ id: 'default-b', name: `Efectivo ${userBName}`, owner: 'userB', initialBalance: 0 },
-				{ id: 'default-joint', name: 'Cuenta Común', owner: 'joint', initialBalance: 0 }
-			]);
+			setChatMessages([]);
 			setSelectedMonth(new Date().toISOString().substring(0, 7));
 			setIsReconfiguring(false);
 		}

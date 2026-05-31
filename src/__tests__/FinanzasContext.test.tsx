@@ -618,19 +618,40 @@ describe('Inicialización y Reset', () => {
 	});
 
 	it('handleResetAccount debe reiniciar toda la cuenta', async () => {
+		const mockAccounts = [
+			{ id: 'custom-1', name: 'Cuenta Personalizada', owner: 'userA' as const, initialBalance: 123 }
+		];
+		const mockChat = [
+			{ role: 'user' as const, content: 'Hola', timestamp: '12:00' }
+		];
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
 		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month: '2026-05', openingBalance: 0 }]));
 		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([{ id: 't1', desc: 'T', amount: 100, type: 'expense', tag: 'T', date: '2026-05-01' }]));
+		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(mockAccounts));
+		localStorage.setItem(STORAGE_KEYS.geminiKey, 'mi-key-secreta');
+		localStorage.setItem(STORAGE_KEYS.aiChat, JSON.stringify(mockChat));
 
 		renderCtx();
 		expect(ctxRef.periods.length).toBeGreaterThan(0);
+		expect(ctxRef.accounts).toHaveLength(1);
+		expect(ctxRef.accounts[0].name).toBe('Cuenta Personalizada');
+		expect(ctxRef.geminiApiKey).toBe('mi-key-secreta');
+		expect(ctxRef.chatMessages).toHaveLength(1);
+
+		// Mock window.confirm to return true
+		const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
 		await act(async () => { ctxRef.handleResetAccount(); });
 
 		expect(ctxRef.periods).toHaveLength(0);
 		expect(ctxRef.transactions).toHaveLength(0);
 		expect(ctxRef.debts).toHaveLength(0);
-		expect(ctxRef.accounts).toHaveLength(3);
+		expect(ctxRef.chatMessages).toHaveLength(0);
+		expect(ctxRef.accounts).toHaveLength(1);
+		expect(ctxRef.accounts[0].name).toBe('Cuenta Personalizada');
+		expect(ctxRef.geminiApiKey).toBe('mi-key-secreta');
+
+		confirmSpy.mockRestore();
 	});
 });
 
