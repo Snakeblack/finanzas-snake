@@ -14,7 +14,7 @@ Finanzas Snake es una herramienta diseñada bajo un enfoque de **privacidad abso
 
 ## Capacidades de Inteligencia Artificial (Gemini)
 La aplicación integra un asistente financiero embebido mediante la API de Google Gemini (modelo `gemini-3.5-flash`)[cite: 1].
-- **Seguridad de la Key:** La API Key se proporciona por el usuario y se almacena exclusivamente en su `localStorage` de forma cifrada[cite: 1].
+- **Seguridad de la Key:** La API Key se proporciona por el usuario y se almacena exclusivamente en su `IndexedDB` de forma cifrada[cite: 1].
 - **Inferencia Contextual:** El sistema genera dinámicamente un prompt estructurado con el estado financiero consolidado del mes seleccionado (balances, ingresos/gastos recurrentes vs puntuales, deudas líquidas y simulaciones de reunificación) para alimentar el contexto de la IA en cada consulta[cite: 1].
 
 ## Documentación del Repositorio

@@ -6,7 +6,7 @@ Desplegado en producción: [finanzas.mretamozo.com](https://finanzas.mretamozo.c
 
 ## 🚀 Arquitectura y Filosofía
 Finanzas Snake está diseñada bajo el principio de **Privacidad Absoluta (Zero-Knowledge)**. Es una SPA (Single Page Application) sin base de datos en servidor:
-- **Persistencia Local:** Los datos se guardan en el navegador (`localStorage`).
+- **Persistencia Local:** Los datos se guardan en el navegador (`IndexedDB`).
 - **Cifrado AES-GCM (256-bit):** Protección local opcional mediante criptografía nativa y derivación de claves PBKDF2 basada en un PIN de usuario.
 - **Sincronización P2P:** Transferencia de datos segura entre dispositivos vía WebRTC (PeerJS) sin intermediarios.
 
