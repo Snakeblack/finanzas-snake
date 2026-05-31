@@ -1,24 +1,23 @@
 import Big from 'big.js';
-import { DEFAULT_TAGS } from '../constants';
-import type { 
-	Transaction, 
-	Debt, 
-	ClassicDebt, 
-	PaymentPlanDebt, 
-	PaymentPlanInstallment, 
-	PaymentPlanTrancheForm, 
-	AmortizationRow, 
-	Account, 
-	Period, 
-	TransactionType, 
-	NumericInput, 
+import type {
+	Transaction,
+	Debt,
+	ClassicDebt,
+	PaymentPlanDebt,
+	PaymentPlanInstallment,
+	PaymentPlanTrancheForm,
+	AmortizationRow,
+	Account,
+	Period,
+	TransactionType,
+	NumericInput,
 	RateMode,
 	TagBreakdown,
 	Money,
 	CurrencyCode
 } from '../types';
 import { toNumber } from '../utils/formatters';
-import { normalizeMonth, addMonthsToMonth, getValidDateForMonth } from '../utils/dateUtils';
+import { normalizeMonth, addMonthsToMonth } from '../utils/dateUtils';
 
 /**
  * Agrega una colección de objetos Money asegurando consistencia de divisa.
@@ -26,14 +25,16 @@ import { normalizeMonth, addMonthsToMonth, getValidDateForMonth } from '../utils
 export const sumMoney = (values: Money[], targetCurrency: CurrencyCode): Money => {
 	const total = values.reduce((acc, curr) => {
 		if (curr.currency !== targetCurrency) {
-			throw new Error(`Operación multi-divisa no soportada sin estrategia FX explícita: ${curr.currency} a ${targetCurrency}`);
+			throw new Error(
+				`Operación multi-divisa no soportada sin estrategia FX explícita: ${curr.currency} a ${targetCurrency}`
+			);
 		}
 		return acc.plus(new Big(curr.amount));
 	}, new Big('0.00'));
 
-	return { 
-		amount: total.toFixed(2), 
-		currency: targetCurrency 
+	return {
+		amount: total.toFixed(2),
+		currency: targetCurrency
 	};
 };
 
@@ -45,26 +46,173 @@ export const deduceTagFromConcept = (concept: string, type: TransactionType): st
 	if (!lower) return null;
 
 	if (type === 'income') {
-		if (lower.includes('sueldo') || lower.includes('nómina') || lower.includes('nomina') || lower.includes('salary') || lower.includes('empresa')) return 'Sueldo';
-		if (lower.includes('inversion') || lower.includes('dividend') || lower.includes('interes') || lower.includes('cripto') || lower.includes('crypto')) return 'Inversiones';
-		if (lower.includes('freelance') || lower.includes('proyecto') || lower.includes('autónomo') || lower.includes('curro')) return 'Freelance';
+		if (
+			lower.includes('sueldo') ||
+			lower.includes('nómina') ||
+			lower.includes('nomina') ||
+			lower.includes('salary') ||
+			lower.includes('empresa')
+		)
+			return 'Sueldo';
+		if (
+			lower.includes('inversion') ||
+			lower.includes('dividend') ||
+			lower.includes('interes') ||
+			lower.includes('cripto') ||
+			lower.includes('crypto')
+		)
+			return 'Inversiones';
+		if (
+			lower.includes('freelance') ||
+			lower.includes('proyecto') ||
+			lower.includes('autónomo') ||
+			lower.includes('curro')
+		)
+			return 'Freelance';
 		if (lower.includes('bizum') || lower.includes('regalo') || lower.includes('donación')) return 'Bizum/Regalo';
 		if (lower.includes('reembolso') || lower.includes('devolucion') || lower.includes('refund')) return 'Reembolso';
 	} else if (type === 'expense') {
-		if (lower.includes('alquiler') || lower.includes('hipoteca') || lower.includes('rent') || lower.includes('comunidad')) return 'Alquiler/Hipoteca';
-		if (lower.includes('mercadona') || lower.includes('carrefour') || lower.includes('lidl') || lower.includes('dia') || lower.includes('supermercado') || lower.includes('comida') || lower.includes('alimentacion') || lower.includes('compra') || lower.includes('alcampo') || lower.includes('ahorramas') || lower.includes('fruta') || lower.includes('panadería')) return 'Alimentación';
-		if (lower.includes('gasolina') || lower.includes('uber') || lower.includes('cabify') || lower.includes('metro') || lower.includes('bus') || lower.includes('tren') || lower.includes('taxi') || lower.includes('peaje') || lower.includes('parking') || lower.includes('renfe')) return 'Transporte';
-		if (lower.includes('luz') || lower.includes('agua') || lower.includes('gas') || lower.includes('internet') || lower.includes('telefono') || lower.includes('móvil') || lower.includes('fibra') || lower.includes('electricidad') || lower.includes('iberdrola') || lower.includes('endesa') || lower.includes('naturgy')) return 'Suministros';
-		if (lower.includes('cine') || lower.includes('restaurante') || lower.includes('bar') || lower.includes('ocio') || lower.includes('fiesta') || lower.includes('concierto') || lower.includes('cerveza') || lower.includes('cafe') || lower.includes('burger') || lower.includes('pizza') || lower.includes('cañas') || lower.includes('copas') || lower.includes('pub')) return 'Ocio/Restauración';
-		if (lower.includes('netflix') || lower.includes('spotify') || lower.includes('prime') || lower.includes('suscripcion') || lower.includes('hbo') || lower.includes('disney') || lower.includes('youtube premium')) return 'Suscripciones';
-		if (lower.includes('medico') || lower.includes('farmacia') || lower.includes('salud') || lower.includes('dentista') || lower.includes('optica') || lower.includes('doctor') || lower.includes('clinica')) return 'Salud/Belleza';
-		if (lower.includes('colegio') || lower.includes('universidad') || lower.includes('curso') || lower.includes('academia') || lower.includes('libro') || lower.includes('estudio') || lower.includes('educacion')) return 'Educación';
-		if (lower.includes('viaje') || lower.includes('vuelo') || lower.includes('hotel') || lower.includes('booking') || lower.includes('vacaciones') || lower.includes('airbnb') || lower.includes('avion')) return 'Viajes';
-		if (lower.includes('ropa') || lower.includes('zara') || lower.includes('hm ') || lower.includes('nike') || lower.includes('amazon') || lower.includes('tienda') || lower.includes('shopping') || lower.includes('compras')) return 'Compras/Ropa';
+		if (
+			lower.includes('alquiler') ||
+			lower.includes('hipoteca') ||
+			lower.includes('rent') ||
+			lower.includes('comunidad')
+		)
+			return 'Alquiler/Hipoteca';
+		if (
+			lower.includes('mercadona') ||
+			lower.includes('carrefour') ||
+			lower.includes('lidl') ||
+			lower.includes('dia') ||
+			lower.includes('supermercado') ||
+			lower.includes('comida') ||
+			lower.includes('alimentacion') ||
+			lower.includes('compra') ||
+			lower.includes('alcampo') ||
+			lower.includes('ahorramas') ||
+			lower.includes('fruta') ||
+			lower.includes('panadería')
+		)
+			return 'Alimentación';
+		if (
+			lower.includes('gasolina') ||
+			lower.includes('uber') ||
+			lower.includes('cabify') ||
+			lower.includes('metro') ||
+			lower.includes('bus') ||
+			lower.includes('tren') ||
+			lower.includes('taxi') ||
+			lower.includes('peaje') ||
+			lower.includes('parking') ||
+			lower.includes('renfe')
+		)
+			return 'Transporte';
+		if (
+			lower.includes('luz') ||
+			lower.includes('agua') ||
+			lower.includes('gas') ||
+			lower.includes('internet') ||
+			lower.includes('telefono') ||
+			lower.includes('móvil') ||
+			lower.includes('fibra') ||
+			lower.includes('electricidad') ||
+			lower.includes('iberdrola') ||
+			lower.includes('endesa') ||
+			lower.includes('naturgy')
+		)
+			return 'Suministros';
+		if (
+			lower.includes('cine') ||
+			lower.includes('restaurante') ||
+			lower.includes('bar') ||
+			lower.includes('ocio') ||
+			lower.includes('fiesta') ||
+			lower.includes('concierto') ||
+			lower.includes('cerveza') ||
+			lower.includes('cafe') ||
+			lower.includes('burger') ||
+			lower.includes('pizza') ||
+			lower.includes('cañas') ||
+			lower.includes('copas') ||
+			lower.includes('pub')
+		)
+			return 'Ocio/Restauración';
+		if (
+			lower.includes('netflix') ||
+			lower.includes('spotify') ||
+			lower.includes('prime') ||
+			lower.includes('suscripcion') ||
+			lower.includes('hbo') ||
+			lower.includes('disney') ||
+			lower.includes('youtube premium')
+		)
+			return 'Suscripciones';
+		if (
+			lower.includes('medico') ||
+			lower.includes('farmacia') ||
+			lower.includes('salud') ||
+			lower.includes('dentista') ||
+			lower.includes('optica') ||
+			lower.includes('doctor') ||
+			lower.includes('clinica')
+		)
+			return 'Salud/Belleza';
+		if (
+			lower.includes('colegio') ||
+			lower.includes('universidad') ||
+			lower.includes('curso') ||
+			lower.includes('academia') ||
+			lower.includes('libro') ||
+			lower.includes('estudio') ||
+			lower.includes('educacion')
+		)
+			return 'Educación';
+		if (
+			lower.includes('viaje') ||
+			lower.includes('vuelo') ||
+			lower.includes('hotel') ||
+			lower.includes('booking') ||
+			lower.includes('vacaciones') ||
+			lower.includes('airbnb') ||
+			lower.includes('avion')
+		)
+			return 'Viajes';
+		if (
+			lower.includes('ropa') ||
+			lower.includes('zara') ||
+			lower.includes('hm ') ||
+			lower.includes('nike') ||
+			lower.includes('amazon') ||
+			lower.includes('tienda') ||
+			lower.includes('shopping') ||
+			lower.includes('compras')
+		)
+			return 'Compras/Ropa';
 	} else if (type === 'transfer') {
-		if (lower.includes('ahorro') || lower.includes('hucha') || lower.includes('inversion') || lower.includes('crypto') || lower.includes('cripto') || lower.includes('deposito')) return 'Ahorro/Inversión';
-		if (lower.includes('comun') || lower.includes('compartido') || lower.includes('juntos') || lower.includes('pareja') || lower.includes('casa')) return 'Gasto Común';
-		if (lower.includes('ajuste') || lower.includes('correccion') || lower.includes('cuadrar') || lower.includes('saldo')) return 'Ajuste de Saldo';
+		if (
+			lower.includes('ahorro') ||
+			lower.includes('hucha') ||
+			lower.includes('inversion') ||
+			lower.includes('crypto') ||
+			lower.includes('cripto') ||
+			lower.includes('deposito')
+		)
+			return 'Ahorro/Inversión';
+		if (
+			lower.includes('comun') ||
+			lower.includes('compartido') ||
+			lower.includes('juntos') ||
+			lower.includes('pareja') ||
+			lower.includes('casa')
+		)
+			return 'Gasto Común';
+		if (
+			lower.includes('ajuste') ||
+			lower.includes('correccion') ||
+			lower.includes('cuadrar') ||
+			lower.includes('saldo')
+		)
+			return 'Ajuste de Saldo';
 	}
 	return null;
 };
@@ -74,7 +222,7 @@ export const isPaymentPlanDebt = (debt: Debt): debt is PaymentPlanDebt => debt.k
 export const hasTin = (debt: ClassicDebt): boolean => toNumber(debt.tin) > 0;
 
 export const getDebtRateLabel = (debt: ClassicDebt): string => {
-	return hasTin(debt) ? `TIN ${toNumber(debt.tin)}% / TAE ${debt.tae}%` : `TAE ${debt.tae}%`;
+	return hasTin(debt) ? `TIN ${toNumber(debt.tin)}% / TAE/CER ${debt.tae}%` : `TAE/CER ${debt.tae}%`;
 };
 
 export const getPaymentPlanPaidAmount = (debt: PaymentPlanDebt): number => {
@@ -147,6 +295,19 @@ export const calculateMonthlyPayment = (
 
 export const getDebtRateMode = (debt: ClassicDebt): RateMode => (hasTin(debt) ? 'tin' : 'tae');
 
+export const getDebtRecurringMonthlyCosts = (debt: Debt): number => {
+	return Math.max(0, toNumber(debt.recurringMonthlyCosts));
+};
+
+export const calculateClassicDebtInstallment = (debt: ClassicDebt): number => {
+	return calculateMonthlyPayment(
+		debt.principal,
+		hasTin(debt) ? toNumber(debt.tin) : debt.tae,
+		debt.termMonths,
+		getDebtRateMode(debt)
+	);
+};
+
 export const getPaymentPlanDueInstallments = (debt: PaymentPlanDebt, month: string): PaymentPlanInstallment[] => {
 	return debt.installments.filter(
 		(installment) => installment.status === 'pending' && normalizeMonth(installment.dueMonth) <= month
@@ -166,17 +327,24 @@ export const getPaymentPlanOverdueAmount = (debt: PaymentPlanDebt, month: string
 /**
  * Calcula la cuota exigible para una deuda determinada en un mes contable dado.
  */
-export const calculateDebtMonthlyPayment = (debt: Debt, month: string): number => {
+export const calculateDebtBaseMonthlyPayment = (debt: Debt, month: string): number => {
 	if (isPaymentPlanDebt(debt)) {
 		return getPaymentPlanCashflowForMonth(debt, month);
 	}
 
-	return calculateMonthlyPayment(
-		debt.principal,
-		hasTin(debt) ? toNumber(debt.tin) : debt.tae,
-		debt.termMonths,
-		getDebtRateMode(debt)
-	);
+	return calculateClassicDebtInstallment(debt);
+};
+
+export const calculateDebtMonthlyPayment = (debt: Debt, month: string): number => {
+	const recurringCosts = getDebtRecurringMonthlyCosts(debt);
+	if (isPaymentPlanDebt(debt)) {
+		const dueInstallments = getPaymentPlanDueInstallments(debt, month);
+		return dueInstallments.reduce((sum, installment) => sum + installment.amount + recurringCosts, 0);
+	}
+
+	const installment = calculateClassicDebtInstallment(debt);
+	if (installment <= 0) return 0;
+	return installment + recurringCosts;
 };
 
 /**
@@ -186,7 +354,8 @@ export const generateAmortizationSchedule = (debt: ClassicDebt): AmortizationRow
 	const p = toNumber(debt.principal);
 	const m = Math.trunc(toNumber(debt.termMonths));
 	const monthlyRate = getMonthlyRate(hasTin(debt) ? toNumber(debt.tin) : debt.tae, getDebtRateMode(debt));
-	const cuota = calculateDebtMonthlyPayment(debt, debt.date); // El cálculo de cuota es constante para un mes de inicio
+	const cuota = calculateClassicDebtInstallment(debt); // El cálculo de cuota base es constante para un mes de inicio
+	const recurringCosts = getDebtRecurringMonthlyCosts(debt);
 
 	let remainingPrincipal = p;
 	const schedule: AmortizationRow[] = [];
@@ -198,7 +367,10 @@ export const generateAmortizationSchedule = (debt: ClassicDebt): AmortizationRow
 
 		schedule.push({
 			month: i,
+			dueMonth: addMonthsToMonth(debt.date, i - 1),
 			cuota,
+			recurringCosts,
+			totalPayment: cuota + recurringCosts,
 			principalPaid,
 			interestPayment,
 			remainingPrincipal
@@ -223,8 +395,8 @@ export const getTransactionOwner = (t: Transaction, accounts: Account[]): 'userA
  * Calcula el importe ponderado de una transacción de acuerdo a la vista activa del usuario.
  */
 export const getEffectiveAmount = (
-	t: Transaction, 
-	viewMode: 'all' | 'userA' | 'userB', 
+	t: Transaction,
+	viewMode: 'all' | 'userA' | 'userB',
 	accounts: Account[]
 ): number => {
 	const owner = getTransactionOwner(t, accounts);
@@ -452,7 +624,7 @@ export const getTagBreakdown = (
 	month: string
 ): TagBreakdown[] => {
 	const breakdown: Record<string, number> = {};
-	
+
 	filteredTransactions.forEach((t) => {
 		if (t.type === 'expense') {
 			breakdown[t.tag] = (breakdown[t.tag] || 0) + toNumber(t.money?.amount ?? '0');

@@ -354,6 +354,15 @@ export const migrateDebt = (rawDebt: any): Debt => {
 	const owner =
 		rawDebt?.owner === 'userA' || rawDebt?.owner === 'userB' || rawDebt?.owner === 'joint' ? rawDebt.owner : 'joint';
 	const paymentAccountId = rawDebt?.paymentAccountId ? String(rawDebt.paymentAccountId) : undefined;
+	const rawChargeDay = Math.trunc(toNumber(rawDebt?.chargeDay));
+	const chargeDay = rawChargeDay >= 1 && rawChargeDay <= 31 ? rawChargeDay : undefined;
+	const recurringMonthlyCosts =
+		rawDebt?.recurringMonthlyCosts !== undefined ? Math.abs(toNumber(rawDebt.recurringMonthlyCosts)) : undefined;
+	const optionalDebtBase = {
+		...(paymentAccountId ? { paymentAccountId } : {}),
+		...(chargeDay !== undefined ? { chargeDay } : {}),
+		...(recurringMonthlyCosts !== undefined ? { recurringMonthlyCosts } : {})
+	};
 
 	if (rawDebt?.kind === 'paymentPlan') {
 		const installments: PaymentPlanInstallment[] = Array.isArray(rawDebt.installments)
@@ -375,7 +384,7 @@ export const migrateDebt = (rawDebt: any): Debt => {
 			tag,
 			date,
 			owner,
-			paymentAccountId,
+			...optionalDebtBase,
 			financedAmount,
 			fees,
 			totalToPay,
@@ -390,9 +399,12 @@ export const migrateDebt = (rawDebt: any): Debt => {
 		tag,
 		date,
 		owner,
-		paymentAccountId,
+		...optionalDebtBase,
 		principal: Math.abs(toNumber(rawDebt?.principal)),
-		tin: rawDebt?.tin === undefined ? undefined : Math.abs(toNumber(rawDebt.tin)),
+		...(rawDebt?.openingCommission !== undefined
+			? { openingCommission: Math.abs(toNumber(rawDebt.openingCommission)) }
+			: {}),
+		...(rawDebt?.tin !== undefined ? { tin: Math.abs(toNumber(rawDebt.tin)) } : {}),
 		tae: Math.abs(toNumber(rawDebt?.tae)),
 		termMonths: Math.max(1, Math.trunc(toNumber(rawDebt?.termMonths)))
 	};

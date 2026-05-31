@@ -44,6 +44,7 @@ import { addMonthsToMonth, getValidDateForMonth, normalizeMonth } from '../utils
 import { toNumber, decodeHtmlEntities } from '../utils/formatters';
 import {
 	calculateDebtMonthlyPayment,
+	calculateClassicDebtInstallment,
 	calculateMonthlyPayment,
 	getPaymentPlanRemainingAmount,
 	getPaymentPlanOverdueAmount,
@@ -386,6 +387,8 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		kind: 'classic',
 		desc: '',
 		principal: '',
+		openingCommission: '',
+		recurringMonthlyCosts: '',
 		financedAmount: '',
 		fees: '',
 		tin: '',
@@ -394,6 +397,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		tranches: [{ id: 'initial-tranche', months: '', amount: '' }],
 		tag: DEFAULT_TAGS.debt[0],
 		date: selectedMonth,
+		chargeDay: '',
 		owner: 'joint',
 		paymentAccountId: ''
 	});
@@ -703,7 +707,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	}, 0);
 
 	const currentTotalInterests = consolidatedDebtsObjects.reduce((sum, d) => {
-		const cuota = calculateDebtMonthlyPayment(d, selectedMonth);
+		const cuota = calculateClassicDebtInstallment(d);
 		return sum + (cuota * d.termMonths - d.principal);
 	}, 0);
 
@@ -1096,6 +1100,14 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 
 		if (!debtForm.desc) return;
 
+		const rawChargeDay = debtForm.chargeDay.trim();
+		const chargeDay = rawChargeDay ? Math.trunc(toNumber(rawChargeDay)) : undefined;
+		const recurringMonthlyCosts = Math.abs(toNumber(debtForm.recurringMonthlyCosts));
+		if (chargeDay !== undefined && (chargeDay < 1 || chargeDay > 31)) {
+			setDebtFormError('El día habitual de cobro debe estar entre 1 y 31.');
+			return;
+		}
+
 		if (debtForm.kind === 'classic') {
 			if (!debtForm.principal || !debtForm.tae || !debtForm.termMonths) return;
 
@@ -1105,11 +1117,14 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 				kind: 'classic',
 				desc: debtForm.desc,
 				principal: Math.abs(parseFloat(debtForm.principal)),
+				openingCommission: Math.abs(toNumber(debtForm.openingCommission)),
+				recurringMonthlyCosts,
 				tin,
 				tae: Math.abs(parseFloat(debtForm.tae)),
 				termMonths: Math.abs(parseInt(debtForm.termMonths)),
 				tag: debtForm.tag,
 				date: normalizeMonth(debtForm.date),
+				chargeDay,
 				owner: debtForm.owner,
 				paymentAccountId: debtForm.paymentAccountId || undefined
 			};
@@ -1119,9 +1134,12 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 				...debtForm,
 				desc: '',
 				principal: '',
+				openingCommission: '',
+				recurringMonthlyCosts: '',
 				tin: '',
 				tae: '',
 				termMonths: '',
+				chargeDay: '',
 				owner: 'joint',
 				paymentAccountId: ''
 			});
@@ -1164,6 +1182,8 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			installments: generatePaymentPlanInstallments(id, normalizeMonth(debtForm.date), validTranches),
 			tag: debtForm.tag,
 			date: normalizeMonth(debtForm.date),
+			chargeDay,
+			recurringMonthlyCosts,
 			owner: debtForm.owner,
 			paymentAccountId: debtForm.paymentAccountId || undefined
 		};
@@ -1174,7 +1194,9 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			desc: '',
 			financedAmount: '',
 			fees: '',
+			recurringMonthlyCosts: '',
 			tranches: [{ id: `tranche-${Date.now()}`, months: '', amount: '' }],
+			chargeDay: '',
 			owner: 'joint',
 			paymentAccountId: ''
 		});
@@ -1706,10 +1728,15 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 									: 'Inactiva';
 
 							let details = '';
+							const chargeDayLabel = d.chargeDay ? `, Cobro día ${d.chargeDay}` : '';
 							if (isClassicDebt(d)) {
-								details = `Capital: ${d.principal}€, ${getDebtRateLabel(d)}, Plazo: ${d.termMonths} meses`;
+								const openingLabel = d.openingCommission ? `, Apertura: ${d.openingCommission}€` : '';
+								const recurringLabel = d.recurringMonthlyCosts
+									? `, Costes/seguros: ${d.recurringMonthlyCosts}€/mes`
+									: '';
+								details = `Capital: ${d.principal}€, ${getDebtRateLabel(d)}, Plazo: ${d.termMonths} meses${openingLabel}${recurringLabel}${chargeDayLabel}`;
 							} else {
-								details = `Financiado: ${d.financedAmount}€, Comisiones: ${d.fees}€, Total: ${d.totalToPay}€`;
+								details = `Financiado: ${d.financedAmount}€, Comisiones: ${d.fees}€, Total: ${d.totalToPay}€${chargeDayLabel}`;
 							}
 
 							return `

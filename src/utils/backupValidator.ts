@@ -16,7 +16,13 @@ export const sanitizeString = (str: string): string => {
 /**
  * Valida un campo de texto simple y lo sanitiza.
  */
-const validateAndSanitizeText = (val: unknown, fieldName: string, maxLength = 200, required = true, escapeHtml = true): string => {
+const validateAndSanitizeText = (
+	val: unknown,
+	fieldName: string,
+	maxLength = 200,
+	required = true,
+	escapeHtml = true
+): string => {
 	if (val === undefined || val === null) {
 		if (required) {
 			throw new Error(`El campo '${fieldName}' es requerido.`);
@@ -79,7 +85,7 @@ const validateAccounts = (accounts: unknown): Account[] => {
 		const rawAcc = acc as Record<string, unknown>;
 		const id = validateAndSanitizeText(rawAcc.id, `${prefix}.id`, 50);
 		const name = validateAndSanitizeText(rawAcc.name, `${prefix}.name`, 100);
-		
+
 		const owner = rawAcc.owner;
 		if (owner !== 'userA' && owner !== 'userB' && owner !== 'joint') {
 			throw new Error(`El propietario de la cuenta en ${prefix}.owner debe ser 'userA', 'userB' o 'joint'.`);
@@ -108,7 +114,7 @@ const validateTransactions = (transactions: unknown): Transaction[] => {
 		const rawTx = tx as Record<string, unknown>;
 		const id = validateAndSanitizeText(rawTx.id, `${prefix}.id`, 50);
 		const desc = validateAndSanitizeText(rawTx.desc, `${prefix}.desc`, 150);
-		
+
 		const moneyObj = rawTx.money as Record<string, unknown> | undefined;
 		let moneyAmountStr: string;
 		let moneyCurrencyStr = 'EUR';
@@ -121,7 +127,7 @@ const validateTransactions = (transactions: unknown): Transaction[] => {
 
 		const parsedAmount = parseFloat(moneyAmountStr);
 		const amountVal = validateNumber(Number.isFinite(parsedAmount) ? parsedAmount : 0, `${prefix}.amount`, true);
-		
+
 		if (moneyCurrencyStr !== 'EUR' && moneyCurrencyStr !== 'USD' && moneyCurrencyStr !== 'GBP') {
 			throw new Error(`La divisa en ${prefix}.currency debe ser 'EUR', 'USD' o 'GBP'.`);
 		}
@@ -137,7 +143,7 @@ const validateTransactions = (transactions: unknown): Transaction[] => {
 		}
 
 		const tag = validateAndSanitizeText(rawTx.tag, `${prefix}.tag`, 50);
-		
+
 		const date = validateAndSanitizeText(rawTx.date, `${prefix}.date`, 10);
 		if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
 			throw new Error(`El formato de fecha en ${prefix}.date debe ser YYYY-MM-DD.`);
@@ -158,9 +164,18 @@ const validateTransactions = (transactions: unknown): Transaction[] => {
 			throw new Error(`El campo de pago en ${prefix}.paidBy debe ser 'userA', 'userB' o 'shared'.`);
 		}
 
-		const accountId = rawTx.accountId !== undefined ? validateAndSanitizeText(rawTx.accountId, `${prefix}.accountId`, 50, false) : undefined;
-		const fromAccountId = rawTx.fromAccountId !== undefined ? validateAndSanitizeText(rawTx.fromAccountId, `${prefix}.fromAccountId`, 50, false) : undefined;
-		const toAccountId = rawTx.toAccountId !== undefined ? validateAndSanitizeText(rawTx.toAccountId, `${prefix}.toAccountId`, 50, false) : undefined;
+		const accountId =
+			rawTx.accountId !== undefined
+				? validateAndSanitizeText(rawTx.accountId, `${prefix}.accountId`, 50, false)
+				: undefined;
+		const fromAccountId =
+			rawTx.fromAccountId !== undefined
+				? validateAndSanitizeText(rawTx.fromAccountId, `${prefix}.fromAccountId`, 50, false)
+				: undefined;
+		const toAccountId =
+			rawTx.toAccountId !== undefined
+				? validateAndSanitizeText(rawTx.toAccountId, `${prefix}.toAccountId`, 50, false)
+				: undefined;
 
 		return {
 			id,
@@ -195,7 +210,7 @@ const validateDebts = (debts: unknown): Debt[] => {
 
 		const rawDebt = d as Record<string, unknown>;
 		const id = validateAndSanitizeText(rawDebt.id, `${prefix}.id`, 50);
-		
+
 		const kind = rawDebt.kind;
 		if (kind !== 'classic' && kind !== 'paymentPlan') {
 			throw new Error(`El tipo de deuda en ${prefix}.kind debe ser 'classic' o 'paymentPlan'.`);
@@ -203,7 +218,7 @@ const validateDebts = (debts: unknown): Debt[] => {
 
 		const desc = validateAndSanitizeText(rawDebt.desc, `${prefix}.desc`, 150);
 		const tag = validateAndSanitizeText(rawDebt.tag, `${prefix}.tag`, 50);
-		
+
 		const date = validateAndSanitizeText(rawDebt.date, `${prefix}.date`, 7);
 		if (!/^\d{4}-\d{2}$/.test(date)) {
 			throw new Error(`El formato de fecha en ${prefix}.date debe ser YYYY-MM.`);
@@ -214,10 +229,33 @@ const validateDebts = (debts: unknown): Debt[] => {
 			throw new Error(`El propietario de la deuda en ${prefix}.owner debe ser 'userA', 'userB' o 'joint'.`);
 		}
 
-		const paymentAccountId = rawDebt.paymentAccountId !== undefined ? validateAndSanitizeText(rawDebt.paymentAccountId, `${prefix}.paymentAccountId`, 50, false) : undefined;
+		const paymentAccountId =
+			rawDebt.paymentAccountId !== undefined
+				? validateAndSanitizeText(rawDebt.paymentAccountId, `${prefix}.paymentAccountId`, 50, false)
+				: undefined;
+		const chargeDay =
+			rawDebt.chargeDay !== undefined
+				? validateNumber(rawDebt.chargeDay, `${prefix}.chargeDay`, true, true)
+				: undefined;
+		if (chargeDay !== undefined && (chargeDay < 1 || chargeDay > 31)) {
+			throw new Error(`El día de cobro en ${prefix}.chargeDay debe estar entre 1 y 31.`);
+		}
+		const recurringMonthlyCosts =
+			rawDebt.recurringMonthlyCosts !== undefined
+				? validateNumber(rawDebt.recurringMonthlyCosts, `${prefix}.recurringMonthlyCosts`, true)
+				: undefined;
+		const optionalDebtBase = {
+			...(paymentAccountId ? { paymentAccountId } : {}),
+			...(chargeDay !== undefined ? { chargeDay } : {}),
+			...(recurringMonthlyCosts !== undefined ? { recurringMonthlyCosts } : {})
+		};
 
 		if (kind === 'classic') {
 			const principal = validateNumber(rawDebt.principal, `${prefix}.principal`, true);
+			const openingCommission =
+				rawDebt.openingCommission !== undefined
+					? validateNumber(rawDebt.openingCommission, `${prefix}.openingCommission`, true)
+					: undefined;
 			const tin = rawDebt.tin !== undefined ? validateNumber(rawDebt.tin, `${prefix}.tin`, true) : undefined;
 			const tae = validateNumber(rawDebt.tae, `${prefix}.tae`, true);
 			const termMonths = validateNumber(rawDebt.termMonths, `${prefix}.termMonths`, true, true);
@@ -229,9 +267,10 @@ const validateDebts = (debts: unknown): Debt[] => {
 				tag,
 				date,
 				owner,
-				paymentAccountId: paymentAccountId || undefined,
+				...optionalDebtBase,
 				principal,
-				tin,
+				...(openingCommission !== undefined ? { openingCommission } : {}),
+				...(tin !== undefined ? { tin } : {}),
 				tae,
 				termMonths
 			};
@@ -239,7 +278,7 @@ const validateDebts = (debts: unknown): Debt[] => {
 			const financedAmount = validateNumber(rawDebt.financedAmount, `${prefix}.financedAmount`, true);
 			const fees = validateNumber(rawDebt.fees, `${prefix}.fees`, true);
 			const totalToPay = validateNumber(rawDebt.totalToPay, `${prefix}.totalToPay`, true);
-			
+
 			if (!Array.isArray(rawDebt.installments)) {
 				throw new Error(`La deuda de fraccionamiento en ${prefix}.installments debe contener un array de cuotas.`);
 			}
@@ -252,7 +291,7 @@ const validateDebts = (debts: unknown): Debt[] => {
 
 				const rawInst = inst as Record<string, unknown>;
 				const instId = validateAndSanitizeText(rawInst.id, `${instPrefix}.id`, 80);
-				
+
 				const dueMonth = validateAndSanitizeText(rawInst.dueMonth, `${instPrefix}.dueMonth`, 7);
 				if (!/^\d{4}-\d{2}$/.test(dueMonth)) {
 					throw new Error(`El formato de cuota en ${instPrefix}.dueMonth debe ser YYYY-MM.`);
@@ -283,7 +322,7 @@ const validateDebts = (debts: unknown): Debt[] => {
 				tag,
 				date,
 				owner,
-				paymentAccountId: paymentAccountId || undefined,
+				...optionalDebtBase,
 				financedAmount,
 				fees,
 				totalToPay,
@@ -308,7 +347,7 @@ const validatePeriods = (periods: unknown): Period[] => {
 		}
 
 		const rawPeriod = p as Record<string, unknown>;
-		
+
 		const month = validateAndSanitizeText(rawPeriod.month, `${prefix}.month`, 7);
 		if (!/^\d{4}-\d{2}$/.test(month)) {
 			throw new Error(`El formato de mes en ${prefix}.month debe ser YYYY-MM.`);
@@ -317,7 +356,10 @@ const validatePeriods = (periods: unknown): Period[] => {
 		const openingBalance = validateNumber(rawPeriod.openingBalance, `${prefix}.openingBalance`);
 		const openingBalanceA = validateNumber(rawPeriod.openingBalanceA, `${prefix}.openingBalanceA`);
 		const openingBalanceB = validateNumber(rawPeriod.openingBalanceB, `${prefix}.openingBalanceB`);
-		const isManualInit = rawPeriod.isManualInit !== undefined ? validateBoolean(rawPeriod.isManualInit, `${prefix}.isManualInit`) : undefined;
+		const isManualInit =
+			rawPeriod.isManualInit !== undefined
+				? validateBoolean(rawPeriod.isManualInit, `${prefix}.isManualInit`)
+				: undefined;
 
 		return {
 			month,
@@ -345,7 +387,7 @@ const validateAiChat = (chat: unknown): ChatMessage[] => {
 		}
 
 		const rawMsg = msg as Record<string, unknown>;
-		
+
 		const role = rawMsg.role;
 		if (role !== 'user' && role !== 'model') {
 			throw new Error(`El rol del mensaje en ${prefix}.role debe ser 'user' o 'model'.`);
@@ -401,45 +443,50 @@ export const validateAndSanitizeBackup = (parsedJson: any): Record<string, any> 
 
 	// 3. Cuentas (Obligatorias o opcionales. Validamos si la clave está presente)
 	if (STORAGE_KEYS.accounts in parsedJson) {
-		const rawAccounts = typeof parsedJson[STORAGE_KEYS.accounts] === 'string'
-			? JSON.parse(parsedJson[STORAGE_KEYS.accounts])
-			: parsedJson[STORAGE_KEYS.accounts];
+		const rawAccounts =
+			typeof parsedJson[STORAGE_KEYS.accounts] === 'string'
+				? JSON.parse(parsedJson[STORAGE_KEYS.accounts])
+				: parsedJson[STORAGE_KEYS.accounts];
 		validatedBackup[STORAGE_KEYS.accounts] = validateAccounts(rawAccounts);
 	}
 
 	// 4. Transacciones
 	if (STORAGE_KEYS.transactions in parsedJson) {
-		const rawTx = typeof parsedJson[STORAGE_KEYS.transactions] === 'string'
-			? JSON.parse(parsedJson[STORAGE_KEYS.transactions])
-			: parsedJson[STORAGE_KEYS.transactions];
+		const rawTx =
+			typeof parsedJson[STORAGE_KEYS.transactions] === 'string'
+				? JSON.parse(parsedJson[STORAGE_KEYS.transactions])
+				: parsedJson[STORAGE_KEYS.transactions];
 		validatedBackup[STORAGE_KEYS.transactions] = validateTransactions(rawTx);
 	}
 
 	// 5. Deudas
 	if (STORAGE_KEYS.debts in parsedJson) {
-		const rawDebts = typeof parsedJson[STORAGE_KEYS.debts] === 'string'
-			? JSON.parse(parsedJson[STORAGE_KEYS.debts])
-			: parsedJson[STORAGE_KEYS.debts];
+		const rawDebts =
+			typeof parsedJson[STORAGE_KEYS.debts] === 'string'
+				? JSON.parse(parsedJson[STORAGE_KEYS.debts])
+				: parsedJson[STORAGE_KEYS.debts];
 		validatedBackup[STORAGE_KEYS.debts] = validateDebts(rawDebts);
 	}
 
 	// 6. Periodos
 	if (STORAGE_KEYS.periods in parsedJson) {
-		const rawPeriods = typeof parsedJson[STORAGE_KEYS.periods] === 'string'
-			? JSON.parse(parsedJson[STORAGE_KEYS.periods])
-			: parsedJson[STORAGE_KEYS.periods];
+		const rawPeriods =
+			typeof parsedJson[STORAGE_KEYS.periods] === 'string'
+				? JSON.parse(parsedJson[STORAGE_KEYS.periods])
+				: parsedJson[STORAGE_KEYS.periods];
 		validatedBackup[STORAGE_KEYS.periods] = validatePeriods(rawPeriods);
 	}
 
 	// 7. Chat IA
 	if (STORAGE_KEYS.aiChat in parsedJson) {
-		const rawChat = typeof parsedJson[STORAGE_KEYS.aiChat] === 'string'
-			? JSON.parse(parsedJson[STORAGE_KEYS.aiChat])
-			: parsedJson[STORAGE_KEYS.aiChat];
+		const rawChat =
+			typeof parsedJson[STORAGE_KEYS.aiChat] === 'string'
+				? JSON.parse(parsedJson[STORAGE_KEYS.aiChat])
+				: parsedJson[STORAGE_KEYS.aiChat];
 		validatedBackup[STORAGE_KEYS.aiChat] = validateAiChat(rawChat);
 	}
 
-	const hasFinancialData = 
+	const hasFinancialData =
 		STORAGE_KEYS.accounts in validatedBackup ||
 		STORAGE_KEYS.transactions in validatedBackup ||
 		STORAGE_KEYS.debts in validatedBackup ||

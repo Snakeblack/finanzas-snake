@@ -100,6 +100,8 @@ export type DebtBase = {
 	date: string; // Mes de inicio en formato YYYY-MM
 	owner?: 'userA' | 'userB' | 'joint';
 	paymentAccountId?: string;
+	chargeDay?: number; // Día habitual de cobro de la cuota (1-31)
+	recurringMonthlyCosts?: number; // Costes recurrentes/seguros vinculados a la cuota
 };
 
 /**
@@ -108,8 +110,9 @@ export type DebtBase = {
 export type ClassicDebt = DebtBase & {
 	kind: 'classic';
 	principal: number; // Capital inicial solicitado
-	tin?: number;       // Tasa de Interés Nominal anual (opcional)
-	tae: number;        // Tasa Anual Equivalente
+	openingCommission?: number; // Comisión de apertura opcional
+	tin?: number; // Tasa de Interés Nominal anual (opcional)
+	tae: number; // Tasa Anual Equivalente / Coste Efectivo Real informado
 	termMonths: number; // Plazo en meses
 };
 
@@ -119,9 +122,9 @@ export type ClassicDebt = DebtBase & {
 export type PaymentPlanInstallment = {
 	id: string;
 	dueMonth: string; // Mes de vencimiento (YYYY-MM)
-	amount: number;   // Importe de la cuota
+	amount: number; // Importe de la cuota
 	status: InstallmentStatus;
-	label: string;    // Nombre descriptivo (ej: "Tramo 1 · Cuota 2")
+	label: string; // Nombre descriptivo (ej: "Tramo 1 · Cuota 2")
 };
 
 /**
@@ -130,8 +133,8 @@ export type PaymentPlanInstallment = {
 export type PaymentPlanDebt = DebtBase & {
 	kind: 'paymentPlan';
 	financedAmount: number; // Importe financiado neto
-	fees: number;           // Comisiones o intereses adicionales sumados
-	totalToPay: number;     // Total a pagar acumulado (capital + comisiones)
+	fees: number; // Comisiones o intereses adicionales sumados
+	totalToPay: number; // Total a pagar acumulado (capital + comisiones)
 	installments: PaymentPlanInstallment[];
 };
 
@@ -174,6 +177,8 @@ export type DebtForm = {
 	kind: DebtKind;
 	desc: string;
 	principal: string;
+	openingCommission: string;
+	recurringMonthlyCosts: string;
 	financedAmount: string;
 	fees: string;
 	tin: string;
@@ -182,6 +187,7 @@ export type DebtForm = {
 	tranches: PaymentPlanTrancheForm[];
 	tag: string;
 	date: string;
+	chargeDay: string;
 	owner: 'userA' | 'userB' | 'joint';
 	paymentAccountId: string;
 };
@@ -205,7 +211,10 @@ export type DebtScheduleSelection = Debt;
  */
 export type AmortizationRow = {
 	month: number;
+	dueMonth: string;
 	cuota: number;
+	recurringCosts: number;
+	totalPayment: number;
 	principalPaid: number;
 	interestPayment: number;
 	remainingPrincipal: number;

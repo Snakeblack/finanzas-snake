@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFinanzas } from '../../hooks/useFinanzas';
-import { 
-	calculateDebtMonthlyPayment, 
-	isPaymentPlanDebt, 
-	getPaymentPlanOverdueAmount, 
-	getPaymentPlanRemainingAmount, 
+import {
+	calculateDebtMonthlyPayment,
+	isPaymentPlanDebt,
+	getPaymentPlanOverdueAmount,
+	getPaymentPlanRemainingAmount,
 	getDebtRateLabel,
 	getPaymentPlanPaidAmount,
 	generateAmortizationSchedule
@@ -14,13 +14,30 @@ import { DEFAULT_TAGS } from '../../constants';
 import { toNumber } from '../../utils/formatters';
 import { Icons } from '../common/Icons';
 import { Input } from '../ui/input';
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue
-} from '../ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+
+const formatScheduleMonth = (month: string): string => {
+	return new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' }).format(
+		new Date(`${normalizeMonth(month)}-01T00:00:00`)
+	);
+};
+
+const getCurrentLocalMonth = (): string => {
+	const today = new Date();
+	return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const getScheduleRowClassName = (month: string, currentMonth: string): string => {
+	const isCurrentMonth = month === currentMonth;
+	const isPastMonth = month < currentMonth;
+	return [
+		'hover:bg-slate-800/10 transition-colors scroll-mt-12',
+		isCurrentMonth ? 'bg-indigo-500/15 ring-1 ring-inset ring-indigo-400/40' : '',
+		isPastMonth ? 'opacity-45' : ''
+	]
+		.filter(Boolean)
+		.join(' ');
+};
 
 /**
  * Componente que renderiza la pestaña de Deudas (Préstamos y Fraccionamientos).
@@ -57,6 +74,17 @@ export function DebtsTab() {
 	const paymentPlanScheduleDiff = paymentPlanScheduleTotal - paymentPlanTotalToPay;
 
 	const [isMobileFormOpen, setIsMobileFormOpen] = useState(false);
+	const currentCalendarMonth = getCurrentLocalMonth();
+	const currentMonthRowRef = useRef<HTMLTableRowElement | null>(null);
+	const classicAmortizationSchedule = useMemo(() => {
+		if (!selectedDebtSchedule || isPaymentPlanDebt(selectedDebtSchedule)) return [];
+		return generateAmortizationSchedule(selectedDebtSchedule);
+	}, [selectedDebtSchedule]);
+	const hasRecurringCostsInSchedule = classicAmortizationSchedule.some((row) => row.recurringCosts > 0);
+
+	useEffect(() => {
+		currentMonthRowRef.current?.scrollIntoView({ block: 'center', behavior: 'auto' });
+	}, [selectedDebtSchedule?.id, currentCalendarMonth]);
 
 	const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		handleAddDebt(e);
@@ -74,7 +102,13 @@ export function DebtsTab() {
 				>
 					{isMobileFormOpen ? (
 						<>
-							<svg className="w-4 h-4 text-rose-450" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+							<svg
+								className="w-4 h-4 text-rose-450"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								strokeWidth={2}
+							>
 								<path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
 							</svg>
 							<span>Ocultar Formulario</span>
@@ -89,7 +123,9 @@ export function DebtsTab() {
 			</div>
 
 			{/* Formulario */}
-			<div className={`${isMobileFormOpen ? 'block' : 'hidden'} lg:block lg:col-span-4 premium-card rounded-2xl p-6 h-fit lg:max-h-full lg:overflow-y-auto shrink-0 lg:shrink`}>
+			<div
+				className={`${isMobileFormOpen ? 'block' : 'hidden'} lg:block lg:col-span-4 premium-card rounded-2xl p-6 h-fit lg:max-h-full lg:overflow-y-auto shrink-0 lg:shrink`}
+			>
 				<h3 className="font-heading text-lg font-bold text-slate-100 mb-6 flex items-center">
 					<span className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg mr-2">
 						<Icons.CreditCard className="w-4 h-4" />
@@ -120,7 +156,7 @@ export function DebtsTab() {
 								onClick={() => setDebtForm({ ...debtForm, kind: 'classic' })}
 								className={`py-2 rounded-lg text-xs font-semibold transition-all ${debtForm.kind === 'classic' ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
 							>
-								Préstamo TIN/TAE
+								Préstamo TIN/TAE/CER
 							</button>
 							<button
 								type="button"
@@ -218,6 +254,40 @@ export function DebtsTab() {
 								/>
 							</div>
 
+							<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+								<div>
+									<label htmlFor="debt-opening-commission" className="block text-xs font-medium text-slate-400 mb-1.5">
+										Comisión de apertura (€)
+										<span className="text-slate-500"> (opcional)</span>
+									</label>
+									<Input
+										id="debt-opening-commission"
+										type="number"
+										step="0.01"
+										min="0"
+										placeholder="0"
+										value={debtForm.openingCommission}
+										onChange={(e) => setDebtForm({ ...debtForm, openingCommission: e.target.value })}
+									/>
+								</div>
+
+								<div>
+									<label htmlFor="debt-recurring-costs" className="block text-xs font-medium text-slate-400 mb-1.5">
+										Costes recurrentes / seguros (€ al mes)
+										<span className="text-slate-500"> (opcional)</span>
+									</label>
+									<Input
+										id="debt-recurring-costs"
+										type="number"
+										step="0.01"
+										min="0"
+										placeholder="0"
+										value={debtForm.recurringMonthlyCosts}
+										onChange={(e) => setDebtForm({ ...debtForm, recurringMonthlyCosts: e.target.value })}
+									/>
+								</div>
+							</div>
+
 							<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 								<div>
 									<label htmlFor="debt-tin" className="block text-xs font-medium text-slate-400 mb-1.5">
@@ -236,7 +306,7 @@ export function DebtsTab() {
 
 								<div>
 									<label htmlFor="debt-tae" className="block text-xs font-medium text-slate-400 mb-1.5">
-										TAE (%)
+										TAE/CER (%)
 									</label>
 									<Input
 										id="debt-tae"
@@ -267,8 +337,9 @@ export function DebtsTab() {
 							</div>
 
 							<p className="text-[10px] text-slate-500 -mt-2">
-								Si cargás TIN, la cuota y la amortización usan TIN nominal mensual. Si lo dejás vacío, se deriva
-								el tipo mensual desde la TAE.
+								Si cargás TIN, la cuota y la amortización usan TIN nominal mensual. Si lo dejás vacío, se deriva el tipo
+								mensual desde TAE/CER. La comisión queda como coste inicial y los costes/seguros se suman a la cuota
+								mensual.
 							</p>
 						</>
 					) : (
@@ -303,6 +374,22 @@ export function DebtsTab() {
 										onChange={(e) => setDebtForm({ ...debtForm, fees: e.target.value })}
 									/>
 								</div>
+							</div>
+
+							<div>
+								<label htmlFor="plan-recurring-costs" className="block text-xs font-medium text-slate-400 mb-1.5">
+									Costes recurrentes / seguros (€ al mes)
+									<span className="text-slate-500"> (opcional)</span>
+								</label>
+								<Input
+									id="plan-recurring-costs"
+									type="number"
+									step="0.01"
+									min="0"
+									placeholder="0"
+									value={debtForm.recurringMonthlyCosts}
+									onChange={(e) => setDebtForm({ ...debtForm, recurringMonthlyCosts: e.target.value })}
+								/>
 							</div>
 
 							<div className="space-y-2">
@@ -372,35 +459,50 @@ export function DebtsTab() {
 									</span>
 								</div>
 								<p className="text-[10px] text-slate-500">
-									La suma de cuotas tiene que coincidir con el total a pagar. Las vencidas no pagadas se arrastran
-									al mes activo.
+									La suma de cuotas tiene que coincidir con el total a pagar. Las vencidas no pagadas se arrastran al
+									mes activo.
 								</p>
 							</div>
 						</>
 					)}
 
-					<div>
-						<label htmlFor="debt-date" className="block text-xs font-medium text-slate-400 mb-1.5">
-							Fecha de Inicio
-						</label>
-						<Input
-							id="debt-date"
-							type="month"
-							required
-							value={debtForm.date}
-							onChange={(e) => setDebtForm({ ...debtForm, date: e.target.value })}
-							className="font-mono"
-						/>
+					<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+						<div>
+							<label htmlFor="debt-date" className="block text-xs font-medium text-slate-400 mb-1.5">
+								Fecha de Inicio
+							</label>
+							<Input
+								id="debt-date"
+								type="month"
+								required
+								value={debtForm.date}
+								onChange={(e) => setDebtForm({ ...debtForm, date: e.target.value })}
+								className="font-mono"
+							/>
+						</div>
+
+						<div>
+							<label htmlFor="debt-charge-day" className="block text-xs font-medium text-slate-400 mb-1.5">
+								Día habitual de cobro
+								<span className="text-slate-500"> (opcional)</span>
+							</label>
+							<Input
+								id="debt-charge-day"
+								type="number"
+								min="1"
+								max="31"
+								placeholder="Ej. 5"
+								value={debtForm.chargeDay}
+								onChange={(e) => setDebtForm({ ...debtForm, chargeDay: e.target.value })}
+							/>
+						</div>
 					</div>
 
 					<div>
 						<label htmlFor="debt-tag" className="block text-xs font-medium text-slate-400 mb-1.5">
 							Etiqueta de Deuda
 						</label>
-						<Select
-							value={debtForm.tag}
-							onValueChange={(val) => setDebtForm({ ...debtForm, tag: val })}
-						>
+						<Select value={debtForm.tag} onValueChange={(val) => setDebtForm({ ...debtForm, tag: val })}>
 							<SelectTrigger id="debt-tag">
 								<SelectValue placeholder="Selecciona etiqueta" />
 							</SelectTrigger>
@@ -465,11 +567,12 @@ export function DebtsTab() {
 											</div>
 											<p className="text-xs text-slate-400 mt-1">
 												{isPlan
-													? `Financiado: ${formatAmount(d.financedAmount)} | Comisiones: ${formatAmount(d.fees)} | Pendiente: ${formatAmount(getPaymentPlanRemainingAmount(d))}`
-													: `Capital: ${formatAmount(d.principal)} | ${getDebtRateLabel(d)} | Plazo: ${d.termMonths} meses`}
+													? `Financiado: ${formatAmount(d.financedAmount)} | Comisiones: ${formatAmount(d.fees)} | Pendiente: ${formatAmount(getPaymentPlanRemainingAmount(d))}${d.recurringMonthlyCosts ? ` | Costes/seguros: ${formatAmount(d.recurringMonthlyCosts)}/mes` : ''}`
+													: `Capital: ${formatAmount(d.principal)} | ${getDebtRateLabel(d)} | Plazo: ${d.termMonths} meses${d.openingCommission ? ` | Apertura: ${formatAmount(d.openingCommission)}` : ''}${d.recurringMonthlyCosts ? ` | Costes/seguros: ${formatAmount(d.recurringMonthlyCosts)}/mes` : ''}`}
 											</p>
 											<p className="text-[10px] text-slate-500">
 												Iniciado en: {normalizeMonth(d.date)}
+												{d.chargeDay ? ` · Cobro día ${d.chargeDay}` : ''}
 												{overdueAmount > 0 ? ` · Vencido: ${formatAmount(overdueAmount)}` : ''}
 											</p>
 										</div>
@@ -514,8 +617,8 @@ export function DebtsTab() {
 								</h4>
 								<p className="text-xs text-slate-400">
 									{isPaymentPlanDebt(selectedDebtSchedule)
-										? `Total ${formatAmount(selectedDebtSchedule.totalToPay)} · Pagado ${formatAmount(getPaymentPlanPaidAmount(selectedDebtSchedule))} · Pendiente ${formatAmount(getPaymentPlanRemainingAmount(selectedDebtSchedule))} · Vencido ${formatAmount(getPaymentPlanOverdueAmount(selectedDebtSchedule, selectedMonth))}`
-										: `${selectedDebtSchedule.termMonths} meses, ${getDebtRateLabel(selectedDebtSchedule)}`}
+										? `Total ${formatAmount(selectedDebtSchedule.totalToPay)} · Pagado ${formatAmount(getPaymentPlanPaidAmount(selectedDebtSchedule))} · Pendiente ${formatAmount(getPaymentPlanRemainingAmount(selectedDebtSchedule))} · Vencido ${formatAmount(getPaymentPlanOverdueAmount(selectedDebtSchedule, selectedMonth))}${selectedDebtSchedule.recurringMonthlyCosts ? ` · Costes/seguros ${formatAmount(selectedDebtSchedule.recurringMonthlyCosts)}/mes` : ''}${selectedDebtSchedule.chargeDay ? ` · Cobro día ${selectedDebtSchedule.chargeDay}` : ''}`
+										: `${selectedDebtSchedule.termMonths} meses, ${getDebtRateLabel(selectedDebtSchedule)}${selectedDebtSchedule.openingCommission ? ` · Apertura ${formatAmount(selectedDebtSchedule.openingCommission)}` : ''}${selectedDebtSchedule.recurringMonthlyCosts ? ` · Costes/seguros ${formatAmount(selectedDebtSchedule.recurringMonthlyCosts)}/mes` : ''}${selectedDebtSchedule.chargeDay ? ` · Cobro día ${selectedDebtSchedule.chargeDay}` : ''}`}
 								</p>
 							</div>
 							<button
@@ -528,11 +631,14 @@ export function DebtsTab() {
 
 						<div className="max-h-72 overflow-y-auto border border-slate-800 rounded-lg overflow-x-auto">
 							{isPaymentPlanDebt(selectedDebtSchedule) ? (
-								<table className="w-full text-left text-xs min-w-[450px]">
-									<thead className="bg-slate-950 sticky top-0 border-b border-slate-800">
+								<table className="w-full text-left text-xs min-w-[500px]">
+									<thead className="bg-slate-950 sticky top-0 border-b border-slate-800 z-10">
 										<tr className="text-slate-400">
 											<th className="p-2">Mes</th>
 											<th className="p-2">Cuota</th>
+											{toNumber(selectedDebtSchedule.recurringMonthlyCosts) > 0 && (
+												<th className="p-2">Costes/seguros</th>
+											)}
 											<th className="p-2">Estado</th>
 											<th className="p-2 text-right">Acción</th>
 										</tr>
@@ -540,10 +646,26 @@ export function DebtsTab() {
 									<tbody className="divide-y divide-slate-800/50 text-slate-300">
 										{selectedDebtSchedule.installments.map((installment) => {
 											const isOverdue = installment.status === 'pending' && installment.dueMonth < selectedMonth;
+											const isCurrentRow = installment.dueMonth === currentCalendarMonth;
+											const recurringCosts = toNumber(selectedDebtSchedule.recurringMonthlyCosts);
 											return (
-												<tr key={installment.id} className="hover:bg-slate-800/10">
-													<td className="p-2 font-mono text-slate-500">{installment.dueMonth}</td>
-													<td className="p-2 font-mono">{formatAmount(installment.amount)}</td>
+												<tr
+													key={installment.id}
+													ref={isCurrentRow ? currentMonthRowRef : null}
+													className={getScheduleRowClassName(installment.dueMonth, currentCalendarMonth)}
+												>
+													<td className="p-2 text-slate-400">
+														<span className="font-mono capitalize">{formatScheduleMonth(installment.dueMonth)}</span>
+														{isCurrentRow && (
+															<span className="ml-2 rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-bold text-indigo-200">
+																Actual
+															</span>
+														)}
+													</td>
+													<td className="p-2 font-mono">{formatAmount(installment.amount + recurringCosts)}</td>
+													{recurringCosts > 0 && (
+														<td className="p-2 font-mono text-sky-300">{formatAmount(recurringCosts)}</td>
+													)}
 													<td className={isOverdue ? 'p-2 text-rose-400 font-semibold' : 'p-2 text-slate-300'}>
 														{installment.status === 'paid' ? 'Pagada' : isOverdue ? 'Vencida' : 'Pendiente'}
 													</td>
@@ -563,34 +685,52 @@ export function DebtsTab() {
 									</tbody>
 								</table>
 							) : (
-								<table className="w-full text-left text-xs min-w-[500px]">
-									<thead className="bg-slate-950 sticky top-0 border-b border-slate-800">
+								<table className="w-full text-left text-xs min-w-[620px]">
+									<thead className="bg-slate-950 sticky top-0 border-b border-slate-800 z-10">
 										<tr className="text-slate-400">
 											<th className="p-2">Mes</th>
 											<th className="p-2">Cuota</th>
+											{hasRecurringCostsInSchedule && <th className="p-2">Costes/seguros</th>}
 											<th className="p-2">Amortización</th>
 											<th className="p-2">Intereses</th>
 											<th className="p-2 text-right">Pendiente</th>
 										</tr>
 									</thead>
 									<tbody className="divide-y divide-slate-800/50 font-mono text-slate-300">
-										{generateAmortizationSchedule(selectedDebtSchedule).map((row) => (
-											<tr key={row.month} className="hover:bg-slate-800/10">
-												<td className="p-2 text-slate-500">{row.month}</td>
-												<td className="p-2">{formatAmount(row.cuota)}</td>
-												<td className="p-2 text-emerald-400">{formatAmount(row.principalPaid)}</td>
-												<td className="p-2 text-rose-400">{formatAmount(row.interestPayment)}</td>
-												<td className="p-2 text-right text-slate-400">{formatAmount(row.remainingPrincipal)}</td>
-											</tr>
-										))}
+										{classicAmortizationSchedule.map((row) => {
+											const isCurrentRow = row.dueMonth === currentCalendarMonth;
+											return (
+												<tr
+													key={row.month}
+													ref={isCurrentRow ? currentMonthRowRef : null}
+													className={getScheduleRowClassName(row.dueMonth, currentCalendarMonth)}
+												>
+													<td className="p-2 text-slate-400">
+														<span className="capitalize">{formatScheduleMonth(row.dueMonth)}</span>
+														{isCurrentRow && (
+															<span className="ml-2 rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-bold text-indigo-200">
+																Actual
+															</span>
+														)}
+													</td>
+													<td className="p-2">{formatAmount(row.totalPayment)}</td>
+													{hasRecurringCostsInSchedule && (
+														<td className="p-2 text-sky-300">{formatAmount(row.recurringCosts)}</td>
+													)}
+													<td className="p-2 text-emerald-400">{formatAmount(row.principalPaid)}</td>
+													<td className="p-2 text-rose-400">{formatAmount(row.interestPayment)}</td>
+													<td className="p-2 text-right text-slate-400">{formatAmount(row.remainingPrincipal)}</td>
+												</tr>
+											);
+										})}
 									</tbody>
 								</table>
 							)}
 						</div>
 						{isPaymentPlanDebt(selectedDebtSchedule) && (
 							<p className="text-[10px] text-slate-500 mt-3">
-								Las cuotas pendientes vencidas se suman al flujo exigible del mes activo hasta que las marques
-								como pagadas.
+								Las cuotas pendientes vencidas se suman al flujo exigible del mes activo hasta que las marques como
+								pagadas.
 							</p>
 						)}
 					</div>

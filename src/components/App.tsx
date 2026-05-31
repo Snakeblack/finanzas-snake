@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import type React from 'react';
+import { useState } from 'react';
 import { useFinanzas } from '../hooks/useFinanzas';
 import { FinanzasProvider } from '../context/FinanzasContext';
 import { Icons } from './common/Icons';
@@ -852,14 +853,14 @@ function MainAppContent() {
 								</p>
 							</div>
 
-							{/* Tarjeta: Amortización de Deudas (TIN / TAE) */}
+							{/* Tarjeta: Amortización de Deudas (TIN / TAE/CER) */}
 							<div className="premium-card rounded-xl lg:rounded-2xl p-3 lg:p-6">
 								<div className="flex items-center justify-between mb-1 lg:mb-4">
 									<div className="flex items-center space-x-1">
 										<span className="text-[10px] lg:text-sm font-semibold text-slate-400 truncate">Deuda</span>
 										<span
 											className="hidden lg:inline"
-											title="Préstamos: cuota calculada con TIN/TAE. Fraccionamientos: cuotas pendientes vencidas o exigibles hasta el mes activo."
+											title="Préstamos: cuota calculada con TIN/TAE/CER más costes recurrentes/seguros. Fraccionamientos: cuotas pendientes vencidas o exigibles hasta el mes activo."
 										>
 											<Icons.Info className="text-slate-400" />
 										</span>

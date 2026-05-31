@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useFinanzas } from '../../hooks/useFinanzas';
 import {
 	calculateDebtMonthlyPayment,
+	calculateClassicDebtInstallment,
 	isPaymentPlanDebt,
 	getPaymentPlanOverdueAmount,
 	getPaymentPlanRemainingAmount,
@@ -18,7 +19,7 @@ function calculateNiceTicks(min: number, max: number, maxTicks = 5): number[] {
 
 	// Encontrar un paso limpio aproximado
 	const tempStep = range / (maxTicks - 1);
-	const magnitude = Math.pow(10, Math.floor(Math.log10(tempStep)));
+	const magnitude = 10 ** Math.floor(Math.log10(tempStep));
 	const residual = tempStep / magnitude;
 
 	let niceStep = magnitude;
@@ -741,9 +742,7 @@ export function OverviewTab() {
 						{filteredDebts.map((d) => {
 							const cuota = calculateDebtMonthlyPayment(d, selectedMonth);
 							const isPlan = isPaymentPlanDebt(d);
-							const totalIntereses = isPlan
-								? d.fees
-								: calculateDebtMonthlyPayment(d, selectedMonth) * d.termMonths - d.principal;
+							const totalIntereses = isPlan ? d.fees : calculateClassicDebtInstallment(d) * d.termMonths - d.principal;
 							const overdueAmount = isPlan ? getPaymentPlanOverdueAmount(d, selectedMonth) : 0;
 							return (
 								<div

@@ -1,9 +1,9 @@
 import { useFinanzas } from '../../hooks/useFinanzas';
-import { 
-	calculateDebtMonthlyPayment, 
-	isPaymentPlanDebt, 
-	getDebtRateLabel, 
-	getPaymentPlanRemainingAmount 
+import {
+	calculateDebtMonthlyPayment,
+	isPaymentPlanDebt,
+	getDebtRateLabel,
+	getPaymentPlanRemainingAmount
 } from '../../services/financeService';
 import { Input } from '../ui/input';
 
@@ -36,8 +36,7 @@ export function ConsolidationTab() {
 			<div className="lg:col-span-6 premium-card rounded-2xl p-6">
 				<h3 className="text-lg font-semibold text-slate-200 mb-4">Paso 1: Selecciona las Deudas a Unificar</h3>
 				<p className="text-xs text-slate-400 mb-6">
-					Marca aquellas pequeñas deudas o deudas activas que te gustaría liquidar mediante un único préstamo
-					unificado.
+					Marca aquellas pequeñas deudas o deudas activas que te gustaría liquidar mediante un único préstamo unificado.
 				</p>
 
 				{debts.length === 0 ? (
@@ -80,7 +79,8 @@ export function ConsolidationTab() {
 									<div className="text-right">
 										<span className="block text-[10px] text-slate-500">{isPlan ? 'Exigible' : 'Cuota'}</span>
 										<span className="text-sm font-bold text-slate-350">
-											{formatAmount(cuota)}{isPlan ? '' : '/mes'}
+											{formatAmount(cuota)}
+											{isPlan ? '' : '/mes'}
 										</span>
 									</div>
 								</div>
@@ -100,7 +100,7 @@ export function ConsolidationTab() {
 						<div className="grid grid-cols-2 gap-4">
 							<div>
 								<label htmlFor="new-tae" className="block text-xs font-medium text-slate-400 mb-1.5">
-									Nuevo TAE Propuesto (%)
+									Nuevo TAE/CER Propuesto (%)
 								</label>
 								<Input
 									id="new-tae"
@@ -212,10 +212,9 @@ export function ConsolidationTab() {
 						<div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-xs text-indigo-300 leading-relaxed">
 							<span className="font-bold">⚠️ Análisis Técnico:</span> Alargar los plazos reduce tu asfixia de caja
 							actual. Sin embargo, al añadir **
-							{additionalCapital > 0 ? `${additionalCapital}€ de capital adicional` : 'capital nuevo'}**,
-							incrementas la base de cálculo del préstamo, lo cual incrementa exponencialmente los intereses
-							pagados a largo plazo. Utiliza el módulo de **Asesor Gemini** para que realice un estudio automático
-							de esta simulación.
+							{additionalCapital > 0 ? `${additionalCapital}€ de capital adicional` : 'capital nuevo'}**, incrementas la
+							base de cálculo del préstamo, lo cual incrementa exponencialmente los intereses pagados a largo plazo.
+							Utiliza el módulo de **Asesor Gemini** para que realice un estudio automático de esta simulación.
 						</div>
 					</div>
 				)}

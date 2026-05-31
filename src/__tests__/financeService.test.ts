@@ -15,13 +15,14 @@ import {
 	getPaymentPlanCashflowForMonth,
 	getPaymentPlanOverdueAmount,
 	calculateDebtMonthlyPayment,
+	calculateClassicDebtInstallment,
 	generateAmortizationSchedule,
 	getTransactionOwner,
 	getEffectiveAmount,
 	calculateTimelineBalances,
 	getTagBreakdown
 } from '../services/financeService';
-import type { Account, Period, Transaction, Debt, ClassicDebt, PaymentPlanDebt } from '../types';
+import type { Account, Period, Transaction, ClassicDebt, PaymentPlanDebt } from '../types';
 
 // --- Fixtures reutilizables ---
 const classicDebt: ClassicDebt = {
@@ -165,12 +166,12 @@ describe('hasTin y getDebtRateLabel', () => {
 		expect(hasTin(classicDebt)).toBe(false);
 	});
 
-	it('getDebtRateLabel debe mostrar solo TAE sin TIN', () => {
-		expect(getDebtRateLabel(classicDebt)).toBe('TAE 5%');
+	it('getDebtRateLabel debe mostrar TAE/CER sin TIN', () => {
+		expect(getDebtRateLabel(classicDebt)).toBe('TAE/CER 5%');
 	});
 
-	it('getDebtRateLabel debe mostrar TIN y TAE con TIN', () => {
-		expect(getDebtRateLabel(classicDebtWithTin)).toBe('TIN 2.5% / TAE 3%');
+	it('getDebtRateLabel debe mostrar TIN y TAE/CER con TIN', () => {
+		expect(getDebtRateLabel(classicDebtWithTin)).toBe('TIN 2.5% / TAE/CER 3%');
 	});
 });
 
@@ -186,7 +187,7 @@ describe('PaymentPlan helpers', () => {
 	it('debe retornar 0 si todas están pagadas', () => {
 		const allPaid: PaymentPlanDebt = {
 			...paymentPlanDebt,
-			installments: paymentPlanDebt.installments.map(i => ({ ...i, status: 'paid' as const }))
+			installments: paymentPlanDebt.installments.map((i) => ({ ...i, status: 'paid' as const }))
 		};
 		expect(getPaymentPlanRemainingAmount(allPaid)).toBe(0);
 		expect(getPaymentPlanPaidAmount(allPaid)).toBe(1260);
@@ -201,9 +202,7 @@ describe('PaymentPlan helpers', () => {
 
 describe('generatePaymentPlanInstallments', () => {
 	it('debe generar installments correctas para un solo tramo', () => {
-		const result = generatePaymentPlanInstallments('d1', '2026-05', [
-			{ id: 't1', months: '3', amount: '100' }
-		]);
+		const result = generatePaymentPlanInstallments('d1', '2026-05', [{ id: 't1', months: '3', amount: '100' }]);
 		expect(result).toHaveLength(3);
 		expect(result[0].dueMonth).toBe('2026-05');
 		expect(result[1].dueMonth).toBe('2026-06');
@@ -228,16 +227,12 @@ describe('generatePaymentPlanInstallments', () => {
 	});
 
 	it('debe manejar importes negativos (usa Math.abs)', () => {
-		const result = generatePaymentPlanInstallments('d3', '2026-01', [
-			{ id: 't1', months: '1', amount: '-50' }
-		]);
+		const result = generatePaymentPlanInstallments('d3', '2026-01', [{ id: 't1', months: '1', amount: '-50' }]);
 		expect(result[0].amount).toBe(50);
 	});
 
 	it('debe retornar vacío si meses es 0', () => {
-		const result = generatePaymentPlanInstallments('d4', '2026-01', [
-			{ id: 't1', months: '0', amount: '50' }
-		]);
+		const result = generatePaymentPlanInstallments('d4', '2026-01', [{ id: 't1', months: '0', amount: '50' }]);
 		expect(result).toHaveLength(0);
 	});
 });
@@ -316,9 +311,7 @@ describe('PaymentPlan due/cashflow/overdue', () => {
 		// Simular que hay una cuota overdue
 		const debtWithOverdue: PaymentPlanDebt = {
 			...paymentPlanDebt,
-			installments: paymentPlanDebt.installments.map(i =>
-				i.id === 'i1' ? { ...i, status: 'pending' as const } : i
-			)
+			installments: paymentPlanDebt.installments.map((i) => (i.id === 'i1' ? { ...i, status: 'pending' as const } : i))
 		};
 		const due = getPaymentPlanDueInstallments(debtWithOverdue, '2026-05');
 		// i1 (2026-03 pending), i3 (2026-05 pending) = 2
@@ -350,6 +343,31 @@ describe('calculateDebtMonthlyPayment', () => {
 	it('debe calcular cuota para plan de pagos', () => {
 		expect(calculateDebtMonthlyPayment(paymentPlanDebt, '2026-05')).toBe(105);
 	});
+
+	it('debe sumar costes recurrentes mensuales a un plan de pagos exigible', () => {
+		expect(calculateDebtMonthlyPayment({ ...paymentPlanDebt, recurringMonthlyCosts: 12 }, '2026-05')).toBe(117);
+		expect(calculateDebtMonthlyPayment({ ...paymentPlanDebt, recurringMonthlyCosts: 12 }, '2026-02')).toBe(0);
+	});
+
+	it('debe sumar costes recurrentes por cada cuota pendiente vencida o exigible', () => {
+		const debtWithOverdue: PaymentPlanDebt = {
+			...paymentPlanDebt,
+			recurringMonthlyCosts: 12,
+			installments: paymentPlanDebt.installments.map((installment) =>
+				installment.id === 'i1' ? { ...installment, status: 'pending' as const } : installment
+			)
+		};
+
+		expect(calculateDebtMonthlyPayment(debtWithOverdue, '2026-05')).toBe(234);
+	});
+
+	it('debe sumar costes recurrentes mensuales a la cuota clásica exigible', () => {
+		const debtWithCosts: ClassicDebt = { ...classicDebt, recurringMonthlyCosts: 25 };
+		expect(calculateDebtMonthlyPayment(debtWithCosts, '2026-05')).toBeCloseTo(
+			calculateClassicDebtInstallment(debtWithCosts) + 25,
+			2
+		);
+	});
 });
 
 describe('generateAmortizationSchedule', () => {
@@ -357,15 +375,18 @@ describe('generateAmortizationSchedule', () => {
 		const schedule = generateAmortizationSchedule(classicDebt);
 		expect(schedule).toHaveLength(12);
 		expect(schedule[0].month).toBe(1);
+		expect(schedule[0].dueMonth).toBe('2026-05');
 		expect(schedule[11].month).toBe(12);
+		expect(schedule[11].dueMonth).toBe('2027-04');
 		expect(schedule[11].remainingPrincipal).toBeCloseTo(0, 0);
 	});
 
 	it('todas las cuotas deben ser iguales (sistema francés)', () => {
 		const schedule = generateAmortizationSchedule(classicDebt);
 		const cuota = schedule[0].cuota;
-		schedule.forEach(row => {
+		schedule.forEach((row) => {
 			expect(row.cuota).toBeCloseTo(cuota, 2);
+			expect(row.totalPayment).toBeCloseTo(cuota, 2);
 		});
 	});
 
@@ -380,42 +401,68 @@ describe('generateAmortizationSchedule', () => {
 		const noInterest: ClassicDebt = { ...classicDebt, tae: 0 };
 		const schedule = generateAmortizationSchedule(noInterest);
 		expect(schedule).toHaveLength(12);
-		schedule.forEach(row => {
+		schedule.forEach((row) => {
 			expect(row.interestPayment).toBe(0);
 			expect(row.cuota).toBeCloseTo(10000 / 12, 2);
 		});
+	});
+
+	it('debe mostrar costes recurrentes como suma de la cuota total sin amortizarlos', () => {
+		const schedule = generateAmortizationSchedule({ ...classicDebt, recurringMonthlyCosts: 30 });
+		expect(schedule[0].recurringCosts).toBe(30);
+		expect(schedule[0].totalPayment).toBeCloseTo(schedule[0].cuota + 30, 2);
+		expect(schedule[0].principalPaid + schedule[0].interestPayment).toBeCloseTo(schedule[0].cuota, 2);
 	});
 });
 
 describe('getTransactionOwner', () => {
 	it('debe retornar el owner directo si existe', () => {
 		const tx: Transaction = {
-			id: 't1', desc: 'Test', money: { amount: '100.00', currency: 'EUR' }, type: 'expense',
-			tag: 'Test', date: '2026-05-01', owner: 'userA'
+			id: 't1',
+			desc: 'Test',
+			money: { amount: '100.00', currency: 'EUR' },
+			type: 'expense',
+			tag: 'Test',
+			date: '2026-05-01',
+			owner: 'userA'
 		};
 		expect(getTransactionOwner(tx, defaultAccounts)).toBe('userA');
 	});
 
 	it('debe resolver a través de accountId si no tiene owner', () => {
 		const tx: Transaction = {
-			id: 't2', desc: 'Test', money: { amount: '100.00', currency: 'EUR' }, type: 'expense',
-			tag: 'Test', date: '2026-05-01', accountId: 'acc-b'
+			id: 't2',
+			desc: 'Test',
+			money: { amount: '100.00', currency: 'EUR' },
+			type: 'expense',
+			tag: 'Test',
+			date: '2026-05-01',
+			accountId: 'acc-b'
 		};
 		expect(getTransactionOwner(tx, defaultAccounts)).toBe('userB');
 	});
 
 	it('debe retornar joint si no tiene owner ni accountId', () => {
 		const tx: Transaction = {
-			id: 't3', desc: 'Test', money: { amount: '100.00', currency: 'EUR' }, type: 'expense',
-			tag: 'Test', date: '2026-05-01'
+			id: 't3',
+			desc: 'Test',
+			money: { amount: '100.00', currency: 'EUR' },
+			type: 'expense',
+			tag: 'Test',
+			date: '2026-05-01'
 		};
 		expect(getTransactionOwner(tx, defaultAccounts)).toBe('joint');
 	});
 
 	it('debe retornar joint si el accountId no existe en las cuentas', () => {
 		const tx: Transaction = {
-			id: 't4', desc: 'Test', money: { amount: '100.00', currency: 'EUR' }, type: 'expense',
-			tag: 'Test', date: '2026-05-01', accountId: 'inexistente'
+			id: 't4',
+			desc: 'Test',
+			money: { amount: '100.00', currency: 'EUR' },
+			type: 'expense',
+			tag: 'Test',
+			date: '2026-05-01',
+			accountId: 'inexistente'
 		};
 		expect(getTransactionOwner(tx, defaultAccounts)).toBe('joint');
 	});
@@ -423,16 +470,31 @@ describe('getTransactionOwner', () => {
 
 describe('getEffectiveAmount', () => {
 	const txA: Transaction = {
-		id: 't1', desc: 'Test', money: { amount: '200.00', currency: 'EUR' }, type: 'expense',
-		tag: 'Test', date: '2026-05-01', owner: 'userA'
+		id: 't1',
+		desc: 'Test',
+		money: { amount: '200.00', currency: 'EUR' },
+		type: 'expense',
+		tag: 'Test',
+		date: '2026-05-01',
+		owner: 'userA'
 	};
 	const txB: Transaction = {
-		id: 't2', desc: 'Test', money: { amount: '300.00', currency: 'EUR' }, type: 'income',
-		tag: 'Test', date: '2026-05-01', owner: 'userB'
+		id: 't2',
+		desc: 'Test',
+		money: { amount: '300.00', currency: 'EUR' },
+		type: 'income',
+		tag: 'Test',
+		date: '2026-05-01',
+		owner: 'userB'
 	};
 	const txJoint: Transaction = {
-		id: 't3', desc: 'Test', money: { amount: '400.00', currency: 'EUR' }, type: 'expense',
-		tag: 'Test', date: '2026-05-01', owner: 'joint'
+		id: 't3',
+		desc: 'Test',
+		money: { amount: '400.00', currency: 'EUR' },
+		type: 'expense',
+		tag: 'Test',
+		date: '2026-05-01',
+		owner: 'joint'
 	};
 
 	it('vista all: debe retornar el importe completo siempre', () => {
@@ -462,8 +524,26 @@ describe('calculateTimelineBalances', () => {
 		];
 		const periods: Period[] = [{ month: '2026-05', openingBalance: 1000 }];
 		const txs: Transaction[] = [
-			{ id: 't1', desc: 'Nómina', money: { amount: '2000.00', currency: 'EUR' }, type: 'income', tag: 'Sueldo', date: '2026-05-01', owner: 'userA', accountId: 'a1' },
-			{ id: 't2', desc: 'Compra', money: { amount: '100.00', currency: 'EUR' }, type: 'expense', tag: 'Alimentación', date: '2026-05-05', owner: 'joint', accountId: 'j1' }
+			{
+				id: 't1',
+				desc: 'Nómina',
+				money: { amount: '2000.00', currency: 'EUR' },
+				type: 'income',
+				tag: 'Sueldo',
+				date: '2026-05-01',
+				owner: 'userA',
+				accountId: 'a1'
+			},
+			{
+				id: 't2',
+				desc: 'Compra',
+				money: { amount: '100.00', currency: 'EUR' },
+				type: 'expense',
+				tag: 'Alimentación',
+				date: '2026-05-05',
+				owner: 'joint',
+				accountId: 'j1'
+			}
 		];
 
 		const result = calculateTimelineBalances(periods, txs, [], accounts, 'all');
@@ -475,16 +555,32 @@ describe('calculateTimelineBalances', () => {
 	});
 
 	it('debe acumular saldos entre periodos', () => {
-		const accounts: Account[] = [
-			{ id: 'a1', name: 'A', owner: 'userA', initialBalance: 500 }
-		];
+		const accounts: Account[] = [{ id: 'a1', name: 'A', owner: 'userA', initialBalance: 500 }];
 		const periods: Period[] = [
 			{ month: '2026-05', openingBalance: 500 },
 			{ month: '2026-06', openingBalance: 0 }
 		];
 		const txs: Transaction[] = [
-			{ id: 't1', desc: 'Ingreso', money: { amount: '1000.00', currency: 'EUR' }, type: 'income', tag: 'Sueldo', date: '2026-05-01', owner: 'userA', accountId: 'a1' },
-			{ id: 't2', desc: 'Gasto', money: { amount: '200.00', currency: 'EUR' }, type: 'expense', tag: 'Otros', date: '2026-06-01', owner: 'userA', accountId: 'a1' }
+			{
+				id: 't1',
+				desc: 'Ingreso',
+				money: { amount: '1000.00', currency: 'EUR' },
+				type: 'income',
+				tag: 'Sueldo',
+				date: '2026-05-01',
+				owner: 'userA',
+				accountId: 'a1'
+			},
+			{
+				id: 't2',
+				desc: 'Gasto',
+				money: { amount: '200.00', currency: 'EUR' },
+				type: 'expense',
+				tag: 'Otros',
+				date: '2026-06-01',
+				owner: 'userA',
+				accountId: 'a1'
+			}
 		];
 
 		const result = calculateTimelineBalances(periods, txs, [], accounts, 'all');
@@ -519,11 +615,18 @@ describe('calculateTimelineBalances', () => {
 			{ id: 'b1', name: 'B', owner: 'userB', initialBalance: 500 }
 		];
 		const periods: Period[] = [{ month: '2026-05', openingBalance: 1500 }];
-		const txs: Transaction[] = [{
-			id: 't1', desc: 'Traspaso', money: { amount: '200.00', currency: 'EUR' }, type: 'transfer',
-			tag: 'Traspaso', date: '2026-05-01',
-			fromAccountId: 'a1', toAccountId: 'b1'
-		}];
+		const txs: Transaction[] = [
+			{
+				id: 't1',
+				desc: 'Traspaso',
+				money: { amount: '200.00', currency: 'EUR' },
+				type: 'transfer',
+				tag: 'Traspaso',
+				date: '2026-05-01',
+				fromAccountId: 'a1',
+				toAccountId: 'b1'
+			}
+		];
 
 		const result = calculateTimelineBalances(periods, txs, [], accounts, 'all');
 		// Transferencia no cambia el total
@@ -533,14 +636,19 @@ describe('calculateTimelineBalances', () => {
 	});
 
 	it('debe aplicar cuotas de deudas clásicas', () => {
-		const accounts: Account[] = [
-			{ id: 'a1', name: 'A', owner: 'joint', initialBalance: 5000 }
-		];
+		const accounts: Account[] = [{ id: 'a1', name: 'A', owner: 'joint', initialBalance: 5000 }];
 		const periods: Period[] = [{ month: '2026-05', openingBalance: 5000 }];
 		const debt: ClassicDebt = {
-			id: 'd1', kind: 'classic', desc: 'Test', tag: 'Test',
-			date: '2026-05', principal: 1200, tae: 0, termMonths: 12,
-			owner: 'joint', paymentAccountId: 'a1'
+			id: 'd1',
+			kind: 'classic',
+			desc: 'Test',
+			tag: 'Test',
+			date: '2026-05',
+			principal: 1200,
+			tae: 0,
+			termMonths: 12,
+			owner: 'joint',
+			paymentAccountId: 'a1'
 		};
 
 		const result = calculateTimelineBalances(periods, [], [debt], accounts, 'all');
@@ -550,13 +658,17 @@ describe('calculateTimelineBalances', () => {
 	});
 
 	it('debe ponderar pagos de deudas por vista de usuario', () => {
-		const accounts: Account[] = [
-			{ id: 'a1', name: 'A', owner: 'userA', initialBalance: 5000 }
-		];
+		const accounts: Account[] = [{ id: 'a1', name: 'A', owner: 'userA', initialBalance: 5000 }];
 		const periods: Period[] = [{ month: '2026-05', openingBalance: 5000 }];
 		const debt: ClassicDebt = {
-			id: 'd1', kind: 'classic', desc: 'Test', tag: 'Test',
-			date: '2026-05', principal: 1200, tae: 0, termMonths: 12,
+			id: 'd1',
+			kind: 'classic',
+			desc: 'Test',
+			tag: 'Test',
+			date: '2026-05',
+			principal: 1200,
+			tae: 0,
+			termMonths: 12,
 			owner: 'joint' // joint debt
 		};
 
@@ -569,14 +681,19 @@ describe('calculateTimelineBalances', () => {
 	});
 
 	it('debe ignorar deudas fuera de rango', () => {
-		const accounts: Account[] = [
-			{ id: 'a1', name: 'A', owner: 'joint', initialBalance: 5000 }
-		];
+		const accounts: Account[] = [{ id: 'a1', name: 'A', owner: 'joint', initialBalance: 5000 }];
 		const periods: Period[] = [{ month: '2026-05', openingBalance: 5000 }];
 		const futureDebt: ClassicDebt = {
-			id: 'd1', kind: 'classic', desc: 'Futura', tag: 'Test',
-			date: '2027-01', principal: 1200, tae: 0, termMonths: 12,
-			owner: 'joint', paymentAccountId: 'a1'
+			id: 'd1',
+			kind: 'classic',
+			desc: 'Futura',
+			tag: 'Test',
+			date: '2027-01',
+			principal: 1200,
+			tae: 0,
+			termMonths: 12,
+			owner: 'joint',
+			paymentAccountId: 'a1'
 		};
 
 		const result = calculateTimelineBalances(periods, [], [futureDebt], accounts, 'all');
@@ -587,24 +704,58 @@ describe('calculateTimelineBalances', () => {
 describe('getTagBreakdown', () => {
 	it('debe agrupar gastos por etiqueta', () => {
 		const txs: Transaction[] = [
-			{ id: 't1', desc: 'Compra 1', money: { amount: '50.00', currency: 'EUR' }, type: 'expense', tag: 'Alimentación', date: '2026-05-01' },
-			{ id: 't2', desc: 'Compra 2', money: { amount: '30.00', currency: 'EUR' }, type: 'expense', tag: 'Alimentación', date: '2026-05-02' },
-			{ id: 't3', desc: 'Netflix', money: { amount: '15.00', currency: 'EUR' }, type: 'expense', tag: 'Suscripciones', date: '2026-05-01' },
-			{ id: 't4', desc: 'Nómina', money: { amount: '2000.00', currency: 'EUR' }, type: 'income', tag: 'Sueldo', date: '2026-05-01' }
+			{
+				id: 't1',
+				desc: 'Compra 1',
+				money: { amount: '50.00', currency: 'EUR' },
+				type: 'expense',
+				tag: 'Alimentación',
+				date: '2026-05-01'
+			},
+			{
+				id: 't2',
+				desc: 'Compra 2',
+				money: { amount: '30.00', currency: 'EUR' },
+				type: 'expense',
+				tag: 'Alimentación',
+				date: '2026-05-02'
+			},
+			{
+				id: 't3',
+				desc: 'Netflix',
+				money: { amount: '15.00', currency: 'EUR' },
+				type: 'expense',
+				tag: 'Suscripciones',
+				date: '2026-05-01'
+			},
+			{
+				id: 't4',
+				desc: 'Nómina',
+				money: { amount: '2000.00', currency: 'EUR' },
+				type: 'income',
+				tag: 'Sueldo',
+				date: '2026-05-01'
+			}
 		];
 
 		const result = getTagBreakdown(txs, [], '2026-05');
 		expect(result).toHaveLength(2); // Solo gastos
-		const alimentacion = result.find(r => r.tag === 'Alimentación');
+		const alimentacion = result.find((r) => r.tag === 'Alimentación');
 		expect(alimentacion?.amount).toBe(80);
-		const suscripciones = result.find(r => r.tag === 'Suscripciones');
+		const suscripciones = result.find((r) => r.tag === 'Suscripciones');
 		expect(suscripciones?.amount).toBe(15);
 	});
 
 	it('debe incluir cuotas de deudas en el breakdown', () => {
 		const debt: ClassicDebt = {
-			id: 'd1', kind: 'classic', desc: 'Test', tag: 'Hipoteca',
-			date: '2026-05', principal: 1200, tae: 0, termMonths: 12,
+			id: 'd1',
+			kind: 'classic',
+			desc: 'Test',
+			tag: 'Hipoteca',
+			date: '2026-05',
+			principal: 1200,
+			tae: 0,
+			termMonths: 12,
 			owner: 'joint'
 		};
 
@@ -621,7 +772,15 @@ describe('getTagBreakdown', () => {
 
 describe('financeService - Edge Cases de Cobertura', () => {
 	it('getEffectiveAmount debe retornar 0 para viewMode inválido', () => {
-		const tx: Transaction = { id: 't-test', desc: 'Test', money: { amount: '100.00', currency: 'EUR' }, type: 'expense', tag: 'Otros', date: '2026-05-01', owner: 'userA' };
+		const tx: Transaction = {
+			id: 't-test',
+			desc: 'Test',
+			money: { amount: '100.00', currency: 'EUR' },
+			type: 'expense',
+			tag: 'Otros',
+			date: '2026-05-01',
+			owner: 'userA'
+		};
 		expect(getEffectiveAmount(tx, 'invalid' as any, [])).toBe(0);
 	});
 
@@ -629,25 +788,43 @@ describe('financeService - Edge Cases de Cobertura', () => {
 		const accounts: Account[] = [{ id: 'a1', name: 'A', owner: 'userA', initialBalance: 1000 }];
 		const periods: Period[] = [{ month: '2026-05', openingBalance: 1000 }];
 		const txs: Transaction[] = [
-			{ id: 't1', desc: 'Ingreso Sin Cuenta', money: { amount: '500.00', currency: 'EUR' }, type: 'income', tag: 'Sueldo', date: '2026-05-01', owner: 'userA' }
+			{
+				id: 't1',
+				desc: 'Ingreso Sin Cuenta',
+				money: { amount: '500.00', currency: 'EUR' },
+				type: 'income',
+				tag: 'Sueldo',
+				date: '2026-05-01',
+				owner: 'userA'
+			}
 		];
 		const result = calculateTimelineBalances(periods, txs, [], accounts, 'all');
 		expect(result['2026-05'].closingBalance).toBe(1500);
 	});
 
 	it('calculateTimelineBalances debe ponderar pagos de deudas según dueños cruzados y vistas de usuario', () => {
-		const accounts: Account[] = [
-			{ id: 'a1', name: 'A', owner: 'userA', initialBalance: 5000 }
-		];
+		const accounts: Account[] = [{ id: 'a1', name: 'A', owner: 'userA', initialBalance: 5000 }];
 		const periods: Period[] = [{ month: '2026-05', openingBalance: 5000 }];
 		const debtA: ClassicDebt = {
-			id: 'dA', kind: 'classic', desc: 'Debt A', tag: 'Test',
-			date: '2026-05', principal: 1200, tae: 0, termMonths: 12,
+			id: 'dA',
+			kind: 'classic',
+			desc: 'Debt A',
+			tag: 'Test',
+			date: '2026-05',
+			principal: 1200,
+			tae: 0,
+			termMonths: 12,
 			owner: 'userA'
 		};
 		const debtB: ClassicDebt = {
-			id: 'dB', kind: 'classic', desc: 'Debt B', tag: 'Test',
-			date: '2026-05', principal: 2400, tae: 0, termMonths: 12,
+			id: 'dB',
+			kind: 'classic',
+			desc: 'Debt B',
+			tag: 'Test',
+			date: '2026-05',
+			principal: 2400,
+			tae: 0,
+			termMonths: 12,
 			owner: 'userB'
 		};
 
@@ -668,4 +845,3 @@ describe('financeService - Edge Cases de Cobertura', () => {
 		expect(resInv['2026-05'].debtPayments).toBe(0);
 	});
 });
-
