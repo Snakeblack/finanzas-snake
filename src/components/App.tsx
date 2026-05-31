@@ -347,7 +347,7 @@ function MainAppContent() {
 
 			{/* CUERPO PRINCIPAL */}
 			<main
-				className={`flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:py-8 flex flex-col ${activeTab === 'ai' ? 'min-h-0 overflow-hidden' : activeTab === 'transactions' ? 'lg:min-h-0 lg:overflow-hidden' : ''}`}
+				className={`flex-1 w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-6 pb-24 md:py-8 flex flex-col ${activeTab === 'ai' ? 'min-h-0 overflow-hidden' : activeTab === 'transactions' ? 'lg:min-h-0 lg:overflow-hidden' : ''}`}
 			>
 				{periods.length === 0 ? (
 					<div className="max-w-md mx-auto my-12 bg-slate-900/60 backdrop-blur-md border border-slate-800 rounded-3xl p-8 shadow-2xl">
@@ -494,15 +494,15 @@ function MainAppContent() {
 										</div>
 									))}
 								</div>
-							<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs flex justify-between items-center text-slate-300">
-								<span>Total Conjunto:</span>
-								<span className="font-bold text-slate-100 text-sm">
-									{accounts
-										.reduce((sum, a) => sum + (a.initialBalance || 0), 0)
-										.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-									€
-								</span>
-							</div>
+								<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs flex justify-between items-center text-slate-300">
+									<span>Total Conjunto:</span>
+									<span className="font-bold text-slate-100 text-sm">
+										{accounts
+											.reduce((sum, a) => sum + (a.initialBalance || 0), 0)
+											.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+										€
+									</span>
+								</div>
 							</div>
 
 							<button
@@ -605,7 +605,9 @@ function MainAppContent() {
 							className={`flex items-center justify-between gap-3 mb-4 lg:mb-6 p-2 lg:p-3 premium-card rounded-xl lg:rounded-2xl ${activeTab === 'ai' ? 'hidden lg:flex' : 'flex'}`}
 						>
 							<div className="flex items-center gap-1.5 shrink-0">
-								<span className="text-[10px] lg:text-xs font-semibold text-slate-400 uppercase tracking-wider hidden sm:inline">Mes:</span>
+								<span className="text-[10px] lg:text-xs font-semibold text-slate-400 uppercase tracking-wider hidden sm:inline">
+									Mes:
+								</span>
 								<select
 									id="global-month-selector"
 									value={selectedMonth}
@@ -827,9 +829,7 @@ function MainAppContent() {
 			{/* FOOTER */}
 			{activeTab !== 'ai' && activeTab !== 'transactions' && (
 				<footer className="border-t border-slate-900/30 bg-slate-950/20 py-3 mt-6 text-center text-[10px] text-slate-600">
-					<div className="max-w-7xl mx-auto px-4">
-						Finanzas Snake © {new Date().getFullYear()}
-					</div>
+					<div className="max-w-7xl mx-auto px-4">Finanzas Snake © {new Date().getFullYear()}</div>
 				</footer>
 			)}
 
