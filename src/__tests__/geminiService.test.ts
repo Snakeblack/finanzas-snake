@@ -27,11 +27,11 @@ const makeDefaultPromptParams = (overrides: Partial<PromptContextParams> = {}): 
 	],
 	filteredTransactions: [
 		{
-			id: 'tx-1', desc: 'Nómina', amount: 2500, type: 'income',
+			id: 'tx-1', desc: 'Nómina', money: { amount: '2500.00', currency: 'EUR' }, type: 'income',
 			tag: 'Sueldo', date: '2026-05-01', recurrence: 'recurring', owner: 'userA'
 		} as Transaction,
 		{
-			id: 'tx-2', desc: 'Netflix', amount: 15, type: 'expense',
+			id: 'tx-2', desc: 'Netflix', money: { amount: '15.00', currency: 'EUR' }, type: 'expense',
 			tag: 'Suscripciones', date: '2026-05-01', recurrence: 'recurring', owner: 'joint'
 		} as Transaction
 	],

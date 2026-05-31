@@ -1,8 +1,77 @@
 import { STORAGE_KEYS, DEFAULT_TAGS } from '../constants';
-import type { Transaction, Debt, Period, Account, ChatMessage, TransactionType, PaymentPlanInstallment } from '../types';
+import type {
+	Transaction,
+	Debt,
+	Period,
+	Account,
+	ChatMessage,
+	TransactionType,
+	PaymentPlanInstallment
+} from '../types';
 import { toNumber, decodeHtmlEntities } from '../utils/formatters';
 import { normalizeMonth, addMonthsToMonth } from '../utils/dateUtils';
+import { validateAndSanitizeBackup } from '../utils/backupValidator';
 import { encryptWithKey, decryptWithKey } from './cryptoService';
+import { IndexedDBProvider } from './db/idbProvider';
+
+const idb = new IndexedDBProvider();
+
+const UNIFIED_IDB_MIGRATION_FLAG = 'finanzas_v5_unified_idb';
+const IDB_CONFIG_KEYS = {
+	migrationCompleted: 'migration:unified-idb:v5',
+	userAName: 'userAName',
+	userBName: 'userBName'
+} as const;
+const DEFAULT_USER_NAMES = {
+	userAName: 'Usuario A',
+	userBName: 'Usuario B'
+} as const;
+const FINANCE_BACKUP_KEYS = [
+	STORAGE_KEYS.transactions,
+	STORAGE_KEYS.debts,
+	STORAGE_KEYS.periods,
+	STORAGE_KEYS.accounts,
+	STORAGE_KEYS.userAName,
+	STORAGE_KEYS.userBName,
+	STORAGE_KEYS.aiChat,
+	STORAGE_KEYS.geminiKey
+] as const;
+
+interface UserNames {
+	userAName: string;
+	userBName: string;
+}
+
+export interface FinanceBackupSnapshot {
+	accounts: Account[];
+	transactions: Transaction[];
+	debts: Debt[];
+	periods: Period[];
+	userAName: string;
+	userBName: string;
+	geminiApiKey: string;
+	chatMessages: ChatMessage[];
+}
+
+export interface ImportedFinanceBackupData {
+	accounts?: Account[];
+	transactions?: Transaction[];
+	debts?: Debt[];
+	periods?: Period[];
+	userAName?: string;
+	userBName?: string;
+	geminiApiKey?: string;
+	chatMessages?: ChatMessage[];
+	selectedMonth?: string;
+}
+
+export type FinanceBackupPayload = Record<string, string | null>;
+
+type ConfigEntity = {
+	key: string;
+	value?: string;
+	ciphertext?: string;
+};
 
 // Clave criptográfica activa en memoria (RAM)
 let activeCryptoKey: CryptoKey | null = null;
@@ -43,14 +112,157 @@ const decryptData = async (ciphertext: string): Promise<any> => {
 	return JSON.parse(decryptedText);
 };
 
+const isConfigEntity = (entity: unknown): entity is ConfigEntity => {
+	return typeof entity === 'object' && entity !== null && 'key' in entity;
+};
+
+const readConfigValue = async (key: string): Promise<string> => {
+	const entity = await idb.getSingleEntity('config', key);
+	if (!isConfigEntity(entity)) return '';
+	if (entity.ciphertext) {
+		if (!activeCryptoKey) return '';
+		return decryptWithKey(entity.ciphertext, activeCryptoKey);
+	}
+	return entity.value || '';
+};
+
+const saveConfigValue = async (key: string, value: string, options: { encrypt?: boolean } = {}): Promise<void> => {
+	if (options.encrypt !== false && activeCryptoKey && value.trim()) {
+		const ciphertext = await encryptWithKey(value, activeCryptoKey);
+		await idb.saveSingleEntity('config', { key, ciphertext });
+		return;
+	}
+	await idb.saveSingleEntity('config', { key, value });
+};
+
+export const readUserNames = async (): Promise<UserNames> => {
+	try {
+		const [userAName, userBName] = await Promise.all([
+			readConfigValue(IDB_CONFIG_KEYS.userAName),
+			readConfigValue(IDB_CONFIG_KEYS.userBName)
+		]);
+		return {
+			userAName: userAName || DEFAULT_USER_NAMES.userAName,
+			userBName: userBName || DEFAULT_USER_NAMES.userBName
+		};
+	} catch (error) {
+		console.error('Error reading user names from IndexedDB:', error);
+		return DEFAULT_USER_NAMES;
+	}
+};
+
+const saveUserNamesStrict = async (names: Partial<UserNames>): Promise<void> => {
+	const writes: Promise<void>[] = [];
+	if (names.userAName !== undefined) {
+		writes.push(saveConfigValue(IDB_CONFIG_KEYS.userAName, names.userAName));
+	}
+	if (names.userBName !== undefined) {
+		writes.push(saveConfigValue(IDB_CONFIG_KEYS.userBName, names.userBName));
+	}
+	await Promise.all(writes);
+};
+
+export const saveUserNames = async (names: Partial<UserNames>): Promise<void> => {
+	try {
+		await saveUserNamesStrict(names);
+	} catch (error) {
+		console.error('Error saving user names to IndexedDB:', error);
+	}
+};
+
+const hasUnifiedIdbMigrationCompleted = async (): Promise<boolean> => {
+	try {
+		return (await readConfigValue(IDB_CONFIG_KEYS.migrationCompleted)) === 'true';
+	} catch (error) {
+		console.error('Error reading IndexedDB migration flag:', error);
+		return false;
+	}
+};
+
+const markUnifiedIdbMigrationCompleted = async (): Promise<void> => {
+	await saveConfigValue(IDB_CONFIG_KEYS.migrationCompleted, 'true', { encrypt: false });
+};
+
+const hasIdbEntities = async (storeName: string): Promise<boolean> => {
+	try {
+		return (await idb.getAllEntities(storeName)).length > 0;
+	} catch (error) {
+		console.error(`Error checking IndexedDB store ${storeName}:`, error);
+		return false;
+	}
+};
+
+const hasConfigEntity = async (key: string): Promise<boolean> => {
+	try {
+		return (await idb.getSingleEntity('config', key)) !== null;
+	} catch (error) {
+		console.error(`Error checking IndexedDB config ${key}:`, error);
+		return false;
+	}
+};
+
+const getLegacyUserNames = (): UserNames => ({
+	userAName:
+		(typeof window !== 'undefined' && localStorage.getItem(STORAGE_KEYS.userAName)) || DEFAULT_USER_NAMES.userAName,
+	userBName:
+		(typeof window !== 'undefined' && localStorage.getItem(STORAGE_KEYS.userBName)) || DEFAULT_USER_NAMES.userBName
+});
+
+const migrateLegacyUserNamesToIdb = async (): Promise<void> => {
+	if (typeof window === 'undefined') return;
+	const legacyUserAName = localStorage.getItem(STORAGE_KEYS.userAName);
+	const legacyUserBName = localStorage.getItem(STORAGE_KEYS.userBName);
+	if (!legacyUserAName && !legacyUserBName) return;
+
+	const [storedUserAName, storedUserBName] = await Promise.all([
+		readConfigValue(IDB_CONFIG_KEYS.userAName),
+		readConfigValue(IDB_CONFIG_KEYS.userBName)
+	]);
+
+	await saveUserNamesStrict({
+		userAName: storedUserAName || legacyUserAName || DEFAULT_USER_NAMES.userAName,
+		userBName: storedUserBName || legacyUserBName || DEFAULT_USER_NAMES.userBName
+	});
+};
+
+const buildDefaultAccounts = (userAName: string, userBName: string, periods: Period[]): Account[] => {
+	const sortedPeriods = [...periods].sort((a, b) => a.month.localeCompare(b.month));
+	const firstPeriod = sortedPeriods.length > 0 ? sortedPeriods[0] : null;
+	const initialBalA = firstPeriod
+		? firstPeriod.openingBalanceA !== undefined
+			? firstPeriod.openingBalanceA
+			: firstPeriod.openingBalance / 2
+		: 0;
+	const initialBalB = firstPeriod
+		? firstPeriod.openingBalanceB !== undefined
+			? firstPeriod.openingBalanceB
+			: firstPeriod.openingBalance / 2
+		: 0;
+
+	return [
+		{ id: 'default-a', name: `Efectivo ${userAName}`, owner: 'userA', initialBalance: initialBalA },
+		{ id: 'default-b', name: `Efectivo ${userBName}`, owner: 'userB', initialBalance: initialBalB },
+		{ id: 'default-joint', name: 'Cuenta Común', owner: 'joint', initialBalance: 0 }
+	];
+};
+
+const assignDefaultAccountIds = (transactions: Transaction[]): Transaction[] => {
+	return transactions.map((transaction) => {
+		if (!transaction.accountId && transaction.type !== 'transfer') {
+			if (transaction.owner === 'userA') return { ...transaction, accountId: 'default-a' };
+			if (transaction.owner === 'userB') return { ...transaction, accountId: 'default-b' };
+			return { ...transaction, accountId: 'default-joint' };
+		}
+		return transaction;
+	});
+};
+
 /**
- * Realiza la limpieza inicial de las claves obsoletas de la base de datos v2 si es necesario.
+ * Marca la limpieza legacy como revisada sin borrar datos de dominio antes de la migración a IndexedDB.
+ * La limpieza destructiva de claves legacy se realiza solo después de una migración exitosa.
  */
 export const cleanLegacyData = (): void => {
 	if (typeof window !== 'undefined' && !localStorage.getItem(STORAGE_KEYS.clearedV2)) {
-		localStorage.removeItem(STORAGE_KEYS.transactions);
-		localStorage.removeItem(STORAGE_KEYS.debts);
-		localStorage.removeItem(STORAGE_KEYS.periods);
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
 	}
 };
@@ -88,20 +300,43 @@ const readStoredArray = async (primaryKey: string, fallbackKey?: string): Promis
  * Migra una estructura de transacción sin tipar a un objeto Transaction válido de la v3.
  */
 export const migrateTransaction = (rawTransaction: any, index: number): Transaction => {
-	const type: TransactionType = 
-		rawTransaction?.type === 'income' ? 'income' : 
-		rawTransaction?.type === 'transfer' ? 'transfer' : 'expense';
+	const type: TransactionType =
+		rawTransaction?.type === 'income' ? 'income' : rawTransaction?.type === 'transfer' ? 'transfer' : 'expense';
+
+	const moneyAmount =
+		rawTransaction?.money?.amount !== undefined
+			? String(rawTransaction.money.amount)
+			: String(rawTransaction?.amount ?? '0');
+	const moneyCurrency = rawTransaction?.money?.currency ?? 'EUR';
+	const money = {
+		amount: Math.abs(toNumber(moneyAmount)).toFixed(2),
+		currency: moneyCurrency === 'EUR' || moneyCurrency === 'USD' || moneyCurrency === 'GBP' ? moneyCurrency : 'EUR'
+	};
+
 	return {
 		id: String(rawTransaction?.id ?? `tx-${index + 1}`),
 		desc: String(rawTransaction?.desc ?? 'Movimiento sin nombre'),
-		amount: Math.abs(toNumber(rawTransaction?.amount)),
+		money,
 		type,
-		tag: String(rawTransaction?.tag ?? (type === 'transfer' ? DEFAULT_TAGS.transfer[0] : (type === 'income' ? DEFAULT_TAGS.income[0] : DEFAULT_TAGS.expense[0]))),
+		tag: String(
+			rawTransaction?.tag ??
+				(type === 'transfer'
+					? DEFAULT_TAGS.transfer[0]
+					: type === 'income'
+						? DEFAULT_TAGS.income[0]
+						: DEFAULT_TAGS.expense[0])
+		),
 		date: String(rawTransaction?.date ?? new Date().toISOString().substring(0, 10)).substring(0, 10),
 		recurrence: rawTransaction?.recurrence === 'recurring' ? 'recurring' : 'one-off',
 		originId: rawTransaction?.originId ? String(rawTransaction.originId) : undefined,
-		owner: rawTransaction?.owner === 'userA' || rawTransaction?.owner === 'userB' || rawTransaction?.owner === 'joint' ? rawTransaction.owner : 'joint',
-		paidBy: rawTransaction?.paidBy === 'userA' || rawTransaction?.paidBy === 'userB' || rawTransaction?.paidBy === 'shared' ? rawTransaction.paidBy : 'shared',
+		owner:
+			rawTransaction?.owner === 'userA' || rawTransaction?.owner === 'userB' || rawTransaction?.owner === 'joint'
+				? rawTransaction.owner
+				: 'joint',
+		paidBy:
+			rawTransaction?.paidBy === 'userA' || rawTransaction?.paidBy === 'userB' || rawTransaction?.paidBy === 'shared'
+				? rawTransaction.paidBy
+				: 'shared',
 		accountId: rawTransaction?.accountId ? String(rawTransaction.accountId) : undefined,
 		fromAccountId: rawTransaction?.fromAccountId ? String(rawTransaction.fromAccountId) : undefined,
 		toAccountId: rawTransaction?.toAccountId ? String(rawTransaction.toAccountId) : undefined
@@ -116,7 +351,8 @@ export const migrateDebt = (rawDebt: any): Debt => {
 	const desc = String(rawDebt?.desc ?? 'Deuda sin nombre');
 	const tag = String(rawDebt?.tag ?? DEFAULT_TAGS.debt[0]);
 	const date = normalizeMonth(rawDebt?.date);
-	const owner = rawDebt?.owner === 'userA' || rawDebt?.owner === 'userB' || rawDebt?.owner === 'joint' ? rawDebt.owner : 'joint';
+	const owner =
+		rawDebt?.owner === 'userA' || rawDebt?.owner === 'userB' || rawDebt?.owner === 'joint' ? rawDebt.owner : 'joint';
 	const paymentAccountId = rawDebt?.paymentAccountId ? String(rawDebt.paymentAccountId) : undefined;
 
 	if (rawDebt?.kind === 'paymentPlan') {
@@ -163,38 +399,222 @@ export const migrateDebt = (rawDebt: any): Debt => {
 };
 
 /**
- * Lee las transacciones desde LocalStorage migrándolas si es necesario.
+ * Guarda un array de entidades en lote en un almacén de IndexedDB, limpiándolo primero.
  */
-export const readStoredTransactions = async (): Promise<Transaction[]> => {
-	const rawArray = await readStoredArray(STORAGE_KEYS.transactions, 'finanzas_v2_transactions');
-	return rawArray.map(migrateTransaction);
+const saveEntitiesToIdbBulk = async (storeName: string, keyField: string, entities: any[]): Promise<void> => {
+	await idb.clearStore(storeName);
+	if (activeCryptoKey) {
+		const encryptedEntities = await Promise.all(
+			entities.map(async (entity) => {
+				const keyVal = entity[keyField];
+				const ciphertext = await encryptData(entity);
+				return { [keyField]: keyVal, ciphertext };
+			})
+		);
+		await idb.saveEntitiesBulk(storeName, encryptedEntities);
+	} else {
+		await idb.saveEntitiesBulk(storeName, entities);
+	}
+};
+
+const saveStoredTransactionsStrict = async (transactions: Transaction[]): Promise<void> => {
+	await saveEntitiesToIdbBulk('transactions', 'id', transactions);
+};
+
+const saveStoredDebtsStrict = async (debts: Debt[]): Promise<void> => {
+	await saveEntitiesToIdbBulk('debts', 'id', debts);
+};
+
+const saveStoredPeriodsStrict = async (periods: Period[]): Promise<void> => {
+	await saveEntitiesToIdbBulk('periods', 'month', periods);
+};
+
+const saveStoredAccountsStrict = async (accounts: Account[]): Promise<void> => {
+	await saveEntitiesToIdbBulk('accounts', 'id', accounts);
+};
+
+const saveGeminiApiKeyStrict = async (key: string): Promise<void> => {
+	if (activeCryptoKey && key.trim()) {
+		const ciphertext = await encryptWithKey(key, activeCryptoKey);
+		await idb.saveSingleEntity('config', { key: 'geminiKey', ciphertext });
+		return;
+	}
+	await idb.saveSingleEntity('config', { key: 'geminiKey', value: key });
+};
+
+const saveAiChatStrict = async (chat: ChatMessage[]): Promise<void> => {
+	if (activeCryptoKey) {
+		const ciphertext = await encryptData({ id: 'history', messages: chat });
+		await idb.saveSingleEntity('chat', { id: 'history', ciphertext });
+		return;
+	}
+	await idb.saveSingleEntity('chat', { id: 'history', messages: chat });
 };
 
 /**
- * Guarda las transacciones en LocalStorage.
+ * Lee todas las entidades de un almacén de IndexedDB y las descifra si están cifradas.
  */
-export const saveStoredTransactions = async (transactions: Transaction[]): Promise<void> => {
-	if (activeCryptoKey) {
-		const encrypted = await encryptData(transactions);
-		localStorage.setItem(STORAGE_KEYS.transactions, encrypted);
-	} else {
-		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify(transactions));
+const readEntitiesFromIdb = async (storeName: string): Promise<any[]> => {
+	const raw = await idb.getAllEntities(storeName);
+	const decrypted = await Promise.all(
+		raw.map(async (item) => {
+			if (item && typeof item === 'object' && 'ciphertext' in item) {
+				if (activeCryptoKey) {
+					return await decryptData(item.ciphertext);
+				}
+				return null;
+			}
+			return item;
+		})
+	);
+	return decrypted.filter((item) => item !== null);
+};
+
+/**
+ * Realiza una migración única, transparente y transaccional de todas las entidades desde localStorage hacia IndexedDB.
+ * Se invoca automáticamente tras el arranque de la aplicación o el descifrado exitoso inicial.
+ */
+export const executeSilentMigrationIfRequired = async (decryptedTransactions?: Transaction[]): Promise<void> => {
+	try {
+		await migrateLegacyUserNamesToIdb();
+		const migrationUserNames = await readUserNames();
+
+		const idbMigrationCompleted = await hasUnifiedIdbMigrationCompleted();
+		const legacyMigrationCompleted = localStorage.getItem(UNIFIED_IDB_MIGRATION_FLAG) === 'true';
+		if (idbMigrationCompleted || legacyMigrationCompleted) {
+			if (!idbMigrationCompleted && legacyMigrationCompleted) {
+				await markUnifiedIdbMigrationCompleted();
+			}
+			localStorage.removeItem(STORAGE_KEYS.userAName);
+			localStorage.removeItem(STORAGE_KEYS.userBName);
+			localStorage.removeItem(UNIFIED_IDB_MIGRATION_FLAG);
+			return;
+		}
+
+		console.info('Iniciando migración unificada de persistencia a IndexedDB (V5)...');
+
+		let rawAccounts = (await readStoredArray(STORAGE_KEYS.accounts)) as Account[];
+		const rawTx =
+			decryptedTransactions && decryptedTransactions.length > 0
+				? decryptedTransactions
+				: ((await readStoredArray(STORAGE_KEYS.transactions, 'finanzas_v2_transactions')) as Transaction[]);
+		let migratedTx = Array.isArray(rawTx) ? rawTx.map(migrateTransaction) : [];
+		const rawDebts = (await readStoredArray(STORAGE_KEYS.debts, 'finanzas_v2_debts')) as Debt[];
+		const migratedDebts = Array.isArray(rawDebts) ? rawDebts.map(migrateDebt) : [];
+		const rawPeriods = (await readStoredArray(STORAGE_KEYS.periods)) as Period[];
+
+		if (
+			(!Array.isArray(rawAccounts) || rawAccounts.length === 0) &&
+			(migratedTx.length > 0 || migratedDebts.length > 0)
+		) {
+			rawAccounts = buildDefaultAccounts(migrationUserNames.userAName, migrationUserNames.userBName, rawPeriods);
+			migratedTx = assignDefaultAccountIds(migratedTx);
+		}
+
+		if (Array.isArray(rawAccounts) && rawAccounts.length > 0 && !(await hasIdbEntities('accounts'))) {
+			await saveStoredAccountsStrict(rawAccounts);
+		}
+		if (migratedTx.length > 0 && !(await hasIdbEntities('transactions'))) {
+			await saveStoredTransactionsStrict(migratedTx);
+		}
+		if (migratedDebts.length > 0 && !(await hasIdbEntities('debts'))) {
+			await saveStoredDebtsStrict(migratedDebts);
+		}
+		if (Array.isArray(rawPeriods) && rawPeriods.length > 0 && !(await hasIdbEntities('periods'))) {
+			await saveStoredPeriodsStrict(rawPeriods);
+		}
+
+		const storedGemini = localStorage.getItem(STORAGE_KEYS.geminiKey);
+		if (storedGemini && !(await hasConfigEntity('geminiKey'))) {
+			let geminiKey = '';
+			try {
+				if (storedGemini.startsWith('{') || storedGemini.startsWith('[') || storedGemini.length < 50) {
+					geminiKey = storedGemini;
+				} else if (activeCryptoKey) {
+					geminiKey = await decryptWithKey(storedGemini, activeCryptoKey);
+				}
+			} catch (e) {
+				console.error('Error al decodificar Gemini key durante migración:', e);
+				geminiKey = storedGemini;
+			}
+			if (geminiKey) {
+				await saveGeminiApiKeyStrict(geminiKey);
+			}
+		}
+
+		const rawChat = (await readStoredArray(STORAGE_KEYS.aiChat)) as ChatMessage[];
+		if (Array.isArray(rawChat) && rawChat.length > 0 && !(await hasIdbEntities('chat'))) {
+			await saveAiChatStrict(rawChat);
+		}
+
+		await markUnifiedIdbMigrationCompleted();
+		console.info('Migración unificada a IndexedDB (V5) completada con éxito.');
+
+		localStorage.removeItem(STORAGE_KEYS.transactions);
+		localStorage.removeItem(STORAGE_KEYS.debts);
+		localStorage.removeItem(STORAGE_KEYS.periods);
+		localStorage.removeItem(STORAGE_KEYS.accounts);
+		localStorage.removeItem(STORAGE_KEYS.userAName);
+		localStorage.removeItem(STORAGE_KEYS.userBName);
+		localStorage.removeItem(STORAGE_KEYS.aiChat);
+		localStorage.removeItem(STORAGE_KEYS.geminiKey);
+		localStorage.removeItem(UNIFIED_IDB_MIGRATION_FLAG);
+		localStorage.removeItem('finanzas_v4_idb_migrated');
+		localStorage.removeItem('finanzas_v2_transactions');
+		localStorage.removeItem('finanzas_v2_debts');
+		localStorage.removeItem('finanzas_v2_gemini_key');
+
+		console.info('Limpieza de claves obsoletas de LocalStorage finalizada.');
+	} catch (error) {
+		console.error('Error crítico no recuperable en el proceso de migración unificada:', error);
 	}
 };
 
 /**
- * Lee las deudas desde LocalStorage migrándolas si es necesario.
+ * Lee las transacciones desde IndexedDB.
+ */
+export const readStoredTransactions = async (): Promise<Transaction[]> => {
+	try {
+		const txs = await readEntitiesFromIdb('transactions');
+		return txs.map(migrateTransaction);
+	} catch (error) {
+		console.error('Error reading transactions from IndexedDB:', error);
+		return [];
+	}
+};
+
+/**
+ * Guarda las transacciones en IndexedDB.
+ */
+export const saveStoredTransactions = async (transactions: Transaction[]): Promise<void> => {
+	try {
+		await saveStoredTransactionsStrict(transactions);
+	} catch (error) {
+		console.error('Error saving transactions to IndexedDB:', error);
+	}
+};
+
+/**
+ * Lee las deudas desde IndexedDB.
  */
 export const readStoredDebts = async (): Promise<Debt[]> => {
-	const rawArray = await readStoredArray(STORAGE_KEYS.debts, 'finanzas_v2_debts');
-	return rawArray.map(migrateDebt);
+	try {
+		const debts = await readEntitiesFromIdb('debts');
+		return debts.map(migrateDebt);
+	} catch (error) {
+		console.error('Error reading debts from IndexedDB:', error);
+		return [];
+	}
 };
 
 /**
  * Lee deudas sincrónicamente (solo para inicializadores de estado cuando no está cifrado).
  */
 export const readStoredDebtsSync = (): Debt[] => {
-	if (typeof window !== 'undefined' && localStorage.getItem('finanzas_v3_password_salt')) {
+	if (
+		typeof window !== 'undefined' &&
+		(localStorage.getItem('finanzas_v3_password_salt') || localStorage.getItem('finanzas_v5_unified_idb') === 'true')
+	) {
 		return [];
 	}
 	const stored = localStorage.getItem(STORAGE_KEYS.debts) || localStorage.getItem('finanzas_v2_debts');
@@ -208,45 +628,39 @@ export const readStoredDebtsSync = (): Debt[] => {
 };
 
 /**
- * Guarda las deudas en LocalStorage.
+ * Guarda las deudas en IndexedDB.
  */
 export const saveStoredDebts = async (debts: Debt[]): Promise<void> => {
-	if (activeCryptoKey) {
-		const encrypted = await encryptData(debts);
-		localStorage.setItem(STORAGE_KEYS.debts, encrypted);
-	} else {
-		localStorage.setItem(STORAGE_KEYS.debts, JSON.stringify(debts));
+	try {
+		await saveStoredDebtsStrict(debts);
+	} catch (error) {
+		console.error('Error saving debts to IndexedDB:', error);
 	}
 };
 
 /**
- * Lee los periodos de balance mensual desde LocalStorage o los autogenera si no existen.
+ * Lee los periodos de balance mensual desde IndexedDB o los autogenera si no existen.
  */
 export const readStoredPeriods = async (existingTx: Transaction[], existingDebts: Debt[]): Promise<Period[]> => {
 	try {
-		const stored = localStorage.getItem(STORAGE_KEYS.periods);
-		if (stored) {
-			let parsed: any = null;
-			if (stored.startsWith('[') || stored.startsWith('{')) {
-				parsed = JSON.parse(stored);
-			} else if (activeCryptoKey) {
-				parsed = await decryptData(stored);
-			}
-
-			if (Array.isArray(parsed) && parsed.length > 0) {
-				return parsed.map((rawPeriod: any) => {
-					const openingBalance = toNumber(rawPeriod?.openingBalance);
-					return {
-						month: normalizeMonth(rawPeriod?.month),
-						openingBalance,
-						openingBalanceA: rawPeriod?.openingBalanceA !== undefined ? toNumber(rawPeriod.openingBalanceA) : openingBalance / 2,
-						openingBalanceB: rawPeriod?.openingBalanceB !== undefined ? toNumber(rawPeriod.openingBalanceB) : openingBalance / 2,
-						isManualInit: !!rawPeriod?.isManualInit
-					};
-				});
-			}
+		const periods = await readEntitiesFromIdb('periods');
+		if (periods.length > 0) {
+			return periods.map((rawPeriod: any) => {
+				const openingBalance = toNumber(rawPeriod?.openingBalance);
+				return {
+					month: normalizeMonth(rawPeriod?.month),
+					openingBalance,
+					openingBalanceA:
+						rawPeriod?.openingBalanceA !== undefined ? toNumber(rawPeriod.openingBalanceA) : openingBalance / 2,
+					openingBalanceB:
+						rawPeriod?.openingBalanceB !== undefined ? toNumber(rawPeriod.openingBalanceB) : openingBalance / 2,
+					isManualInit: !!rawPeriod?.isManualInit
+				};
+			});
 		}
-	} catch {}
+	} catch (error) {
+		console.error('Error reading periods from IndexedDB:', error);
+	}
 
 	// Generación bajo demanda en caso de migración sin periodos registrados
 	const months = new Set<string>();
@@ -264,7 +678,8 @@ export const readStoredPeriods = async (existingTx: Transaction[], existingDebts
 	const sortedMonths = Array.from(months).sort();
 	const startMonth = sortedMonths[0];
 	const currentMonth = new Date().toISOString().substring(0, 7);
-	const endMonth = sortedMonths[sortedMonths.length - 1] > currentMonth ? sortedMonths[sortedMonths.length - 1] : currentMonth;
+	const endMonth =
+		sortedMonths[sortedMonths.length - 1] > currentMonth ? sortedMonths[sortedMonths.length - 1] : currentMonth;
 
 	const generatedPeriods: Period[] = [];
 	let iterMonth = startMonth;
@@ -281,29 +696,31 @@ export const readStoredPeriods = async (existingTx: Transaction[], existingDebts
 };
 
 /**
- * Guarda los periodos en LocalStorage.
+ * Guarda los periodos en IndexedDB.
  */
 export const saveStoredPeriods = async (periods: Period[]): Promise<void> => {
-	if (activeCryptoKey) {
-		const encrypted = await encryptData(periods);
-		localStorage.setItem(STORAGE_KEYS.periods, encrypted);
-	} else {
-		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify(periods));
+	try {
+		await saveStoredPeriodsStrict(periods);
+	} catch (error) {
+		console.error('Error saving periods to IndexedDB:', error);
 	}
 };
 
 /**
  * Inicializa y obtiene los datos almacenados de cuentas, transacciones y períodos contables de forma síncrona.
  * Retorna arrays vacíos si la base de datos está bloqueada (con PIN/contraseña configurado),
- * delegando la carga asíncrona al momento en que el usuario introduzca su PIN.
+ * o si ya ha sido migrada a IndexedDB V5, delegando la carga asíncrona a IndexedDB.
  */
 export const getInitialData = (): {
 	accounts: Account[];
 	transactions: Transaction[];
 	periods: Period[];
 } => {
-	if (typeof window !== 'undefined' && localStorage.getItem('finanzas_v3_password_salt')) {
-		// La base de datos está bloqueada por PIN/Contraseña.
+	if (
+		typeof window !== 'undefined' &&
+		(localStorage.getItem('finanzas_v3_password_salt') || localStorage.getItem('finanzas_v5_unified_idb') === 'true')
+	) {
+		// La base de datos está bloqueada por PIN/Contraseña o ya migrada a IndexedDB V5.
 		return {
 			accounts: [],
 			transactions: [],
@@ -347,14 +764,18 @@ export const getInitialData = (): {
 						return {
 							month: normalizeMonth(rawPeriod?.month),
 							openingBalance,
-							openingBalanceA: rawPeriod?.openingBalanceA !== undefined ? toNumber(rawPeriod.openingBalanceA) : openingBalance / 2,
-							openingBalanceB: rawPeriod?.openingBalanceB !== undefined ? toNumber(rawPeriod.openingBalanceB) : openingBalance / 2,
+							openingBalanceA:
+								rawPeriod?.openingBalanceA !== undefined ? toNumber(rawPeriod.openingBalanceA) : openingBalance / 2,
+							openingBalanceB:
+								rawPeriod?.openingBalanceB !== undefined ? toNumber(rawPeriod.openingBalanceB) : openingBalance / 2,
 							isManualInit: !!rawPeriod?.isManualInit
 						};
 					});
 				}
 			}
-		} catch {}
+		} catch (error) {
+			console.error('Error reading periods from LocalStorage:', error);
+		}
 
 		const months = new Set<string>();
 		existingTx.forEach((t) => {
@@ -369,7 +790,8 @@ export const getInitialData = (): {
 		const sortedMonths = Array.from(months).sort();
 		const startMonth = sortedMonths[0];
 		const currentMonth = new Date().toISOString().substring(0, 7);
-		const endMonth = sortedMonths[sortedMonths.length - 1] > currentMonth ? sortedMonths[sortedMonths.length - 1] : currentMonth;
+		const endMonth =
+			sortedMonths[sortedMonths.length - 1] > currentMonth ? sortedMonths[sortedMonths.length - 1] : currentMonth;
 
 		const generatedPeriods: Period[] = [];
 		let iterMonth = startMonth;
@@ -400,36 +822,14 @@ export const getInitialData = (): {
 					periods: rawPeriods
 				};
 			}
-		} catch {}
-	}
-
-	const userAName = (typeof window !== 'undefined' && localStorage.getItem(STORAGE_KEYS.userAName)) || 'Usuario A';
-	const userBName = (typeof window !== 'undefined' && localStorage.getItem(STORAGE_KEYS.userBName)) || 'Usuario B';
-
-	const sortedPeriods = [...rawPeriods].sort((a, b) => a.month.localeCompare(b.month));
-	const firstPeriod = sortedPeriods.length > 0 ? sortedPeriods[0] : null;
-	const initialBalA = firstPeriod ? (firstPeriod.openingBalanceA !== undefined ? firstPeriod.openingBalanceA : firstPeriod.openingBalance / 2) : 0;
-	const initialBalB = firstPeriod ? (firstPeriod.openingBalanceB !== undefined ? firstPeriod.openingBalanceB : firstPeriod.openingBalance / 2) : 0;
-
-	const migratedAccounts: Account[] = [
-		{ id: 'default-a', name: `Efectivo ${userAName}`, owner: 'userA', initialBalance: initialBalA },
-		{ id: 'default-b', name: `Efectivo ${userBName}`, owner: 'userB', initialBalance: initialBalB },
-		{ id: 'default-joint', name: 'Cuenta Común', owner: 'joint', initialBalance: 0 }
-	];
-
-	const migratedTransactions = rawTransactions.map(t => {
-		if (!t.accountId && t.type !== 'transfer') {
-			if (t.owner === 'userA') return { ...t, accountId: 'default-a' };
-			if (t.owner === 'userB') return { ...t, accountId: 'default-b' };
-			return { ...t, accountId: 'default-joint' };
+		} catch (error) {
+			console.error('Error reading accounts from LocalStorage:', error);
 		}
-		return t;
-	});
-
-	if (typeof window !== 'undefined') {
-		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(migratedAccounts));
-		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify(migratedTransactions));
 	}
+
+	const legacyUserNames = getLegacyUserNames();
+	const migratedAccounts = buildDefaultAccounts(legacyUserNames.userAName, legacyUserNames.userBName, rawPeriods);
+	const migratedTransactions = assignDefaultAccountIds(rawTransactions);
 
 	return {
 		accounts: migratedAccounts,
@@ -439,42 +839,46 @@ export const getInitialData = (): {
 };
 
 /**
- * Lee las cuentas desde LocalStorage.
+ * Lee las cuentas desde IndexedDB.
  */
 export const readStoredAccounts = async (): Promise<Account[]> => {
-	const rawArray = await readStoredArray(STORAGE_KEYS.accounts);
-	return rawArray as Account[];
-};
-
-/**
- * Guarda las cuentas en LocalStorage.
- */
-export const saveStoredAccounts = async (accounts: Account[]): Promise<void> => {
-	if (activeCryptoKey) {
-		const encrypted = await encryptData(accounts);
-		localStorage.setItem(STORAGE_KEYS.accounts, encrypted);
-	} else {
-		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(accounts));
+	try {
+		const accounts = await readEntitiesFromIdb('accounts');
+		return accounts as Account[];
+	} catch (error) {
+		console.error('Error reading accounts from IndexedDB:', error);
+		return [];
 	}
 };
 
 /**
- * Lee la clave API de Gemini desde LocalStorage.
+ * Guarda las cuentas en IndexedDB.
+ */
+export const saveStoredAccounts = async (accounts: Account[]): Promise<void> => {
+	try {
+		await saveStoredAccountsStrict(accounts);
+	} catch (error) {
+		console.error('Error saving accounts to IndexedDB:', error);
+	}
+};
+
+/**
+ * Lee la clave API de Gemini desde IndexedDB (config store, key: 'geminiKey').
  */
 export const readGeminiApiKey = async (): Promise<string> => {
-	const stored = localStorage.getItem(STORAGE_KEYS.geminiKey);
-	if (!stored) return '';
 	try {
-		if (stored.startsWith('{') || stored.startsWith('[') || stored.length < 50) {
-			// No cifrada o muy corta para ser cifrado AES-GCM hex
-			return stored;
+		const entity = await idb.getSingleEntity('config', 'geminiKey');
+		if (!entity) return '';
+		if ('ciphertext' in entity) {
+			if (activeCryptoKey) {
+				return await decryptWithKey(entity.ciphertext, activeCryptoKey);
+			}
+			return '';
 		}
-		if (activeCryptoKey) {
-			return await decryptWithKey(stored, activeCryptoKey);
-		}
+		return entity.value || '';
+	} catch (error) {
+		console.error('Error reading Gemini API key from IndexedDB:', error);
 		return '';
-	} catch {
-		return stored; // Fallback a plano por si acaso
 	}
 };
 
@@ -482,40 +886,62 @@ export const readGeminiApiKey = async (): Promise<string> => {
  * Lee la clave API de Gemini de forma sincrónica (solo para inicializadores de estado).
  */
 export const readGeminiApiKeySync = (): string => {
-	if (typeof window !== 'undefined' && localStorage.getItem('finanzas_v3_password_salt')) {
+	if (
+		typeof window !== 'undefined' &&
+		(localStorage.getItem('finanzas_v3_password_salt') || localStorage.getItem('finanzas_v5_unified_idb') === 'true')
+	) {
 		return '';
 	}
 	return localStorage.getItem(STORAGE_KEYS.geminiKey) || '';
 };
 
 /**
- * Guarda la clave API de Gemini en LocalStorage.
+ * Guarda la clave API de Gemini en IndexedDB (config store, key: 'geminiKey').
  */
 export const saveGeminiApiKey = async (key: string): Promise<void> => {
-	if (activeCryptoKey && key.trim()) {
-		const encrypted = await encryptWithKey(key, activeCryptoKey);
-		localStorage.setItem(STORAGE_KEYS.geminiKey, encrypted);
-	} else {
-		localStorage.setItem(STORAGE_KEYS.geminiKey, key);
+	try {
+		await saveGeminiApiKeyStrict(key);
+	} catch (error) {
+		console.error('Error saving Gemini API key to IndexedDB:', error);
 	}
 };
 
 /**
- * Lee el historial del chat desde LocalStorage.
+ * Lee el historial del chat desde IndexedDB (chat store, id: 'history').
  */
 export const readAiChat = async (): Promise<ChatMessage[]> => {
-	const rawArray = await readStoredArray(STORAGE_KEYS.aiChat);
-	return (rawArray as ChatMessage[]).map((msg) => ({
-		...msg,
-		content: decodeHtmlEntities(msg.content || '')
-	}));
+	try {
+		const entity = await idb.getSingleEntity('chat', 'history');
+		if (!entity) return [];
+
+		let messages: ChatMessage[] = [];
+		if ('ciphertext' in entity) {
+			if (activeCryptoKey) {
+				const decrypted = await decryptData(entity.ciphertext);
+				messages = decrypted.messages || [];
+			}
+		} else {
+			messages = entity.messages || [];
+		}
+
+		return messages.map((msg) => ({
+			...msg,
+			content: decodeHtmlEntities(msg.content || '')
+		}));
+	} catch (error) {
+		console.error('Error reading AI chat from IndexedDB:', error);
+		return [];
+	}
 };
 
 /**
  * Lee el chat de forma sincrónica (solo para inicializadores de estado).
  */
 export const readAiChatSync = (): ChatMessage[] => {
-	if (typeof window !== 'undefined' && localStorage.getItem('finanzas_v3_password_salt')) {
+	if (
+		typeof window !== 'undefined' &&
+		(localStorage.getItem('finanzas_v3_password_salt') || localStorage.getItem('finanzas_v5_unified_idb') === 'true')
+	) {
 		return [];
 	}
 	const stored = localStorage.getItem(STORAGE_KEYS.aiChat);
@@ -534,13 +960,138 @@ export const readAiChatSync = (): ChatMessage[] => {
 };
 
 /**
- * Guarda el historial del chat en LocalStorage.
+ * Guarda el historial del chat en IndexedDB (chat store, id: 'history').
  */
 export const saveAiChat = async (chat: ChatMessage[]): Promise<void> => {
-	if (activeCryptoKey) {
-		const encrypted = await encryptData(chat);
-		localStorage.setItem(STORAGE_KEYS.aiChat, encrypted);
-	} else {
-		localStorage.setItem(STORAGE_KEYS.aiChat, JSON.stringify(chat));
+	try {
+		await saveAiChatStrict(chat);
+	} catch (error) {
+		console.error('Error saving AI chat to IndexedDB:', error);
 	}
+};
+
+const normalizePeriodsForBackup = (periods: Period[]): Period[] =>
+	periods.map((period) => {
+		const openingBalance = toNumber(period.openingBalance);
+		const normalizedPeriod: Period = {
+			month: normalizeMonth(period.month),
+			openingBalance,
+			openingBalanceA: period.openingBalanceA !== undefined ? toNumber(period.openingBalanceA) : openingBalance / 2,
+			openingBalanceB: period.openingBalanceB !== undefined ? toNumber(period.openingBalanceB) : openingBalance / 2
+		};
+		if (period.isManualInit !== undefined) {
+			normalizedPeriod.isManualInit = !!period.isManualInit;
+		}
+		return normalizedPeriod;
+	});
+
+const removeFinanceDomainLocalStorageKeys = (): void => {
+	if (typeof window === 'undefined') return;
+	FINANCE_BACKUP_KEYS.forEach((key) => localStorage.removeItem(key));
+	localStorage.removeItem('finanzas_v2_transactions');
+	localStorage.removeItem('finanzas_v2_debts');
+	localStorage.removeItem('finanzas_v2_gemini_key');
+};
+
+const filterBackupPayload = (payload: Record<string, unknown>): Record<string, unknown> => {
+	const filteredPayload: Record<string, unknown> = {};
+	FINANCE_BACKUP_KEYS.forEach((key) => {
+		const value = payload[key];
+		if (value !== undefined && value !== null) {
+			filteredPayload[key] = value;
+		}
+	});
+	return filteredPayload;
+};
+
+export const buildFinanceBackupPayload = (snapshot: FinanceBackupSnapshot): FinanceBackupPayload => ({
+	[STORAGE_KEYS.transactions]: JSON.stringify(snapshot.transactions),
+	[STORAGE_KEYS.debts]: JSON.stringify(snapshot.debts),
+	[STORAGE_KEYS.periods]: JSON.stringify(normalizePeriodsForBackup(snapshot.periods)),
+	[STORAGE_KEYS.accounts]: JSON.stringify(snapshot.accounts),
+	[STORAGE_KEYS.userAName]: snapshot.userAName.trim() || DEFAULT_USER_NAMES.userAName,
+	[STORAGE_KEYS.userBName]: snapshot.userBName.trim() || DEFAULT_USER_NAMES.userBName,
+	[STORAGE_KEYS.aiChat]: JSON.stringify(snapshot.chatMessages),
+	[STORAGE_KEYS.geminiKey]: snapshot.geminiApiKey.trim() ? snapshot.geminiApiKey : null
+});
+
+export const readFinanceBackupPayload = async (): Promise<FinanceBackupPayload> => {
+	const [transactions, debts, accounts, userNames, geminiApiKey, chatMessages] = await Promise.all([
+		readStoredTransactions(),
+		readStoredDebts(),
+		readStoredAccounts(),
+		readUserNames(),
+		readGeminiApiKey(),
+		readAiChat()
+	]);
+	const periods = await readStoredPeriods(transactions, debts);
+
+	return buildFinanceBackupPayload({
+		accounts,
+		transactions,
+		debts,
+		periods,
+		userAName: userNames.userAName,
+		userBName: userNames.userBName,
+		geminiApiKey,
+		chatMessages
+	});
+};
+
+export const importFinanceBackupPayload = async (
+	payload: Record<string, unknown>
+): Promise<ImportedFinanceBackupData> => {
+	const validated = validateAndSanitizeBackup(filterBackupPayload(payload));
+	const imported: ImportedFinanceBackupData = {};
+	const importedUserNames: Partial<UserNames> = {};
+
+	if (validated[STORAGE_KEYS.userAName] !== undefined) {
+		imported.userAName = validated[STORAGE_KEYS.userAName];
+		importedUserNames.userAName = imported.userAName;
+	}
+	if (validated[STORAGE_KEYS.userBName] !== undefined) {
+		imported.userBName = validated[STORAGE_KEYS.userBName];
+		importedUserNames.userBName = imported.userBName;
+	}
+	if (Object.keys(importedUserNames).length > 0) {
+		await saveUserNamesStrict(importedUserNames);
+	}
+
+	if (validated[STORAGE_KEYS.accounts] !== undefined) {
+		imported.accounts = validated[STORAGE_KEYS.accounts];
+		await saveStoredAccountsStrict(imported.accounts || []);
+	}
+	if (validated[STORAGE_KEYS.transactions] !== undefined) {
+		imported.transactions = validated[STORAGE_KEYS.transactions];
+		await saveStoredTransactionsStrict(imported.transactions || []);
+	}
+	if (validated[STORAGE_KEYS.debts] !== undefined) {
+		imported.debts = validated[STORAGE_KEYS.debts];
+		await saveStoredDebtsStrict(imported.debts || []);
+	}
+	if (validated[STORAGE_KEYS.periods] !== undefined) {
+		imported.periods = validated[STORAGE_KEYS.periods];
+		await saveStoredPeriodsStrict(imported.periods || []);
+	} else if (imported.transactions !== undefined && imported.debts !== undefined) {
+		const generatedPeriods = await readStoredPeriods(imported.transactions, imported.debts);
+		imported.periods = generatedPeriods;
+		await saveStoredPeriodsStrict(generatedPeriods);
+	}
+	if (validated[STORAGE_KEYS.geminiKey] !== undefined) {
+		imported.geminiApiKey = validated[STORAGE_KEYS.geminiKey];
+		await saveGeminiApiKeyStrict(imported.geminiApiKey || '');
+	}
+	if (validated[STORAGE_KEYS.aiChat] !== undefined) {
+		imported.chatMessages = validated[STORAGE_KEYS.aiChat];
+		await saveAiChatStrict(imported.chatMessages || []);
+	}
+
+	const activePeriods = imported.periods || [];
+	if (activePeriods.length > 0) {
+		const sortedPeriods = [...activePeriods].sort((a, b) => a.month.localeCompare(b.month));
+		imported.selectedMonth = sortedPeriods[sortedPeriods.length - 1].month;
+	}
+
+	removeFinanceDomainLocalStorageKeys();
+	return imported;
 };

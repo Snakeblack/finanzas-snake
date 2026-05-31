@@ -61,6 +61,10 @@ export const generateShortCode = (): string => {
 	return code;
 };
 
+export interface ISyncDataProvider {
+	exportPayload(): Promise<Record<string, any>>;
+}
+
 export interface HostCallbacks {
 	onCodeGenerated: (code: string) => void;
 	onConnectionEstablished: () => void;
@@ -74,6 +78,7 @@ export interface HostCallbacks {
  */
 export const startSyncHost = (
 	callbacks: HostCallbacks,
+	dataProvider: ISyncDataProvider,
 	customIceServers?: any[]
 ): { destroy: () => void } => {
 	let peer: Peer | null = null;
@@ -96,39 +101,27 @@ export const startSyncHost = (
 			if (isDestroyed) return;
 			callbacks.onConnectionEstablished();
 
-			conn.on('open', () => {
+			conn.on('open', async () => {
 				if (isDestroyed) return;
 				
-				// Recopilar todos los datos locales
-				const backupData: SyncData = {};
-				const keysToExport = [
-					'finanzas_v3_transactions',
-					'finanzas_v3_debts',
-					'finanzas_v3_periods',
-					'finanzas_v3_accounts',
-					'finanzas_v3_userA_name',
-					'finanzas_v3_userB_name',
-					'finanzas_v2_gemini_key',
-					'finanzas_v3_ai_chat',
-					'finanzas_v3_password_salt',
-					'finanzas_v3_password_check'
-				];
+				try {
+					// Recopilar todos los datos locales usando el proveedor inyectado (DIP)
+					const backupData = await dataProvider.exportPayload();
 
-				keysToExport.forEach(key => {
-					backupData[key] = localStorage.getItem(key);
-				});
+					// Enviar los datos
+					conn.send({
+						type: 'FINANZAS_PRO_SYNC',
+						payload: backupData
+					});
 
-				// Enviar los datos
-				conn.send({
-					type: 'FINANZAS_PRO_SYNC',
-					payload: backupData
-				});
-
-				setTimeout(() => {
-					if (!isDestroyed) {
-						callbacks.onDataSent();
-					}
-				}, 600);
+					setTimeout(() => {
+						if (!isDestroyed) {
+							callbacks.onDataSent();
+						}
+					}, 600);
+				} catch (err) {
+					callbacks.onError(err);
+				}
 			});
 
 			conn.on('error', (err) => {

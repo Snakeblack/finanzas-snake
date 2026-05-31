@@ -13,13 +13,7 @@ import { deduceTagFromConcept } from '../services/financeService';
 import { SyncModal } from './sync/SyncModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from './ui/input';
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue
-} from './ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 /**
  * Contenido principal de la aplicación, consumiendo el contexto de finanzas.
@@ -233,13 +227,33 @@ function MainAppContent() {
 							title={theme === 'light' ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro'}
 						>
 							{theme === 'light' ? (
-								<svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+								<svg
+									className="w-4 h-4 text-amber-500"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+									strokeWidth={2.5}
+								>
 									<circle cx="12" cy="12" r="4" />
-									<path strokeLinecap="round" strokeLinejoin="round" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.31 11.31l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41m14.14-14.14l-1.41 1.41" />
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.31 11.31l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41m14.14-14.14l-1.41 1.41"
+									/>
 								</svg>
 							) : (
-								<svg className="w-4 h-4 text-slate-400 hover:text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-									<path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+								<svg
+									className="w-4 h-4 text-slate-400 hover:text-slate-200"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+									strokeWidth={2.5}
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+									/>
 								</svg>
 							)}
 						</button>
@@ -259,12 +273,16 @@ function MainAppContent() {
 								<Icons.Eye className="w-4 h-4 text-slate-400 hover:text-slate-200" />
 							)}
 						</button>
-						{hasPasswordSet && (
-							<button
-								onClick={handleLockApp}
-								className="p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all border border-slate-800 hover:border-rose-500/20 bg-slate-900/80 shadow-md"
-								title="Bloquear Aplicación"
-							>
+						<button
+							onClick={handleLockApp}
+							className={`p-2 rounded-xl transition-all border shadow-md flex items-center justify-center ${
+								hasPasswordSet
+									? 'text-slate-400 hover:text-rose-450 hover:bg-rose-500/10 border-slate-800 hover:border-rose-500/20 bg-slate-900/80'
+									: 'text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/10 border-slate-900/80 hover:border-indigo-500/20 bg-slate-950/40'
+							}`}
+							title={hasPasswordSet ? 'Bloquear Aplicación' : 'Configurar PIN de Seguridad'}
+						>
+							{hasPasswordSet ? (
 								<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
 									<path
 										strokeLinecap="round"
@@ -272,8 +290,16 @@ function MainAppContent() {
 										d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
 									/>
 								</svg>
-							</button>
-						)}
+							) : (
+								<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
+									/>
+								</svg>
+							)}
+						</button>
 					</div>
 				</div>
 			</header>
@@ -667,7 +693,10 @@ function MainAppContent() {
 										setDebtForm((prev) => ({ ...prev, date: val }));
 									}}
 								>
-									<SelectTrigger id="global-month-selector" className="bg-slate-950/60 text-slate-100 border border-slate-800 rounded-lg px-2 py-1 lg:px-3 lg:py-1.5 text-xs font-mono font-bold outline-none focus:border-indigo-500 cursor-pointer w-auto h-auto min-w-[100px]">
+									<SelectTrigger
+										id="global-month-selector"
+										className="bg-slate-950/60 text-slate-100 border border-slate-800 rounded-lg px-2 py-1 lg:px-3 lg:py-1.5 text-xs font-mono font-bold outline-none focus:border-indigo-500 cursor-pointer w-auto h-auto min-w-[100px]"
+									>
 										<SelectValue placeholder="Mes" />
 									</SelectTrigger>
 									<SelectContent>
@@ -791,7 +820,7 @@ function MainAppContent() {
 								<div className="flex items-center justify-between mb-1 lg:mb-4">
 									<span className="text-[10px] lg:text-sm font-semibold text-slate-400 truncate">Ingresos</span>
 									<div className="p-1 lg:p-2 bg-emerald-500/15 rounded-md lg:rounded-lg">
-										<Icons.TrendingUp className="text-emerald-450" />
+										<Icons.TrendingUp className="w-3.5 h-3.5 lg:w-5 lg:h-5 text-emerald-450" />
 									</div>
 								</div>
 								<div className="text-base lg:text-3xl font-extrabold text-emerald-400 truncate">
@@ -809,7 +838,7 @@ function MainAppContent() {
 								<div className="flex items-center justify-between mb-1 lg:mb-4">
 									<span className="text-[10px] lg:text-sm font-semibold text-slate-400 truncate">Gastos</span>
 									<div className="p-1 lg:p-2 bg-rose-500/15 rounded-md lg:rounded-lg">
-										<Icons.TrendingDown className="text-rose-450" />
+										<Icons.TrendingDown className="w-3.5 h-3.5 lg:w-5 lg:h-5 text-rose-450" />
 									</div>
 								</div>
 								<div className="text-base lg:text-3xl font-extrabold text-rose-400 truncate">
@@ -835,7 +864,7 @@ function MainAppContent() {
 										</span>
 									</div>
 									<div className="p-1 lg:p-2 bg-amber-500/15 rounded-md lg:rounded-lg">
-										<Icons.CreditCard className="text-amber-450" />
+										<Icons.CreditCard className="w-3.5 h-3.5 lg:w-5 lg:h-5 text-amber-450" />
 									</div>
 								</div>
 								<div className="text-base lg:text-3xl font-extrabold text-amber-500 truncate">
@@ -853,7 +882,7 @@ function MainAppContent() {
 								<div className="flex items-center justify-between mb-1 lg:mb-4">
 									<span className="text-[10px] lg:text-sm font-semibold text-slate-300">Cierre ({selectedMonth})</span>
 									<div className="p-1 lg:p-2 bg-indigo-500/15 rounded-md lg:rounded-lg">
-										<Icons.Scale className="text-indigo-400" />
+										<Icons.Scale className="w-3.5 h-3.5 lg:w-5 lg:h-5 text-indigo-400" />
 									</div>
 								</div>
 								<div
@@ -1326,7 +1355,8 @@ function MainAppContent() {
 											<SelectContent>
 												{accounts.map((acc) => (
 													<SelectItem key={acc.id} value={acc.id}>
-														{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+														{acc.name} (
+														{acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
 													</SelectItem>
 												))}
 											</SelectContent>
@@ -1349,7 +1379,8 @@ function MainAppContent() {
 													.filter((acc) => acc.id !== editForm.fromAccountId)
 													.map((acc) => (
 														<SelectItem key={acc.id} value={acc.id}>
-															{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+															{acc.name} (
+															{acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
 														</SelectItem>
 													))}
 											</SelectContent>
@@ -1381,7 +1412,8 @@ function MainAppContent() {
 												<SelectItem value="none">Sin Cuenta (Manual)</SelectItem>
 												{accounts.map((acc) => (
 													<SelectItem key={acc.id} value={acc.id}>
-														{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+														{acc.name} (
+														{acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
 													</SelectItem>
 												))}
 											</SelectContent>

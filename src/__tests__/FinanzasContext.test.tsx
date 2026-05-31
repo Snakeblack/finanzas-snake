@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, act, fireEvent } from '@testing-library/react';
+import { render, screen, act, fireEvent, cleanup } from '@testing-library/react';
 import { FinanzasProvider } from '../context/FinanzasContext';
 import { useFinanzas } from '../hooks/useFinanzas';
 import { STORAGE_KEYS } from '../constants';
+import { executeSilentMigrationIfRequired } from '../services/storageService';
+import type { Account, Debt, Transaction } from '../types';
 import type { FinanzasContextType } from '../context/FinanzasContext';
 
 // =====================================================================
@@ -16,6 +18,7 @@ const FullTestComponent = () => {
 
 	return (
 		<div>
+			<div data-testid="is-initialized">{String(ctx.isInitialized)}</div>
 			<div data-testid="userA">{ctx.userAName}</div>
 			<div data-testid="userB">{ctx.userBName}</div>
 			<div data-testid="accounts-count">{ctx.accounts.length}</div>
@@ -35,7 +38,13 @@ const FullTestComponent = () => {
 			<div data-testid="consolidated-count">{ctx.consolidatedDebtsObjects.length}</div>
 			<div data-testid="txs-list">
 				{ctx.transactions.map((t) => (
-					<div key={t.id} data-testid={`tx-item-${t.id}`} data-desc={t.desc} data-date={t.date} data-recurrence={t.recurrence || 'one-off'}>
+					<div
+						key={t.id}
+						data-testid={`tx-item-${t.id}`}
+						data-desc={t.desc}
+						data-date={t.date}
+						data-recurrence={t.recurrence || 'one-off'}
+					>
 						{t.desc} - {t.date} - {t.recurrence}
 					</div>
 				))}
@@ -43,58 +52,127 @@ const FullTestComponent = () => {
 
 			{/* Formulario de transacciones */}
 			<form onSubmit={ctx.handleAddTransaction} data-testid="tx-form">
-				<input data-testid="input-desc" value={ctx.txForm.desc} onChange={(e) => ctx.setTxForm(prev => ({ ...prev, desc: e.target.value }))} />
-				<input data-testid="input-amount" value={ctx.txForm.amount} onChange={(e) => ctx.setTxForm(prev => ({ ...prev, amount: e.target.value }))} />
-				<button type="submit" data-testid="btn-add-tx">Add Tx</button>
+				<input
+					data-testid="input-desc"
+					value={ctx.txForm.desc}
+					onChange={(e) => ctx.setTxForm((prev) => ({ ...prev, desc: e.target.value }))}
+				/>
+				<input
+					data-testid="input-amount"
+					value={ctx.txForm.amount}
+					onChange={(e) => ctx.setTxForm((prev) => ({ ...prev, amount: e.target.value }))}
+				/>
+				<button type="submit" data-testid="btn-add-tx">
+					Add Tx
+				</button>
 			</form>
 
 			{/* Botones de acción */}
-			<button data-testid="btn-delete-tx" onClick={() => { if (ctx.transactions.length > 0) ctx.handleDeleteTransaction(ctx.transactions[0].id); }}>Delete Tx</button>
-			<button data-testid="btn-create-next-month" onClick={ctx.handleCreateNextMonth}>Next Month</button>
+			<button
+				data-testid="btn-delete-tx"
+				onClick={() => {
+					if (ctx.transactions.length > 0) ctx.handleDeleteTransaction(ctx.transactions[0].id);
+				}}
+			>
+				Delete Tx
+			</button>
+			<button data-testid="btn-create-next-month" onClick={ctx.handleCreateNextMonth}>
+				Next Month
+			</button>
 
 			{/* Formulario de edición de transacciones */}
 			<form onSubmit={ctx.handleSaveEditTransaction} data-testid="edit-tx-form">
-				<button type="button" data-testid="btn-start-edit-tx" onClick={() => { if (ctx.transactions.length > 0) ctx.handleStartEditTransaction(ctx.transactions[0]); }}>Start Edit</button>
-				<button type="button" data-testid="btn-set-edit-recurring" onClick={() => ctx.setEditForm(prev => ({ ...prev, recurrence: 'recurring' }))}>Set Edit Recurring</button>
-				<button type="button" data-testid="btn-set-edit-one-off" onClick={() => ctx.setEditForm(prev => ({ ...prev, recurrence: 'one-off' }))}>Set Edit One-Off</button>
-				<button type="button" data-testid="btn-set-scope-future" onClick={() => ctx.setEditScope('future')}>Set Scope Future</button>
-				<button type="button" data-testid="btn-set-scope-all" onClick={() => ctx.setEditScope('all')}>Set Scope All</button>
-				<button type="submit" data-testid="btn-save-edit-tx">Save Edit</button>
+				<button
+					type="button"
+					data-testid="btn-start-edit-tx"
+					onClick={() => {
+						if (ctx.transactions.length > 0) ctx.handleStartEditTransaction(ctx.transactions[0]);
+					}}
+				>
+					Start Edit
+				</button>
+				<button
+					type="button"
+					data-testid="btn-set-edit-recurring"
+					onClick={() => ctx.setEditForm((prev) => ({ ...prev, recurrence: 'recurring' }))}
+				>
+					Set Edit Recurring
+				</button>
+				<button
+					type="button"
+					data-testid="btn-set-edit-one-off"
+					onClick={() => ctx.setEditForm((prev) => ({ ...prev, recurrence: 'one-off' }))}
+				>
+					Set Edit One-Off
+				</button>
+				<button type="button" data-testid="btn-set-scope-future" onClick={() => ctx.setEditScope('future')}>
+					Set Scope Future
+				</button>
+				<button type="button" data-testid="btn-set-scope-all" onClick={() => ctx.setEditScope('all')}>
+					Set Scope All
+				</button>
+				<button type="submit" data-testid="btn-save-edit-tx">
+					Save Edit
+				</button>
 			</form>
 
 			{/* Formulario de deudas */}
 			<form onSubmit={ctx.handleAddDebt} data-testid="debt-form">
-				<button type="submit" data-testid="btn-add-debt">Add Debt</button>
+				<button type="submit" data-testid="btn-add-debt">
+					Add Debt
+				</button>
 			</form>
 
 			{/* Formulario de cuentas */}
 			<form onSubmit={ctx.handleAddAccount} data-testid="account-form">
-				<button type="submit" data-testid="btn-add-account">Add Account</button>
+				<button type="submit" data-testid="btn-add-account">
+					Add Account
+				</button>
 			</form>
 			<form onSubmit={ctx.handleSaveEditAccount} data-testid="edit-account-form">
-				<button type="submit" data-testid="btn-save-edit-account">Save Edit Account</button>
+				<button type="submit" data-testid="btn-save-edit-account">
+					Save Edit Account
+				</button>
 			</form>
 
 			{/* Formulario de inicialización */}
 			<form onSubmit={ctx.handleInitAccount} data-testid="init-form">
-				<button type="submit" data-testid="btn-init">Init Account</button>
+				<button type="submit" data-testid="btn-init">
+					Init Account
+				</button>
 			</form>
 
 			{/* Formulario de import */}
-			<form onSubmit={(e) => ctx.handleImportData(e, (document.getElementById('import-json') as HTMLInputElement)?.value || '')} data-testid="import-form">
+			<form
+				onSubmit={(e) =>
+					ctx.handleImportData(e, (document.getElementById('import-json') as HTMLInputElement)?.value || '')
+				}
+				data-testid="import-form"
+			>
 				<input id="import-json" data-testid="input-import-json" />
-				<button type="submit" data-testid="btn-import">Import</button>
+				<button type="submit" data-testid="btn-import">
+					Import
+				</button>
 			</form>
 		</div>
 	);
 };
 
 const renderCtx = () => {
+	cleanup();
+	localStorage.removeItem('finanzas_v5_unified_idb');
+	localStorage.removeItem('finanzas_v4_idb_migrated');
 	render(
 		<FinanzasProvider>
 			<FullTestComponent />
 		</FinanzasProvider>
 	);
+	return ctxRef;
+};
+
+const renderCtxAndInit = async () => {
+	renderCtx();
+	await screen.findByText('true', { selector: '[data-testid="is-initialized"]' });
 	return ctxRef;
 };
 
@@ -114,8 +192,75 @@ describe('Integración de FinanzasContext', () => {
 		expect(screen.getByTestId('debts-count')).toHaveTextContent('0');
 	});
 
-	it('debe permitir agregar y eliminar transacciones', async () => {
+	it('debe restaurar nombres y cuentas migrados desde IndexedDB si se borra localStorage', async () => {
+		const migratedAccounts: Account[] = [
+			{ id: 'acc-ana', name: 'Cuenta Ana IDB', owner: 'userA', initialBalance: 1200 },
+			{ id: 'acc-bruno', name: 'Cuenta Bruno IDB', owner: 'userB', initialBalance: 800 },
+			{ id: 'acc-joint', name: 'Cuenta Común IDB', owner: 'joint', initialBalance: 50 }
+		];
+
+		localStorage.setItem(STORAGE_KEYS.userAName, 'Ana');
+		localStorage.setItem(STORAGE_KEYS.userBName, 'Bruno');
+		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(migratedAccounts));
+		await executeSilentMigrationIfRequired();
+		localStorage.clear();
+
 		renderCtx();
+		await screen.findByText('true', { selector: '[data-testid="is-initialized"]' });
+		await screen.findByText('Ana', { selector: '[data-testid="userA"]' });
+
+		expect(screen.getByTestId('userB')).toHaveTextContent('Bruno');
+		expect(ctxRef.accounts).toEqual(migratedAccounts);
+	});
+
+	it('debe migrar claves fallback v2 durante el arranque antes de limpiar localStorage', async () => {
+		const legacyTransactions: Transaction[] = [
+			{
+				id: 'tx-context-v2',
+				desc: 'Ingreso context v2',
+				money: { amount: '700.00', currency: 'EUR' },
+				type: 'income',
+				tag: 'Sueldo',
+				date: '2026-04-15',
+				recurrence: 'one-off',
+				owner: 'userA',
+				paidBy: 'userA'
+			}
+		];
+		const legacyDebts: Debt[] = [
+			{
+				id: 'debt-context-v2',
+				kind: 'classic',
+				desc: 'Deuda context v2',
+				tag: 'Préstamo Personal',
+				date: '2026-04',
+				owner: 'joint',
+				principal: 250,
+				tae: 2,
+				termMonths: 5
+			}
+		];
+
+		localStorage.setItem('finanzas_v2_transactions', JSON.stringify(legacyTransactions));
+		localStorage.setItem('finanzas_v2_debts', JSON.stringify(legacyDebts));
+		localStorage.setItem('finanzas_v2_gemini_key', 'gemini-context-v2');
+
+		renderCtx();
+		await screen.findByText('true', { selector: '[data-testid="is-initialized"]' });
+		await screen.findByText(/Ingreso context v2/);
+
+		expect(ctxRef.transactions).toMatchObject([
+			expect.objectContaining({ id: 'tx-context-v2', desc: 'Ingreso context v2', accountId: 'default-a' })
+		]);
+		expect(ctxRef.debts).toMatchObject(legacyDebts);
+		expect(ctxRef.geminiApiKey).toBe('gemini-context-v2');
+		expect(localStorage.getItem('finanzas_v2_transactions')).toBeNull();
+		expect(localStorage.getItem('finanzas_v2_debts')).toBeNull();
+		expect(localStorage.getItem('finanzas_v2_gemini_key')).toBeNull();
+	});
+
+	it('debe permitir agregar y eliminar transacciones', async () => {
+		await renderCtxAndInit();
 
 		fireEvent.change(screen.getByTestId('input-desc'), { target: { value: 'Movimiento Test' } });
 		fireEvent.change(screen.getByTestId('input-amount'), { target: { value: '150' } });
@@ -134,7 +279,7 @@ describe('Integración de FinanzasContext', () => {
 	});
 
 	it('no debe agregar transacción sin descripción ni importe', async () => {
-		renderCtx();
+		await renderCtxAndInit();
 
 		await act(async () => {
 			fireEvent.submit(screen.getByTestId('tx-form'));
@@ -147,7 +292,7 @@ describe('Integración de FinanzasContext', () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
 		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month: '2026-05', openingBalance: 1000 }]));
 
-		renderCtx();
+		await renderCtxAndInit();
 		expect(screen.getByTestId('periods-count')).toHaveTextContent('1');
 
 		await act(async () => {
@@ -158,7 +303,7 @@ describe('Integración de FinanzasContext', () => {
 	});
 
 	it('handleCreateNextMonth no debe hacer nada si no hay periodos', async () => {
-		renderCtx();
+		await renderCtxAndInit();
 		expect(screen.getByTestId('periods-count')).toHaveTextContent('0');
 
 		await act(async () => {
@@ -170,12 +315,15 @@ describe('Integración de FinanzasContext', () => {
 
 	it('handleCreateNextMonth no debe crear un mes si ya existe el siguiente', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([
-			{ month: '2026-05', openingBalance: 1000 },
-			{ month: '2026-06', openingBalance: 0 }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.periods,
+			JSON.stringify([
+				{ month: '2026-05', openingBalance: 1000 },
+				{ month: '2026-06', openingBalance: 0 }
+			])
+		);
 
-		renderCtx();
+		await renderCtxAndInit();
 
 		// Primer click: crea 2026-07 (no existía)
 		await act(async () => {
@@ -195,13 +343,25 @@ describe('Integración de FinanzasContext', () => {
 	it('debe propagar transacciones recurrentes al crear mes siguiente', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
 		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month: '2026-05', openingBalance: 0 }]));
-		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([{
-			id: 'rec-1', desc: 'Sueldo', amount: 2000, type: 'income',
-			tag: 'Sueldo', date: '2026-05-15', recurrence: 'recurring',
-			owner: 'joint', paidBy: 'shared', accountId: 'default-joint'
-		}]));
+		localStorage.setItem(
+			STORAGE_KEYS.transactions,
+			JSON.stringify([
+				{
+					id: 'rec-1',
+					desc: 'Sueldo',
+					amount: 2000,
+					type: 'income',
+					tag: 'Sueldo',
+					date: '2026-05-15',
+					recurrence: 'recurring',
+					owner: 'joint',
+					paidBy: 'shared',
+					accountId: 'default-joint'
+				}
+			])
+		);
 
-		renderCtx();
+		await renderCtxAndInit();
 		expect(screen.getByTestId('tx-count')).toHaveTextContent('1');
 
 		await act(async () => {
@@ -215,44 +375,91 @@ describe('Integración de FinanzasContext', () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
 		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month: '2026-05', openingBalance: 1000 }]));
 
-		renderCtx();
+		await renderCtxAndInit();
 
 		// Añadir transacción puntual
 		fireEvent.change(screen.getByTestId('input-desc'), { target: { value: 'Movimiento Puntual' } });
 		fireEvent.change(screen.getByTestId('input-amount'), { target: { value: '50' } });
-		await act(async () => { fireEvent.submit(screen.getByTestId('tx-form')); });
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('tx-form'));
+		});
 		expect(screen.getByTestId('tx-count')).toHaveTextContent('1');
 
 		// Generar mes siguiente
-		await act(async () => { screen.getByTestId('btn-create-next-month').click(); });
+		await act(async () => {
+			screen.getByTestId('btn-create-next-month').click();
+		});
 		expect(screen.getByTestId('tx-count')).toHaveTextContent('1');
 
 		// Editar como recurrente
-		await act(async () => { screen.getByTestId('btn-start-edit-tx').click(); });
-		await act(async () => { screen.getByTestId('btn-set-edit-recurring').click(); });
-		await act(async () => { fireEvent.submit(screen.getByTestId('edit-tx-form')); });
+		await act(async () => {
+			screen.getByTestId('btn-start-edit-tx').click();
+		});
+		await act(async () => {
+			screen.getByTestId('btn-set-edit-recurring').click();
+		});
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('edit-tx-form'));
+		});
 
 		expect(screen.getByTestId('tx-count')).toHaveTextContent('2');
 	});
 
 	it('debe permitir cambiar recurrente a puntual con alcance future', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([
-			{ month: '2026-05', openingBalance: 1000 },
-			{ month: '2026-06', openingBalance: 1000 }
-		]));
-		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
-			{ id: 'rec-1', desc: 'Recurrente', amount: 80, type: 'expense', tag: 'Otros', date: '2026-05-15', recurrence: 'recurring', owner: 'joint', paidBy: 'shared', accountId: 'default-joint' },
-			{ id: 'rec-1-2026-06', desc: 'Recurrente', amount: 80, type: 'expense', tag: 'Otros', date: '2026-06-15', recurrence: 'recurring', originId: 'rec-1', owner: 'joint', paidBy: 'shared', accountId: 'default-joint' }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.periods,
+			JSON.stringify([
+				{ month: '2026-05', openingBalance: 1000 },
+				{ month: '2026-06', openingBalance: 1000 }
+			])
+		);
+		localStorage.setItem(
+			STORAGE_KEYS.transactions,
+			JSON.stringify([
+				{
+					id: 'rec-1',
+					desc: 'Recurrente',
+					amount: 80,
+					type: 'expense',
+					tag: 'Otros',
+					date: '2026-05-15',
+					recurrence: 'recurring',
+					owner: 'joint',
+					paidBy: 'shared',
+					accountId: 'default-joint'
+				},
+				{
+					id: 'rec-1-2026-06',
+					desc: 'Recurrente',
+					amount: 80,
+					type: 'expense',
+					tag: 'Otros',
+					date: '2026-06-15',
+					recurrence: 'recurring',
+					originId: 'rec-1',
+					owner: 'joint',
+					paidBy: 'shared',
+					accountId: 'default-joint'
+				}
+			])
+		);
 
-		renderCtx();
+		await renderCtxAndInit();
 		expect(screen.getByTestId('tx-count')).toHaveTextContent('2');
 
-		await act(async () => { screen.getByTestId('btn-start-edit-tx').click(); });
-		await act(async () => { screen.getByTestId('btn-set-edit-one-off').click(); });
-		await act(async () => { screen.getByTestId('btn-set-scope-future').click(); });
-		await act(async () => { fireEvent.submit(screen.getByTestId('edit-tx-form')); });
+		await act(async () => {
+			screen.getByTestId('btn-start-edit-tx').click();
+		});
+		await act(async () => {
+			screen.getByTestId('btn-set-edit-one-off').click();
+		});
+		await act(async () => {
+			screen.getByTestId('btn-set-scope-future').click();
+		});
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('edit-tx-form'));
+		});
 
 		const txsList = screen.getByTestId('txs-list');
 		const items = txsList.querySelectorAll('[data-testid^="tx-item-"]');
@@ -268,7 +475,7 @@ describe('Gestión de Deudas', () => {
 		renderCtx();
 
 		await act(async () => {
-			ctxRef.setDebtForm(prev => ({
+			ctxRef.setDebtForm((prev) => ({
 				...prev,
 				kind: 'classic',
 				desc: 'Préstamo Test',
@@ -291,7 +498,7 @@ describe('Gestión de Deudas', () => {
 		renderCtx();
 
 		await act(async () => {
-			ctxRef.setDebtForm(prev => ({
+			ctxRef.setDebtForm((prev) => ({
 				...prev,
 				kind: 'classic',
 				desc: '',
@@ -301,7 +508,9 @@ describe('Gestión de Deudas', () => {
 			}));
 		});
 
-		await act(async () => { fireEvent.submit(screen.getByTestId('debt-form')); });
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('debt-form'));
+		});
 		expect(screen.getByTestId('debts-count')).toHaveTextContent('0');
 	});
 
@@ -309,7 +518,7 @@ describe('Gestión de Deudas', () => {
 		renderCtx();
 
 		await act(async () => {
-			ctxRef.setDebtForm(prev => ({
+			ctxRef.setDebtForm((prev) => ({
 				...prev,
 				kind: 'classic',
 				desc: 'Test',
@@ -319,7 +528,9 @@ describe('Gestión de Deudas', () => {
 			}));
 		});
 
-		await act(async () => { fireEvent.submit(screen.getByTestId('debt-form')); });
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('debt-form'));
+		});
 		expect(screen.getByTestId('debts-count')).toHaveTextContent('0');
 	});
 
@@ -327,7 +538,7 @@ describe('Gestión de Deudas', () => {
 		renderCtx();
 
 		await act(async () => {
-			ctxRef.setDebtForm(prev => ({
+			ctxRef.setDebtForm((prev) => ({
 				...prev,
 				kind: 'paymentPlan',
 				desc: 'Fraccionamiento Test',
@@ -339,7 +550,9 @@ describe('Gestión de Deudas', () => {
 			}));
 		});
 
-		await act(async () => { fireEvent.submit(screen.getByTestId('debt-form')); });
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('debt-form'));
+		});
 		expect(screen.getByTestId('debts-count')).toHaveTextContent('1');
 	});
 
@@ -347,7 +560,7 @@ describe('Gestión de Deudas', () => {
 		renderCtx();
 
 		await act(async () => {
-			ctxRef.setDebtForm(prev => ({
+			ctxRef.setDebtForm((prev) => ({
 				...prev,
 				kind: 'paymentPlan',
 				desc: 'Test',
@@ -356,7 +569,9 @@ describe('Gestión de Deudas', () => {
 			}));
 		});
 
-		await act(async () => { fireEvent.submit(screen.getByTestId('debt-form')); });
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('debt-form'));
+		});
 		expect(screen.getByTestId('debts-count')).toHaveTextContent('0');
 	});
 
@@ -364,7 +579,7 @@ describe('Gestión de Deudas', () => {
 		renderCtx();
 
 		await act(async () => {
-			ctxRef.setDebtForm(prev => ({
+			ctxRef.setDebtForm((prev) => ({
 				...prev,
 				kind: 'paymentPlan',
 				desc: 'Test',
@@ -375,7 +590,9 @@ describe('Gestión de Deudas', () => {
 			}));
 		});
 
-		await act(async () => { fireEvent.submit(screen.getByTestId('debt-form')); });
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('debt-form'));
+		});
 		expect(screen.getByTestId('debt-form-error').textContent).toContain('debe coincidir');
 	});
 
@@ -383,7 +600,7 @@ describe('Gestión de Deudas', () => {
 		renderCtx();
 
 		await act(async () => {
-			ctxRef.setDebtForm(prev => ({
+			ctxRef.setDebtForm((prev) => ({
 				...prev,
 				kind: 'paymentPlan',
 				desc: 'Test',
@@ -393,17 +610,31 @@ describe('Gestión de Deudas', () => {
 			}));
 		});
 
-		await act(async () => { fireEvent.submit(screen.getByTestId('debt-form')); });
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('debt-form'));
+		});
 		expect(screen.getByTestId('debt-form-error').textContent).toContain('al menos un tramo');
 	});
 
 	it('debe eliminar una deuda', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.debts, JSON.stringify([
-			{ id: 'debt-1', kind: 'classic', desc: 'Test', tag: 'T', date: '2026-05', principal: 1000, tae: 5, termMonths: 12 }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.debts,
+			JSON.stringify([
+				{
+					id: 'debt-1',
+					kind: 'classic',
+					desc: 'Test',
+					tag: 'T',
+					date: '2026-05',
+					principal: 1000,
+					tae: 5,
+					termMonths: 12
+				}
+			])
+		);
 
-		renderCtx();
+		await renderCtxAndInit();
 		expect(screen.getByTestId('debts-count')).toHaveTextContent('1');
 
 		await act(async () => {
@@ -415,47 +646,91 @@ describe('Gestión de Deudas', () => {
 
 	it('toggleDebtSelection debe seleccionar y deseleccionar deudas clásicas', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.debts, JSON.stringify([
-			{ id: 'debt-1', kind: 'classic', desc: 'Test', tag: 'T', date: '2026-05', principal: 1000, tae: 5, termMonths: 12 }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.debts,
+			JSON.stringify([
+				{
+					id: 'debt-1',
+					kind: 'classic',
+					desc: 'Test',
+					tag: 'T',
+					date: '2026-05',
+					principal: 1000,
+					tae: 5,
+					termMonths: 12
+				}
+			])
+		);
 
-		renderCtx();
+		await renderCtxAndInit();
 
-		await act(async () => { ctxRef.toggleDebtSelection('debt-1'); });
+		await act(async () => {
+			ctxRef.toggleDebtSelection('debt-1');
+		});
 		expect(ctxRef.selectedDebtsForConsolidation).toContain('debt-1');
 
-		await act(async () => { ctxRef.toggleDebtSelection('debt-1'); });
+		await act(async () => {
+			ctxRef.toggleDebtSelection('debt-1');
+		});
 		expect(ctxRef.selectedDebtsForConsolidation).not.toContain('debt-1');
 	});
 
 	it('toggleDebtSelection no debe seleccionar deudas paymentPlan', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.debts, JSON.stringify([
-			{ id: 'pp-1', kind: 'paymentPlan', desc: 'Test', tag: 'T', date: '2026-05', financedAmount: 1000, fees: 0, totalToPay: 1000, installments: [] }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.debts,
+			JSON.stringify([
+				{
+					id: 'pp-1',
+					kind: 'paymentPlan',
+					desc: 'Test',
+					tag: 'T',
+					date: '2026-05',
+					financedAmount: 1000,
+					fees: 0,
+					totalToPay: 1000,
+					installments: []
+				}
+			])
+		);
 
-		renderCtx();
+		await renderCtxAndInit();
 
-		await act(async () => { ctxRef.toggleDebtSelection('pp-1'); });
+		await act(async () => {
+			ctxRef.toggleDebtSelection('pp-1');
+		});
 		expect(ctxRef.selectedDebtsForConsolidation).toHaveLength(0);
 	});
 
 	it('togglePaymentPlanInstallmentStatus debe cambiar pending↔paid', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.debts, JSON.stringify([{
-			id: 'pp-1', kind: 'paymentPlan', desc: 'Test', tag: 'T', date: '2026-05',
-			financedAmount: 200, fees: 0, totalToPay: 200,
-			installments: [
-				{ id: 'i1', dueMonth: '2026-05', amount: 100, status: 'pending', label: 'Cuota 1' },
-				{ id: 'i2', dueMonth: '2026-06', amount: 100, status: 'pending', label: 'Cuota 2' }
-			]
-		}]));
+		localStorage.setItem(
+			STORAGE_KEYS.debts,
+			JSON.stringify([
+				{
+					id: 'pp-1',
+					kind: 'paymentPlan',
+					desc: 'Test',
+					tag: 'T',
+					date: '2026-05',
+					financedAmount: 200,
+					fees: 0,
+					totalToPay: 200,
+					installments: [
+						{ id: 'i1', dueMonth: '2026-05', amount: 100, status: 'pending', label: 'Cuota 1' },
+						{ id: 'i2', dueMonth: '2026-06', amount: 100, status: 'pending', label: 'Cuota 2' }
+					]
+				}
+			])
+		);
 
-		renderCtx();
+		await renderCtxAndInit();
 
-		await act(async () => { ctxRef.togglePaymentPlanInstallmentStatus('pp-1', 'i1'); });
+		await act(async () => {
+			ctxRef.togglePaymentPlanInstallmentStatus('pp-1', 'i1');
+		});
 
-		const debt = ctxRef.debts.find(d => d.id === 'pp-1');
+		const debt = ctxRef.debts.find((d) => d.id === 'pp-1');
 		if (debt && debt.kind === 'paymentPlan') {
 			expect(debt.installments[0].status).toBe('paid');
 			expect(debt.installments[1].status).toBe('pending');
@@ -465,77 +740,90 @@ describe('Gestión de Deudas', () => {
 
 describe('Gestión de Cuentas', () => {
 	it('debe agregar una cuenta nueva', async () => {
-		renderCtx();
+		await renderCtxAndInit();
 		const initialCount = ctxRef.accounts.length;
 
 		await act(async () => {
 			ctxRef.setAccountForm({ name: 'Cuenta Nueva', owner: 'userA', initialBalance: '1000' });
 		});
 
-		await act(async () => { fireEvent.submit(screen.getByTestId('account-form')); });
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('account-form'));
+		});
 
 		expect(ctxRef.accounts.length).toBe(initialCount + 1);
 		expect(ctxRef.accounts[ctxRef.accounts.length - 1].name).toBe('Cuenta Nueva');
 	});
 
 	it('no debe agregar cuenta sin nombre', async () => {
-		renderCtx();
+		await renderCtxAndInit();
 		const initialCount = ctxRef.accounts.length;
 
 		await act(async () => {
 			ctxRef.setAccountForm({ name: '', owner: 'userA', initialBalance: '1000' });
 		});
 
-		await act(async () => { fireEvent.submit(screen.getByTestId('account-form')); });
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('account-form'));
+		});
 		expect(ctxRef.accounts.length).toBe(initialCount);
 	});
 
 	it('debe editar una cuenta existente', async () => {
-		renderCtx();
+		await renderCtxAndInit();
 
 		const accountToEdit = ctxRef.accounts[0];
-		await act(async () => { ctxRef.handleStartEditAccount(accountToEdit); });
+		await act(async () => {
+			ctxRef.handleStartEditAccount(accountToEdit);
+		});
 
 		await act(async () => {
 			ctxRef.setAccountForm({ name: 'Cuenta Editada', owner: 'userB', initialBalance: '2000' });
 		});
 
-		await act(async () => { fireEvent.submit(screen.getByTestId('edit-account-form')); });
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('edit-account-form'));
+		});
 
-		const edited = ctxRef.accounts.find(a => a.id === accountToEdit.id);
+		const edited = ctxRef.accounts.find((a) => a.id === accountToEdit.id);
 		expect(edited?.name).toBe('Cuenta Editada');
 		expect(edited?.owner).toBe('userB');
 	});
 
 	it('debe eliminar una cuenta (con más de 1)', async () => {
-		renderCtx();
+		await renderCtxAndInit();
 		const initialCount = ctxRef.accounts.length;
 		expect(initialCount).toBeGreaterThan(1);
 
 		const idToDelete = ctxRef.accounts[0].id;
-		await act(async () => { ctxRef.handleDeleteAccount(idToDelete); });
+		await act(async () => {
+			ctxRef.handleDeleteAccount(idToDelete);
+		});
 
 		expect(ctxRef.accounts.length).toBe(initialCount - 1);
-		expect(ctxRef.accounts.find(a => a.id === idToDelete)).toBeUndefined();
+		expect(ctxRef.accounts.find((a) => a.id === idToDelete)).toBeUndefined();
 	});
 
 	it('no debe eliminar la última cuenta', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify([
-			{ id: 'solo', name: 'Única', owner: 'joint', initialBalance: 0 }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.accounts,
+			JSON.stringify([{ id: 'solo', name: 'Única', owner: 'joint', initialBalance: 0 }])
+		);
 
-		renderCtx();
+		await renderCtxAndInit();
 		expect(ctxRef.accounts.length).toBe(1);
 
-		await act(async () => { ctxRef.handleDeleteAccount('solo'); });
+		await act(async () => {
+			ctxRef.handleDeleteAccount('solo');
+		});
 		expect(ctxRef.accounts.length).toBe(1);
 	});
 });
 
 describe('Tramos del Plan de Pagos', () => {
 	it('updatePaymentPlanTranche debe actualizar un tramo', async () => {
-		renderCtx();
+		await renderCtxAndInit();
 
 		const trancheId = ctxRef.debtForm.tranches[0].id;
 		await act(async () => {
@@ -547,71 +835,83 @@ describe('Tramos del Plan de Pagos', () => {
 	});
 
 	it('addPaymentPlanTranche debe agregar un tramo', async () => {
-		renderCtx();
+		await renderCtxAndInit();
 		const initialCount = ctxRef.debtForm.tranches.length;
 
-		await act(async () => { ctxRef.addPaymentPlanTranche(); });
+		await act(async () => {
+			ctxRef.addPaymentPlanTranche();
+		});
 		expect(ctxRef.debtForm.tranches.length).toBe(initialCount + 1);
 	});
 
 	it('removePaymentPlanTranche debe eliminar un tramo si hay más de uno', async () => {
-		renderCtx();
+		await renderCtxAndInit();
 
 		// Agregar un segundo tramo primero
-		await act(async () => { ctxRef.addPaymentPlanTranche(); });
+		await act(async () => {
+			ctxRef.addPaymentPlanTranche();
+		});
 		expect(ctxRef.debtForm.tranches.length).toBe(2);
 
 		const idToRemove = ctxRef.debtForm.tranches[1].id;
-		await act(async () => { ctxRef.removePaymentPlanTranche(idToRemove); });
+		await act(async () => {
+			ctxRef.removePaymentPlanTranche(idToRemove);
+		});
 		expect(ctxRef.debtForm.tranches.length).toBe(1);
 	});
 
 	it('removePaymentPlanTranche no debe eliminar el único tramo', async () => {
-		renderCtx();
+		await renderCtxAndInit();
 		expect(ctxRef.debtForm.tranches.length).toBe(1);
 
 		const id = ctxRef.debtForm.tranches[0].id;
-		await act(async () => { ctxRef.removePaymentPlanTranche(id); });
+		await act(async () => {
+			ctxRef.removePaymentPlanTranche(id);
+		});
 		expect(ctxRef.debtForm.tranches.length).toBe(1);
 	});
 });
 
 describe('Inicialización y Reset', () => {
 	it('handleInitAccount debe crear un periodo inicial', async () => {
-		renderCtx();
+		await renderCtxAndInit();
 
-		await act(async () => { fireEvent.submit(screen.getByTestId('init-form')); });
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('init-form'));
+		});
 
 		expect(ctxRef.periods.length).toBe(1);
 		expect(ctxRef.periods[0].isManualInit).toBe(true);
 	});
 
 	it('handleInitAccount con flow past debe usar el mes especificado', async () => {
-		renderCtx();
+		await renderCtxAndInit();
 
 		await act(async () => {
 			ctxRef.setInitFlow('past');
 			ctxRef.setInitMonth('2025-01');
 		});
 
-		await act(async () => { fireEvent.submit(screen.getByTestId('init-form')); });
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('init-form'));
+		});
 
 		expect(ctxRef.periods[0].month).toBe('2025-01');
 	});
 
 	it('handleInitAccount con reconfiguring debe usar reconfigAccounts', async () => {
-		renderCtx();
+		await renderCtxAndInit();
 
-		const reconfAccounts = [
-			{ id: 'new-a', name: 'Nuevo A', owner: 'userA' as const, initialBalance: 5000 }
-		];
+		const reconfAccounts = [{ id: 'new-a', name: 'Nuevo A', owner: 'userA' as const, initialBalance: 5000 }];
 
 		await act(async () => {
 			ctxRef.setIsReconfiguring(true);
 			ctxRef.setReconfigAccounts(reconfAccounts);
 		});
 
-		await act(async () => { fireEvent.submit(screen.getByTestId('init-form')); });
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('init-form'));
+		});
 
 		expect(ctxRef.accounts).toHaveLength(1);
 		expect(ctxRef.accounts[0].name).toBe('Nuevo A');
@@ -621,17 +921,18 @@ describe('Inicialización y Reset', () => {
 		const mockAccounts = [
 			{ id: 'custom-1', name: 'Cuenta Personalizada', owner: 'userA' as const, initialBalance: 123 }
 		];
-		const mockChat = [
-			{ role: 'user' as const, content: 'Hola', timestamp: '12:00' }
-		];
+		const mockChat = [{ role: 'user' as const, content: 'Hola', timestamp: '12:00' }];
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
 		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month: '2026-05', openingBalance: 0 }]));
-		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([{ id: 't1', desc: 'T', amount: 100, type: 'expense', tag: 'T', date: '2026-05-01' }]));
+		localStorage.setItem(
+			STORAGE_KEYS.transactions,
+			JSON.stringify([{ id: 't1', desc: 'T', amount: 100, type: 'expense', tag: 'T', date: '2026-05-01' }])
+		);
 		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(mockAccounts));
 		localStorage.setItem(STORAGE_KEYS.geminiKey, 'mi-key-secreta');
 		localStorage.setItem(STORAGE_KEYS.aiChat, JSON.stringify(mockChat));
 
-		renderCtx();
+		await renderCtxAndInit();
 		expect(ctxRef.periods.length).toBeGreaterThan(0);
 		expect(ctxRef.accounts).toHaveLength(1);
 		expect(ctxRef.accounts[0].name).toBe('Cuenta Personalizada');
@@ -641,7 +942,9 @@ describe('Inicialización y Reset', () => {
 		// Mock window.confirm to return true
 		const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
-		await act(async () => { ctxRef.handleResetAccount(); });
+		await act(async () => {
+			ctxRef.handleResetAccount();
+		});
 
 		expect(ctxRef.periods).toHaveLength(0);
 		expect(ctxRef.transactions).toHaveLength(0);
@@ -653,13 +956,35 @@ describe('Inicialización y Reset', () => {
 
 		confirmSpy.mockRestore();
 	});
+
+	it('debe proteger los datos cifrados de ser sobreescritos al montar la app bloqueada', async () => {
+		localStorage.setItem('finanzas_v3_password_salt', '1234abcd');
+		localStorage.setItem('finanzas_v3_password_check', 'some-ciphertext');
+		localStorage.setItem(STORAGE_KEYS.debts, 'encrypted-debts-ciphertext');
+		localStorage.setItem(STORAGE_KEYS.transactions, 'encrypted-txs-ciphertext');
+
+		renderCtx();
+
+		expect(ctxRef.isLocked).toBe(true);
+
+		// Dar tiempo para que se ejecuten los efectos de montaje
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 50));
+		});
+
+		// Verificar que no se sobreescribieron las claves de almacenamiento
+		expect(localStorage.getItem(STORAGE_KEYS.debts)).toBe('encrypted-debts-ciphertext');
+		expect(localStorage.getItem(STORAGE_KEYS.transactions)).toBe('encrypted-txs-ciphertext');
+	});
 });
 
 describe('Gemini AI', () => {
 	it('handleAskGemini debe mostrar error si no hay API key', async () => {
 		renderCtx();
 
-		await act(async () => { await ctxRef.handleAskGemini('Analiza mis finanzas'); });
+		await act(async () => {
+			await ctxRef.handleAskGemini('Analiza mis finanzas');
+		});
 
 		expect(screen.getByTestId('ai-error').textContent).toContain('API Key');
 	});
@@ -667,8 +992,12 @@ describe('Gemini AI', () => {
 	it('handleAskGemini no debe hacer nada si la pregunta está vacía', async () => {
 		renderCtx();
 
-		await act(async () => { ctxRef.setGeminiApiKey('test-key'); });
-		await act(async () => { await ctxRef.handleAskGemini('   '); });
+		await act(async () => {
+			ctxRef.setGeminiApiKey('test-key');
+		});
+		await act(async () => {
+			await ctxRef.handleAskGemini('   ');
+		});
 
 		expect(ctxRef.chatMessages).toHaveLength(0);
 	});
@@ -677,14 +1006,19 @@ describe('Gemini AI', () => {
 		const originalFetch = globalThis.fetch;
 		globalThis.fetch = vi.fn().mockResolvedValue({
 			ok: true,
-			json: () => Promise.resolve({
-				candidates: [{ content: { parts: [{ text: 'Respuesta de prueba' }] } }]
-			})
+			json: () =>
+				Promise.resolve({
+					candidates: [{ content: { parts: [{ text: 'Respuesta de prueba' }] } }]
+				})
 		});
 
-		renderCtx();
-		await act(async () => { ctxRef.setGeminiApiKey('test-key'); });
-		await act(async () => { await ctxRef.handleAskGemini('¿Qué tal?'); });
+		await renderCtxAndInit();
+		await act(async () => {
+			ctxRef.setGeminiApiKey('test-key');
+		});
+		await act(async () => {
+			await ctxRef.handleAskGemini('¿Qué tal?');
+		});
 
 		expect(ctxRef.chatMessages).toHaveLength(2);
 		expect(ctxRef.chatMessages[0].role).toBe('user');
@@ -696,12 +1030,14 @@ describe('Gemini AI', () => {
 	});
 
 	it('handleAskGemini debe mostrar error cuando falla la API', async () => {
-		vi.useFakeTimers();
 		const originalFetch = globalThis.fetch;
 		globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network fail'));
 
-		renderCtx();
-		await act(async () => { ctxRef.setGeminiApiKey('test-key'); });
+		await renderCtxAndInit();
+		vi.useFakeTimers();
+		await act(async () => {
+			ctxRef.setGeminiApiKey('test-key');
+		});
 
 		// Start the askGemini call (it will retry internally)
 		let askPromise: Promise<void> | undefined;
@@ -711,11 +1047,17 @@ describe('Gemini AI', () => {
 
 		// Advance timers through all retry delays (1000+2000+4000+8000 ms)
 		for (let i = 0; i < 4; i++) {
-			await act(async () => { await vi.advanceTimersByTimeAsync(16000); });
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(16000);
+			});
 		}
 
 		// Wait for the promise to settle
-		try { await askPromise; } catch { /* expected */ }
+		try {
+			await askPromise;
+		} catch {
+			/* expected */
+		}
 
 		expect(ctxRef.aiError).toContain('Network fail');
 
@@ -728,14 +1070,14 @@ describe('Gemini AI', () => {
 		const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
 		// Set messages via localStorage BEFORE render
-		localStorage.setItem(STORAGE_KEYS.aiChat, JSON.stringify([
-			{ role: 'user', content: 'Hola', timestamp: '12:00' }
-		]));
+		localStorage.setItem(STORAGE_KEYS.aiChat, JSON.stringify([{ role: 'user', content: 'Hola', timestamp: '12:00' }]));
 
 		renderCtx();
 		expect(ctxRef.chatMessages.length).toBeGreaterThan(0);
 
-		await act(async () => { ctxRef.handleClearChat(); });
+		await act(async () => {
+			ctxRef.handleClearChat();
+		});
 
 		expect(ctxRef.chatMessages).toHaveLength(0);
 		confirmSpy.mockRestore();
@@ -748,15 +1090,20 @@ describe('Gemini AI', () => {
 		});
 
 		// Set messages via localStorage BEFORE render so initial state reads them
-		localStorage.setItem(STORAGE_KEYS.aiChat, JSON.stringify([
-			{ role: 'user', content: 'Hola', timestamp: '12:00' },
-			{ role: 'model', content: '**Respuesta**', timestamp: '12:01' }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.aiChat,
+			JSON.stringify([
+				{ role: 'user', content: 'Hola', timestamp: '12:00' },
+				{ role: 'model', content: '**Respuesta**', timestamp: '12:01' }
+			])
+		);
 
 		renderCtx();
 		expect(ctxRef.chatMessages.length).toBe(2);
 
-		await act(async () => { ctxRef.handleCopyChatPlaintext(); });
+		await act(async () => {
+			ctxRef.handleCopyChatPlaintext();
+		});
 
 		expect(writeText).toHaveBeenCalled();
 		const copiedText = writeText.mock.calls[0][0];
@@ -774,13 +1121,93 @@ describe('Import / Export', () => {
 		const createElementSpy = vi.spyOn(document, 'createElement');
 		renderCtx();
 
-		await act(async () => { ctxRef.handleExportData(); });
+		await act(async () => {
+			ctxRef.handleExportData();
+		});
 
 		// Debe haber creado un element <a> para la descarga
 		const anchorCalls = createElementSpy.mock.calls.filter(([tag]) => tag === 'a');
 		expect(anchorCalls.length).toBeGreaterThan(0);
 
 		createElementSpy.mockRestore();
+	});
+
+	it('handleExportData debe serializar el estado canónico aunque localStorage esté vacío', async () => {
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		await renderCtxAndInit();
+
+		const exportedAccounts = [
+			{ id: 'acc-export-a', name: 'Cuenta Ana Export', owner: 'userA' as const, initialBalance: 1200 },
+			{ id: 'acc-export-b', name: 'Cuenta Bruno Export', owner: 'userB' as const, initialBalance: 800 }
+		];
+		const exportedTransactions = [
+			{
+				id: 'tx-export-1',
+				desc: 'Ingreso Export',
+				money: { amount: '2000.00', currency: 'EUR' as const },
+				type: 'income' as const,
+				tag: 'Sueldo',
+				date: '2026-05-01',
+				recurrence: 'recurring' as const,
+				owner: 'userA' as const,
+				paidBy: 'userA' as const,
+				accountId: 'acc-export-a'
+			}
+		];
+		const exportedDebts = [
+			{
+				id: 'debt-export-1',
+				kind: 'classic' as const,
+				desc: 'Deuda Export',
+				tag: 'Préstamo Personal',
+				date: '2026-05',
+				owner: 'userB' as const,
+				principal: 1000,
+				tae: 3,
+				termMonths: 12
+			}
+		];
+		const exportedPeriods = [{ month: '2026-05', openingBalance: 100, openingBalanceA: 60, openingBalanceB: 40 }];
+		const exportedChat = [{ role: 'user' as const, content: 'Hola export', timestamp: '12:00' }];
+
+		await act(async () => {
+			ctxRef.setUserAName('Ana');
+			ctxRef.setUserBName('Bruno');
+			ctxRef.setAccounts(exportedAccounts);
+			ctxRef.setTransactions(exportedTransactions);
+			ctxRef.setDebts(exportedDebts);
+			ctxRef.setPeriods(exportedPeriods);
+			ctxRef.setGeminiApiKey('gemini-export');
+			ctxRef.setChatMessages(exportedChat);
+		});
+		localStorage.clear();
+
+		const mockAnchor = { setAttribute: vi.fn(), click: vi.fn() } as unknown as HTMLAnchorElement;
+		const createElementSpy = vi.spyOn(document, 'createElement').mockReturnValue(mockAnchor);
+		const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation((node) => node);
+		const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation((node) => node);
+
+		await act(async () => {
+			await ctxRef.handleExportData();
+		});
+
+		const href = (mockAnchor.setAttribute as any).mock.calls.find(([name]: [string]) => name === 'href')?.[1];
+		expect(href).toEqual(expect.stringContaining('data:text/json;charset=utf-8,'));
+		const encodedJson = String(href).replace('data:text/json;charset=utf-8,', '');
+		const backup = JSON.parse(decodeURIComponent(encodedJson));
+
+		expect(JSON.parse(backup[STORAGE_KEYS.accounts])).toEqual(exportedAccounts);
+		expect(JSON.parse(backup[STORAGE_KEYS.transactions])).toEqual(exportedTransactions);
+		expect(JSON.parse(backup[STORAGE_KEYS.debts])).toEqual(exportedDebts);
+		expect(JSON.parse(backup[STORAGE_KEYS.periods])).toEqual(exportedPeriods);
+		expect(backup[STORAGE_KEYS.userAName]).toBe('Ana');
+		expect(backup[STORAGE_KEYS.userBName]).toBe('Bruno');
+		expect(backup[STORAGE_KEYS.geminiKey]).toBe('gemini-export');
+		expect(JSON.parse(backup[STORAGE_KEYS.aiChat])).toEqual(exportedChat);
+
+		createElementSpy.mockRestore();
+		appendChildSpy.mockRestore();
+		removeChildSpy.mockRestore();
 	});
 
 	it('handleImportData debe importar backup válido', async () => {
@@ -790,7 +1217,17 @@ describe('Import / Export', () => {
 
 		const backupData: Record<string, string> = {};
 		backupData[STORAGE_KEYS.transactions] = JSON.stringify([
-			{ id: 'imp-1', desc: 'Importado', amount: 100, type: 'expense', tag: 'Test', date: '2026-05-01', recurrence: 'one-off', owner: 'joint', paidBy: 'shared' }
+			{
+				id: 'imp-1',
+				desc: 'Importado',
+				amount: 100,
+				type: 'expense',
+				tag: 'Test',
+				date: '2026-05-01',
+				recurrence: 'one-off',
+				owner: 'joint',
+				paidBy: 'shared'
+			}
 		]);
 		backupData[STORAGE_KEYS.periods] = JSON.stringify([
 			{ month: '2026-05', openingBalance: 0, openingBalanceA: 0, openingBalanceB: 0 }
@@ -872,20 +1309,26 @@ describe('PDF Export', () => {
 describe('Valores Calculados', () => {
 	it('debe calcular filteredTransactions para el mes seleccionado', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([
-			{ month: '2026-05', openingBalance: 0 },
-			{ month: '2026-06', openingBalance: 0 }
-		]));
-		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
-			{ id: 't1', desc: 'Mayo', amount: 100, type: 'expense', tag: 'T', date: '2026-05-01', owner: 'joint' },
-			{ id: 't2', desc: 'Junio', amount: 200, type: 'income', tag: 'T', date: '2026-06-01', owner: 'joint' }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.periods,
+			JSON.stringify([
+				{ month: '2026-05', openingBalance: 0 },
+				{ month: '2026-06', openingBalance: 0 }
+			])
+		);
+		localStorage.setItem(
+			STORAGE_KEYS.transactions,
+			JSON.stringify([
+				{ id: 't1', desc: 'Mayo', amount: 100, type: 'expense', tag: 'T', date: '2026-05-01', owner: 'joint' },
+				{ id: 't2', desc: 'Junio', amount: 200, type: 'income', tag: 'T', date: '2026-06-01', owner: 'joint' }
+			])
+		);
 
 		renderCtx();
 
 		// El mes seleccionado debe ser uno de los dos; verificar que filtra correctamente
 		const filtered = ctxRef.filteredTransactions;
-		filtered.forEach(t => {
+		filtered.forEach((t) => {
 			expect(t.date.substring(0, 7)).toBe(ctxRef.selectedMonth);
 		});
 	});
@@ -893,14 +1336,38 @@ describe('Valores Calculados', () => {
 	it('debe calcular totalIncomes correctamente', async () => {
 		const month = new Date().toISOString().substring(0, 7);
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify([
-			{ id: 'acc-j', name: 'Común', owner: 'joint', initialBalance: 0 }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.accounts,
+			JSON.stringify([{ id: 'acc-j', name: 'Común', owner: 'joint', initialBalance: 0 }])
+		);
 		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month, openingBalance: 0 }]));
-		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
-			{ id: 't1', desc: 'Sueldo', amount: 2000, type: 'income', tag: 'Sueldo', date: `${month}-01`, recurrence: 'recurring', owner: 'joint', accountId: 'acc-j' },
-			{ id: 't2', desc: 'Regalo', amount: 500, type: 'income', tag: 'Bizum', date: `${month}-15`, recurrence: 'one-off', owner: 'joint', accountId: 'acc-j' }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.transactions,
+			JSON.stringify([
+				{
+					id: 't1',
+					desc: 'Sueldo',
+					amount: 2000,
+					type: 'income',
+					tag: 'Sueldo',
+					date: `${month}-01`,
+					recurrence: 'recurring',
+					owner: 'joint',
+					accountId: 'acc-j'
+				},
+				{
+					id: 't2',
+					desc: 'Regalo',
+					amount: 500,
+					type: 'income',
+					tag: 'Bizum',
+					date: `${month}-15`,
+					recurrence: 'one-off',
+					owner: 'joint',
+					accountId: 'acc-j'
+				}
+			])
+		);
 
 		renderCtx();
 
@@ -911,14 +1378,38 @@ describe('Valores Calculados', () => {
 	it('debe calcular totalExpenses correctamente', async () => {
 		const month = new Date().toISOString().substring(0, 7);
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify([
-			{ id: 'acc-j', name: 'Común', owner: 'joint', initialBalance: 0 }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.accounts,
+			JSON.stringify([{ id: 'acc-j', name: 'Común', owner: 'joint', initialBalance: 0 }])
+		);
 		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month, openingBalance: 0 }]));
-		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
-			{ id: 't1', desc: 'Comida', amount: 100, type: 'expense', tag: 'T', date: `${month}-01`, owner: 'joint', paidBy: 'userA', accountId: 'acc-j' },
-			{ id: 't2', desc: 'Taxi', amount: 40, type: 'expense', tag: 'T', date: `${month}-02`, owner: 'joint', paidBy: 'userB', accountId: 'acc-j' }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.transactions,
+			JSON.stringify([
+				{
+					id: 't1',
+					desc: 'Comida',
+					amount: 100,
+					type: 'expense',
+					tag: 'T',
+					date: `${month}-01`,
+					owner: 'joint',
+					paidBy: 'userA',
+					accountId: 'acc-j'
+				},
+				{
+					id: 't2',
+					desc: 'Taxi',
+					amount: 40,
+					type: 'expense',
+					tag: 'T',
+					date: `${month}-02`,
+					owner: 'joint',
+					paidBy: 'userB',
+					accountId: 'acc-j'
+				}
+			])
+		);
 
 		renderCtx();
 
@@ -930,9 +1421,7 @@ describe('Valores Calculados', () => {
 describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 	it('debe inicializar selectedMonth con el último período disponible si el mes actual no existe', () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([
-			{ month: '2026-01', openingBalance: 100 }
-		]));
+		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month: '2026-01', openingBalance: 100 }]));
 		renderCtx();
 		expect(ctxRef.selectedMonth).toBe('2026-01');
 	});
@@ -940,48 +1429,74 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 	it('debe propagar clones de transacciones recurrentes automáticamente en useEffect', () => {
 		// Mes actual es 2026-05. Ponemos el último periodo en el pasado (2026-04)
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([
-			{ month: '2026-04', openingBalance: 0 }
-		]));
-		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
-			{ id: 't1', desc: 'Sueldo Recurrente', amount: 1000, type: 'income', tag: 'Sueldo', date: '2026-04-01', recurrence: 'recurring', owner: 'joint' }
-		]));
+		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month: '2026-04', openingBalance: 0 }]));
+		localStorage.setItem(
+			STORAGE_KEYS.transactions,
+			JSON.stringify([
+				{
+					id: 't1',
+					desc: 'Sueldo Recurrente',
+					amount: 1000,
+					type: 'income',
+					tag: 'Sueldo',
+					date: '2026-04-01',
+					recurrence: 'recurring',
+					owner: 'joint'
+				}
+			])
+		);
 
 		renderCtx();
 
 		// El useEffect debe correr en el primer render/mount y propagar a 2026-05 (mes actual)
-		const hasCloned = ctxRef.transactions.some(t => t.date.startsWith('2026-05') && t.desc === 'Sueldo Recurrente');
+		const hasCloned = ctxRef.transactions.some((t) => t.date.startsWith('2026-05') && t.desc === 'Sueldo Recurrente');
 		expect(hasCloned).toBe(true);
 	});
 
 	it('debe ignorar deudas futuras en filteredDebts', () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([
-			{ month: '2026-05', openingBalance: 0 }
-		]));
-		localStorage.setItem(STORAGE_KEYS.debts, JSON.stringify([
-			{ id: 'd-futura', kind: 'classic', desc: 'Deuda Futura', tag: 'T', date: '2026-08', principal: 1000, tae: 0, termMonths: 12, owner: 'joint' }
-		]));
+		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month: '2026-05', openingBalance: 0 }]));
+		localStorage.setItem(
+			STORAGE_KEYS.debts,
+			JSON.stringify([
+				{
+					id: 'd-futura',
+					kind: 'classic',
+					desc: 'Deuda Futura',
+					tag: 'T',
+					date: '2026-08',
+					principal: 1000,
+					tae: 0,
+					termMonths: 12,
+					owner: 'joint'
+				}
+			])
+		);
 
 		renderCtx();
-		expect(ctxRef.filteredDebts.some(d => d.id === 'd-futura')).toBe(false);
+		expect(ctxRef.filteredDebts.some((d) => d.id === 'd-futura')).toBe(false);
 	});
 
 	it('handleCreateNextMonth debe cambiar selectedMonth si el mes siguiente ya existe', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([
-			{ month: '2026-05', openingBalance: 0 },
-			{ month: '2026-06', openingBalance: 0 }
-		]));
-		renderCtx();
+		localStorage.setItem(
+			STORAGE_KEYS.periods,
+			JSON.stringify([
+				{ month: '2026-05', openingBalance: 0 },
+				{ month: '2026-06', openingBalance: 0 }
+			])
+		);
+		await renderCtxAndInit();
 
 		await act(async () => {
 			ctxRef.setSelectedMonth('2026-05');
 		});
 
 		// Mock de periods.some para que retorne true al chequear el mes siguiente (2026-07)
-		const originalPeriods = ctxRef.periods;
-		const mockPeriods = [...originalPeriods] as any;
+		const mockPeriods = [
+			{ month: '2026-05', openingBalance: 0 },
+			{ month: '2026-06', openingBalance: 0 }
+		] as any;
 		mockPeriods.some = vi.fn().mockReturnValue(true);
 
 		await act(async () => {
@@ -997,17 +1512,21 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 
 	it('debe calcular transfer owner correctamente en handleAddTransaction', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify([
-			{ id: 'acc-a', name: 'Cuenta A', owner: 'userA', initialBalance: 1000 },
-			{ id: 'acc-b', name: 'Cuenta B', owner: 'userB', initialBalance: 500 }
-		]));
-		renderCtx();
+		localStorage.setItem(
+			STORAGE_KEYS.accounts,
+			JSON.stringify([
+				{ id: 'acc-a', name: 'Cuenta A', owner: 'userA', initialBalance: 1000 },
+				{ id: 'acc-b', name: 'Cuenta B', owner: 'userB', initialBalance: 500 }
+			])
+		);
+		await renderCtxAndInit();
 
 		// Caso 1: Propietarios distintos -> joint
 		await act(async () => {
 			ctxRef.setTxForm({
 				desc: 'Traspaso Joint',
 				amount: '100',
+				currency: 'EUR',
 				type: 'transfer',
 				tag: 'Ajuste de Saldo',
 				date: '2026-05-01',
@@ -1029,16 +1548,18 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 		expect(added.owner).toBe('joint');
 
 		// Caso 2: Mismo propietario -> userA
-		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify([
-			{ id: 'acc-a1', name: 'Cuenta A1', owner: 'userA', initialBalance: 1000 },
-			{ id: 'acc-a2', name: 'Cuenta A2', owner: 'userA', initialBalance: 500 }
-		]));
-		renderCtx();
+		await act(async () => {
+			ctxRef.setAccounts([
+				{ id: 'acc-a1', name: 'Cuenta A1', owner: 'userA', initialBalance: 1000 },
+				{ id: 'acc-a2', name: 'Cuenta A2', owner: 'userA', initialBalance: 500 }
+			]);
+		});
 
 		await act(async () => {
 			ctxRef.setTxForm({
 				desc: 'Traspaso A',
 				amount: '100',
+				currency: 'EUR',
 				type: 'transfer',
 				tag: 'Ajuste de Saldo',
 				date: '2026-05-01',
@@ -1062,10 +1583,13 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 
 	it('debe deducir paidBy en handleAddTransaction para cuentas comunes e individuales', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify([
-			{ id: 'acc-a', name: 'Cuenta A', owner: 'userA', initialBalance: 1000 },
-			{ id: 'acc-j', name: 'Cuenta Común', owner: 'joint', initialBalance: 1000 }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.accounts,
+			JSON.stringify([
+				{ id: 'acc-a', name: 'Cuenta A', owner: 'userA', initialBalance: 1000 },
+				{ id: 'acc-j', name: 'Cuenta Común', owner: 'joint', initialBalance: 1000 }
+			])
+		);
 		renderCtx();
 
 		// Caso owner !== joint -> paidBy = shared
@@ -1073,13 +1597,16 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 			ctxRef.setTxForm({
 				desc: 'Gasto A',
 				amount: '10',
+				currency: 'EUR',
 				type: 'expense',
 				tag: 'Otros',
 				date: '2026-05-01',
 				recurrence: 'one-off',
 				owner: 'userA',
 				paidBy: 'userB',
-				accountId: 'acc-a'
+				accountId: 'acc-a',
+				fromAccountId: '',
+				toAccountId: ''
 			});
 		});
 
@@ -1095,13 +1622,16 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 			ctxRef.setTxForm({
 				desc: 'Gasto Común por A',
 				amount: '10',
+				currency: 'EUR',
 				type: 'expense',
 				tag: 'Otros',
 				date: '2026-05-01',
 				recurrence: 'one-off',
 				owner: 'joint',
 				paidBy: 'userB',
-				accountId: 'acc-a'
+				accountId: 'acc-a',
+				fromAccountId: '',
+				toAccountId: ''
 			});
 		});
 
@@ -1115,22 +1645,29 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 
 	it('debe propagar clones al agregar transacciones recurrentes en handleAddTransaction', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([
-			{ month: '2026-05', openingBalance: 0 },
-			{ month: '2026-06', openingBalance: 0 }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.periods,
+			JSON.stringify([
+				{ month: '2026-05', openingBalance: 0 },
+				{ month: '2026-06', openingBalance: 0 }
+			])
+		);
 		renderCtx();
 
 		await act(async () => {
 			ctxRef.setTxForm({
 				desc: 'Netflix',
 				amount: '15',
+				currency: 'EUR',
 				type: 'expense',
 				tag: 'Suscripciones',
 				date: '2026-05-15',
 				recurrence: 'recurring',
 				owner: 'joint',
-				paidBy: 'shared'
+				paidBy: 'shared',
+				accountId: '',
+				fromAccountId: '',
+				toAccountId: ''
 			});
 		});
 
@@ -1140,21 +1677,46 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 		});
 
 		expect(ctxRef.transactions.length).toBe(2); // La original + clon
-		const clon = ctxRef.transactions.find(t => t.date.startsWith('2026-06'));
+		const clon = ctxRef.transactions.find((t) => t.date.startsWith('2026-06'));
 		expect(clon).toBeDefined();
 		expect(clon?.originId).toBeDefined();
 	});
 
 	it('debe manejar scopes only-this y all al guardar edición de transacciones recurrentes', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([
-			{ month: '2026-05', openingBalance: 0 },
-			{ month: '2026-06', openingBalance: 0 }
-		]));
-		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
-			{ id: 't1-2026-06', originId: 't1', desc: 'Netflix', amount: 15, type: 'expense', tag: 'Suscripciones', date: '2026-06-15', recurrence: 'recurring', owner: 'joint' },
-			{ id: 't1', desc: 'Netflix', amount: 15, type: 'expense', tag: 'Suscripciones', date: '2026-05-15', recurrence: 'recurring', owner: 'joint' }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.periods,
+			JSON.stringify([
+				{ month: '2026-05', openingBalance: 0 },
+				{ month: '2026-06', openingBalance: 0 }
+			])
+		);
+		localStorage.setItem(
+			STORAGE_KEYS.transactions,
+			JSON.stringify([
+				{
+					id: 't1-2026-06',
+					originId: 't1',
+					desc: 'Netflix',
+					amount: 15,
+					type: 'expense',
+					tag: 'Suscripciones',
+					date: '2026-06-15',
+					recurrence: 'recurring',
+					owner: 'joint'
+				},
+				{
+					id: 't1',
+					desc: 'Netflix',
+					amount: 15,
+					type: 'expense',
+					tag: 'Suscripciones',
+					date: '2026-05-15',
+					recurrence: 'recurring',
+					owner: 'joint'
+				}
+			])
+		);
 		renderCtx();
 
 		// Caso: editScope = 'only-this'
@@ -1163,13 +1725,16 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 			ctxRef.setEditForm({
 				desc: 'Netflix Modificado',
 				amount: '20',
+				currency: 'EUR',
 				type: 'expense',
 				tag: 'Suscripciones',
 				date: '2026-05-15',
 				recurrence: 'recurring',
 				owner: 'joint',
 				paidBy: 'shared',
-				accountId: ''
+				accountId: '',
+				fromAccountId: '',
+				toAccountId: ''
 			});
 			ctxRef.setEditScope('only-this');
 		});
@@ -1179,15 +1744,37 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 			ctxRef.handleSaveEditTransaction(fakeEvent);
 		});
 
-		const t1Mod = ctxRef.transactions.find(t => t.id === 't1');
+		const t1Mod = ctxRef.transactions.find((t) => t.id === 't1');
 		expect(t1Mod?.desc).toBe('Netflix Modificado');
 		expect(t1Mod?.recurrence).toBe('one-off'); // se vuelve puntual
 
 		// Caso: editScope = 'all'
-		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
-			{ id: 't1-2026-06', originId: 't1', desc: 'Netflix', amount: 15, type: 'expense', tag: 'Suscripciones', date: '2026-06-15', recurrence: 'recurring', owner: 'joint' },
-			{ id: 't1', desc: 'Netflix', amount: 15, type: 'expense', tag: 'Suscripciones', date: '2026-05-15', recurrence: 'recurring', owner: 'joint' }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.transactions,
+			JSON.stringify([
+				{
+					id: 't1-2026-06',
+					originId: 't1',
+					desc: 'Netflix',
+					amount: 15,
+					type: 'expense',
+					tag: 'Suscripciones',
+					date: '2026-06-15',
+					recurrence: 'recurring',
+					owner: 'joint'
+				},
+				{
+					id: 't1',
+					desc: 'Netflix',
+					amount: 15,
+					type: 'expense',
+					tag: 'Suscripciones',
+					date: '2026-05-15',
+					recurrence: 'recurring',
+					owner: 'joint'
+				}
+			])
+		);
 		renderCtx();
 
 		await act(async () => {
@@ -1195,13 +1782,16 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 			ctxRef.setEditForm({
 				desc: 'Netflix Todo',
 				amount: '25',
+				currency: 'EUR',
 				type: 'expense',
 				tag: 'Suscripciones',
 				date: '2026-05-15',
 				recurrence: 'recurring',
 				owner: 'joint',
 				paidBy: 'shared',
-				accountId: ''
+				accountId: '',
+				fromAccountId: '',
+				toAccountId: ''
 			});
 			ctxRef.setEditScope('all');
 		});
@@ -1211,9 +1801,9 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 			ctxRef.handleSaveEditTransaction(fakeEvent);
 		});
 
-		ctxRef.transactions.forEach(t => {
+		ctxRef.transactions.forEach((t) => {
 			expect(t.desc).toBe('Netflix Todo');
-			expect(t.amount).toBe(25);
+			expect(Number(t.money.amount)).toBe(25);
 		});
 	});
 
@@ -1228,10 +1818,32 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 
 	it('handleDeleteTransaction debe eliminar todas las ocurrencias futuras si es recurrente y se confirma', () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
-			{ id: 't1-2026-06', originId: 't1', desc: 'Netflix', amount: 15, type: 'expense', tag: 'Suscripciones', date: '2026-06-15', recurrence: 'recurring', owner: 'joint' },
-			{ id: 't1', desc: 'Netflix', amount: 15, type: 'expense', tag: 'Suscripciones', date: '2026-05-15', recurrence: 'recurring', owner: 'joint' }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.transactions,
+			JSON.stringify([
+				{
+					id: 't1-2026-06',
+					originId: 't1',
+					desc: 'Netflix',
+					amount: 15,
+					type: 'expense',
+					tag: 'Suscripciones',
+					date: '2026-06-15',
+					recurrence: 'recurring',
+					owner: 'joint'
+				},
+				{
+					id: 't1',
+					desc: 'Netflix',
+					amount: 15,
+					type: 'expense',
+					tag: 'Suscripciones',
+					date: '2026-05-15',
+					recurrence: 'recurring',
+					owner: 'joint'
+				}
+			])
+		);
 		renderCtx();
 
 		vi.spyOn(window, 'confirm').mockReturnValue(true);
@@ -1245,9 +1857,22 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 
 	it('handleDeleteDebt debe limpiar deudas para consolidación y deuda seleccionada', () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.debts, JSON.stringify([
-			{ id: 'd1', kind: 'classic', desc: 'Test Debt', tag: 'T', date: '2026-05', principal: 100, tae: 0, termMonths: 12, owner: 'joint' }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.debts,
+			JSON.stringify([
+				{
+					id: 'd1',
+					kind: 'classic',
+					desc: 'Test Debt',
+					tag: 'T',
+					date: '2026-05',
+					principal: 100,
+					tae: 0,
+					termMonths: 12,
+					owner: 'joint'
+				}
+			])
+		);
 		renderCtx();
 
 		act(() => {
@@ -1278,17 +1903,56 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 
 	it('handleDeleteAccount debe desasociar cuenta de transacciones y deudas al eliminarse', () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify([
-			{ id: 'acc-a', name: 'Cuenta A', owner: 'userA', initialBalance: 100 },
-			{ id: 'acc-b', name: 'Cuenta B', owner: 'userB', initialBalance: 200 }
-		]));
-		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
-			{ id: 't1', desc: 'Movimiento', amount: 10, type: 'expense', tag: 'Otros', date: '2026-05-01', owner: 'userA', accountId: 'acc-a' },
-			{ id: 't2', desc: 'Traspaso', amount: 10, type: 'transfer', tag: 'Traspaso', date: '2026-05-01', owner: 'joint', fromAccountId: 'acc-a', toAccountId: 'acc-b' }
-		]));
-		localStorage.setItem(STORAGE_KEYS.debts, JSON.stringify([
-			{ id: 'd1', kind: 'classic', desc: 'Deuda', tag: 'T', date: '2026-05', principal: 100, tae: 0, termMonths: 12, owner: 'joint', paymentAccountId: 'acc-a' }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.accounts,
+			JSON.stringify([
+				{ id: 'acc-a', name: 'Cuenta A', owner: 'userA', initialBalance: 100 },
+				{ id: 'acc-b', name: 'Cuenta B', owner: 'userB', initialBalance: 200 }
+			])
+		);
+		localStorage.setItem(
+			STORAGE_KEYS.transactions,
+			JSON.stringify([
+				{
+					id: 't1',
+					desc: 'Movimiento',
+					amount: 10,
+					type: 'expense',
+					tag: 'Otros',
+					date: '2026-05-01',
+					owner: 'userA',
+					accountId: 'acc-a'
+				},
+				{
+					id: 't2',
+					desc: 'Traspaso',
+					amount: 10,
+					type: 'transfer',
+					tag: 'Traspaso',
+					date: '2026-05-01',
+					owner: 'joint',
+					fromAccountId: 'acc-a',
+					toAccountId: 'acc-b'
+				}
+			])
+		);
+		localStorage.setItem(
+			STORAGE_KEYS.debts,
+			JSON.stringify([
+				{
+					id: 'd1',
+					kind: 'classic',
+					desc: 'Deuda',
+					tag: 'T',
+					date: '2026-05',
+					principal: 100,
+					tae: 0,
+					termMonths: 12,
+					owner: 'joint',
+					paymentAccountId: 'acc-a'
+				}
+			])
+		);
 		renderCtx();
 
 		vi.spyOn(window, 'confirm').mockReturnValue(true);
@@ -1305,9 +1969,22 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 
 	it('togglePaymentPlanInstallmentStatus debe retornar early si la deuda no es paymentPlan', () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.debts, JSON.stringify([
-			{ id: 'd-classic', kind: 'classic', desc: 'Deuda Clásica', tag: 'T', date: '2026-05', principal: 100, tae: 0, termMonths: 12, owner: 'joint' }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.debts,
+			JSON.stringify([
+				{
+					id: 'd-classic',
+					kind: 'classic',
+					desc: 'Deuda Clásica',
+					tag: 'T',
+					date: '2026-05',
+					principal: 100,
+					tae: 0,
+					termMonths: 12,
+					owner: 'joint'
+				}
+			])
+		);
 		renderCtx();
 
 		const debtsBefore = JSON.stringify(ctxRef.debts);
@@ -1379,7 +2056,7 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 
 	it('handleImportData debe seleccionar el último mes del backup si tiene periodos', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		renderCtx();
+		await renderCtxAndInit();
 
 		const backupData = {
 			[STORAGE_KEYS.periods]: JSON.stringify([
@@ -1401,22 +2078,26 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 
 	it('debe deducir paidBy en handleAddTransaction para cuenta del usuario B', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify([
-			{ id: 'acc-b', name: 'Cuenta B', owner: 'userB', initialBalance: 1000 }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.accounts,
+			JSON.stringify([{ id: 'acc-b', name: 'Cuenta B', owner: 'userB', initialBalance: 1000 }])
+		);
 		renderCtx();
 
 		await act(async () => {
 			ctxRef.setTxForm({
 				desc: 'Gasto Joint por B',
 				amount: '10',
+				currency: 'EUR',
 				type: 'expense',
 				tag: 'Otros',
 				date: '2026-05-01',
 				recurrence: 'one-off',
 				owner: 'joint',
 				paidBy: 'userA',
-				accountId: 'acc-b'
+				accountId: 'acc-b',
+				fromAccountId: '',
+				toAccountId: ''
 			});
 		});
 
@@ -1440,14 +2121,29 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 
 	it('debe calcular transfer owner y paidBy correctamente al editar transacciones', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify([
-			{ id: 'acc-a', name: 'Cuenta A', owner: 'userA', initialBalance: 1000 },
-			{ id: 'acc-b', name: 'Cuenta B', owner: 'userB', initialBalance: 500 },
-			{ id: 'acc-a2', name: 'Cuenta A2', owner: 'userA', initialBalance: 200 }
-		]));
-		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
-			{ id: 't1', desc: 'Traspaso Original', amount: 50, type: 'transfer', tag: 'Otros', date: '2026-05-01', fromAccountId: 'acc-a', toAccountId: 'acc-b' }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.accounts,
+			JSON.stringify([
+				{ id: 'acc-a', name: 'Cuenta A', owner: 'userA', initialBalance: 1000 },
+				{ id: 'acc-b', name: 'Cuenta B', owner: 'userB', initialBalance: 500 },
+				{ id: 'acc-a2', name: 'Cuenta A2', owner: 'userA', initialBalance: 200 }
+			])
+		);
+		localStorage.setItem(
+			STORAGE_KEYS.transactions,
+			JSON.stringify([
+				{
+					id: 't1',
+					desc: 'Traspaso Original',
+					amount: 50,
+					type: 'transfer',
+					tag: 'Otros',
+					date: '2026-05-01',
+					fromAccountId: 'acc-a',
+					toAccountId: 'acc-b'
+				}
+			])
+		);
 		renderCtx();
 
 		// Caso: Dueños distintos
@@ -1456,6 +2152,7 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 			ctxRef.setEditForm({
 				desc: 'Traspaso Editado',
 				amount: '60',
+				currency: 'EUR',
 				type: 'transfer',
 				tag: 'Otros',
 				date: '2026-05-01',
@@ -1484,6 +2181,7 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 			ctxRef.setEditForm({
 				desc: 'Traspaso Mismo Dueño',
 				amount: '60',
+				currency: 'EUR',
 				type: 'transfer',
 				tag: 'Otros',
 				date: '2026-05-01',
@@ -1511,6 +2209,7 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 			ctxRef.setEditForm({
 				desc: 'Gasto Editado A',
 				amount: '40',
+				currency: 'EUR',
 				type: 'expense',
 				tag: 'Otros',
 				date: '2026-05-01',
@@ -1538,6 +2237,7 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 			ctxRef.setEditForm({
 				desc: 'Gasto Editado B',
 				amount: '40',
+				currency: 'EUR',
 				type: 'expense',
 				tag: 'Otros',
 				date: '2026-05-01',
@@ -1565,6 +2265,7 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 			ctxRef.setEditForm({
 				desc: 'Gasto Editado Individual',
 				amount: '40',
+				currency: 'EUR',
 				type: 'expense',
 				tag: 'Otros',
 				date: '2026-05-01',
@@ -1589,17 +2290,58 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 
 	it('handleDeleteAccount debe desasociar toAccountId de transacciones y mantener deudas no asociadas', () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify([
-			{ id: 'acc-a', name: 'Cuenta A', owner: 'userA', initialBalance: 100 },
-			{ id: 'acc-b', name: 'Cuenta B', owner: 'userB', initialBalance: 200 }
-		]));
-		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
-			{ id: 't2', desc: 'Traspaso', amount: 10, type: 'transfer', tag: 'Traspaso', date: '2026-05-01', owner: 'joint', fromAccountId: 'acc-a', toAccountId: 'acc-b' }
-		]));
-		localStorage.setItem(STORAGE_KEYS.debts, JSON.stringify([
-			{ id: 'd1', kind: 'classic', desc: 'Deuda A', tag: 'T', date: '2026-05', principal: 50, tae: 0, termMonths: 12, owner: 'joint', paymentAccountId: 'acc-a' },
-			{ id: 'd2', kind: 'classic', desc: 'Deuda B', tag: 'T', date: '2026-05', principal: 100, tae: 0, termMonths: 12, owner: 'joint', paymentAccountId: 'acc-b' }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.accounts,
+			JSON.stringify([
+				{ id: 'acc-a', name: 'Cuenta A', owner: 'userA', initialBalance: 100 },
+				{ id: 'acc-b', name: 'Cuenta B', owner: 'userB', initialBalance: 200 }
+			])
+		);
+		localStorage.setItem(
+			STORAGE_KEYS.transactions,
+			JSON.stringify([
+				{
+					id: 't2',
+					desc: 'Traspaso',
+					amount: 10,
+					type: 'transfer',
+					tag: 'Traspaso',
+					date: '2026-05-01',
+					owner: 'joint',
+					fromAccountId: 'acc-a',
+					toAccountId: 'acc-b'
+				}
+			])
+		);
+		localStorage.setItem(
+			STORAGE_KEYS.debts,
+			JSON.stringify([
+				{
+					id: 'd1',
+					kind: 'classic',
+					desc: 'Deuda A',
+					tag: 'T',
+					date: '2026-05',
+					principal: 50,
+					tae: 0,
+					termMonths: 12,
+					owner: 'joint',
+					paymentAccountId: 'acc-a'
+				},
+				{
+					id: 'd2',
+					kind: 'classic',
+					desc: 'Deuda B',
+					tag: 'T',
+					date: '2026-05',
+					principal: 100,
+					tae: 0,
+					termMonths: 12,
+					owner: 'joint',
+					paymentAccountId: 'acc-b'
+				}
+			])
+		);
 		renderCtx();
 
 		vi.spyOn(window, 'confirm').mockReturnValue(true);
@@ -1627,9 +2369,7 @@ Aquí hay una tabla:
 		`;
 
 		await act(async () => {
-			ctxRef.setChatMessages([
-				{ role: 'model', content: markdownWithTable, timestamp: '12:00' }
-			]);
+			ctxRef.setChatMessages([{ role: 'model', content: markdownWithTable, timestamp: '12:00' }]);
 		});
 
 		// Mock de navigator.clipboard.writeText que falla
@@ -1648,7 +2388,7 @@ Aquí hay una tabla:
 
 		expect(writeTextSpy).toHaveBeenCalled();
 		// Esperar que la microtarea de la promesa rechazada se resuelva para el console.error
-		await new Promise(resolve => setTimeout(resolve, 0));
+		await new Promise((resolve) => setTimeout(resolve, 0));
 		expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to copy text'), expect.any(Error));
 
 		consoleErrorSpy.mockRestore();
@@ -1656,22 +2396,83 @@ Aquí hay una tabla:
 
 	it('handleDownloadChatPDF debe renderizar deudas y markdown complejos completamente', async () => {
 		vi.useFakeTimers();
-		
+
 		const month = '2026-05';
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
 		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month, openingBalance: 1000 }]));
-		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify([
-			{ id: 'acc-j', name: 'Cuenta Común', owner: 'joint', initialBalance: 1000 }
-		]));
-		localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify([
-			{ id: 't1', desc: 'Comida', amount: 50, type: 'expense', tag: 'Alimentación', date: `${month}-01`, recurrence: 'recurring', owner: 'joint', accountId: 'acc-j' },
-			{ id: 't2', desc: 'Taxi', amount: 15, type: 'expense', tag: 'Transporte', date: `${month}-02`, recurrence: 'one-off', owner: 'joint', accountId: 'acc-j' }
-		]));
-		localStorage.setItem(STORAGE_KEYS.debts, JSON.stringify([
-			{ id: 'd1', kind: 'classic', desc: 'Hipoteca', tag: 'Hipoteca', date: month, principal: 100000, tae: 3.5, tin: 3.2, termMonths: 120, owner: 'joint', paymentAccountId: 'acc-j' },
-			{ id: 'd2', kind: 'classic', desc: 'Préstamo', tag: 'Otros', date: month, principal: 5000, tae: 0, termMonths: 10, owner: 'joint', paymentAccountId: 'acc-j' },
-			{ id: 'd3', kind: 'paymentPlan', desc: 'Móvil', tag: 'Otros', date: month, financedAmount: 600, fees: 0, totalToPay: 600, owner: 'joint', installments: [{ id: 'i1', dueMonth: month, amount: 50, status: 'pending', label: 'Tramo 1' }] }
-		]));
+		localStorage.setItem(
+			STORAGE_KEYS.accounts,
+			JSON.stringify([{ id: 'acc-j', name: 'Cuenta Común', owner: 'joint', initialBalance: 1000 }])
+		);
+		localStorage.setItem(
+			STORAGE_KEYS.transactions,
+			JSON.stringify([
+				{
+					id: 't1',
+					desc: 'Comida',
+					amount: 50,
+					type: 'expense',
+					tag: 'Alimentación',
+					date: `${month}-01`,
+					recurrence: 'recurring',
+					owner: 'joint',
+					accountId: 'acc-j'
+				},
+				{
+					id: 't2',
+					desc: 'Taxi',
+					amount: 15,
+					type: 'expense',
+					tag: 'Transporte',
+					date: `${month}-02`,
+					recurrence: 'one-off',
+					owner: 'joint',
+					accountId: 'acc-j'
+				}
+			])
+		);
+		localStorage.setItem(
+			STORAGE_KEYS.debts,
+			JSON.stringify([
+				{
+					id: 'd1',
+					kind: 'classic',
+					desc: 'Hipoteca',
+					tag: 'Hipoteca',
+					date: month,
+					principal: 100000,
+					tae: 3.5,
+					tin: 3.2,
+					termMonths: 120,
+					owner: 'joint',
+					paymentAccountId: 'acc-j'
+				},
+				{
+					id: 'd2',
+					kind: 'classic',
+					desc: 'Préstamo',
+					tag: 'Otros',
+					date: month,
+					principal: 5000,
+					tae: 0,
+					termMonths: 10,
+					owner: 'joint',
+					paymentAccountId: 'acc-j'
+				},
+				{
+					id: 'd3',
+					kind: 'paymentPlan',
+					desc: 'Móvil',
+					tag: 'Otros',
+					date: month,
+					financedAmount: 600,
+					fees: 0,
+					totalToPay: 600,
+					owner: 'joint',
+					installments: [{ id: 'i1', dueMonth: month, amount: 50, status: 'pending', label: 'Tramo 1' }]
+				}
+			])
+		);
 
 		renderCtx();
 
@@ -1809,7 +2610,7 @@ code block sin lenguaje
 
 		it('debe formatear los importes con formatAmount según el estado hideSensitiveData', () => {
 			renderCtx();
-			
+
 			// Con hideSensitiveData = false
 			expect(ctxRef.formatAmount(300)).toBe('300,00€');
 			expect(ctxRef.formatAmount(-150.5)).toBe('-150,50€');
@@ -1833,5 +2634,3 @@ code block sin lenguaje
 		});
 	});
 });
-
-

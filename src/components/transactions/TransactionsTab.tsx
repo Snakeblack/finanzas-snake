@@ -11,6 +11,7 @@ import {
 	SelectTrigger,
 	SelectValue
 } from '../ui/select';
+import { toNumber } from '../../utils/formatters';
 
 
 /**
@@ -439,11 +440,11 @@ export function TransactionsTab() {
 										<div className="text-right">
 											{t.type === 'transfer' ? (
 												<span className="text-sky-400 font-bold text-sm">
-													{formatAmount(t.amount)}
+													{formatAmount(toNumber(t.money?.amount))}
 												</span>
 											) : (
 												<span className={`font-bold text-sm ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
-													{formatAmount(t.amount, { showSign: true })}
+													{formatAmount(toNumber(t.money?.amount), { showSign: true })}
 												</span>
 											)}
 										</div>
@@ -607,18 +608,19 @@ export function TransactionsTab() {
 														if (fromAcc && toAcc) {
 															const toW = getWeight(toAcc.owner);
 															const fromW = getWeight(fromAcc.owner);
-															const netChange = (toW - fromW) * t.amount;
+															const txAmount = toNumber(t.money?.amount);
+															const netChange = (toW - fromW) * txAmount;
 															if (netChange > 0.001) {
-																return <span className="text-emerald-400 font-bold">{formatAmount(t.amount, { showSign: true })}</span>;
+																return <span className="text-emerald-400 font-bold">{formatAmount(txAmount, { showSign: true })}</span>;
 															} else if (netChange < -0.001) {
-																return <span className="text-rose-400 font-bold">{formatAmount(-t.amount)}</span>;
+																return <span className="text-rose-400 font-bold">{formatAmount(-txAmount)}</span>;
 															}
 														}
-														return <span className="text-sky-400 font-bold">{formatAmount(t.amount)}</span>;
+														return <span className="text-sky-400 font-bold">{formatAmount(toNumber(t.money?.amount))}</span>;
 													}
 													return (
 														<span className={`font-bold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
-															{formatAmount(t.amount, { showSign: t.type === 'income' })}
+															{formatAmount(toNumber(t.money?.amount), { showSign: t.type === 'income' })}
 														</span>
 													);
 												})()}

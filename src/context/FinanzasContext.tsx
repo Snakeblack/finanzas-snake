@@ -1,31 +1,28 @@
 import { createContext, useState, useEffect, type ReactNode, type SyntheticEvent } from 'react';
-import type { 
-	Account, 
-	Transaction, 
-	Period, 
-	Debt, 
-	TxForm, 
-	DebtForm, 
-	ConsolidationForm, 
-	ChatMessage, 
-	ActiveTab, 
-	TransactionType,
-	PaymentPlanInstallment,
+import type {
+	Account,
+	Transaction,
+	Period,
+	Debt,
+	TxForm,
+	DebtForm,
+	ConsolidationForm,
+	ChatMessage,
+	ActiveTab,
 	InstallmentStatus,
 	ClassicDebt,
-	PaymentPlanDebt,
 	TagBreakdown,
 	TransactionRecurrence
 } from '../types';
-import { DEFAULT_TAGS, STORAGE_KEYS, LEGACY_DATA_KEYS } from '../constants';
-import { 
-	getInitialData, 
-	readStoredDebts, 
-	saveStoredTransactions, 
-	saveStoredDebts, 
-	saveStoredPeriods, 
-	saveStoredAccounts, 
-	saveGeminiApiKey, 
+import { DEFAULT_TAGS, STORAGE_KEYS } from '../constants';
+import {
+	getInitialData,
+	readStoredDebts,
+	saveStoredTransactions,
+	saveStoredDebts,
+	saveStoredPeriods,
+	saveStoredAccounts,
+	saveGeminiApiKey,
 	saveAiChat,
 	readGeminiApiKey,
 	readAiChat,
@@ -35,28 +32,20 @@ import {
 	readStoredPeriods,
 	readStoredDebtsSync,
 	readGeminiApiKeySync,
-	readAiChatSync
+	readAiChatSync,
+	readUserNames,
+	saveUserNames,
+	buildFinanceBackupPayload,
+	importFinanceBackupPayload,
+	executeSilentMigrationIfRequired
 } from '../services/storageService';
+import { deriveKeyFromPassword, encryptWithKey, decryptWithKey, generateSalt } from '../services/cryptoService';
+import { addMonthsToMonth, getValidDateForMonth, normalizeMonth } from '../utils/dateUtils';
+import { toNumber, decodeHtmlEntities } from '../utils/formatters';
 import {
-	deriveKeyFromPassword,
-	encryptWithKey,
-	decryptWithKey,
-	generateSalt
-} from '../services/cryptoService';
-import { validateAndSanitizeBackup } from '../utils/backupValidator';
-import { 
-	addMonthsToMonth, 
-	getValidDateForMonth, 
-	normalizeMonth 
-} from '../utils/dateUtils';
-import { 
-	toNumber,
-	decodeHtmlEntities
-} from '../utils/formatters';
-import { 
-	calculateDebtMonthlyPayment, 
-	calculateMonthlyPayment, 
-	getPaymentPlanRemainingAmount, 
+	calculateDebtMonthlyPayment,
+	calculateMonthlyPayment,
+	getPaymentPlanRemainingAmount,
 	getPaymentPlanOverdueAmount,
 	generatePaymentPlanInstallments,
 	calculateTimelineBalances,
@@ -66,10 +55,7 @@ import {
 	getEffectiveAmount,
 	getDebtRateLabel
 } from '../services/financeService';
-import { 
-	buildFinanceDataPrompt, 
-	askGemini 
-} from '../services/geminiService';
+import { buildFinanceDataPrompt, askGemini } from '../services/geminiService';
 
 /**
  * Interfaz que define el valor del contexto de finanzas globales.
@@ -80,13 +66,13 @@ export interface FinanzasContextType {
 	setUserAName: (name: string) => void;
 	userBName: string;
 	setUserBName: (name: string) => void;
-	
+
 	// Modos de vista y pestañas
 	viewMode: 'all' | 'userA' | 'userB';
 	setViewMode: (mode: 'all' | 'userA' | 'userB') => void;
 	activeTab: ActiveTab;
 	setActiveTab: (tab: ActiveTab) => void;
-	
+
 	// Datos principales
 	accounts: Account[];
 	setAccounts: React.Dispatch<React.SetStateAction<Account[]>>;
@@ -98,7 +84,7 @@ export interface FinanzasContextType {
 	setDebts: React.Dispatch<React.SetStateAction<Debt[]>>;
 	selectedMonth: string;
 	setSelectedMonth: (month: string) => void;
-	
+
 	// Formulario e interfaz de transacciones
 	txForm: TxForm;
 	setTxForm: React.Dispatch<React.SetStateAction<TxForm>>;
@@ -108,7 +94,7 @@ export interface FinanzasContextType {
 	setEditForm: React.Dispatch<React.SetStateAction<TxForm>>;
 	editScope: 'only-this' | 'future' | 'all';
 	setEditScope: (scope: 'only-this' | 'future' | 'all') => void;
-	
+
 	// Formulario e interfaz de deudas
 	debtForm: DebtForm;
 	setDebtForm: React.Dispatch<React.SetStateAction<DebtForm>>;
@@ -116,13 +102,15 @@ export interface FinanzasContextType {
 	setDebtFormError: (error: string) => void;
 	selectedDebtSchedule: Debt | null;
 	setSelectedDebtSchedule: (debt: Debt | null) => void;
-	
+
 	// Cuentas y formularios
 	editingAccount: Account | null;
 	setEditingAccount: (acc: Account | null) => void;
 	accountForm: { name: string; owner: 'userA' | 'userB' | 'joint'; initialBalance: string };
-	setAccountForm: React.Dispatch<React.SetStateAction<{ name: string; owner: 'userA' | 'userB' | 'joint'; initialBalance: string }>>;
-	
+	setAccountForm: React.Dispatch<
+		React.SetStateAction<{ name: string; owner: 'userA' | 'userB' | 'joint'; initialBalance: string }>
+	>;
+
 	// Inicialización
 	initFlow: 'past' | 'current';
 	setInitFlow: (flow: 'past' | 'current') => void;
@@ -138,19 +126,21 @@ export interface FinanzasContextType {
 	setIsReconfiguring: (val: boolean) => void;
 	reconfigAccounts: Account[];
 	setReconfigAccounts: React.Dispatch<React.SetStateAction<Account[]>>;
-	
+
 	// PDF y exportaciones
 	isExportPdfModalOpen: boolean;
 	setIsExportPdfModalOpen: (val: boolean) => void;
 	pdfExportOptions: { showContext: boolean; showDebts: boolean; showTransactions: boolean; showChat: boolean };
-	setPdfExportOptions: React.Dispatch<React.SetStateAction<{ showContext: boolean; showDebts: boolean; showTransactions: boolean; showChat: boolean }>>;
-	
+	setPdfExportOptions: React.Dispatch<
+		React.SetStateAction<{ showContext: boolean; showDebts: boolean; showTransactions: boolean; showChat: boolean }>
+	>;
+
 	// Reunificación
 	selectedDebtsForConsolidation: string[];
 	setSelectedDebtsForConsolidation: (ids: string[]) => void;
 	consolidationForm: ConsolidationForm;
 	setConsolidationForm: React.Dispatch<React.SetStateAction<ConsolidationForm>>;
-	
+
 	// Gemini AI
 	geminiApiKey: string;
 	setGeminiApiKey: (key: string) => void;
@@ -162,7 +152,7 @@ export interface FinanzasContextType {
 	aiError: string;
 	setAiError: (err: string) => void;
 	copiedChat: boolean;
-	
+
 	// Import / Export
 	importError: string;
 	setImportError: (err: string) => void;
@@ -171,6 +161,7 @@ export interface FinanzasContextType {
 
 	// Seguridad y Bloqueo (OWASP)
 	isLocked: boolean;
+	isInitialized: boolean;
 	hasPasswordSet: boolean;
 	passwordError: string;
 	setPasswordError: (err: string) => void;
@@ -207,7 +198,7 @@ export interface FinanzasContextType {
 	tagData: TagBreakdown[];
 	maxTagAmount: number;
 	timelineBalances: Record<string, any>;
-	
+
 	// Consolidación calculada
 	consolidatedDebtsObjects: Debt[];
 	consolidatedPrincipal: number;
@@ -241,7 +232,12 @@ export interface FinanzasContextType {
 	handleAskGemini: (questionText: string) => Promise<void>;
 	handleClearChat: () => void;
 	handleCopyChatPlaintext: () => void;
-	handleDownloadChatPDF: (options: { showContext: boolean; showDebts: boolean; showTransactions: boolean; showChat: boolean }) => void;
+	handleDownloadChatPDF: (options: {
+		showContext: boolean;
+		showDebts: boolean;
+		showTransactions: boolean;
+		showChat: boolean;
+	}) => void;
 	handleExportData: () => void;
 	handleImportData: (e: SyntheticEvent<HTMLFormElement>, jsonString: string) => void;
 }
@@ -252,8 +248,8 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	const currentMonthString = new Date().toISOString().substring(0, 7);
 
 	// === ESTADOS GLOBALES ===
-	const [userAName, setUserAName] = useState(() => localStorage.getItem(STORAGE_KEYS.userAName) || 'Usuario A');
-	const [userBName, setUserBName] = useState(() => localStorage.getItem(STORAGE_KEYS.userBName) || 'Usuario B');
+	const [userAName, setUserAName] = useState('Usuario A');
+	const [userBName, setUserBName] = useState('Usuario B');
 	const [viewMode, setViewMode] = useState<'all' | 'userA' | 'userB'>('all');
 
 	// Estado para ocultar datos sensibles
@@ -301,13 +297,16 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 
 	const formatAmount = (amount: number, options?: { showSign?: boolean; decimals?: number; forceShow?: boolean }) => {
 		if (hideSensitiveData && !options?.forceShow) {
-			const sign = amount < 0 ? '-' : (options?.showSign && amount > 0 ? '+' : '');
+			const sign = amount < 0 ? '-' : options?.showSign && amount > 0 ? '+' : '';
 			return `${sign}***€`;
 		}
 		const decimals = options?.decimals !== undefined ? options.decimals : 2;
 		const absoluteAmount = Math.abs(amount);
-		const formatted = absoluteAmount.toLocaleString('es-ES', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-		const sign = amount < 0 ? '-' : (options?.showSign && amount > 0 ? '+' : '');
+		const formatted = absoluteAmount.toLocaleString('es-ES', {
+			minimumFractionDigits: decimals,
+			maximumFractionDigits: decimals
+		});
+		const sign = amount < 0 ? '-' : options?.showSign && amount > 0 ? '+' : '';
 		return `${sign}${formatted}€`;
 	};
 
@@ -326,6 +325,9 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	});
 	const [passwordError, setPasswordError] = useState('');
 
+	// Estado local para evitar sobreescrituras accidentales durante el arranque
+	const [isInitialized, setIsInitialized] = useState(false);
+
 	const [accounts, setAccounts] = useState<Account[]>(() => getInitialData().accounts);
 
 	// Estados de Edición de Transacción
@@ -333,6 +335,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	const [editForm, setEditForm] = useState<TxForm>({
 		desc: '',
 		amount: '',
+		currency: 'EUR',
 		type: 'expense',
 		tag: DEFAULT_TAGS.expense[0],
 		date: `${currentMonthString}-01`,
@@ -367,6 +370,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	const [txForm, setTxForm] = useState<TxForm>({
 		desc: '',
 		amount: '',
+		currency: 'EUR',
 		type: 'expense',
 		tag: DEFAULT_TAGS.expense[0],
 		date: `${selectedMonth}-01`,
@@ -377,7 +381,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		fromAccountId: '',
 		toAccountId: ''
 	});
-	
+
 	const [debtForm, setDebtForm] = useState<DebtForm>({
 		kind: 'classic',
 		desc: '',
@@ -433,46 +437,132 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => readAiChatSync());
 	const [aiLoading, setAiLoading] = useState(false);
 	const [aiError, setAiError] = useState('');
-	const [copiedChat, setCopiedChat] = useState(false);
+	const [copiedChat] = useState(false);
 	const [importError, setImportError] = useState('');
 	const [importSuccess, setImportSuccess] = useState('');
 
-	// Sincronización con LocalStorage vía StorageService
 	useEffect(() => {
-		LEGACY_DATA_KEYS.forEach((key) => localStorage.removeItem(key));
-	}, []);
+		let cancelled = false;
+
+		const initAsync = async () => {
+			if (!isLocked && !hasPasswordSet) {
+				await executeSilentMigrationIfRequired();
+				if (cancelled) return;
+
+				const loadedUserNames = await readUserNames();
+				const loadedTx = await readStoredTransactions();
+				const loadedDebts = await readStoredDebts();
+				const loadedPeriods = await readStoredPeriods(loadedTx, loadedDebts);
+				let nextAccounts = await readStoredAccounts();
+
+				if (nextAccounts.length === 0) {
+					const sortedPeriods = [...loadedPeriods].sort((a, b) => a.month.localeCompare(b.month));
+					const firstPeriod = sortedPeriods.length > 0 ? sortedPeriods[0] : null;
+					const initialBalA = firstPeriod
+						? firstPeriod.openingBalanceA !== undefined
+							? firstPeriod.openingBalanceA
+							: firstPeriod.openingBalance / 2
+						: 0;
+					const initialBalB = firstPeriod
+						? firstPeriod.openingBalanceB !== undefined
+							? firstPeriod.openingBalanceB
+							: firstPeriod.openingBalance / 2
+						: 0;
+					nextAccounts = [
+						{
+							id: 'default-a',
+							name: `Efectivo ${loadedUserNames.userAName}`,
+							owner: 'userA',
+							initialBalance: initialBalA
+						},
+						{
+							id: 'default-b',
+							name: `Efectivo ${loadedUserNames.userBName}`,
+							owner: 'userB',
+							initialBalance: initialBalB
+						},
+						{ id: 'default-joint', name: 'Cuenta Común', owner: 'joint', initialBalance: 0 }
+					];
+					if (!cancelled) {
+						await saveStoredAccounts(nextAccounts);
+					}
+				}
+
+				const loadedKey = await readGeminiApiKey();
+				const loadedChat = await readAiChat();
+				if (cancelled) return;
+
+				setTransactions(loadedTx);
+				setDebts(loadedDebts);
+				setPeriods(loadedPeriods);
+				setAccounts(nextAccounts);
+				setGeminiApiKey(loadedKey);
+				setChatMessages(loadedChat);
+				setUserAName(loadedUserNames.userAName);
+				setUserBName(loadedUserNames.userBName);
+
+				if (loadedPeriods.length > 0) {
+					const sortedP = [...loadedPeriods].sort((a, b) => a.month.localeCompare(b.month));
+					const currentMonth = new Date().toISOString().substring(0, 7);
+					const exists = sortedP.some((p) => p.month === currentMonth);
+					setSelectedMonth(exists ? currentMonth : sortedP[sortedP.length - 1].month);
+				}
+
+				setIsInitialized(true);
+			} else if (isLocked) {
+				if (!localStorage.getItem('finanzas_v3_password_salt')) {
+					setIsLocked(false);
+				}
+			} else {
+				setIsInitialized(true);
+			}
+		};
+		initAsync();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [isLocked, hasPasswordSet]);
 
 	useEffect(() => {
+		if (!isInitialized || isLocked) return;
 		saveStoredTransactions(transactions);
-	}, [transactions]);
+	}, [transactions, isInitialized, isLocked]);
 
 	useEffect(() => {
+		if (!isInitialized || isLocked) return;
 		saveStoredDebts(debts);
-	}, [debts]);
+	}, [debts, isInitialized, isLocked]);
 
 	useEffect(() => {
+		if (!isInitialized || isLocked) return;
 		saveStoredPeriods(periods);
-	}, [periods]);
+	}, [periods, isInitialized, isLocked]);
 
 	useEffect(() => {
+		if (!isInitialized || isLocked) return;
 		saveGeminiApiKey(geminiApiKey);
-	}, [geminiApiKey]);
+	}, [geminiApiKey, isInitialized, isLocked]);
 
 	useEffect(() => {
+		if (!isInitialized || isLocked) return;
 		saveAiChat(chatMessages);
-	}, [chatMessages]);
+	}, [chatMessages, isInitialized, isLocked]);
 
 	useEffect(() => {
-		localStorage.setItem(STORAGE_KEYS.userAName, userAName);
-	}, [userAName]);
+		if (!isInitialized || isLocked) return;
+		saveUserNames({ userAName });
+	}, [userAName, isInitialized, isLocked]);
 
 	useEffect(() => {
-		localStorage.setItem(STORAGE_KEYS.userBName, userBName);
-	}, [userBName]);
+		if (!isInitialized || isLocked) return;
+		saveUserNames({ userBName });
+	}, [userBName, isInitialized, isLocked]);
 
 	useEffect(() => {
+		if (!isInitialized || isLocked) return;
 		saveStoredAccounts(accounts);
-	}, [accounts]);
+	}, [accounts, isInitialized, isLocked]);
 
 	useEffect(() => {
 		if (accounts.length > 0) {
@@ -480,8 +570,12 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			setTxForm((prev) => ({
 				...prev,
 				accountId: prev.accountId && accounts.some((a) => a.id === prev.accountId) ? prev.accountId : firstJoint,
-				fromAccountId: prev.fromAccountId && accounts.some((a) => a.id === prev.fromAccountId) ? prev.fromAccountId : accounts[0].id,
-				toAccountId: prev.toAccountId && accounts.some((a) => a.id === prev.toAccountId) ? prev.toAccountId : (accounts[1]?.id || accounts[0].id)
+				fromAccountId:
+					prev.fromAccountId && accounts.some((a) => a.id === prev.fromAccountId) ? prev.fromAccountId : accounts[0].id,
+				toAccountId:
+					prev.toAccountId && accounts.some((a) => a.id === prev.toAccountId)
+						? prev.toAccountId
+						: accounts[1]?.id || accounts[0].id
 			}));
 		}
 	}, [accounts]);
@@ -524,7 +618,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 
 	// === PROPAGAR CÁLCULOS AL MOTOR FINANCIERO ===
 	const timelineBalances = calculateTimelineBalances(periods, transactions, debts, accounts, viewMode);
-	
+
 	const activePeriodData = timelineBalances[selectedMonth] ?? {
 		month: selectedMonth,
 		openingBalance: 0,
@@ -577,11 +671,11 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	// Gastos conjuntos pagados por cada uno (en el mes activo)
 	const jointPaidByA = filteredTransactions
 		.filter((t) => t.type === 'expense' && t.owner === 'joint' && t.paidBy === 'userA')
-		.reduce((sum, t) => sum + toNumber(t.amount), 0);
+		.reduce((sum, t) => sum + toNumber(t.money?.amount ?? '0'), 0);
 
 	const jointPaidByB = filteredTransactions
 		.filter((t) => t.type === 'expense' && t.owner === 'joint' && t.paidBy === 'userB')
-		.reduce((sum, t) => sum + toNumber(t.amount), 0);
+		.reduce((sum, t) => sum + toNumber(t.money?.amount ?? '0'), 0);
 
 	const netOwed = (jointPaidByA - jointPaidByB) / 2;
 
@@ -622,8 +716,11 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		if (isReconfiguring) {
 			setAccounts(reconfigAccounts);
 		}
-		
-		const totalBalance = (isReconfiguring ? reconfigAccounts : accounts).reduce((sum, a) => sum + (a.initialBalance || 0), 0);
+
+		const totalBalance = (isReconfiguring ? reconfigAccounts : accounts).reduce(
+			(sum, a) => sum + (a.initialBalance || 0),
+			0
+		);
 
 		const targetMonth = initFlow === 'current' ? new Date().toISOString().substring(0, 7) : initMonth;
 		const newPeriod: Period = {
@@ -637,7 +734,11 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	};
 
 	const handleResetAccount = () => {
-		if (window.confirm('¿Estás seguro de que querés reiniciar toda la cuenta? Se borrarán todas las transacciones, deudas y períodos.')) {
+		if (
+			window.confirm(
+				'¿Estás seguro de que querés reiniciar toda la cuenta? Se borrarán todas las transacciones, deudas y períodos.'
+			)
+		) {
 			setPeriods([]);
 			setTransactions([]);
 			setDebts([]);
@@ -652,7 +753,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		const sorted = [...periods].sort((a, b) => a.month.localeCompare(b.month));
 		const latestMonth = sorted[sorted.length - 1].month;
 		const nextMonth = addMonthsToMonth(latestMonth, 1);
-		
+
 		if (periods.some((p) => p.month === nextMonth)) {
 			setSelectedMonth(nextMonth);
 			return;
@@ -722,7 +823,10 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		const newTx: Transaction = {
 			id: newTxId,
 			desc: txForm.desc,
-			amount: Math.abs(parseFloat(txForm.amount)),
+			money: {
+				amount: Math.abs(parseFloat(txForm.amount)).toFixed(2),
+				currency: txForm.currency || 'EUR'
+			},
 			type: txForm.type,
 			tag: txForm.tag,
 			date: txForm.date,
@@ -771,7 +875,8 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		setEditingTx(tx);
 		setEditForm({
 			desc: tx.desc,
-			amount: String(tx.amount),
+			amount: tx.money?.amount ?? '0',
+			currency: tx.money?.currency ?? 'EUR',
 			type: tx.type,
 			tag: tx.tag,
 			date: tx.date,
@@ -779,8 +884,8 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			owner: tx.owner || 'joint',
 			paidBy: tx.paidBy || 'shared',
 			accountId: tx.accountId || '',
-			fromAccountId: tx.fromAccountId || (accounts[0]?.id || ''),
-			toAccountId: tx.toAccountId || (accounts[1]?.id || accounts[0]?.id || '')
+			fromAccountId: tx.fromAccountId || accounts[0]?.id || '',
+			toAccountId: tx.toAccountId || accounts[1]?.id || accounts[0]?.id || ''
 		});
 		setEditScope('only-this');
 	};
@@ -843,14 +948,17 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		setTransactions((prev) => {
 			let updatedTxs = prev.map((t): Transaction => {
 				const isTarget = t.id === editingTx.id;
-				
+
 				if (editingTx.recurrence === 'recurring') {
 					if (editScope === 'only-this') {
 						if (isTarget) {
 							return {
 								...t,
 								...updatedFields,
-								amount: updatedAmount,
+								money: {
+									amount: updatedAmount.toFixed(2),
+									currency: editForm.currency || 'EUR'
+								},
 								date: editForm.date,
 								recurrence: 'one-off',
 								originId: undefined
@@ -858,14 +966,16 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 						}
 					} else if (editScope === 'future') {
 						const isFutureOccurrence =
-							t.id === editingTx.id ||
-							(t.originId === rootId && t.date.substring(0, 7) >= currentMonth);
+							t.id === editingTx.id || (t.originId === rootId && t.date.substring(0, 7) >= currentMonth);
 						if (isFutureOccurrence) {
 							const targetRecurrence: TransactionRecurrence = editForm.recurrence || 'one-off';
 							return {
 								...t,
 								...updatedFields,
-								amount: updatedAmount,
+								money: {
+									amount: updatedAmount.toFixed(2),
+									currency: editForm.currency || 'EUR'
+								},
 								date: t.id === editingTx.id ? editForm.date : t.date,
 								recurrence: targetRecurrence,
 								originId: targetRecurrence === 'recurring' ? t.originId : undefined
@@ -878,7 +988,10 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 							return {
 								...t,
 								...updatedFields,
-								amount: updatedAmount,
+								money: {
+									amount: updatedAmount.toFixed(2),
+									currency: editForm.currency || 'EUR'
+								},
 								date: t.id === editingTx.id ? editForm.date : t.date,
 								recurrence: targetRecurrence,
 								originId: targetRecurrence === 'recurring' ? t.originId : undefined
@@ -890,7 +1003,10 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 						return {
 							...t,
 							...updatedFields,
-							amount: updatedAmount,
+							money: {
+								amount: updatedAmount.toFixed(2),
+								currency: editForm.currency || 'EUR'
+							},
 							date: editForm.date,
 							recurrence: (editForm.recurrence || 'one-off') as TransactionRecurrence
 						};
@@ -914,7 +1030,10 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 						propagatedClones.push({
 							...editingTx,
 							...updatedFields,
-							amount: updatedAmount,
+							money: {
+								amount: updatedAmount.toFixed(2),
+								currency: editForm.currency || 'EUR'
+							},
 							id: cloneId,
 							date: getValidDateForMonth(m, dayPart),
 							recurrence: 'recurring',
@@ -945,8 +1064,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 				setTransactions(
 					transactions.filter(
 						(t) =>
-							t.id !== id &&
-							!(t.date.substring(0, 7) >= currentMonth && (t.id === rootId || t.originId === rootId))
+							t.id !== id && !(t.date.substring(0, 7) >= currentMonth && (t.id === rootId || t.originId === rootId))
 					)
 				);
 				return;
@@ -989,7 +1107,16 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			};
 
 			setDebts([newDebt, ...debts]);
-			setDebtForm({ ...debtForm, desc: '', principal: '', tin: '', tae: '', termMonths: '', owner: 'joint', paymentAccountId: '' });
+			setDebtForm({
+				...debtForm,
+				desc: '',
+				principal: '',
+				tin: '',
+				tae: '',
+				termMonths: '',
+				owner: 'joint',
+				paymentAccountId: ''
+			});
 			return;
 		}
 
@@ -1065,17 +1192,19 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		if (!editingAccount || !accountForm.name) return;
 
 		const updatedBalance = Math.abs(parseFloat(accountForm.initialBalance) || 0);
-		setAccounts(accounts.map((acc) => {
-			if (acc.id === editingAccount.id) {
-				return {
-					...acc,
-					name: accountForm.name,
-					owner: accountForm.owner,
-					initialBalance: updatedBalance
-				};
-			}
-			return acc;
-		}));
+		setAccounts(
+			accounts.map((acc) => {
+				if (acc.id === editingAccount.id) {
+					return {
+						...acc,
+						name: accountForm.name,
+						owner: accountForm.owner,
+						initialBalance: updatedBalance
+					};
+				}
+				return acc;
+			})
+		);
 
 		setEditingAccount(null);
 		setAccountForm({ name: '', owner: 'joint', initialBalance: '' });
@@ -1095,9 +1224,13 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			window.alert('Debe haber al menos una cuenta en el sistema.');
 			return;
 		}
-		if (window.confirm('¿Estás seguro de que quieres eliminar esta cuenta? Los movimientos y deudas vinculados a ella pasarán a estar sin cuenta asociada.')) {
+		if (
+			window.confirm(
+				'¿Estás seguro de que quieres eliminar esta cuenta? Los movimientos y deudas vinculados a ella pasarán a estar sin cuenta asociada.'
+			)
+		) {
 			setAccounts(accounts.filter((a) => a.id !== id));
-			
+
 			setTransactions((prev) =>
 				prev.map((t) => {
 					const updated = { ...t };
@@ -1258,7 +1391,11 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		output = output.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
 		output = output.replace(/^\|?\s*:?-+\s*:?\s*(?:\|\s*:?-+\s*:?\s*)*\|?$/gm, '');
 		output = output.replace(/^[ \t]*\|(.*)\|[ \t]*$/gm, (_, content) => {
-			return content.split('|').map((cell) => cell.trim()).filter(c => c !== '').join('\t');
+			return content
+				.split('|')
+				.map((cell) => cell.trim())
+				.filter((c) => c !== '')
+				.join('\t');
 		});
 		output = output.replace(/[ \t]+$/gm, '');
 		output = output.replace(/\n{3,}/g, '\n\n');
@@ -1274,11 +1411,14 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			})
 			.join('\n\n');
 
-		navigator.clipboard.writeText(text).then(() => {
-			// Copied successfully. We can manage a temporary visual feedback if needed.
-		}).catch((err) => {
-			console.error('Failed to copy text: ', err);
-		});
+		navigator.clipboard
+			.writeText(text)
+			.then(() => {
+				// Copied successfully. We can manage a temporary visual feedback if needed.
+			})
+			.catch((err) => {
+				console.error('Failed to copy text: ', err);
+			});
 	};
 
 	const convertMarkdownToHtml = (text: string): string => {
@@ -1293,7 +1433,10 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 				.replace(/'/g, '&#039;');
 
 			escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-			escaped = escaped.replace(/`(.*?)`/g, '<code style="background-color: #f1f5f9; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em; color: #4f46e5;">$1</code>');
+			escaped = escaped.replace(
+				/`(.*?)`/g,
+				'<code style="background-color: #f1f5f9; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em; color: #4f46e5;">$1</code>'
+			);
 			return escaped;
 		};
 
@@ -1306,13 +1449,14 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 					language = lines[0].replace('```', '').trim() || 'text';
 					code = lines.slice(1, -1).join('\n');
 				}
-				const escapedCode = code
-					.replace(/&/g, '&amp;')
-					.replace(/</g, '&lt;')
-					.replace(/>/g, '&gt;');
-				return `<pre style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 12px; overflow-x: auto; color: #334155; margin: 8px 0;">` +
-					(language !== 'text' ? `<span style="display: block; font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: bold; margin-bottom: 6px; font-family: sans-serif;">${language}</span>` : '') +
-					`<code>${escapedCode}</code></pre>`;
+				const escapedCode = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+				return (
+					`<pre style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 12px; overflow-x: auto; color: #334155; margin: 8px 0;">` +
+					(language !== 'text'
+						? `<span style="display: block; font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: bold; margin-bottom: 6px; font-family: sans-serif;">${language}</span>`
+						: '') +
+					`<code>${escapedCode}</code></pre>`
+				);
 			} else {
 				const lines = part.split('\n');
 				const renderedHtml: string[] = [];
@@ -1322,9 +1466,13 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 				const flushListHtml = () => {
 					if (listItems.length > 0) {
 						if (listType === 'ul') {
-							renderedHtml.push(`<ul style="list-style-type: disc; padding-left: 20px; margin: 8px 0; color: #334155;">${listItems.map(item => `<li style="margin-bottom: 4px;">${renderInlineMarkdownHtml(item)}</li>`).join('')}</ul>`);
+							renderedHtml.push(
+								`<ul style="list-style-type: disc; padding-left: 20px; margin: 8px 0; color: #334155;">${listItems.map((item) => `<li style="margin-bottom: 4px;">${renderInlineMarkdownHtml(item)}</li>`).join('')}</ul>`
+							);
 						} else if (listType === 'ol') {
-							renderedHtml.push(`<ol style="list-style-type: decimal; padding-left: 20px; margin: 8px 0; color: #334155;">${listItems.map(item => `<li style="margin-bottom: 4px;">${renderInlineMarkdownHtml(item)}</li>`).join('')}</ol>`);
+							renderedHtml.push(
+								`<ol style="list-style-type: decimal; padding-left: 20px; margin: 8px 0; color: #334155;">${listItems.map((item) => `<li style="margin-bottom: 4px;">${renderInlineMarkdownHtml(item)}</li>`).join('')}</ol>`
+							);
 						}
 						listItems = [];
 						listType = null;
@@ -1333,25 +1481,25 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 
 				const parseTableHtml = (tableLines: string[]): string => {
 					if (tableLines.length < 2) return '';
-					
+
 					const splitRow = (l: string) => {
 						const parts = l.trim().split('|');
 						if (l.trim().startsWith('|')) parts.shift();
 						if (l.trim().endsWith('|')) parts.pop();
-						return parts.map(p => p.trim());
+						return parts.map((p) => p.trim());
 					};
 
 					const headers = splitRow(tableLines[0]);
 					const sepLine = tableLines[1].trim();
 					const isSeparator = /^\|?(\s*:?-+\s*:?\s*\|)+\s*:?-+\s*:?\|?$/.test(sepLine);
-					
+
 					let rowsStartIndex = 1;
 					let alignStyles: string[] = [];
-					
+
 					if (isSeparator) {
 						rowsStartIndex = 2;
 						const sepCells = splitRow(tableLines[1]);
-						alignStyles = sepCells.map(cell => {
+						alignStyles = sepCells.map((cell) => {
 							const trimmed = cell.trim();
 							const left = trimmed.startsWith(':');
 							const right = trimmed.endsWith(':');
@@ -1362,7 +1510,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 						});
 					}
 
-					const rows = tableLines.slice(rowsStartIndex).map(rowLine => splitRow(rowLine));
+					const rows = tableLines.slice(rowsStartIndex).map((rowLine) => splitRow(rowLine));
 
 					let tableHtml = `<div style="overflow-x: auto; margin: 12px 0; border: 1px solid #e2e8f0; border-radius: 8px;"><table style="min-width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">`;
 					tableHtml += `<thead style="background-color: #f1f5f9; color: #475569; font-weight: bold; border-bottom: 1px solid #e2e8f0;"><tr>`;
@@ -1408,7 +1556,9 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 							renderedHtml.push(tableHtml);
 						} else {
 							tableLines.forEach((tLine) => {
-								renderedHtml.push(`<p style="margin: 6px 0; color: #334155; line-height: 1.5; font-size: 13px;">${renderInlineMarkdownHtml(tLine)}</p>`);
+								renderedHtml.push(
+									`<p style="margin: 6px 0; color: #334155; line-height: 1.5; font-size: 13px;">${renderInlineMarkdownHtml(tLine)}</p>`
+								);
 							});
 						}
 						continue;
@@ -1421,11 +1571,13 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 						const content = headerMatch[2];
 						const fontSize = level === 1 ? '18px' : level === 2 ? '16px' : level === 3 ? '14px' : '12px';
 						const margin = '12px 0 6px 0';
-						renderedHtml.push(`<h${level + 2} style="font-size: ${fontSize}; font-weight: bold; color: #1e293b; margin: ${margin}; font-family: sans-serif;">${renderInlineMarkdownHtml(content)}</h${level + 2}>`);
+						renderedHtml.push(
+							`<h${level + 2} style="font-size: ${fontSize}; font-weight: bold; color: #1e293b; margin: ${margin}; font-family: sans-serif;">${renderInlineMarkdownHtml(content)}</h${level + 2}>`
+						);
 						continue;
 					}
 
-					const ulMatch = line.match(/^[\*\-\+]\s+(.*)$/);
+					const ulMatch = line.match(/^[*\-+]\s+(.*)$/);
 					if (ulMatch) {
 						if (listType !== 'ul') {
 							flushListHtml();
@@ -1446,7 +1598,9 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 					}
 
 					flushListHtml();
-					renderedHtml.push(`<p style="margin: 6px 0; color: #334155; line-height: 1.5; font-size: 13px;">${renderInlineMarkdownHtml(line)}</p>`);
+					renderedHtml.push(
+						`<p style="margin: 6px 0; color: #334155; line-height: 1.5; font-size: 13px;">${renderInlineMarkdownHtml(line)}</p>`
+					);
 				}
 				flushListHtml();
 				return renderedHtml.join('');
@@ -1501,45 +1655,56 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 				.replace(/'/g, '&#039;');
 		};
 
-		const vistaActiva = viewMode === 'all' 
-			? 'Conjunta' 
-			: viewMode === 'userA' 
-				? `Individual de ${escapeHtml(userAName)}` 
-				: `Individual de ${escapeHtml(userBName)}`;
+		const vistaActiva =
+			viewMode === 'all'
+				? 'Conjunta'
+				: viewMode === 'userA'
+					? `Individual de ${escapeHtml(userAName)}`
+					: `Individual de ${escapeHtml(userBName)}`;
 
-		const liquidacionText = netOwed === 0 
-			? 'Cuentas al día' 
-			: netOwed > 0 
-				? `${escapeHtml(userBName)} debe a ${escapeHtml(userAName)} ${netOwed.toFixed(2)}€` 
-				: `${escapeHtml(userAName)} debe a ${escapeHtml(userBName)} ${Math.abs(netOwed).toFixed(2)}€`;
+		const liquidacionText =
+			netOwed === 0
+				? 'Cuentas al día'
+				: netOwed > 0
+					? `${escapeHtml(userBName)} debe a ${escapeHtml(userAName)} ${netOwed.toFixed(2)}€`
+					: `${escapeHtml(userAName)} debe a ${escapeHtml(userBName)} ${Math.abs(netOwed).toFixed(2)}€`;
 
-		const accountsListHtml = accounts.map(acc => {
-			const bal = activePeriodData.accountBalances?.[acc.id] ?? acc.initialBalance;
-			const ownerLabel = acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Conjunta';
-			return `
+		const accountsListHtml = accounts
+			.map((acc) => {
+				const bal = activePeriodData.accountBalances?.[acc.id] ?? acc.initialBalance;
+				const ownerLabel = acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Conjunta';
+				return `
 				<tr>
 					<td>${escapeHtml(acc.name)}</td>
 					<td>${escapeHtml(ownerLabel)}</td>
 					<td style="text-align: right; font-weight: bold; color: ${bal >= 0 ? '#10b981' : '#ef4444'}">${bal.toFixed(2)}€</td>
 				</tr>
 			`;
-		}).join('');
+			})
+			.join('');
 
-		const debtsListHtml = debts.length > 0 ? debts.map(d => {
-			const ownerLabel = d.owner === 'userA' ? userAName : d.owner === 'userB' ? userBName : 'Conjunta';
-			const cuota = calculateDebtMonthlyPayment(d, selectedMonth);
-			const isActive = filteredDebts.some((fd) => fd.id === d.id);
-			const isFuture = d.date > selectedMonth;
-			const statusLabel = isActive ? 'Activa este mes' : isFuture ? `Futura (empieza en ${d.date})` : 'Inactiva';
-			
-			let details = '';
-			if (isClassicDebt(d)) {
-				details = `Capital: ${d.principal}€, ${getDebtRateLabel(d)}, Plazo: ${d.termMonths} meses`;
-			} else {
-				details = `Financiado: ${d.financedAmount}€, Comisiones: ${d.fees}€, Total: ${d.totalToPay}€`;
-			}
+		const debtsListHtml =
+			debts.length > 0
+				? debts
+						.map((d) => {
+							const ownerLabel = d.owner === 'userA' ? userAName : d.owner === 'userB' ? userBName : 'Conjunta';
+							const cuota = calculateDebtMonthlyPayment(d, selectedMonth);
+							const isActive = filteredDebts.some((fd) => fd.id === d.id);
+							const isFuture = d.date > selectedMonth;
+							const statusLabel = isActive
+								? 'Activa este mes'
+								: isFuture
+									? `Futura (empieza en ${d.date})`
+									: 'Inactiva';
 
-			return `
+							let details = '';
+							if (isClassicDebt(d)) {
+								details = `Capital: ${d.principal}€, ${getDebtRateLabel(d)}, Plazo: ${d.termMonths} meses`;
+							} else {
+								details = `Financiado: ${d.financedAmount}€, Comisiones: ${d.fees}€, Total: ${d.totalToPay}€`;
+							}
+
+							return `
 				<tr>
 					<td><strong>${escapeHtml(d.desc)}</strong><br/><small style="color: #64748b;">${escapeHtml(details)}</small></td>
 					<td>${escapeHtml(ownerLabel)}</td>
@@ -1547,45 +1712,58 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 					<td style="text-align: right; font-weight: bold; color: #f59e0b;">${cuota.toFixed(2)}€</td>
 				</tr>
 			`;
-		}).join('') : '<tr><td colspan="4" style="text-align: center; color: #94a3b8;">No hay deudas registradas</td></tr>';
+						})
+						.join('')
+				: '<tr><td colspan="4" style="text-align: center; color: #94a3b8;">No hay deudas registradas</td></tr>';
 
-		const transactionsListHtml = filteredTransactions.length > 0 ? filteredTransactions.map(t => {
-			const ownerLabel = t.owner === 'userA' ? userAName : t.owner === 'userB' ? userBName : 'Conjunta';
-			return `
+		const transactionsListHtml =
+			filteredTransactions.length > 0
+				? filteredTransactions
+						.map((t) => {
+							const ownerLabel = t.owner === 'userA' ? userAName : t.owner === 'userB' ? userBName : 'Conjunta';
+							return `
 				<tr>
 					<td>${escapeHtml(t.desc)}</td>
 					<td><span style="background-color: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 10px;">${escapeHtml(t.tag)}</span></td>
 					<td>${t.recurrence === 'recurring' ? 'Recurrente' : 'Puntual'}</td>
 					<td>${escapeHtml(ownerLabel)}</td>
 					<td style="text-align: right; font-weight: bold; color: ${t.type === 'income' ? '#10b981' : '#ef4444'}">
-						${t.type === 'income' ? '+' : '-'}${t.amount.toFixed(2)}€
+						${t.type === 'income' ? '+' : '-'}${toNumber(t.money?.amount ?? '0').toFixed(2)}€
 					</td>
 				</tr>
 			`;
-		}).join('') : '<tr><td colspan="5" style="text-align: center; color: #94a3b8;">No hay movimientos este mes</td></tr>';
+						})
+						.join('')
+				: '<tr><td colspan="5" style="text-align: center; color: #94a3b8;">No hay movimientos este mes</td></tr>';
 
-		const messagesHtml = chatMessages.map(msg => {
-			const isUser = msg.role === 'user';
-			const sender = isUser ? 'Tú' : 'Asesor Gemini';
-			const bubbleClass = isUser ? 'message-user' : 'message-model';
-			const contentHtml = isUser 
-				? `<div style="white-space: pre-wrap;">${escapeHtml(msg.content)}</div>` 
-				: convertMarkdownToHtml(msg.content);
+		const messagesHtml = chatMessages
+			.map((msg) => {
+				const isUser = msg.role === 'user';
+				const sender = isUser ? 'Tú' : 'Asesor Gemini';
+				const bubbleClass = isUser ? 'message-user' : 'message-model';
+				const contentHtml = isUser
+					? `<div style="white-space: pre-wrap;">${escapeHtml(msg.content)}</div>`
+					: convertMarkdownToHtml(msg.content);
 
-			return `
+				return `
 				<div class="message-bubble ${bubbleClass}">
 					<div class="message-meta">${escapeHtml(sender)} (${escapeHtml(msg.timestamp)})</div>
 					<div>${contentHtml}</div>
 				</div>
 			`;
-		}).join('');
+			})
+			.join('');
 
-		const tagBreakdownHtml = tagData.map(t => `
+		const tagBreakdownHtml = tagData
+			.map(
+				(t) => `
 			<tr>
 				<td>${escapeHtml(t.tag)}</td>
 				<td style="text-align: right; font-weight: bold;">${t.amount.toFixed(2)}€</td>
 			</tr>
-		`).join('');
+		`
+			)
+			.join('');
 
 		const htmlSections: string[] = [];
 
@@ -1961,32 +2139,27 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 
 	const handleExportData = () => {
 		try {
-			const backupKeys = [
-				STORAGE_KEYS.transactions,
-				STORAGE_KEYS.debts,
-				STORAGE_KEYS.periods,
-				STORAGE_KEYS.accounts,
-				STORAGE_KEYS.userAName,
-				STORAGE_KEYS.userBName,
-				STORAGE_KEYS.aiChat,
-				STORAGE_KEYS.geminiKey
-			] as const;
-
-			const backupData: Record<string, string | null> = {};
-			backupKeys.forEach(key => {
-				backupData[key] = localStorage.getItem(key);
+			const backupData = buildFinanceBackupPayload({
+				accounts,
+				transactions,
+				debts,
+				periods,
+				userAName,
+				userBName,
+				geminiApiKey,
+				chatMessages
 			});
 
 			const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(backupData, null, 2))}`;
 			const downloadAnchor = document.createElement('a');
 			downloadAnchor.setAttribute('href', jsonString);
-			
+
 			const today = new Date();
 			const yyyy = today.getFullYear();
 			const mm = String(today.getMonth() + 1).padStart(2, '0');
 			const dd = String(today.getDate()).padStart(2, '0');
 			downloadAnchor.setAttribute('download', `${yyyy}${mm}${dd}-backup-finanzaspro.json`);
-			
+
 			document.body.appendChild(downloadAnchor);
 			downloadAnchor.click();
 			document.body.removeChild(downloadAnchor);
@@ -2004,18 +2177,20 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		try {
 			const salt = generateSalt();
 			const key = await deriveKeyFromPassword(password, salt);
-			
+
 			// Cifrar el vector de prueba "valid"
 			const checkCiphertext = await encryptWithKey('valid', key);
-			
+
 			// Guardar el salt y el vector de prueba en LocalStorage
-			const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('');
+			const saltHex = Array.from(salt)
+				.map((b) => b.toString(16).padStart(2, '0'))
+				.join('');
 			localStorage.setItem('finanzas_v3_password_salt', saltHex);
 			localStorage.setItem('finanzas_v3_password_check', checkCiphertext);
-			
+
 			// Establecer clave activa en storage
 			setCryptoKey(key);
-			
+
 			// Cifrar y guardar el estado actual (si existía previamente en texto plano)
 			await saveStoredAccounts(accounts);
 			await saveStoredTransactions(transactions);
@@ -2023,9 +2198,11 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			await saveStoredPeriods(periods);
 			await saveGeminiApiKey(geminiApiKey);
 			await saveAiChat(chatMessages);
-			
+			await saveUserNames({ userAName, userBName });
+
 			setHasPasswordSet(true);
 			setIsLocked(false);
+			setIsInitialized(true);
 			return true;
 		} catch (err: any) {
 			setPasswordError(`Error al configurar PIN: ${err.message}`);
@@ -2046,31 +2223,50 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			for (let i = 0; i < bytes.length; i++) {
 				bytes[i] = parseInt(saltHex.substring(i * 2, i * 2 + 2), 16);
 			}
-			
+
 			const key = await deriveKeyFromPassword(password, bytes);
 			const checkText = await decryptWithKey(checkCiphertext, key);
-			
+
 			if (checkText === 'valid') {
 				setCryptoKey(key);
-				
-				// Cargar datos cifrados asíncronamente
-				const loadedAccounts = await readStoredAccounts();
+
+				// Ejecutar migración silenciosa si es necesario
+				await executeSilentMigrationIfRequired();
+				const loadedUserNames = await readUserNames();
+
 				const loadedTx = await readStoredTransactions();
 				const loadedDebts = await readStoredDebts();
 				const loadedPeriods = await readStoredPeriods(loadedTx, loadedDebts);
+				const loadedAccounts = await readStoredAccounts();
 				const loadedKey = await readGeminiApiKey();
 				const loadedChat = await readAiChat();
-				
+
 				if (loadedAccounts.length === 0 && (loadedTx.length > 0 || loadedDebts.length > 0)) {
-					const userANameVal = localStorage.getItem(STORAGE_KEYS.userAName) || 'Usuario A';
-					const userBNameVal = localStorage.getItem(STORAGE_KEYS.userBName) || 'Usuario B';
 					const sortedPeriods = [...loadedPeriods].sort((a, b) => a.month.localeCompare(b.month));
 					const firstPeriod = sortedPeriods.length > 0 ? sortedPeriods[0] : null;
-					const initialBalA = firstPeriod ? (firstPeriod.openingBalanceA !== undefined ? firstPeriod.openingBalanceA : firstPeriod.openingBalance / 2) : 0;
-					const initialBalB = firstPeriod ? (firstPeriod.openingBalanceB !== undefined ? firstPeriod.openingBalanceB : firstPeriod.openingBalance / 2) : 0;
-					const defaultAccs = [
-						{ id: 'default-a', name: `Efectivo ${userANameVal}`, owner: 'userA', initialBalance: initialBalA },
-						{ id: 'default-b', name: `Efectivo ${userBNameVal}`, owner: 'userB', initialBalance: initialBalB },
+					const initialBalA = firstPeriod
+						? firstPeriod.openingBalanceA !== undefined
+							? firstPeriod.openingBalanceA
+							: firstPeriod.openingBalance / 2
+						: 0;
+					const initialBalB = firstPeriod
+						? firstPeriod.openingBalanceB !== undefined
+							? firstPeriod.openingBalanceB
+							: firstPeriod.openingBalance / 2
+						: 0;
+					const defaultAccs: Account[] = [
+						{
+							id: 'default-a',
+							name: `Efectivo ${loadedUserNames.userAName}`,
+							owner: 'userA',
+							initialBalance: initialBalA
+						},
+						{
+							id: 'default-b',
+							name: `Efectivo ${loadedUserNames.userBName}`,
+							owner: 'userB',
+							initialBalance: initialBalB
+						},
 						{ id: 'default-joint', name: 'Cuenta Común', owner: 'joint', initialBalance: 0 }
 					];
 					setAccounts(defaultAccs);
@@ -2078,13 +2274,15 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 				} else {
 					setAccounts(loadedAccounts);
 				}
-				
+
 				setTransactions(loadedTx);
 				setDebts(loadedDebts);
 				setPeriods(loadedPeriods);
+				setUserAName(loadedUserNames.userAName);
+				setUserBName(loadedUserNames.userBName);
 				setGeminiApiKey(loadedKey);
 				setChatMessages(loadedChat);
-				
+
 				if (loadedPeriods.length > 0) {
 					const sortedP = [...loadedPeriods].sort((a, b) => a.month.localeCompare(b.month));
 					const currentMonth = new Date().toISOString().substring(0, 7);
@@ -2095,8 +2293,9 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 						setSelectedMonth(sortedP[sortedP.length - 1].month);
 					}
 				}
-				
+
 				setIsLocked(false);
+				setIsInitialized(true);
 				return true;
 			} else {
 				setPasswordError('PIN incorrecto. Vuelve a intentarlo.');
@@ -2109,6 +2308,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	};
 
 	const handleLockApp = () => {
+		setIsInitialized(false);
 		setCryptoKey(null);
 		setAccounts([]);
 		setTransactions([]);
@@ -2131,49 +2331,34 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 
 		try {
 			const parsed = JSON.parse(jsonString);
-			const validated = validateAndSanitizeBackup(parsed);
+			const imported = await importFinanceBackupPayload(parsed);
 
-			if (validated[STORAGE_KEYS.userAName] !== undefined) {
-				localStorage.setItem(STORAGE_KEYS.userAName, validated[STORAGE_KEYS.userAName]);
-				setUserAName(validated[STORAGE_KEYS.userAName]);
+			if (imported.userAName !== undefined) {
+				setUserAName(imported.userAName);
 			}
-			if (validated[STORAGE_KEYS.userBName] !== undefined) {
-				localStorage.setItem(STORAGE_KEYS.userBName, validated[STORAGE_KEYS.userBName]);
-				setUserBName(validated[STORAGE_KEYS.userBName]);
+			if (imported.userBName !== undefined) {
+				setUserBName(imported.userBName);
 			}
-			if (validated[STORAGE_KEYS.accounts] !== undefined) {
-				await saveStoredAccounts(validated[STORAGE_KEYS.accounts]);
-				setAccounts(validated[STORAGE_KEYS.accounts]);
+			if (imported.accounts !== undefined) {
+				setAccounts(imported.accounts);
 			}
-			if (validated[STORAGE_KEYS.transactions] !== undefined) {
-				await saveStoredTransactions(validated[STORAGE_KEYS.transactions]);
-				setTransactions(validated[STORAGE_KEYS.transactions]);
+			if (imported.transactions !== undefined) {
+				setTransactions(imported.transactions);
 			}
-			if (validated[STORAGE_KEYS.debts] !== undefined) {
-				await saveStoredDebts(validated[STORAGE_KEYS.debts]);
-				setDebts(validated[STORAGE_KEYS.debts]);
+			if (imported.debts !== undefined) {
+				setDebts(imported.debts);
 			}
-			if (validated[STORAGE_KEYS.periods] !== undefined) {
-				await saveStoredPeriods(validated[STORAGE_KEYS.periods]);
-				setPeriods(validated[STORAGE_KEYS.periods]);
-			} else if (validated[STORAGE_KEYS.transactions] !== undefined && validated[STORAGE_KEYS.debts] !== undefined) {
-				const generated = await readStoredPeriods(validated[STORAGE_KEYS.transactions], validated[STORAGE_KEYS.debts]);
-				await saveStoredPeriods(generated);
-				setPeriods(generated);
+			if (imported.periods !== undefined) {
+				setPeriods(imported.periods);
 			}
-			if (validated[STORAGE_KEYS.geminiKey] !== undefined) {
-				await saveGeminiApiKey(validated[STORAGE_KEYS.geminiKey]);
-				setGeminiApiKey(validated[STORAGE_KEYS.geminiKey]);
+			if (imported.geminiApiKey !== undefined) {
+				setGeminiApiKey(imported.geminiApiKey);
 			}
-			if (validated[STORAGE_KEYS.aiChat] !== undefined) {
-				await saveAiChat(validated[STORAGE_KEYS.aiChat]);
-				setChatMessages(validated[STORAGE_KEYS.aiChat]);
+			if (imported.chatMessages !== undefined) {
+				setChatMessages(imported.chatMessages);
 			}
-
-			const activePeriods = validated[STORAGE_KEYS.periods] || [];
-			if (activePeriods.length > 0) {
-				const sortedP = [...activePeriods].sort((a, b) => a.month.localeCompare(b.month));
-				setSelectedMonth(sortedP[sortedP.length - 1].month);
+			if (imported.selectedMonth) {
+				setSelectedMonth(imported.selectedMonth);
 			}
 
 			setImportSuccess('Datos importados y validados con éxito.');
@@ -2183,154 +2368,157 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	};
 
 	return (
-		<FinanzasContext.Provider value={{
-			userAName,
-			setUserAName,
-			userBName,
-			setUserBName,
-			viewMode,
-			setViewMode,
-			activeTab,
-			setActiveTab,
-			accounts,
-			setAccounts,
-			transactions,
-			setTransactions,
-			periods,
-			setPeriods,
-			debts,
-			setDebts,
-			selectedMonth,
-			setSelectedMonth,
-			txForm,
-			setTxForm,
-			editingTx,
-			setEditingTx,
-			editForm,
-			setEditForm,
-			editScope,
-			setEditScope,
-			debtForm,
-			setDebtForm,
-			debtFormError,
-			setDebtFormError,
-			selectedDebtSchedule,
-			setSelectedDebtSchedule,
-			editingAccount,
-			setEditingAccount,
-			accountForm,
-			setAccountForm,
-			initFlow,
-			setInitFlow,
-			initMonth,
-			setInitMonth,
-			initBalance,
-			setInitBalance,
-			initBalanceA,
-			setInitBalanceA,
-			initBalanceB,
-			setInitBalanceB,
-			isReconfiguring,
-			setIsReconfiguring,
-			reconfigAccounts,
-			setReconfigAccounts,
-			isExportPdfModalOpen,
-			setIsExportPdfModalOpen,
-			pdfExportOptions,
-			setPdfExportOptions,
-			selectedDebtsForConsolidation,
-			setSelectedDebtsForConsolidation,
-			consolidationForm,
-			setConsolidationForm,
-			geminiApiKey,
-			setGeminiApiKey,
-			customQuestion,
-			setCustomQuestion,
-			chatMessages,
-			setChatMessages,
-			aiLoading,
-			aiError,
-			setAiError,
-			copiedChat,
-			importError,
-			setImportError,
-			importSuccess,
-			setImportSuccess,
-			
-			// Seguridad y PIN (OWASP)
-			isLocked,
-			hasPasswordSet,
-			passwordError,
-			setPasswordError,
-			handleSetupPassword,
-			handleUnlock,
-			handleLockApp,
-			
-			// Ocultar Datos Sensibles
-			hideSensitiveData,
-			toggleSensitiveData,
-			formatAmount,
+		<FinanzasContext.Provider
+			value={{
+				userAName,
+				setUserAName,
+				userBName,
+				setUserBName,
+				viewMode,
+				setViewMode,
+				activeTab,
+				setActiveTab,
+				accounts,
+				setAccounts,
+				transactions,
+				setTransactions,
+				periods,
+				setPeriods,
+				debts,
+				setDebts,
+				selectedMonth,
+				setSelectedMonth,
+				txForm,
+				setTxForm,
+				editingTx,
+				setEditingTx,
+				editForm,
+				setEditForm,
+				editScope,
+				setEditScope,
+				debtForm,
+				setDebtForm,
+				debtFormError,
+				setDebtFormError,
+				selectedDebtSchedule,
+				setSelectedDebtSchedule,
+				editingAccount,
+				setEditingAccount,
+				accountForm,
+				setAccountForm,
+				initFlow,
+				setInitFlow,
+				initMonth,
+				setInitMonth,
+				initBalance,
+				setInitBalance,
+				initBalanceA,
+				setInitBalanceA,
+				initBalanceB,
+				setInitBalanceB,
+				isReconfiguring,
+				setIsReconfiguring,
+				reconfigAccounts,
+				setReconfigAccounts,
+				isExportPdfModalOpen,
+				setIsExportPdfModalOpen,
+				pdfExportOptions,
+				setPdfExportOptions,
+				selectedDebtsForConsolidation,
+				setSelectedDebtsForConsolidation,
+				consolidationForm,
+				setConsolidationForm,
+				geminiApiKey,
+				setGeminiApiKey,
+				customQuestion,
+				setCustomQuestion,
+				chatMessages,
+				setChatMessages,
+				aiLoading,
+				aiError,
+				setAiError,
+				copiedChat,
+				importError,
+				setImportError,
+				importSuccess,
+				setImportSuccess,
 
-			// Tema (Modo Claro/Oscuro)
-			theme,
-			toggleTheme,
-			
-			// Valores calculados
-			activePeriodData,
-			totalIncomes,
-			totalExpenses,
-			totalMonthlyDebtPayments,
-			netMonthlyBalance,
-			currentOpeningBalance,
-			currentClosingBalance,
-			filteredTransactions,
-			recurringIncomes,
-			oneOffIncomes,
-			recurringExpenses,
-			oneOffExpenses,
-			filteredDebts,
-			jointPaidByA,
-			jointPaidByB,
-			netOwed,
-			tagData,
-			maxTagAmount,
-			timelineBalances,
-			consolidatedDebtsObjects,
-			consolidatedPrincipal,
-			additionalCapital,
-			totalNewPrincipal,
-			currentConsolidatedMonthlySum,
-			currentTotalInterests,
-			newConsolidatedCuota,
-			newTotalConsolidatedPayment,
-			newConsolidatedInterests,
+				// Seguridad y PIN (OWASP)
+				isLocked,
+				isInitialized,
+				hasPasswordSet,
+				passwordError,
+				setPasswordError,
+				handleSetupPassword,
+				handleUnlock,
+				handleLockApp,
 
-			// Manejadores
-			handleInitAccount,
-			handleResetAccount,
-			handleCreateNextMonth,
-			handleAddTransaction,
-			handleStartEditTransaction,
-			handleSaveEditTransaction,
-			handleDeleteTransaction,
-			handleDeleteDebt,
-			handleAddDebt,
-			handleAddAccount,
-			handleStartEditAccount,
-			handleSaveEditAccount,
-			handleDeleteAccount,
-			toggleDebtSelection,
-			updatePaymentPlanTranche,
-			addPaymentPlanTranche,
-			removePaymentPlanTranche,
-			togglePaymentPlanInstallmentStatus,
-			handleAskGemini,
-			handleClearChat,
-			handleCopyChatPlaintext,
-			handleDownloadChatPDF,
-			handleExportData,
-			handleImportData
-		}}>
+				// Ocultar Datos Sensibles
+				hideSensitiveData,
+				toggleSensitiveData,
+				formatAmount,
+
+				// Tema (Modo Claro/Oscuro)
+				theme,
+				toggleTheme,
+
+				// Valores calculados
+				activePeriodData,
+				totalIncomes,
+				totalExpenses,
+				totalMonthlyDebtPayments,
+				netMonthlyBalance,
+				currentOpeningBalance,
+				currentClosingBalance,
+				filteredTransactions,
+				recurringIncomes,
+				oneOffIncomes,
+				recurringExpenses,
+				oneOffExpenses,
+				filteredDebts,
+				jointPaidByA,
+				jointPaidByB,
+				netOwed,
+				tagData,
+				maxTagAmount,
+				timelineBalances,
+				consolidatedDebtsObjects,
+				consolidatedPrincipal,
+				additionalCapital,
+				totalNewPrincipal,
+				currentConsolidatedMonthlySum,
+				currentTotalInterests,
+				newConsolidatedCuota,
+				newTotalConsolidatedPayment,
+				newConsolidatedInterests,
+
+				// Manejadores
+				handleInitAccount,
+				handleResetAccount,
+				handleCreateNextMonth,
+				handleAddTransaction,
+				handleStartEditTransaction,
+				handleSaveEditTransaction,
+				handleDeleteTransaction,
+				handleDeleteDebt,
+				handleAddDebt,
+				handleAddAccount,
+				handleStartEditAccount,
+				handleSaveEditAccount,
+				handleDeleteAccount,
+				toggleDebtSelection,
+				updatePaymentPlanTranche,
+				addPaymentPlanTranche,
+				removePaymentPlanTranche,
+				togglePaymentPlanInstallmentStatus,
+				handleAskGemini,
+				handleClearChat,
+				handleCopyChatPlaintext,
+				handleDownloadChatPDF,
+				handleExportData,
+				handleImportData
+			}}
+		>
 			{children}
 		</FinanzasContext.Provider>
 	);
