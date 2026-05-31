@@ -3,6 +3,15 @@ import { useFinanzas } from '../../hooks/useFinanzas';
 import { deduceTagFromConcept } from '../../services/financeService';
 import { DEFAULT_TAGS } from '../../constants';
 import { Icons } from '../common/Icons';
+import { Input } from '../ui/input';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue
+} from '../ui/select';
+
 
 /**
  * Componente que renderiza la pestaña de Transacciones.
@@ -141,7 +150,7 @@ export function TransactionsTab() {
 						<label htmlFor="tx-desc" className="block text-xs font-medium text-slate-400 mb-1.5">
 							Concepto
 						</label>
-						<input
+						<Input
 							id="tx-desc"
 							type="text"
 							required
@@ -156,7 +165,6 @@ export function TransactionsTab() {
 									tag: deduced || prev.tag
 								}));
 							}}
-							className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-600"
 						/>
 					</div>
 
@@ -164,7 +172,7 @@ export function TransactionsTab() {
 						<label htmlFor="tx-amount" className="block text-xs font-medium text-slate-400 mb-1.5">
 							Importe (€)
 						</label>
-						<input
+						<Input
 							id="tx-amount"
 							type="number"
 							step="0.01"
@@ -173,7 +181,6 @@ export function TransactionsTab() {
 							placeholder="0.00"
 							value={txForm.amount}
 							onChange={(e) => setTxForm({ ...txForm, amount: e.target.value })}
-							className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-600"
 						/>
 					</div>
 
@@ -181,13 +188,13 @@ export function TransactionsTab() {
 						<label htmlFor="tx-date" className="block text-xs font-medium text-slate-400 mb-1.5">
 							Fecha del Movimiento
 						</label>
-						<input
+						<Input
 							id="tx-date"
 							type="date"
 							required
 							value={txForm.date}
 							onChange={(e) => setTxForm({ ...txForm, date: e.target.value })}
-							className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 font-mono outline-none"
+							className="font-mono"
 						/>
 					</div>
 
@@ -197,36 +204,42 @@ export function TransactionsTab() {
 								<label htmlFor="tx-from-account" className="block text-xs font-medium text-slate-400 mb-1.5">
 									Cuenta de Origen
 								</label>
-								<select
-									id="tx-from-account"
+								<Select
 									value={txForm.fromAccountId}
-									onChange={(e) => setTxForm({ ...txForm, fromAccountId: e.target.value })}
-									className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
+									onValueChange={(val) => setTxForm({ ...txForm, fromAccountId: val })}
 								>
-									{accounts.map((acc) => (
-										<option key={acc.id} value={acc.id}>
-											{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
-										</option>
-									))}
-								</select>
+									<SelectTrigger id="tx-from-account">
+										<SelectValue placeholder="Selecciona cuenta de origen" />
+									</SelectTrigger>
+									<SelectContent>
+										{accounts.map((acc) => (
+											<SelectItem key={acc.id} value={acc.id}>
+												{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
 							</div>
 
 							<div>
 								<label htmlFor="tx-to-account" className="block text-xs font-medium text-slate-400 mb-1.5">
 									Cuenta de Destino
 								</label>
-								<select
-									id="tx-to-account"
+								<Select
 									value={txForm.toAccountId}
-									onChange={(e) => setTxForm({ ...txForm, toAccountId: e.target.value })}
-									className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
+									onValueChange={(val) => setTxForm({ ...txForm, toAccountId: val })}
 								>
-									{accounts.filter((acc) => acc.id !== txForm.fromAccountId).map((acc) => (
-										<option key={acc.id} value={acc.id}>
-											{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
-										</option>
-									))}
-								</select>
+									<SelectTrigger id="tx-to-account">
+										<SelectValue placeholder="Selecciona cuenta de destino" />
+									</SelectTrigger>
+									<SelectContent>
+										{accounts.filter((acc) => acc.id !== txForm.fromAccountId).map((acc) => (
+											<SelectItem key={acc.id} value={acc.id}>
+												{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
 							</div>
 						</>
 					) : (
@@ -235,11 +248,10 @@ export function TransactionsTab() {
 								<label htmlFor="tx-account" className="block text-xs font-medium text-slate-400 mb-1.5">
 									Cuenta Asociada
 								</label>
-								<select
-									id="tx-account"
-									value={txForm.accountId}
-									onChange={(e) => {
-										const accId = e.target.value;
+								<Select
+									value={txForm.accountId || 'none'}
+									onValueChange={(val) => {
+										const accId = val === 'none' ? '' : val;
 										const acc = accounts.find((a) => a.id === accId);
 										setTxForm({
 											...txForm,
@@ -247,15 +259,19 @@ export function TransactionsTab() {
 											owner: acc ? acc.owner : txForm.owner
 										});
 									}}
-									className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 								>
-									<option value="">Sin Cuenta (Manual)</option>
-									{accounts.map((acc) => (
-										<option key={acc.id} value={acc.id}>
-											{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
-										</option>
-									))}
-								</select>
+									<SelectTrigger id="tx-account">
+										<SelectValue placeholder="Selecciona cuenta asociada" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="none">Sin Cuenta (Manual)</SelectItem>
+										{accounts.map((acc) => (
+											<SelectItem key={acc.id} value={acc.id}>
+												{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
 							</div>
 
 							<div>
@@ -344,13 +360,12 @@ export function TransactionsTab() {
 						<label htmlFor="tx-tag" className="block text-xs font-medium text-slate-400 mb-1.5">
 							Etiqueta
 						</label>
-						<input
+						<Input
 							id="tx-tag"
 							list="tx-tags-list"
 							value={txForm.tag}
 							onChange={(e) => setTxForm({ ...txForm, tag: e.target.value })}
 							placeholder="Elige o escribe una etiqueta"
-							className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 						/>
 						<datalist id="tx-tags-list">
 							{DEFAULT_TAGS[txForm.type].map((tag) => (

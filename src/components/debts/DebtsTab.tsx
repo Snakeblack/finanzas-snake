@@ -13,6 +13,14 @@ import { normalizeMonth } from '../../utils/dateUtils';
 import { DEFAULT_TAGS } from '../../constants';
 import { toNumber } from '../../utils/formatters';
 import { Icons } from '../common/Icons';
+import { Input } from '../ui/input';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue
+} from '../ui/select';
 
 /**
  * Componente que renderiza la pestaña de Deudas (Préstamos y Fraccionamientos).
@@ -94,14 +102,13 @@ export function DebtsTab() {
 						<label htmlFor="debt-desc" className="block text-xs font-medium text-slate-400 mb-1.5">
 							Nombre de la Deuda
 						</label>
-						<input
+						<Input
 							id="debt-desc"
 							type="text"
 							required
 							placeholder="Ej. Préstamo de Coche, Tarjeta..."
 							value={debtForm.desc}
 							onChange={(e) => setDebtForm({ ...debtForm, desc: e.target.value })}
-							className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-600"
 						/>
 					</div>
 
@@ -168,11 +175,10 @@ export function DebtsTab() {
 						<label htmlFor="debt-payment-account" className="block text-xs font-medium text-slate-400 mb-1.5">
 							Cuenta para el Pago de la Cuota
 						</label>
-						<select
-							id="debt-payment-account"
-							value={debtForm.paymentAccountId}
-							onChange={(e) => {
-								const accId = e.target.value;
+						<Select
+							value={debtForm.paymentAccountId || 'none'}
+							onValueChange={(val) => {
+								const accId = val === 'none' ? '' : val;
 								const acc = accounts.find((a) => a.id === accId);
 								setDebtForm({
 									...debtForm,
@@ -180,15 +186,19 @@ export function DebtsTab() {
 									owner: acc ? acc.owner : debtForm.owner
 								});
 							}}
-							className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 						>
-							<option value="">Sin Cuenta (Automático por Propietario)</option>
-							{accounts.map((acc) => (
-								<option key={acc.id} value={acc.id}>
-									{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
-								</option>
-							))}
-						</select>
+							<SelectTrigger id="debt-payment-account">
+								<SelectValue placeholder="Selecciona cuenta para el pago" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="none">Sin Cuenta (Automático por Propietario)</SelectItem>
+								{accounts.map((acc) => (
+									<SelectItem key={acc.id} value={acc.id}>
+										{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
 
 					{debtForm.kind === 'classic' ? (
@@ -197,7 +207,7 @@ export function DebtsTab() {
 								<label htmlFor="debt-principal" className="block text-xs font-medium text-slate-400 mb-1.5">
 									Capital Solicitado (€)
 								</label>
-								<input
+								<Input
 									id="debt-principal"
 									type="number"
 									required={debtForm.kind === 'classic'}
@@ -205,7 +215,6 @@ export function DebtsTab() {
 									placeholder="Capital inicial"
 									value={debtForm.principal}
 									onChange={(e) => setDebtForm({ ...debtForm, principal: e.target.value })}
-									className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none placeholder:text-slate-600"
 								/>
 							</div>
 
@@ -214,7 +223,7 @@ export function DebtsTab() {
 									<label htmlFor="debt-tin" className="block text-xs font-medium text-slate-400 mb-1.5">
 										TIN (%)
 									</label>
-									<input
+									<Input
 										id="debt-tin"
 										type="number"
 										step="0.01"
@@ -222,7 +231,6 @@ export function DebtsTab() {
 										placeholder="Ej. 5.95"
 										value={debtForm.tin}
 										onChange={(e) => setDebtForm({ ...debtForm, tin: e.target.value })}
-										className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 									/>
 								</div>
 
@@ -230,7 +238,7 @@ export function DebtsTab() {
 									<label htmlFor="debt-tae" className="block text-xs font-medium text-slate-400 mb-1.5">
 										TAE (%)
 									</label>
-									<input
+									<Input
 										id="debt-tae"
 										type="number"
 										step="0.01"
@@ -239,7 +247,6 @@ export function DebtsTab() {
 										placeholder="Ej. 6.5"
 										value={debtForm.tae}
 										onChange={(e) => setDebtForm({ ...debtForm, tae: e.target.value })}
-										className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 									/>
 								</div>
 
@@ -247,7 +254,7 @@ export function DebtsTab() {
 									<label htmlFor="debt-term" className="block text-xs font-medium text-slate-400 mb-1.5">
 										Plazo (Meses)
 									</label>
-									<input
+									<Input
 										id="debt-term"
 										type="number"
 										required={debtForm.kind === 'classic'}
@@ -255,7 +262,6 @@ export function DebtsTab() {
 										placeholder="Ej. 36"
 										value={debtForm.termMonths}
 										onChange={(e) => setDebtForm({ ...debtForm, termMonths: e.target.value })}
-										className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 									/>
 								</div>
 							</div>
@@ -272,7 +278,7 @@ export function DebtsTab() {
 									<label htmlFor="plan-financed" className="block text-xs font-medium text-slate-400 mb-1.5">
 										Importe fraccionado (€)
 									</label>
-									<input
+									<Input
 										id="plan-financed"
 										type="number"
 										required={debtForm.kind === 'paymentPlan'}
@@ -281,14 +287,13 @@ export function DebtsTab() {
 										placeholder="Ej. 1000"
 										value={debtForm.financedAmount}
 										onChange={(e) => setDebtForm({ ...debtForm, financedAmount: e.target.value })}
-										className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 									/>
 								</div>
 								<div>
 									<label htmlFor="plan-fees" className="block text-xs font-medium text-slate-400 mb-1.5">
 										Comisiones / intereses (€)
 									</label>
-									<input
+									<Input
 										id="plan-fees"
 										type="number"
 										min="0"
@@ -296,7 +301,6 @@ export function DebtsTab() {
 										placeholder="Ej. 80"
 										value={debtForm.fees}
 										onChange={(e) => setDebtForm({ ...debtForm, fees: e.target.value })}
-										className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
 									/>
 								</div>
 							</div>
@@ -316,25 +320,25 @@ export function DebtsTab() {
 									<div key={tranche.id} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
 										<div>
 											<label className="block text-[10px] text-slate-500 mb-1">Meses</label>
-											<input
+											<Input
 												type="number"
 												min="1"
 												placeholder="Ej. 7"
 												value={tranche.months}
 												onChange={(e) => updatePaymentPlanTranche(tranche.id, { months: e.target.value })}
-												className="w-full premium-input rounded-xl px-3 py-2 text-sm text-slate-100 outline-none"
+												className="px-3 py-2"
 											/>
 										</div>
 										<div>
 											<label className="block text-[10px] text-slate-500 mb-1">Cuota mensual (€)</label>
-											<input
+											<Input
 												type="number"
 												min="0.01"
 												step="0.01"
 												placeholder="Ej. 100"
 												value={tranche.amount}
 												onChange={(e) => updatePaymentPlanTranche(tranche.id, { amount: e.target.value })}
-												className="w-full premium-input rounded-xl px-3 py-2 text-sm text-slate-100 outline-none"
+												className="px-3 py-2"
 											/>
 										</div>
 										<button
@@ -379,13 +383,13 @@ export function DebtsTab() {
 						<label htmlFor="debt-date" className="block text-xs font-medium text-slate-400 mb-1.5">
 							Fecha de Inicio
 						</label>
-						<input
+						<Input
 							id="debt-date"
 							type="month"
 							required
 							value={debtForm.date}
 							onChange={(e) => setDebtForm({ ...debtForm, date: e.target.value })}
-							className="w-full premium-input rounded-xl px-4 py-2.5 text-sm text-slate-100 font-mono outline-none"
+							className="font-mono"
 						/>
 					</div>
 
@@ -393,18 +397,21 @@ export function DebtsTab() {
 						<label htmlFor="debt-tag" className="block text-xs font-medium text-slate-400 mb-1.5">
 							Etiqueta de Deuda
 						</label>
-						<select
-							id="debt-tag"
+						<Select
 							value={debtForm.tag}
-							onChange={(e) => setDebtForm({ ...debtForm, tag: e.target.value })}
-							className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none"
+							onValueChange={(val) => setDebtForm({ ...debtForm, tag: val })}
 						>
-							{DEFAULT_TAGS.debt.map((tag) => (
-								<option key={tag} value={tag}>
-									{tag}
-								</option>
-							))}
-						</select>
+							<SelectTrigger id="debt-tag">
+								<SelectValue placeholder="Selecciona etiqueta" />
+							</SelectTrigger>
+							<SelectContent>
+								{DEFAULT_TAGS.debt.map((tag) => (
+									<SelectItem key={tag} value={tag}>
+										{tag}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
 
 					{debtFormError && (

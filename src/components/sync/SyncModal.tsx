@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFinanzas } from '../../hooks/useFinanzas';
 import { startSyncHost, connectToSyncHost, SyncData } from '../../services/syncService';
+import { Input } from '../ui/input';
 import { validateAndSanitizeBackup } from '../../utils/backupValidator';
 import { STORAGE_KEYS } from '../../constants';
 import {
@@ -538,7 +539,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 									<label htmlFor="sync-code-input" className="block text-xs font-medium text-slate-400">
 										Código de Conexión (6 letras/números)
 									</label>
-									<input
+									<Input
 										id="sync-code-input"
 										type="text"
 										maxLength={6}
@@ -546,7 +547,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 										placeholder="EJ: XZYQWE"
 										value={inputCode}
 										onChange={(e) => setInputCode(e.target.value.toUpperCase().trim())}
-										className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-3 text-lg font-mono font-black text-center text-indigo-300 outline-none tracking-widest uppercase transition-all"
+										className="py-3 text-lg font-mono font-black text-center text-indigo-300 tracking-widest uppercase"
 									/>
 								</div>
 
