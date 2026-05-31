@@ -12,6 +12,7 @@ import {
 	SelectValue
 } from '../ui/select';
 import { toNumber } from '../../utils/formatters';
+import { Transaction } from '../../types';
 
 
 /**
@@ -32,14 +33,79 @@ export function TransactionsTab() {
 		handleDeleteTransaction,
 		viewMode,
 		selectedMonth,
-		formatAmount
+		formatAmount,
+		transactions,
+		setTransactions
 	} = useFinanzas();
 
 	const [isMobileFormOpen, setIsMobileFormOpen] = useState(false);
+	const [typeFilter, setTypeFilter] = useState<'all' | 'expense' | 'income' | 'both'>('all');
+	const [draggedTxId, setDraggedTxId] = useState<string | null>(null);
+	const [dragOverTxId, setDragOverTxId] = useState<string | null>(null);
 
 	const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		handleAddTransaction(e);
 		setIsMobileFormOpen(false);
+	};
+
+	const displayedTransactions = filteredTransactions.filter((t) => {
+		if (typeFilter === 'expense') return t.type === 'expense';
+		if (typeFilter === 'income') return t.type === 'income';
+		if (typeFilter === 'both') return t.type === 'expense' || t.type === 'income';
+		return true;
+	});
+
+	const handleDragStart = (e: React.DragEvent, txId: string) => {
+		setDraggedTxId(txId);
+		e.dataTransfer.effectAllowed = 'move';
+	};
+
+	const handleDragOver = (e: React.DragEvent, targetId: string) => {
+		e.preventDefault();
+		if (!draggedTxId || draggedTxId === targetId) return;
+
+		const draggedTx = transactions.find((t) => t.id === draggedTxId);
+		const targetTx = transactions.find((t) => t.id === targetId);
+
+		if (draggedTx && targetTx && draggedTx.date === targetTx.date) {
+			setDragOverTxId(targetId);
+		}
+	};
+
+	const handleDragLeave = () => {
+		setDragOverTxId(null);
+	};
+
+	const handleDrop = (e: React.DragEvent, targetId: string) => {
+		e.preventDefault();
+		if (!draggedTxId || draggedTxId === targetId) {
+			setDraggedTxId(null);
+			setDragOverTxId(null);
+			return;
+		}
+
+		const draggedTx = transactions.find((t) => t.id === draggedTxId);
+		const targetTx = transactions.find((t) => t.id === targetId);
+
+		if (draggedTx && targetTx && draggedTx.date === targetTx.date) {
+			const originalDraggedIndex = transactions.findIndex((t) => t.id === draggedTxId);
+			const originalTargetIndex = transactions.findIndex((t) => t.id === targetId);
+
+			if (originalDraggedIndex !== -1 && originalTargetIndex !== -1) {
+				const updated = [...transactions];
+				const [removed] = updated.splice(originalDraggedIndex, 1);
+				updated.splice(originalTargetIndex, 0, removed);
+				setTransactions(updated);
+			}
+		}
+
+		setDraggedTxId(null);
+		setDragOverTxId(null);
+	};
+
+	const handleDragEnd = () => {
+		setDraggedTxId(null);
+		setDragOverTxId(null);
 	};
 
 	return (
@@ -395,9 +461,57 @@ export function TransactionsTab() {
 
 			{/* Listado de Historial */}
 			<div className="lg:col-span-8 premium-card rounded-2xl p-6 flex flex-col lg:h-full lg:max-h-full min-h-0">
-				<h3 className="font-heading text-lg font-bold text-slate-100 mb-6 shrink-0">Historial para el mes {selectedMonth}</h3>
+				<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 shrink-0">
+					<h3 className="font-heading text-lg font-bold text-slate-100">Historial para el mes {selectedMonth}</h3>
+					<div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800/80 text-xs font-semibold shrink-0">
+						<button
+							type="button"
+							onClick={() => setTypeFilter('all')}
+							className={`px-3 py-1.5 rounded-lg transition-all ${
+								typeFilter === 'all'
+									? 'bg-indigo-600 text-white shadow-md'
+									: 'text-slate-400 hover:text-slate-200'
+							}`}
+						>
+							Todos
+						</button>
+						<button
+							type="button"
+							onClick={() => setTypeFilter('both')}
+							className={`px-3 py-1.5 rounded-lg transition-all ${
+								typeFilter === 'both'
+									? 'bg-indigo-600 text-white shadow-md'
+									: 'text-slate-400 hover:text-slate-200'
+							}`}
+						>
+							Gastos/Ingresos
+						</button>
+						<button
+							type="button"
+							onClick={() => setTypeFilter('expense')}
+							className={`px-3 py-1.5 rounded-lg transition-all ${
+								typeFilter === 'expense'
+									? 'bg-indigo-600 text-white shadow-md'
+									: 'text-slate-400 hover:text-slate-200'
+							}`}
+						>
+							Gastos
+						</button>
+						<button
+							type="button"
+							onClick={() => setTypeFilter('income')}
+							className={`px-3 py-1.5 rounded-lg transition-all ${
+								typeFilter === 'income'
+									? 'bg-indigo-600 text-white shadow-md'
+									: 'text-slate-400 hover:text-slate-200'
+							}`}
+						>
+							Ingresos
+						</button>
+					</div>
+				</div>
 
-				{filteredTransactions.length === 0 ? (
+				{displayedTransactions.length === 0 ? (
 					<div className="text-center py-12 text-slate-500 flex-1 flex flex-col justify-center">
 						<p className="text-sm">No hay transacciones registradas este mes.</p>
 						<p className="text-xs">Usa el formulario para añadir ingresos o gastos corrientes.</p>
@@ -406,14 +520,29 @@ export function TransactionsTab() {
 					<div className="flex-1 lg:overflow-y-auto pr-1" style={{ WebkitOverflowScrolling: 'touch' }}>
 						{/* Vista de Tarjetas para Móviles */}
 						<div className="md:hidden space-y-3">
-							{filteredTransactions.map((t) => (
+							{displayedTransactions.map((t) => (
 								<div
 									key={t.id}
-									className="bg-slate-950 p-4 rounded-xl border border-slate-850 flex flex-col justify-between space-y-3 hover:border-slate-800 transition-all"
+									draggable
+									onDragStart={(e) => handleDragStart(e, t.id)}
+									onDragOver={(e) => handleDragOver(e, t.id)}
+									onDragLeave={handleDragLeave}
+									onDrop={(e) => handleDrop(e, t.id)}
+									onDragEnd={handleDragEnd}
+									className={`bg-slate-950 p-4 rounded-xl border flex flex-col justify-between space-y-3 transition-all duration-200 ${
+										draggedTxId === t.id ? 'opacity-40 cursor-grabbing' : ''
+									} ${
+										dragOverTxId === t.id
+											? 'border-indigo-500 bg-indigo-950/30 shadow-[0_0_12px_rgba(99,102,241,0.15)] scale-[1.01]'
+											: 'border-slate-850 hover:border-slate-800'
+									}`}
 								>
 									<div className="flex justify-between items-start">
 										<div className="space-y-1">
 											<div className="flex items-center gap-1.5 flex-wrap">
+												<div className="cursor-grab active:cursor-grabbing p-0.5 hover:bg-slate-850 rounded text-slate-500 flex items-center justify-center" title="Arrastrar para reordenar">
+													<Icons.GripVertical className="w-3.5 h-3.5" />
+												</div>
 												<span className="font-semibold text-slate-100 text-sm">{t.desc}</span>
 												{t.recurrence === 'recurring' && (
 													<span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
@@ -508,6 +637,7 @@ export function TransactionsTab() {
 							<table className="w-full text-left border-collapse">
 								<thead>
 									<tr className="border-b border-slate-800/80 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-950/20">
+										<th className="pb-3 pt-2 pl-2 w-8"></th>
 										<th className="pb-3 pt-2 pl-2">Fecha</th>
 										<th className="pb-3 pt-2">Concepto</th>
 										<th className="pb-3 pt-2">Propietario</th>
@@ -517,8 +647,28 @@ export function TransactionsTab() {
 									</tr>
 								</thead>
 								<tbody className="divide-y divide-slate-800/60 text-sm">
-									{filteredTransactions.map((t) => (
-										<tr key={t.id} className="hover:bg-slate-800/20 transition-colors">
+									{displayedTransactions.map((t) => (
+										<tr
+											key={t.id}
+											draggable
+											onDragStart={(e) => handleDragStart(e, t.id)}
+											onDragOver={(e) => handleDragOver(e, t.id)}
+											onDragLeave={handleDragLeave}
+											onDrop={(e) => handleDrop(e, t.id)}
+											onDragEnd={handleDragEnd}
+											className={`transition-all duration-200 ${
+												draggedTxId === t.id ? 'opacity-40 cursor-grabbing' : 'hover:bg-slate-800/20'
+											} ${
+												dragOverTxId === t.id
+													? 'bg-indigo-950/50 border-t-2 border-b-2 border-indigo-500/50 shadow-[inset_0_0_8px_rgba(99,102,241,0.2)]'
+													: 'border-b border-slate-800/60'
+											}`}
+										>
+											<td className="py-3.5 pl-2 text-center align-middle w-8">
+												<div className="cursor-grab active:cursor-grabbing p-1 hover:bg-slate-800/50 rounded flex items-center justify-center text-slate-500" title="Arrastrar para reordenar">
+													<Icons.GripVertical className="w-3.5 h-3.5" />
+												</div>
+											</td>
 											<td className="py-3.5 pl-2 text-slate-400 font-mono text-xs">{t.date}</td>
 											<td className="py-3.5 font-medium text-slate-200">
 												<div className="flex flex-col">

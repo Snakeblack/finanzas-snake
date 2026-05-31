@@ -637,7 +637,13 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	const currentOpeningBalance = activePeriodData.openingBalance;
 	const currentClosingBalance = activePeriodData.closingBalance;
 
-	const filteredTransactions = transactions.filter((t) => t.date.substring(0, 7) === selectedMonth);
+	const filteredTransactions = transactions
+		.filter((t) => t.date.substring(0, 7) === selectedMonth)
+		.sort((a, b) => {
+			const dateCompare = b.date.localeCompare(a.date);
+			if (dateCompare !== 0) return dateCompare;
+			return transactions.indexOf(a) - transactions.indexOf(b);
+		});
 
 	const getEffectiveAmountWrapper = (t: Transaction) => getEffectiveAmount(t, viewMode, accounts);
 

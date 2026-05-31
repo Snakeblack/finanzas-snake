@@ -36,11 +36,8 @@ const getDefaultIceServers = () => {
 
 export const getPeerConfig = (customIceServers?: any[]) => {
 	return {
-		debug: 3,
 		config: {
-			iceServers: customIceServers && customIceServers.length > 0
-				? customIceServers
-				: getDefaultIceServers()
+			iceServers: customIceServers && customIceServers.length > 0 ? customIceServers : getDefaultIceServers()
 		}
 	};
 };
@@ -88,7 +85,7 @@ export const startSyncHost = (
 
 	const initPeer = () => {
 		if (isDestroyed) return;
-		
+
 		const peerId = `${PEER_PREFIX}${code}`;
 		peer = new Peer(peerId, getPeerConfig(customIceServers));
 
@@ -103,7 +100,7 @@ export const startSyncHost = (
 
 			conn.on('open', async () => {
 				if (isDestroyed) return;
-				
+
 				try {
 					// Recopilar todos los datos locales usando el proveedor inyectado (DIP)
 					const backupData = await dataProvider.exportPayload();
@@ -132,7 +129,7 @@ export const startSyncHost = (
 
 		peer.on('error', (err: any) => {
 			if (isDestroyed) return;
-			
+
 			// Si el ID ya existe y no hemos superado el límite de intentos, generamos otro
 			if (err.type === 'unavailable-id' && retryCount < 5) {
 				retryCount++;

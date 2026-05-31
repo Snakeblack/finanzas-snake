@@ -1333,6 +1333,33 @@ describe('Valores Calculados', () => {
 		});
 	});
 
+	it('debe ordenar filteredTransactions por fecha descendente y por índice original para el mismo día', async () => {
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		localStorage.setItem(
+			STORAGE_KEYS.periods,
+			JSON.stringify([{ month: '2026-05', openingBalance: 0 }])
+		);
+		localStorage.setItem(
+			STORAGE_KEYS.transactions,
+			JSON.stringify([
+				{ id: 't1', desc: 'Primero en array (mismo dia)', money: { amount: '10.00', currency: 'EUR' }, type: 'expense', tag: 'T', date: '2026-05-15', owner: 'joint' },
+				{ id: 't2', desc: 'Segundo en array (mismo dia)', money: { amount: '20.00', currency: 'EUR' }, type: 'expense', tag: 'T', date: '2026-05-15', owner: 'joint' },
+				{ id: 't3', desc: 'Tercero en array (dia posterior)', money: { amount: '30.00', currency: 'EUR' }, type: 'expense', tag: 'T', date: '2026-05-20', owner: 'joint' }
+			])
+		);
+
+		renderCtx();
+
+		const filtered = ctxRef.filteredTransactions;
+		expect(filtered).toHaveLength(3);
+		// El primero debe ser t3 porque su fecha es la más reciente (2026-05-20)
+		expect(filtered[0].id).toBe('t3');
+		// El segundo debe ser t1 porque t1 y t2 son del mismo día (15), y t1 tiene menor índice en el array original
+		expect(filtered[1].id).toBe('t1');
+		// El tercero debe ser t2
+		expect(filtered[2].id).toBe('t2');
+	});
+
 	it('debe calcular totalIncomes correctamente', async () => {
 		const month = new Date().toISOString().substring(0, 7);
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
