@@ -3,6 +3,8 @@ import { useFinanzas } from '../../hooks/useFinanzas';
 import { deduceTagFromConcept } from '../../services/financeService';
 import { DEFAULT_TAGS } from '../../constants';
 import { Icons } from '../common/Icons';
+import { ImportStatementModal } from './ImportStatementModal';
+import { Upload } from 'lucide-react';
 import { Input } from '../ui/input';
 import {
 	Select,
@@ -39,6 +41,7 @@ export function TransactionsTab() {
 	} = useFinanzas();
 
 	const [isMobileFormOpen, setIsMobileFormOpen] = useState(false);
+	const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 	const [typeFilter, setTypeFilter] = useState<'all' | 'expense' | 'income' | 'both'>('all');
 	const [draggedTxId, setDraggedTxId] = useState<string | null>(null);
 	const [dragOverTxId, setDragOverTxId] = useState<string | null>(null);
@@ -111,36 +114,56 @@ export function TransactionsTab() {
 	return (
 		<div className="flex-1 min-h-0 flex flex-col lg:grid lg:grid-cols-12 gap-6 lg:gap-8">
 			{/* Botón para desplegar formulario en móvil */}
-			<div className="lg:hidden shrink-0">
+			<div className="lg:hidden shrink-0 grid grid-cols-2 gap-3">
 				<button
 					type="button"
 					onClick={() => setIsMobileFormOpen(!isMobileFormOpen)}
-					className="w-full flex items-center justify-center gap-2 bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800/60 text-slate-200 hover:text-white px-4 py-3 rounded-xl text-sm font-semibold transition-all shadow-sm active:scale-[0.98]"
+					className="flex items-center justify-center gap-2 bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800/60 text-slate-200 hover:text-white px-4 py-3 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm active:scale-[0.98]"
 				>
 					{isMobileFormOpen ? (
 						<>
 							<svg className="w-4 h-4 text-rose-450" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 								<path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
 							</svg>
-							<span>Ocultar Formulario</span>
+							<span>Ocultar Form</span>
 						</>
 					) : (
 						<>
 							<Icons.Plus className="w-4 h-4 text-indigo-400 mr-0" />
-							<span>Nueva Transacción</span>
+							<span>Crear Manual</span>
 						</>
 					)}
+				</button>
+
+				<button
+					type="button"
+					onClick={() => setIsImportModalOpen(true)}
+					className="flex items-center justify-center gap-2 bg-indigo-600/90 hover:bg-indigo-550 border border-indigo-500/20 text-slate-100 hover:text-white px-4 py-3 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm active:scale-[0.98]"
+				>
+					<Upload className="w-4 h-4" />
+					<span>Importar Extracto</span>
 				</button>
 			</div>
 
 			{/* Formulario */}
 			<div className={`${isMobileFormOpen ? 'block' : 'hidden'} lg:block lg:col-span-4 premium-card rounded-2xl p-6 h-fit lg:max-h-full lg:overflow-y-auto shrink-0 lg:shrink`}>
-				<h3 className="font-heading text-lg font-bold text-slate-100 mb-6 flex items-center">
-					<span className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg mr-2">
-						<Icons.Plus className="w-4 h-4" />
-					</span>
-					Nueva Transacción
-				</h3>
+				<div className="flex flex-col gap-4 mb-6">
+					<h3 className="font-heading text-lg font-bold text-slate-100 flex items-center">
+						<span className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg mr-2">
+							<Icons.Plus className="w-4 h-4" />
+						</span>
+						Nueva Transacción
+					</h3>
+
+					<button
+						type="button"
+						onClick={() => setIsImportModalOpen(true)}
+						className="w-full flex items-center justify-center gap-2 bg-indigo-600/20 hover:bg-indigo-600/35 border border-indigo-500/20 text-indigo-400 hover:text-indigo-350 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-[0.98] outline-none"
+					>
+						<Upload className="w-3.5 h-3.5" />
+						<span>Importar Extracto Bancario</span>
+					</button>
+				</div>
 
 				<form onSubmit={handleFormSubmit} className="space-y-4">
 					<div>
@@ -799,6 +822,11 @@ export function TransactionsTab() {
 					</div>
 				)}
 			</div>
+
+			<ImportStatementModal
+				isOpen={isImportModalOpen}
+				onClose={() => setIsImportModalOpen(false)}
+			/>
 		</div>
 	);
 }

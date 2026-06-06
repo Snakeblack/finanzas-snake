@@ -227,3 +227,22 @@ export type TagBreakdown = {
 	tag: string;
 	amount: number;
 };
+
+/**
+ * Representa una transacción parseada y lista para ser previsualizada antes de importar.
+ */
+export type ImportedTransaction = {
+	readonly id: string;
+	date: string;
+	desc: string;
+	amount: string; // Valor absoluto como string para money.amount
+	type: TransactionType;
+	tag: string;
+	selected: boolean;
+	isDuplicate: boolean;
+	owner: 'userA' | 'userB' | 'joint';
+	paidBy: 'userA' | 'userB' | 'shared';
+	originalType?: TransactionType;
+	fromAccountId?: string;
+	toAccountId?: string;
+};
