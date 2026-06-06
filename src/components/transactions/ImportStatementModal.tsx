@@ -656,25 +656,6 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 				{/* PASO 1: CONFIGURACIÓN */}
 				{step === 'config' && (
 					<div className="space-y-5">
-						{/* Cuenta Destino */}
-						<div className="space-y-2">
-							<label htmlFor="import-account-selector" className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
-								Cuenta de Destino
-							</label>
-							<Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-								<SelectTrigger id="import-account-selector" className="w-full bg-slate-950 border-slate-800 h-11 text-slate-100">
-									<SelectValue placeholder="Selecciona la cuenta asociada" />
-								</SelectTrigger>
-								<SelectContent>
-									{accounts.map(acc => (
-										<SelectItem key={acc.id} value={acc.id}>
-											{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-
 						{/* Pestañas de Método */}
 						<div className="space-y-2">
 							<label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
@@ -705,6 +686,29 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 								</button>
 							</div>
 						</div>
+
+						{method === 'ai' && (
+							<div className="space-y-2">
+								<label htmlFor="import-account-selector" className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
+									Cuenta del texto pegado
+								</label>
+								<Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+									<SelectTrigger id="import-account-selector" className="w-full bg-slate-950 border-slate-800 h-11 text-slate-100">
+										<SelectValue placeholder="Selecciona la cuenta asociada" />
+									</SelectTrigger>
+									<SelectContent>
+										{accounts.map(acc => (
+											<SelectItem key={acc.id} value={acc.id}>
+												{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								<p className="text-[10px] leading-relaxed text-slate-500">
+									Se usará como la cuenta del banco que emitió el texto copiado.
+								</p>
+							</div>
+						)}
 
 						{/* SUB-SECCIÓN CSV */}
 						{method === 'csv' && (
@@ -765,6 +769,9 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 									<label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
 										Subir Archivo
 									</label>
+									<p className="text-[11px] leading-relaxed text-slate-500">
+										Asigná cada archivo a la cuenta del banco que lo emitió. La app usará esa cuenta para detectar transferencias entre cuentas.
+									</p>
 									<div
 										onDragOver={handleDragOver}
 										onDrop={handleDrop}
@@ -795,33 +802,33 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 
 								{attachments.length > 0 && (
 									<div className="space-y-3">
-										<div className="flex items-center justify-between gap-3">
+										<div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
 											<span className="text-xs font-bold text-slate-300">Adjuntos cargados</span>
-											<span className="text-[10px] text-slate-500">Asigna una cuenta por archivo</span>
+											<span className="text-[10px] text-slate-500">La cuenta asignada será el origen del archivo.</span>
 										</div>
 										<div className="grid gap-2">
-											{attachments.map((attachment) => (
-												<div key={attachment.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 grid gap-3 sm:grid-cols-[1fr_220px_220px_auto] sm:items-center">
-													<div className="min-w-0">
-														<span className="block truncate text-xs font-bold text-slate-200">{attachment.name}</span>
+										{attachments.map((attachment) => (
+											<div key={attachment.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 grid gap-3 sm:grid-cols-[1fr_220px_220px_auto] sm:items-center">
+												<div className="min-w-0">
+													<span className="block truncate text-xs font-bold text-slate-200">{attachment.name}</span>
 													<span className={`text-[10px] ${attachment.status === 'error' ? 'text-rose-400' : 'text-slate-500'}`}>
 														{attachment.status === 'loading' ? 'Leyendo archivo' : attachment.status === 'error' ? attachment.error : attachment.type.toUpperCase()}
 													</span>
 												</div>
 												<label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-														<span>{`Cuenta para ${attachment.name}`}</span>
-														<select
-															aria-label={`Cuenta para ${attachment.name}`}
-															value={attachment.accountId}
-															onChange={(event) => handleAttachmentAccountChange(attachment.id, event.target.value)}
-															className="h-9 rounded-xl border border-slate-800 bg-slate-950 px-2 text-xs normal-case tracking-normal text-slate-100 outline-none focus:border-indigo-500"
-														>
-															<option value="">Selecciona cuenta</option>
-															{accounts.map(acc => (
-																<option key={acc.id} value={acc.id}>{acc.name}</option>
-															))}
-														</select>
-													</label>
+													<span>{`Cuenta para ${attachment.name}`}</span>
+													<select
+														aria-label={`Cuenta para ${attachment.name}`}
+														value={attachment.accountId}
+														onChange={(event) => handleAttachmentAccountChange(attachment.id, event.target.value)}
+														className="h-9 rounded-xl border border-slate-800 bg-slate-950 px-2 text-xs normal-case tracking-normal text-slate-100 outline-none focus:border-indigo-500"
+													>
+														<option value="">Selecciona cuenta</option>
+														{accounts.map(acc => (
+															<option key={acc.id} value={acc.id}>{acc.name}</option>
+														))}
+													</select>
+												</label>
 													{attachment.type === 'csv' && (
 														<label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
 															<span>{`Plantilla para ${attachment.name}`}</span>
@@ -1256,7 +1263,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 						<div className="p-4 bg-slate-950/60 border border-slate-850 rounded-2xl text-xs space-y-2">
 							<span className="font-bold text-slate-200 block">Asociación de Cuentas para Traspasos</span>
 							<p className="text-slate-450 text-[11px] leading-relaxed">
-								Para cada traspaso seleccionado, define la otra cuenta implicada en el movimiento.
+								La cuenta del archivo ya está asignada. Acá solo elegís la cuenta contraparte para resolver manualmente el traspaso.
 							</p>
 						</div>
 
@@ -1274,48 +1281,64 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 											<span className="text-xs font-black text-indigo-400 block">{parseFloat(tx.amount).toFixed(2)} €</span>
 										</div>
 
-										<div className="flex items-center gap-3 shrink-0 bg-slate-900/60 p-3 rounded-xl border border-slate-800/60">
+										<div className="flex flex-col gap-3 shrink-0 bg-slate-900/60 p-3 rounded-xl border border-slate-800/60 sm:flex-row sm:items-end">
 											{tx.originalType === 'expense' ? (
 												<>
-													<span className="text-xs font-bold text-slate-300 px-2 py-1 bg-slate-950 border border-slate-850 rounded-lg">
-														{activeAccountName}
-													</span>
-													<ChevronRight className="w-4 h-4 text-indigo-400 shrink-0" />
-													<select
-														value={tx.toAccountId || ''}
-														onChange={(e) => handleTxChange(tx.id, { toAccountId: e.target.value })}
-														className="text-xs bg-slate-950 border border-slate-850 rounded-lg text-slate-100 px-2 py-1.5 outline-none font-semibold min-w-[120px]"
-													>
-														{otherAccounts.map(acc => (
-															<option key={acc.id} value={acc.id}>
-																{acc.name}
-															</option>
-														))}
-														{otherAccounts.length === 0 && (
-															<option value="">(No hay otras cuentas)</option>
-														)}
-													</select>
+													<div className="grid gap-1">
+														<span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Cuenta de origen</span>
+														<span className="text-xs font-bold text-slate-300 px-2 py-1.5 bg-slate-950 border border-slate-850 rounded-lg">
+															{activeAccountName}
+														</span>
+													</div>
+													<ChevronRight className="hidden w-4 h-4 text-indigo-400 shrink-0 mb-2 sm:block" />
+													<label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+														<span>Cuenta de destino</span>
+														<select
+															aria-label={`Cuenta de destino para ${tx.desc}`}
+															value={tx.toAccountId || ''}
+															onChange={(e) => handleTxChange(tx.id, { toAccountId: e.target.value })}
+															className="min-w-[160px] text-xs bg-slate-950 border border-slate-850 rounded-lg text-slate-100 px-2 py-1.5 outline-none font-semibold normal-case tracking-normal"
+														>
+															{otherAccounts.map(acc => (
+																<option key={acc.id} value={acc.id}>
+																	{acc.name}
+																</option>
+															))}
+															{otherAccounts.length === 0 && (
+																<option value="">(No hay otras cuentas)</option>
+															)}
+														</select>
+														<span className="normal-case tracking-normal text-slate-500 font-medium">Contraparte de este traspaso manual.</span>
+													</label>
 												</>
 											) : (
 												<>
-													<select
-														value={tx.fromAccountId || ''}
-														onChange={(e) => handleTxChange(tx.id, { fromAccountId: e.target.value })}
-														className="text-xs bg-slate-950 border border-slate-850 rounded-lg text-slate-100 px-2 py-1.5 outline-none font-semibold min-w-[120px]"
-													>
-														{otherAccounts.map(acc => (
-															<option key={acc.id} value={acc.id}>
-																{acc.name}
-															</option>
-														))}
-														{otherAccounts.length === 0 && (
-															<option value="">(No hay otras cuentas)</option>
-														)}
-													</select>
-													<ChevronRight className="w-4 h-4 text-indigo-400 shrink-0" />
-													<span className="text-xs font-bold text-slate-300 px-2 py-1 bg-slate-950 border border-slate-850 rounded-lg">
-														{activeAccountName}
-													</span>
+													<label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+														<span>Cuenta de origen</span>
+														<select
+															aria-label={`Cuenta de origen para ${tx.desc}`}
+															value={tx.fromAccountId || ''}
+															onChange={(e) => handleTxChange(tx.id, { fromAccountId: e.target.value })}
+															className="min-w-[160px] text-xs bg-slate-950 border border-slate-850 rounded-lg text-slate-100 px-2 py-1.5 outline-none font-semibold normal-case tracking-normal"
+														>
+															{otherAccounts.map(acc => (
+																<option key={acc.id} value={acc.id}>
+																	{acc.name}
+																</option>
+															))}
+															{otherAccounts.length === 0 && (
+																<option value="">(No hay otras cuentas)</option>
+															)}
+														</select>
+														<span className="normal-case tracking-normal text-slate-500 font-medium">Contraparte de este traspaso manual.</span>
+													</label>
+													<ChevronRight className="hidden w-4 h-4 text-indigo-400 shrink-0 mb-2 sm:block" />
+													<div className="grid gap-1">
+														<span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Cuenta de destino</span>
+														<span className="text-xs font-bold text-slate-300 px-2 py-1.5 bg-slate-950 border border-slate-850 rounded-lg">
+															{activeAccountName}
+														</span>
+													</div>
 												</>
 											)}
 										</div>

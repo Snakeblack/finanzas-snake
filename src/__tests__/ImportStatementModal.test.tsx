@@ -42,21 +42,25 @@ describe('ImportStatementModal UI', () => {
 	it('debe renderizar el modal en Step 1 cuando isOpen es true', async () => {
 		render(<MockApp isOpen={true} onClose={onCloseMock} />);
 		expect(screen.getByText('Importar Extracto Bancario')).toBeInTheDocument();
-		expect(screen.getByText('Cuenta de Destino')).toBeInTheDocument();
 		expect(screen.getByText('Método de Importación')).toBeInTheDocument();
 		expect(screen.getByText('Archivo (CSV / PDF)')).toBeInTheDocument();
 		expect(screen.getByText('Copiar y Pegar (IA)')).toBeInTheDocument();
+		expect(screen.getByText('Asigná cada archivo a la cuenta del banco que lo emitió. La app usará esa cuenta para detectar transferencias entre cuentas.')).toBeInTheDocument();
+		expect(screen.queryByText('Cuenta de Destino')).toBeNull();
 	});
 
 	it('debe alternar métodos de importación', () => {
 		render(<MockApp isOpen={true} onClose={onCloseMock} />);
 		const btnAi = screen.getByText('Copiar y Pegar (IA)');
 		fireEvent.click(btnAi);
+		expect(screen.getByText('Cuenta del texto pegado')).toBeInTheDocument();
+		expect(screen.getByText('Se usará como la cuenta del banco que emitió el texto copiado.')).toBeInTheDocument();
 		expect(screen.getByPlaceholderText(/Pega las líneas copiadas de tu app bancaria/)).toBeInTheDocument();
 
 		const btnCsv = screen.getByText('Archivo (CSV / PDF)');
 		fireEvent.click(btnCsv);
 		expect(screen.getByText('Formato / Banco')).toBeInTheDocument();
+		expect(screen.queryByText('Cuenta del texto pegado')).toBeNull();
 	});
 
 	it('debe persistir importaciones por texto IA con la cuenta seleccionada', async () => {
@@ -176,6 +180,7 @@ describe('ImportStatementModal UI', () => {
 		await waitFor(() => {
 			expect(screen.getAllByText('cuenta-corriente.csv').length).toBeGreaterThanOrEqual(1);
 			expect(screen.getAllByText('ahorro.csv').length).toBeGreaterThanOrEqual(1);
+			expect(screen.queryByText('Leyendo archivo')).toBeNull();
 		});
 
 		fireEvent.click(screen.getByText('Siguiente paso'));
@@ -351,6 +356,7 @@ async function assignAttachmentAccounts(firstName = 'cuenta-corriente.csv', seco
 	await waitFor(() => {
 		expect(screen.getByLabelText(`Cuenta para ${firstName}`)).toBeInTheDocument();
 		expect(screen.getByLabelText(`Cuenta para ${secondName}`)).toBeInTheDocument();
+		expect(screen.queryByText('Leyendo archivo')).toBeNull();
 	});
 
 	fireEvent.change(screen.getByLabelText(`Cuenta para ${firstName}`), { target: { value: 'default-a' } });
