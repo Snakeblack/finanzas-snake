@@ -3,7 +3,7 @@
  */
 export const DEFAULT_TAGS = {
 	income: ['Sueldo', 'Inversiones', 'Freelance', 'Bizum/Regalo', 'Reembolso', 'Otros Ingresos'],
-	expense: ['Alquiler/Hipoteca', 'Alimentación', 'Transporte', 'Suministros', 'Ocio/Restauración', 'Suscripciones', 'Salud/Belleza', 'Educación', 'Viajes', 'Compras/Ropa', 'Otros Gastos'],
+	expense: ['Alquiler/Hipoteca', 'Alimentación', 'Transporte', 'Suministros', 'Ocio/Restauración', 'Suscripciones', 'Salud/Belleza', 'Educación', 'Viajes', 'Compras/Ropa', 'Transferencia externa', 'Otros Gastos'],
 	transfer: ['Traspaso', 'Ahorro/Inversión', 'Gasto Común', 'Ajuste de Saldo', 'Otros Traspasos'],
 	debt: ['Hipoteca', 'Préstamo Coche', 'Tarjeta de Crédito', 'Préstamo Personal', 'Otros Préstamos']
 } as const;
