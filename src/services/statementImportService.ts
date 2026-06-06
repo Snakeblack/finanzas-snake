@@ -1,7 +1,87 @@
-import { ImportedTransaction, Transaction, TransactionType } from '../types';
+import { Account, ImportedTransaction, Transaction, TransactionType } from '../types';
 import { deduceTagFromConcept } from './financeService';
 import { askGemini } from './geminiService';
 import { DEFAULT_TAGS } from '../constants';
+
+interface PrepareImportedTransactionsOptions {
+	transactions: ImportedTransaction[];
+	accountId: string;
+	sourceName: string;
+	accountOwner: 'userA' | 'userB' | 'joint';
+}
+
+interface PdfAccountContext {
+	accountName?: string;
+}
+
+const EXTERNAL_TRANSFER_TAG = 'Transferencia externa';
+
+const normalizeFingerprintPart = (value: string): string =>
+	value
+		.toLowerCase()
+		.normalize('NFD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.replace(/[^a-z0-9]+/g, ' ')
+		.trim();
+
+const createStableHash = (value: string): string => {
+	let hash = 5381;
+	for (let index = 0; index < value.length; index++) {
+		hash = (hash * 33) ^ value.charCodeAt(index);
+	}
+
+	return (hash >>> 0).toString(36);
+};
+
+const createImportFingerprint = (tx: ImportedTransaction, accountId: string): string => {
+	const fingerprintParts = [
+		tx.date,
+		tx.amount,
+		tx.type,
+		accountId,
+		normalizeFingerprintPart(tx.desc),
+		normalizeFingerprintPart(tx.sourceName || '')
+	];
+
+	return `import-${createStableHash(fingerprintParts.join('|'))}`;
+};
+
+const hasAnyToken = (value: string, tokens: string[]): boolean => tokens.some((token) => value.includes(token));
+
+const hasTransferEvidence = (tx: ImportedTransaction): boolean => {
+	if (tx.type === 'transfer') {
+		return true;
+	}
+
+	const searchableText = normalizeFingerprintPart(`${tx.desc} ${tx.tag}`);
+	const hasStrongTransferTerm = hasAnyToken(searchableText, [
+		'transferencia',
+		'transfer',
+		'traspaso',
+		'cbu',
+		'cvu',
+		'sepa',
+		'iban'
+	]);
+	const hasDirectionalTerm = hasAnyToken(searchableText, ['envio', 'enviado', 'enviada', 'recibido', 'recibida']);
+	const hasAccountTerm = hasAnyToken(searchableText, ['cuenta', 'account']);
+
+	return hasStrongTransferTerm || (hasDirectionalTerm && hasAccountTerm);
+};
+
+const isBankTransferLike = hasTransferEvidence;
+
+const getTransferCorrelationId = (expense: ImportedTransaction, income: ImportedTransaction): string => {
+	const parts = [
+		expense.date,
+		expense.amount,
+		expense.accountId || '',
+		income.accountId || '',
+		expense.importFingerprint || expense.id,
+		income.importFingerprint || income.id
+	];
+	return `transfer-${createStableHash(parts.join('|'))}`;
+};
 
 /**
  * Normaliza un importe en formato string a un valor numérico decimal absoluto (string)
@@ -165,8 +245,10 @@ export function processParsedRows(
 		const fallbackTag = type === 'income' ? 'Otros Ingresos' : type === 'transfer' ? 'Otros Traspasos' : 'Otros Gastos';
 		const tag = deduceTagFromConcept(desc, type) || fallbackTag;
 
+		const rowId = `imported-row-${createStableHash([date, desc, amount, type, i.toString()].join('|'))}`;
+
 		txs.push({
-			id: `imported-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 9)}`,
+			id: rowId,
 			date,
 			desc,
 			amount,
@@ -183,6 +265,169 @@ export function processParsedRows(
 	return txs;
 }
 
+export function prepareImportedTransactions(options: PrepareImportedTransactionsOptions): ImportedTransaction[] {
+	const paidBy: 'userA' | 'userB' | 'shared' =
+		options.accountOwner === 'userA' ? 'userA' : options.accountOwner === 'userB' ? 'userB' : 'shared';
+
+	return options.transactions.map((tx) => {
+		const enrichedTx = {
+			...tx,
+			accountId: options.accountId,
+			sourceName: options.sourceName,
+			owner: options.accountOwner,
+			paidBy,
+			originalType: tx.originalType || tx.type
+		};
+		const importFingerprint = createImportFingerprint(enrichedTx, options.accountId);
+
+		return {
+			...enrichedTx,
+			id: importFingerprint,
+			importFingerprint
+		};
+	});
+}
+
+export function correlateInternalTransfers(importedTxs: ImportedTransaction[]): ImportedTransaction[] {
+	const matchedIds = new Set<string>();
+	const transfersById = new Map<string, ImportedTransaction>();
+
+	for (const expense of importedTxs.filter((tx) => tx.type === 'expense')) {
+		const matches = importedTxs.filter((income) =>
+			income.type === 'income' &&
+			income.date === expense.date &&
+			income.amount === expense.amount &&
+			income.accountId !== expense.accountId
+		);
+
+		if (matches.length !== 1) {
+			continue;
+		}
+
+		const [income] = matches;
+		const inverseMatches = importedTxs.filter((candidate) =>
+			candidate.type === 'expense' &&
+			candidate.date === income.date &&
+			candidate.amount === income.amount &&
+			candidate.accountId !== income.accountId
+		);
+
+		if (inverseMatches.length !== 1 || matchedIds.has(expense.id) || matchedIds.has(income.id)) {
+			continue;
+		}
+
+		if (!hasTransferEvidence(expense) || !hasTransferEvidence(income)) {
+			continue;
+		}
+
+		const transferCorrelationId = getTransferCorrelationId(expense, income);
+		matchedIds.add(expense.id);
+		matchedIds.add(income.id);
+		transfersById.set(expense.id, {
+			...expense,
+			type: 'transfer',
+			tag: 'Traspaso',
+			transferCorrelationId,
+			fromAccountId: expense.accountId,
+			toAccountId: income.accountId
+		});
+		transfersById.set(income.id, {
+			...income,
+			type: 'transfer',
+			tag: 'Traspaso',
+			transferCorrelationId,
+			fromAccountId: expense.accountId,
+			toAccountId: income.accountId
+		});
+	}
+
+	return importedTxs.map((tx) => {
+		const transferTx = transfersById.get(tx.id);
+		if (transferTx) {
+			return transferTx;
+		}
+
+		if (isBankTransferLike(tx) && tx.type !== 'transfer') {
+			return { ...tx, tag: EXTERNAL_TRANSFER_TAG };
+		}
+
+		return tx;
+	});
+}
+
+export function formatImportedTransactionsForPersistence(
+	importedTxs: ImportedTransaction[],
+	accounts: Account[] = []
+): Transaction[] {
+	const persistedTransferIds = new Set<string>();
+	const selectedTxs = importedTxs.filter((tx) => tx.selected && !tx.isDuplicate);
+	const transactions: Transaction[] = [];
+
+	for (const tx of selectedTxs) {
+		if (tx.type === 'transfer' && tx.transferCorrelationId) {
+			if (persistedTransferIds.has(tx.transferCorrelationId)) {
+				continue;
+			}
+
+			persistedTransferIds.add(tx.transferCorrelationId);
+			transactions.push(formatInternalTransfer(tx, accounts));
+			continue;
+		}
+
+		if (tx.type === 'transfer' && (!tx.fromAccountId || !tx.toAccountId)) {
+			continue;
+		}
+
+		transactions.push(formatRegularImportedTransaction(tx, accounts));
+	}
+
+	return transactions;
+}
+
+function formatInternalTransfer(tx: ImportedTransaction, accounts: Account[]): Transaction {
+	return {
+		id: tx.transferCorrelationId || tx.importFingerprint || tx.id,
+		desc: tx.desc,
+		money: { amount: tx.amount, currency: 'EUR' },
+		type: 'transfer',
+		tag: 'Traspaso',
+		date: tx.date,
+		recurrence: 'one-off',
+		owner: getTransferOwner(accounts, tx.fromAccountId, tx.toAccountId),
+		accountId: undefined,
+		fromAccountId: tx.fromAccountId,
+		toAccountId: tx.toAccountId
+	};
+}
+
+function formatRegularImportedTransaction(tx: ImportedTransaction, accounts: Account[]): Transaction {
+	return {
+		id: tx.importFingerprint || tx.id,
+		desc: tx.desc,
+		money: { amount: tx.amount, currency: 'EUR' },
+		type: tx.type,
+		tag: tx.tag,
+		date: tx.date,
+		recurrence: 'one-off',
+		owner: tx.owner,
+		paidBy: tx.paidBy,
+		accountId: tx.type === 'transfer' ? undefined : tx.accountId,
+		fromAccountId: tx.type === 'transfer' ? tx.fromAccountId : undefined,
+		toAccountId: tx.type === 'transfer' ? tx.toAccountId : undefined
+	};
+}
+
+function getTransferOwner(accounts: Account[], fromAccountId?: string, toAccountId?: string): 'userA' | 'userB' | 'joint' {
+	const fromAccount = accounts.find((account) => account.id === fromAccountId);
+	const toAccount = accounts.find((account) => account.id === toAccountId);
+
+	if (fromAccount && toAccount && fromAccount.owner === toAccount.owner) {
+		return fromAccount.owner;
+	}
+
+	return 'joint';
+}
+
 /**
  * Identifica posibles duplicaciones comparando fecha, importe y concepto.
  */
@@ -190,13 +435,23 @@ export function detectDuplicates(
 	importedTxs: ImportedTransaction[],
 	existingTxs: Transaction[]
 ): ImportedTransaction[] {
+	const seenFingerprints = new Set<string>();
+
 	return importedTxs.map((imported) => {
+		const fingerprint = imported.importFingerprint || createImportFingerprint(imported, imported.accountId || '');
+		const duplicateInBatch = seenFingerprints.has(fingerprint);
+		seenFingerprints.add(fingerprint);
+
 		const isDuplicate = existingTxs.some((existing) => {
 			const existingAmount = existing.money?.amount ? parseFloat(existing.money.amount) : 0;
 			const importedAmount = parseFloat(imported.amount);
 
-			const sameAmount = Math.abs(existingAmount - importedAmount) < 0.001 && existing.type === imported.type;
+			const sameAmount = Math.abs(existingAmount - importedAmount) < 0.001;
+			const sameType = existing.type === imported.type;
 			const sameDate = existing.date === imported.date;
+			const sameAccount = hasMatchingAccountEvidence(existing, imported);
+			const sameFingerprint = Boolean(imported.importFingerprint && existing.id === imported.importFingerprint);
+			const sameTransferCorrelation = Boolean(imported.transferCorrelationId && existing.id === imported.transferCorrelationId);
 
 			const desc1 = existing.desc.toLowerCase().trim();
 			const desc2 = imported.desc.toLowerCase().trim();
@@ -210,15 +465,55 @@ export function detectDuplicates(
 				}
 			}
 
-			return sameAmount && sameDate && sameDesc;
+			if ((sameFingerprint && sameDate && sameAmount && sameAccount) || (sameTransferCorrelation && sameDate && sameAmount)) {
+				return true;
+			}
+
+			if (isManualTransferDuplicate(existing, imported, { sameAmount, sameDate, sameDesc, sameFingerprint })) {
+				return true;
+			}
+
+			return sameType && sameAmount && sameDate && sameDesc && (!imported.accountId || sameAccount);
 		});
+		const duplicate = duplicateInBatch || isDuplicate;
 
 		return {
 			...imported,
-			isDuplicate,
-			selected: !isDuplicate
+			isDuplicate: duplicate,
+			selected: !duplicate
 		};
 	});
+}
+
+function hasMatchingAccountEvidence(existing: Transaction, imported: ImportedTransaction): boolean {
+	const sameRegularAccount = Boolean(existing.accountId && imported.accountId && existing.accountId === imported.accountId);
+	const sameFromAccount = Boolean(existing.fromAccountId && imported.fromAccountId && existing.fromAccountId === imported.fromAccountId);
+	const sameToAccount = Boolean(existing.toAccountId && imported.toAccountId && existing.toAccountId === imported.toAccountId);
+
+	return sameRegularAccount || sameFromAccount || sameToAccount;
+}
+
+function isManualTransferDuplicate(
+	existing: Transaction,
+	imported: ImportedTransaction,
+	match: { sameAmount: boolean; sameDate: boolean; sameDesc: boolean; sameFingerprint: boolean }
+): boolean {
+	if (existing.type !== 'transfer' || imported.type === 'transfer') {
+		return false;
+	}
+
+	if (!match.sameAmount || !match.sameDate || !hasTransferEvidence(imported)) {
+		return false;
+	}
+
+	const matchesTransferSide =
+		(imported.type === 'expense' && existing.fromAccountId === imported.accountId) ||
+		(imported.type === 'income' && existing.toAccountId === imported.accountId);
+	if (!matchesTransferSide) {
+		return false;
+	}
+
+	return match.sameFingerprint || match.sameDesc;
 }
 
 /**
@@ -320,13 +615,18 @@ Reglas estrictas:
  */
 export async function askGeminiToParsePdf(
 	apiKey: string,
-	pdfBase64: string
+	pdfBase64: string,
+	accountContext: PdfAccountContext = {}
 ): Promise<ImportedTransaction[]> {
 	try {
 		const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
+		const accountInstruction = accountContext.accountName
+			? `\nContexto de cuenta asignada por el usuario: el PDF pertenece a la cuenta "${accountContext.accountName}". Usa este dato solo como contexto para interpretar cargos, abonos y traspasos; no lo devuelvas como campo JSON.`
+			: '';
 
 		const systemInstruction = `
 Actúas como un extractor de datos bancarios estructurados en formato JSON. Tu objetivo es procesar el archivo PDF del extracto o movimientos de cuenta bancaria y devolver estrictamente un JSON válido que contiene un array de objetos con las transacciones detectadas.
+${accountInstruction}
 
 El JSON de salida debe tener el siguiente formato exacto:
 {

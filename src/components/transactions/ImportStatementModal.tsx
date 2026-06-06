@@ -21,6 +21,9 @@ import {
 	BANK_TEMPLATES,
 	processParsedRows,
 	detectDuplicates,
+	prepareImportedTransactions,
+	correlateInternalTransfers,
+	formatImportedTransactionsForPersistence,
 	askGeminiToParseStatement,
 	askGeminiToParsePdf
 } from '../../services/statementImportService';
@@ -49,6 +52,32 @@ interface ImportStatementModalProps {
 type ImportMethod = 'csv' | 'ai';
 type Step = 'config' | 'mapping' | 'preview' | 'transfers';
 
+type ImportAttachmentStatus = 'loading' | 'ready' | 'error';
+
+interface ImportAttachment {
+	id: string;
+	name: string;
+	type: 'csv' | 'pdf';
+	accountId: string;
+	templateKey: keyof typeof BANK_TEMPLATES;
+	csvText: string;
+	csvRows: string[][];
+	pdfBase64: string;
+	status: ImportAttachmentStatus;
+	error?: string;
+}
+
+const detectTemplateKey = (fileName: string): keyof typeof BANK_TEMPLATES => {
+	const lowerName = fileName.toLowerCase();
+
+	if (lowerName.includes('bbva')) return 'bbva';
+	if (lowerName.includes('santander')) return 'santander';
+	if (lowerName.includes('caixa')) return 'caixabank';
+	if (lowerName.includes('revolut')) return 'revolut';
+
+	return 'generic';
+};
+
 export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalProps) {
 	const {
 		accounts,
@@ -69,6 +98,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 	const [csvText, setCsvText] = useState<string>('');
 	const [csvRows, setCsvRows] = useState<string[][]>([]);
 	const [csvFilename, setCsvFilename] = useState<string>('');
+	const [attachments, setAttachments] = useState<ImportAttachment[]>([]);
 	
 	// Mapeo Personalizado
 	const [customMapping, setCustomMapping] = useState({
@@ -89,6 +119,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 	// Loading & Errors
 	const [isLoading, setIsLoading] = useState<boolean>(false);
 	const [error, setError] = useState<string>('');
+	const hasLoadingAttachments = attachments.some((attachment) => attachment.status === 'loading');
 
 	// Vista Previa de Transacciones
 	const [importedTxs, setImportedTxs] = useState<ImportedTransaction[]>([]);
@@ -116,6 +147,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 		setCsvText('');
 		setCsvRows([]);
 		setCsvFilename('');
+		setAttachments([]);
 		setIsPdf(false);
 		setPdfBase64('');
 		setAiText('');
@@ -132,16 +164,20 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 
 	const handleDrop = (e: React.DragEvent) => {
 		e.preventDefault();
-		const file = e.dataTransfer.files?.[0];
-		if (file) handleFile(file);
+		const files = e.dataTransfer.files;
+		if (files?.length) handleFiles(files);
 	};
 
 	const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const file = e.target.files?.[0];
-		if (file) handleFile(file);
+		const files = e.target.files;
+		if (files?.length) handleFiles(files);
 	};
 
-	const handleFile = (file: File) => {
+	const handleFiles = (fileList: FileList | File[]) => {
+		Array.from(fileList).forEach((file, index) => handleFile(file, index));
+	};
+
+	const handleFile = (file: File, index = 0) => {
 		const isPdfFile = file.name.toLowerCase().endsWith('.pdf');
 		const isCsvFile = file.name.toLowerCase().endsWith('.csv');
 
@@ -151,6 +187,20 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 		}
 		setError('');
 		setCsvFilename(file.name);
+		const attachmentId = `${file.name}-${file.size}-${file.lastModified}-${index}`;
+		const attachmentBase: ImportAttachment = {
+			id: attachmentId,
+			name: file.name,
+			type: isPdfFile ? 'pdf' : 'csv',
+			accountId: '',
+			templateKey: isCsvFile ? detectTemplateKey(file.name) : 'generic',
+			csvText: '',
+			csvRows: [],
+			pdfBase64: '',
+			status: 'loading'
+		};
+
+		setAttachments((prev) => [...prev.filter((attachment) => attachment.id !== attachmentId), attachmentBase]);
 
 		if (isPdfFile) {
 			setIsPdf(true);
@@ -162,6 +212,13 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 				const result = event.target?.result as string;
 				const base64Data = result.split(',')[1] || '';
 				setPdfBase64(base64Data);
+				setAttachments((prev) =>
+					prev.map((attachment) =>
+						attachment.id === attachmentId
+							? { ...attachment, pdfBase64: base64Data, status: base64Data ? 'ready' : 'error', error: base64Data ? undefined : 'PDF inválido' }
+							: attachment
+					)
+				);
 			};
 			reader.readAsDataURL(file);
 		} else {
@@ -177,28 +234,137 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 				const sep = detectSeparator(text);
 				const rows = parseCSV(text, sep);
 				setCsvRows(rows);
+				setAttachments((prev) =>
+					prev.map((attachment) =>
+						attachment.id === attachmentId
+							? { ...attachment, csvText: text, csvRows: rows, status: 'ready' }
+							: attachment
+					)
+				);
 
-				// Intentar auto-seleccionar plantilla según nombre
-				const lowerName = file.name.toLowerCase();
-				if (lowerName.includes('bbva')) {
-					setTemplateKey('bbva');
-				} else if (lowerName.includes('santander')) {
-					setTemplateKey('santander');
-				} else if (lowerName.includes('caixa')) {
-					setTemplateKey('caixabank');
-				} else if (lowerName.includes('revolut')) {
-					setTemplateKey('revolut');
-				} else {
-					setTemplateKey('generic');
-				}
+				setTemplateKey(detectTemplateKey(file.name));
 			};
 			reader.readAsText(file);
 		}
 	};
 
+	const parseAttachment = async (attachment: ImportAttachment): Promise<ImportedTransaction[]> => {
+		const targetAccount = accounts.find(a => a.id === attachment.accountId);
+		if (!targetAccount) {
+			throw new Error('Cuenta no encontrada');
+		}
+
+		if (attachment.type === 'pdf') {
+			const activeKey = localApiKey || geminiApiKey;
+			if (!activeKey) {
+				throw new Error('Se requiere una API Key de Gemini para procesar PDFs.');
+			}
+
+			const parsed = await askGeminiToParsePdf(activeKey, attachment.pdfBase64, { accountName: targetAccount.name });
+			return prepareImportedTransactions({
+				transactions: parsed,
+				accountId: attachment.accountId,
+				sourceName: attachment.name,
+				accountOwner: targetAccount.owner
+			});
+		}
+
+		const template = BANK_TEMPLATES[attachment.templateKey];
+		const rows = attachment.csvRows.length > 0 ? attachment.csvRows : parseCSV(attachment.csvText, detectSeparator(attachment.csvText));
+		const parsed = processParsedRows(rows, template);
+
+		return prepareImportedTransactions({
+			transactions: parsed,
+			accountId: attachment.accountId,
+			sourceName: attachment.name,
+			accountOwner: targetAccount.owner
+		});
+	};
+
+	const processAttachments = async () => {
+		if (attachments.length === 0) {
+			return false;
+		}
+
+		if (attachments.some((attachment) => !attachment.accountId)) {
+			setError('Asigna una cuenta a cada adjunto antes de procesar.');
+			return true;
+		}
+
+		if (attachments.some((attachment) => attachment.status === 'loading')) {
+			setError('Espera a que todos los adjuntos terminen de cargarse antes de procesar.');
+			return true;
+		}
+
+		if (attachments.some((attachment) => attachment.status === 'error')) {
+			setError('Quita los adjuntos con error antes de procesar.');
+			return true;
+		}
+
+		setIsLoading(true);
+		try {
+			const parsedGroups = await Promise.allSettled(attachments.map(parseAttachment));
+			const successfulTxs = parsedGroups.flatMap((result) => result.status === 'fulfilled' ? result.value : []);
+			const failedAttachments = parsedGroups
+				.map((result, index) => result.status === 'rejected' ? attachments[index].name : '')
+				.filter(Boolean);
+
+			if (successfulTxs.length === 0) {
+				setError('No se pudieron extraer movimientos de los adjuntos cargados.');
+				return true;
+			}
+
+			const correlatedTxs = correlateInternalTransfers(successfulTxs);
+			const checkedTxs = detectDuplicates(correlatedTxs, transactions);
+			setImportedTxs(checkedTxs);
+			setStep('preview');
+
+			if (failedAttachments.length > 0) {
+				setError(`No se pudieron procesar estos adjuntos: ${failedAttachments.join(', ')}.`);
+			}
+		} catch (err: any) {
+			setError(err.message || 'Ocurrió un error inesperado al procesar los adjuntos.');
+		} finally {
+			setIsLoading(false);
+		}
+
+		return true;
+	};
+
 	// Procesar Paso 1
 	const handleProcessConfig = async () => {
 		setError('');
+		if (method === 'csv' && templateKey === 'custom') {
+			const csvAttachments = attachments.filter((attachment) => attachment.type === 'csv');
+			if (csvAttachments.length !== 1 || attachments.length !== 1) {
+				setError('El mapeo personalizado solo admite un adjunto CSV. Quita los demás adjuntos o usa una plantilla por archivo.');
+				return;
+			}
+			const [attachment] = csvAttachments;
+			if (!attachment.accountId) {
+				setError('Asigna una cuenta al adjunto antes de configurar el mapeo personalizado.');
+				return;
+			}
+			if (attachment.status === 'loading') {
+				setError('Espera a que el adjunto termine de cargarse antes de configurar el mapeo.');
+				return;
+			}
+			if (attachment.status === 'error') {
+				setError('Quita el adjunto con error antes de configurar el mapeo.');
+				return;
+			}
+
+			setSelectedAccountId(attachment.accountId);
+			setCsvText(attachment.csvText);
+			setCsvRows(attachment.csvRows);
+			setCsvFilename(attachment.name);
+			setStep('mapping');
+			return;
+		}
+
+		if (method === 'csv' && await processAttachments()) {
+			return;
+		}
 		if (!selectedAccountId) {
 			setError('Por favor, selecciona una cuenta para asociar los movimientos.');
 			return;
@@ -218,22 +384,20 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 
 				setIsLoading(true);
 				try {
-					const parsed = await askGeminiToParsePdf(activeKey, pdfBase64);
+					const targetAccount = accounts.find(a => a.id === selectedAccountId);
+					const parsed = await askGeminiToParsePdf(activeKey, pdfBase64, { accountName: targetAccount?.name });
 					if (parsed.length === 0) {
 						setError('La IA no pudo detectar transacciones en el PDF provisto. Asegúrate de que el documento es un extracto válido.');
 						setIsLoading(false);
 						return;
 					}
 
-					const targetAccount = accounts.find(a => a.id === selectedAccountId);
-					const owner = targetAccount ? targetAccount.owner : 'joint';
-					const paidBy: 'userA' | 'userB' | 'shared' = owner === 'userA' ? 'userA' : owner === 'userB' ? 'userB' : 'shared';
-
-					const finalTxs = parsed.map(tx => ({
-						...tx,
-						owner,
-						paidBy
-					}));
+					const finalTxs = prepareImportedTransactions({
+						transactions: parsed,
+						accountId: selectedAccountId,
+						sourceName: csvFilename || 'extracto.pdf',
+						accountOwner: targetAccount?.owner || 'joint'
+					});
 
 					const checkedTxs = detectDuplicates(finalTxs, transactions);
 					setImportedTxs(checkedTxs);
@@ -265,14 +429,12 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 					}
 					
 					const targetAccount = accounts.find(a => a.id === selectedAccountId);
-					const owner = targetAccount ? targetAccount.owner : 'joint';
-					const paidBy: 'userA' | 'userB' | 'shared' = owner === 'userA' ? 'userA' : owner === 'userB' ? 'userB' : 'shared';
-
-					const finalTxs = parsed.map(tx => ({
-						...tx,
-						owner,
-						paidBy
-					}));
+					const finalTxs = prepareImportedTransactions({
+						transactions: parsed,
+						accountId: selectedAccountId,
+						sourceName: csvFilename || 'extracto.csv',
+						accountOwner: targetAccount?.owner || 'joint'
+					});
 
 					const checkedTxs = detectDuplicates(finalTxs, transactions);
 					setImportedTxs(checkedTxs);
@@ -301,14 +463,12 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 				}
 
 				const targetAccount = accounts.find(a => a.id === selectedAccountId);
-				const owner = targetAccount ? targetAccount.owner : 'joint';
-				const paidBy: 'userA' | 'userB' | 'shared' = owner === 'userA' ? 'userA' : owner === 'userB' ? 'userB' : 'shared';
-
-				const finalTxs = parsed.map(tx => ({
-					...tx,
-					owner,
-					paidBy
-				}));
+				const finalTxs = prepareImportedTransactions({
+					transactions: parsed,
+					accountId: selectedAccountId,
+					sourceName: 'Texto pegado (IA)',
+					accountOwner: targetAccount?.owner || 'joint'
+				});
 
 				const checkedTxs = detectDuplicates(finalTxs, transactions);
 				setImportedTxs(checkedTxs);
@@ -330,14 +490,12 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 		}
 
 		const targetAccount = accounts.find(a => a.id === selectedAccountId);
-		const owner = targetAccount ? targetAccount.owner : 'joint';
-		const paidBy: 'userA' | 'userB' | 'shared' = owner === 'userA' ? 'userA' : owner === 'userB' ? 'userB' : 'shared';
-
-		const finalTxs = parsed.map(tx => ({
-			...tx,
-			owner,
-			paidBy
-		}));
+		const finalTxs = prepareImportedTransactions({
+			transactions: parsed,
+			accountId: selectedAccountId,
+			sourceName: csvFilename || 'custom.csv',
+			accountOwner: targetAccount?.owner || 'joint'
+		});
 
 		const checkedTxs = detectDuplicates(finalTxs, transactions);
 		setImportedTxs(checkedTxs);
@@ -349,6 +507,22 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 		setImportedTxs(prev =>
 			prev.map(tx => (tx.id === id ? { ...tx, ...patch } as ImportedTransaction : tx))
 		);
+	};
+
+	const handleAttachmentAccountChange = (id: string, accountId: string) => {
+		setAttachments(prev =>
+			prev.map(attachment => (attachment.id === id ? { ...attachment, accountId } : attachment))
+		);
+	};
+
+	const handleAttachmentTemplateChange = (id: string, attachmentTemplateKey: keyof typeof BANK_TEMPLATES) => {
+		setAttachments(prev =>
+			prev.map(attachment => (attachment.id === id ? { ...attachment, templateKey: attachmentTemplateKey } : attachment))
+		);
+	};
+
+	const handleRemoveAttachment = (id: string) => {
+		setAttachments(prev => prev.filter(attachment => attachment.id !== id));
 	};
 
 	// Alternar selección de una transacción en vista previa
@@ -379,37 +553,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 			return;
 		}
 
-		const getTransferOwner = (fromId?: string, toId?: string) => {
-			const fromAcc = accounts.find((a) => a.id === fromId);
-			const toAcc = accounts.find((a) => a.id === toId);
-			if (fromAcc && toAcc) {
-				if (fromAcc.owner === toAcc.owner) return fromAcc.owner;
-			}
-			return 'joint';
-		};
-
-		const formattedTxs = selectedTxs.map(tx => {
-			const isTransfer = tx.type === 'transfer';
-			return {
-				id: tx.id,
-				desc: tx.desc,
-				money: {
-					amount: tx.amount,
-					currency: 'EUR' as const
-				},
-				type: tx.type,
-				tag: tx.tag,
-				date: tx.date,
-				recurrence: 'one-off' as const,
-				owner: isTransfer 
-					? getTransferOwner(tx.fromAccountId || '', tx.toAccountId || '') 
-					: tx.owner,
-				paidBy: isTransfer ? undefined : tx.paidBy,
-				accountId: isTransfer ? undefined : selectedAccountId,
-				fromAccountId: isTransfer ? (tx.fromAccountId || selectedAccountId) : undefined,
-				toAccountId: isTransfer ? (tx.toAccountId || '') : undefined
-			};
-		});
+		const formattedTxs = formatImportedTransactionsForPersistence(selectedTxs, accounts);
 
 		// Mezclar y ordenar por fecha descendente
 		const newTransactionsList = [...formattedTxs, ...transactions].sort((a, b) =>
@@ -428,19 +572,20 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 		}
 
 		// Check if any selected transaction is a transfer
-		const hasTransfers = selectedTxs.some(tx => tx.type === 'transfer');
+		const hasTransfers = selectedTxs.some(tx => tx.type === 'transfer' && !tx.transferCorrelationId);
 		if (hasTransfers) {
 			// Initialize default from/to accounts for transfer transactions if they are not set yet
 			setImportedTxs(prev =>
 				prev.map(tx => {
 					if (tx.selected && tx.type === 'transfer') {
-						const otherAccounts = accounts.filter(a => a.id !== selectedAccountId);
+						const rowAccountId = tx.accountId || selectedAccountId;
+						const otherAccounts = accounts.filter(a => a.id !== rowAccountId);
 						const defaultOtherId = otherAccounts[0]?.id || '';
 						
 						return {
 							...tx,
-							fromAccountId: tx.fromAccountId || (tx.originalType === 'expense' ? selectedAccountId : defaultOtherId),
-							toAccountId: tx.toAccountId || (tx.originalType === 'income' ? selectedAccountId : defaultOtherId)
+							fromAccountId: tx.fromAccountId || (tx.originalType === 'expense' ? rowAccountId : defaultOtherId),
+							toAccountId: tx.toAccountId || (tx.originalType === 'income' ? rowAccountId : defaultOtherId)
 						};
 					}
 					return tx;
@@ -491,7 +636,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 					<span className={`px-2 py-1 rounded-lg ${step === 'preview' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950 text-slate-450'}`}>
 						{templateKey === 'custom' ? '3' : '2'}. Vista Previa
 					</span>
-					{importedTxs.some(t => t.selected && t.type === 'transfer') && (
+					{importedTxs.some(t => t.selected && t.type === 'transfer' && !t.transferCorrelationId) && (
 						<>
 							<ChevronRight className="w-3.5 h-3.5 text-slate-650" />
 							<span className={`px-2 py-1 rounded-lg ${step === 'transfers' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950 text-slate-450'}`}>
@@ -630,6 +775,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 											ref={fileInputRef}
 											type="file"
 											accept=".csv,.pdf"
+											multiple
 											onChange={handleFileSelect}
 											className="hidden"
 										/>
@@ -646,6 +792,64 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 										</div>
 									</div>
 								</div>
+
+								{attachments.length > 0 && (
+									<div className="space-y-3">
+										<div className="flex items-center justify-between gap-3">
+											<span className="text-xs font-bold text-slate-300">Adjuntos cargados</span>
+											<span className="text-[10px] text-slate-500">Asigna una cuenta por archivo</span>
+										</div>
+										<div className="grid gap-2">
+											{attachments.map((attachment) => (
+												<div key={attachment.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 grid gap-3 sm:grid-cols-[1fr_220px_220px_auto] sm:items-center">
+													<div className="min-w-0">
+														<span className="block truncate text-xs font-bold text-slate-200">{attachment.name}</span>
+													<span className={`text-[10px] ${attachment.status === 'error' ? 'text-rose-400' : 'text-slate-500'}`}>
+														{attachment.status === 'loading' ? 'Leyendo archivo' : attachment.status === 'error' ? attachment.error : attachment.type.toUpperCase()}
+													</span>
+												</div>
+												<label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+														<span>{`Cuenta para ${attachment.name}`}</span>
+														<select
+															aria-label={`Cuenta para ${attachment.name}`}
+															value={attachment.accountId}
+															onChange={(event) => handleAttachmentAccountChange(attachment.id, event.target.value)}
+															className="h-9 rounded-xl border border-slate-800 bg-slate-950 px-2 text-xs normal-case tracking-normal text-slate-100 outline-none focus:border-indigo-500"
+														>
+															<option value="">Selecciona cuenta</option>
+															{accounts.map(acc => (
+																<option key={acc.id} value={acc.id}>{acc.name}</option>
+															))}
+														</select>
+													</label>
+													{attachment.type === 'csv' && (
+														<label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+															<span>{`Plantilla para ${attachment.name}`}</span>
+															<select
+																aria-label={`Plantilla para ${attachment.name}`}
+																value={attachment.templateKey}
+																onChange={(event) => handleAttachmentTemplateChange(attachment.id, event.target.value as keyof typeof BANK_TEMPLATES)}
+																className="h-9 rounded-xl border border-slate-800 bg-slate-950 px-2 text-xs normal-case tracking-normal text-slate-100 outline-none focus:border-indigo-500"
+															>
+																{Object.entries(BANK_TEMPLATES).map(([key, template]) => (
+																	<option key={key} value={key}>{template.name}</option>
+																))}
+															</select>
+														</label>
+													)}
+													<button
+														type="button"
+														onClick={() => handleRemoveAttachment(attachment.id)}
+														className="justify-self-start sm:justify-self-end p-2 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-500/10"
+														title="Quitar adjunto"
+													>
+														<Trash2 className="w-4 h-4" />
+													</button>
+												</div>
+											))}
+										</div>
+									</div>
+								)}
 							</div>
 						)}
 
@@ -694,7 +898,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 							<button
 								type="button"
 								onClick={handleProcessConfig}
-								disabled={isLoading}
+								disabled={isLoading || (method === 'csv' && hasLoadingAttachments)}
 								className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 hover:shadow-[0_0_15px_rgba(99,102,241,0.3)] text-white font-bold py-3 rounded-2xl text-sm transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
 							>
 								{isLoading ? (
@@ -841,9 +1045,9 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 						{/* Resumen Informativo */}
 						<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-950/60 border border-slate-850 rounded-2xl text-xs">
 							<div className="space-y-1">
-								<span className="font-semibold text-slate-300">Cuenta de Destino:</span>
+								<span className="font-semibold text-slate-300">Origen:</span>
 								<span className="text-slate-100 font-bold block">
-									{accounts.find(a => a.id === selectedAccountId)?.name}
+									{attachments.length > 0 ? `${attachments.length} adjunto(s)` : accounts.find(a => a.id === selectedAccountId)?.name}
 								</span>
 							</div>
 							<div className="flex gap-4">
@@ -888,6 +1092,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 											</button>
 										</th>
 										<th className="py-2.5 w-[110px]">Fecha</th>
+										<th className="py-2.5 w-[170px]">Origen</th>
 										<th className="py-2.5">Concepto</th>
 										<th className="py-2.5 w-[90px] text-right">Importe (€)</th>
 										<th className="py-2.5 w-[90px] text-center">Tipo</th>
@@ -917,15 +1122,23 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 													)}
 												</button>
 											</td>
-											<td className="py-3 pr-2">
-												<Input
+										<td className="py-3 pr-2">
+											<Input
 													type="date"
 													value={tx.date}
 													onChange={(e) => handleTxChange(tx.id, { date: e.target.value })}
 													className="h-8 text-[11px] font-mono px-1.5 bg-slate-950 border-slate-850 text-slate-100"
-												/>
-											</td>
-											<td className="py-3 pr-2 space-y-1">
+											/>
+										</td>
+										<td className="py-3 pr-2 align-middle">
+											<span className="block text-[11px] font-bold text-slate-200">
+												{accounts.find(a => a.id === tx.accountId)?.name || 'Sin cuenta'}
+											</span>
+											<span className="block max-w-[150px] truncate text-[10px] text-slate-500" title={tx.sourceName}>
+												{tx.sourceName || csvFilename || 'Origen manual'}
+											</span>
+										</td>
+										<td className="py-3 pr-2 space-y-1">
 												<Input
 													type="text"
 													value={tx.desc}
@@ -1028,7 +1241,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 							>
 								<CheckCircle className="w-4 h-4" />
 								<span>
-									{importedTxs.some(t => t.selected && t.type === 'transfer') 
+									{importedTxs.some(t => t.selected && t.type === 'transfer' && !t.transferCorrelationId)
 										? 'Configurar traspasos' 
 										: `Importar seleccionados (${importedTxs.filter(t => t.selected).length})`}
 								</span>
@@ -1049,8 +1262,9 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 
 						<div className="overflow-y-auto max-h-[45vh] pr-1 space-y-4 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
 							{importedTxs.filter(t => t.selected && t.type === 'transfer').map((tx) => {
-								const otherAccounts = accounts.filter(a => a.id !== selectedAccountId);
-								const activeAccountName = accounts.find(a => a.id === selectedAccountId)?.name || 'Cuenta activa';
+								const rowAccountId = tx.accountId || selectedAccountId;
+								const otherAccounts = accounts.filter(a => a.id !== rowAccountId);
+								const activeAccountName = accounts.find(a => a.id === rowAccountId)?.name || 'Cuenta activa';
 
 								return (
 									<div key={tx.id} className="p-4 bg-slate-950/40 border border-slate-850 rounded-2xl space-y-3 flex flex-col md:flex-row md:items-center md:justify-between gap-4">

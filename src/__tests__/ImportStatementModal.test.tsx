@@ -4,6 +4,7 @@ import { FinanzasProvider } from '../context/FinanzasContext';
 import { ImportStatementModal } from '../components/transactions/ImportStatementModal';
 import { useFinanzas } from '../hooks/useFinanzas';
 import { askGeminiToParseStatement, askGeminiToParsePdf } from '../services/statementImportService';
+import * as statementImportService from '../services/statementImportService';
 
 // Mock del servicio de importación
 vi.mock('../services/statementImportService', async (importOriginal) => {
@@ -25,6 +26,8 @@ const MockApp = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) 
 
 describe('ImportStatementModal UI', () => {
 	const onCloseMock = vi.fn();
+	const checkingCsv = 'fecha,concepto,importe\n05/06/2026,Transferencia enviada,-250.00';
+	const savingsCsv = 'fecha,concepto,importe\n05/06/2026,Transferencia recibida,250.00';
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -54,6 +57,44 @@ describe('ImportStatementModal UI', () => {
 		const btnCsv = screen.getByText('Archivo (CSV / PDF)');
 		fireEvent.click(btnCsv);
 		expect(screen.getByText('Formato / Banco')).toBeInTheDocument();
+	});
+
+	it('debe persistir importaciones por texto IA con la cuenta seleccionada', async () => {
+		const formatterSpy = vi.spyOn(statementImportService, 'formatImportedTransactionsForPersistence');
+		vi.mocked(askGeminiToParseStatement).mockResolvedValue([
+			{
+				id: 'ai-row-1',
+				date: '2026-06-05',
+				desc: 'PAGO MERCADONA',
+				amount: '45.20',
+				type: 'expense',
+				tag: 'Alimentación',
+				selected: true,
+				isDuplicate: false,
+				owner: 'joint',
+				paidBy: 'shared',
+				originalType: 'expense'
+			}
+		]);
+
+		render(<MockApp isOpen={true} onClose={onCloseMock} />);
+		fireEvent.click(screen.getByText('Copiar y Pegar (IA)'));
+		fireEvent.change(screen.getByLabelText('Texto del Extracto Copiado'), { target: { value: '05/06/2026 PAGO MERCADONA -45,20' } });
+		fireEvent.change(screen.getByLabelText('Introduce tu Gemini API Key'), { target: { value: 'test-key' } });
+		fireEvent.click(screen.getByText('Siguiente paso'));
+
+		await screen.findByText('Revisa, categoriza y valida los movimientos antes de agregarlos.');
+		fireEvent.click(screen.getByText(/Importar seleccionados/));
+
+		await waitFor(() => {
+			const persisted = formatterSpy.mock.results[0].value;
+			expect(persisted[0]).toMatchObject({
+				type: 'expense',
+				accountId: 'default-a',
+				owner: 'userA',
+				paidBy: 'userA'
+			});
+		});
 	});
 
 	it('debe mostrar error en Step 1 si se intenta avanzar sin archivo CSV', async () => {
@@ -95,7 +136,7 @@ describe('ImportStatementModal UI', () => {
 
 		// Esperamos a que lea el archivo
 		await waitFor(() => {
-			expect(screen.getByText('extracto.csv')).toBeInTheDocument();
+			expect(screen.getAllByText('extracto.csv').length).toBeGreaterThanOrEqual(1);
 		});
 	});
 
@@ -110,7 +151,7 @@ describe('ImportStatementModal UI', () => {
 		});
 
 		await waitFor(() => {
-			expect(screen.getByText('extracto.pdf')).toBeInTheDocument();
+			expect(screen.getAllByText('extracto.pdf').length).toBeGreaterThanOrEqual(1);
 		});
 
 		// Debe mostrar el disclaimer del PDF
@@ -118,6 +159,113 @@ describe('ImportStatementModal UI', () => {
 		
 		// Dado que no hay API key global en este test mockeado, debe mostrar el input para la clave API
 		expect(screen.getByText('Introduce tu Gemini API Key (Requerida para PDF)')).toBeInTheDocument();
+	});
+
+	it('debe requerir una cuenta explícita para cada adjunto cargado', async () => {
+		render(<MockApp isOpen={true} onClose={onCloseMock} />);
+		const input = document.querySelector('input[type="file"]')!;
+		const files = [
+			new File([checkingCsv], 'cuenta-corriente.csv', { type: 'text/csv' }),
+			new File([savingsCsv], 'ahorro.csv', { type: 'text/csv' })
+		];
+
+		await act(async () => {
+			fireEvent.change(input, { target: { files } });
+		});
+
+		await waitFor(() => {
+			expect(screen.getAllByText('cuenta-corriente.csv').length).toBeGreaterThanOrEqual(1);
+			expect(screen.getAllByText('ahorro.csv').length).toBeGreaterThanOrEqual(1);
+		});
+
+		fireEvent.click(screen.getByText('Siguiente paso'));
+
+		expect(await screen.findByText('Asigna una cuenta a cada adjunto antes de procesar.')).toBeInTheDocument();
+	});
+
+	it('debe renderizar cuenta y origen por fila en la vista previa multi-adjunto', async () => {
+		render(<MockApp isOpen={true} onClose={onCloseMock} />);
+		const input = document.querySelector('input[type="file"]')!;
+
+		await act(async () => {
+			fireEvent.change(input, {
+				target: {
+					files: [
+						new File([checkingCsv], 'cuenta-corriente.csv', { type: 'text/csv' }),
+						new File([savingsCsv], 'ahorro.csv', { type: 'text/csv' })
+					]
+				}
+			});
+		});
+
+		await assignAttachmentAccounts();
+		fireEvent.click(screen.getByText('Siguiente paso'));
+
+		await waitFor(() => {
+			expect(screen.getByText('Origen')).toBeInTheDocument();
+			expect(screen.getByText('Efectivo Usuario A')).toBeInTheDocument();
+			expect(screen.getByText('Efectivo Usuario B')).toBeInTheDocument();
+			expect(screen.getAllByText(/cuenta-corriente.csv|ahorro.csv/).length).toBeGreaterThanOrEqual(2);
+		});
+	});
+
+	it('debe usar la plantilla detectada de cada adjunto CSV', async () => {
+		render(<MockApp isOpen={true} onClose={onCloseMock} />);
+		const input = document.querySelector('input[type="file"]')!;
+		const bbvaCsv = 'Fecha;Valor;Concepto;Importe\n05/06/2026;05/06/2026;PAGO BBVA;-10,00';
+		const santanderCsv = 'Fecha;Valor;Referencia;Concepto;Divisa;Importe\n05/06/2026;05/06/2026;1;PAGO SANTANDER;EUR;-20,00';
+
+		await act(async () => {
+			fireEvent.change(input, {
+				target: {
+					files: [
+						new File([bbvaCsv], 'bbva.csv', { type: 'text/csv' }),
+						new File([santanderCsv], 'santander.csv', { type: 'text/csv' })
+					]
+				}
+			});
+		});
+
+		await assignAttachmentAccounts('bbva.csv', 'santander.csv');
+		fireEvent.click(screen.getByText('Siguiente paso'));
+
+		await waitFor(() => {
+			expect(screen.getByDisplayValue('PAGO BBVA')).toBeInTheDocument();
+			expect(screen.getByDisplayValue('PAGO SANTANDER')).toBeInTheDocument();
+		});
+	});
+
+	it('debe confirmar una transferencia interna correlacionada como una sola transacción', async () => {
+		const formatterSpy = vi.spyOn(statementImportService, 'formatImportedTransactionsForPersistence');
+		render(<MockApp isOpen={true} onClose={onCloseMock} />);
+		const input = document.querySelector('input[type="file"]')!;
+
+		await act(async () => {
+			fireEvent.change(input, {
+				target: {
+					files: [
+						new File([checkingCsv], 'cuenta-corriente.csv', { type: 'text/csv' }),
+						new File([savingsCsv], 'ahorro.csv', { type: 'text/csv' })
+					]
+				}
+			});
+		});
+
+		await assignAttachmentAccounts();
+		fireEvent.click(screen.getByText('Siguiente paso'));
+		await screen.findByText('Revisa, categoriza y valida los movimientos antes de agregarlos.');
+		fireEvent.click(screen.getByText(/Importar seleccionados/));
+
+		await waitFor(() => {
+			expect(formatterSpy).toHaveBeenCalled();
+			const persisted = formatterSpy.mock.results[0].value;
+			expect(persisted).toHaveLength(1);
+			expect(persisted[0]).toMatchObject({
+				type: 'transfer',
+				fromAccountId: 'default-a',
+				toAccountId: 'default-b'
+			});
+		});
 	});
 
 	it('debe guiar al usuario al paso de traspasos si se detecta un traspaso en la vista previa', async () => {
@@ -132,8 +280,9 @@ describe('ImportStatementModal UI', () => {
 
 		// Esperamos a que lea el archivo
 		await waitFor(() => {
-			expect(screen.getByText('extracto.csv')).toBeInTheDocument();
+			expect(screen.getAllByText('extracto.csv').length).toBeGreaterThanOrEqual(1);
 		});
+		fireEvent.change(screen.getByLabelText('Cuenta para extracto.csv'), { target: { value: 'default-a' } });
 
 		// Esperamos un momento a que el FileReader asíncrono termine e inicialice el csvText
 		await act(async () => {
@@ -163,4 +312,47 @@ describe('ImportStatementModal UI', () => {
 			expect(screen.getByText('Asociación de Cuentas para Traspasos')).toBeInTheDocument();
 		});
 	});
+
+	it('debe configurar traspasos manuales usando la cuenta asignada a la fila', async () => {
+		const formatterSpy = vi.spyOn(statementImportService, 'formatImportedTransactionsForPersistence');
+		render(<MockApp isOpen={true} onClose={onCloseMock} />);
+		const input = document.querySelector('input[type="file"]')!;
+		const file = new File(['fecha,concepto,importe\n05/06/2026,Traspaso hucha,150.00'], 'extracto.csv', { type: 'text/csv' });
+
+		await act(async () => {
+			fireEvent.change(input, { target: { files: [file] } });
+		});
+
+		await waitFor(() => {
+			expect(screen.getByLabelText('Cuenta para extracto.csv')).toBeInTheDocument();
+		});
+		fireEvent.change(screen.getByLabelText('Cuenta para extracto.csv'), { target: { value: 'default-b' } });
+		fireEvent.click(screen.getByText('Siguiente paso'));
+		await screen.findByText('Revisa, categoriza y valida los movimientos antes de agregarlos.');
+
+		const typeSelect = document.querySelectorAll('select')[0];
+		fireEvent.change(typeSelect, { target: { value: 'transfer' } });
+		fireEvent.click(screen.getByText('Configurar traspasos'));
+		await screen.findByText('Asociación de Cuentas para Traspasos');
+		fireEvent.click(screen.getByText('Confirmar e importar'));
+
+		await waitFor(() => {
+			const persisted = formatterSpy.mock.results[0].value;
+			expect(persisted[0]).toMatchObject({
+				type: 'transfer',
+				fromAccountId: 'default-a',
+				toAccountId: 'default-b'
+			});
+		});
+	});
 });
+
+async function assignAttachmentAccounts(firstName = 'cuenta-corriente.csv', secondName = 'ahorro.csv') {
+	await waitFor(() => {
+		expect(screen.getByLabelText(`Cuenta para ${firstName}`)).toBeInTheDocument();
+		expect(screen.getByLabelText(`Cuenta para ${secondName}`)).toBeInTheDocument();
+	});
+
+	fireEvent.change(screen.getByLabelText(`Cuenta para ${firstName}`), { target: { value: 'default-a' } });
+	fireEvent.change(screen.getByLabelText(`Cuenta para ${secondName}`), { target: { value: 'default-b' } });
+}

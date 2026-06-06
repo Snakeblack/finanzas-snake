@@ -243,6 +243,10 @@ export type ImportedTransaction = {
 	owner: 'userA' | 'userB' | 'joint';
 	paidBy: 'userA' | 'userB' | 'shared';
 	originalType?: TransactionType;
+	accountId?: string;
+	sourceName?: string;
+	importFingerprint?: string;
+	transferCorrelationId?: string;
 	fromAccountId?: string;
 	toAccountId?: string;
 };
