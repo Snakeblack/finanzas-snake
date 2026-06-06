@@ -1,0 +1,1136 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useFinanzas } from '../../hooks/useFinanzas';
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription
+} from '../ui/dialog';
+import { Input } from '../ui/input';
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue
+} from '../ui/select';
+import {
+	parseCSV,
+	detectSeparator,
+	BANK_TEMPLATES,
+	processParsedRows,
+	detectDuplicates,
+	askGeminiToParseStatement,
+	askGeminiToParsePdf
+} from '../../services/statementImportService';
+import { DEFAULT_TAGS } from '../../constants';
+import { ImportedTransaction, TransactionType } from '../../types';
+import {
+	Upload,
+	FileText,
+	AlertTriangle,
+	CheckCircle,
+	CheckSquare,
+	Square,
+	ChevronRight,
+	Loader2,
+	Trash2,
+	RefreshCw,
+	Settings,
+	Sparkles
+} from 'lucide-react';
+
+interface ImportStatementModalProps {
+	isOpen: boolean;
+	onClose: () => void;
+}
+
+type ImportMethod = 'csv' | 'ai';
+type Step = 'config' | 'mapping' | 'preview' | 'transfers';
+
+export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalProps) {
+	const {
+		accounts,
+		transactions,
+		setTransactions,
+		geminiApiKey,
+		userAName,
+		userBName
+	} = useFinanzas();
+
+	// Estados principales
+	const [step, setStep] = useState<Step>('config');
+	const [method, setMethod] = useState<ImportMethod>('csv');
+	const [selectedAccountId, setSelectedAccountId] = useState<string>('');
+	const [templateKey, setTemplateKey] = useState<string>('generic');
+
+	// CSV States
+	const [csvText, setCsvText] = useState<string>('');
+	const [csvRows, setCsvRows] = useState<string[][]>([]);
+	const [csvFilename, setCsvFilename] = useState<string>('');
+	
+	// Mapeo Personalizado
+	const [customMapping, setCustomMapping] = useState({
+		dateCol: 0,
+		descCol: 1,
+		amountCol: 2,
+		hasHeader: true
+	});
+
+	// AI States
+	const [aiText, setAiText] = useState<string>('');
+	const [localApiKey, setLocalApiKey] = useState<string>('');
+
+	// PDF States
+	const [isPdf, setIsPdf] = useState<boolean>(false);
+	const [pdfBase64, setPdfBase64] = useState<string>('');
+
+	// Loading & Errors
+	const [isLoading, setIsLoading] = useState<boolean>(false);
+	const [error, setError] = useState<string>('');
+
+	// Vista Previa de Transacciones
+	const [importedTxs, setImportedTxs] = useState<ImportedTransaction[]>([]);
+
+	// Referencias de archivos
+	const fileInputRef = useRef<HTMLInputElement>(null);
+
+	// Inicializar cuenta seleccionada
+	useEffect(() => {
+		if (accounts.length > 0 && !selectedAccountId) {
+			setSelectedAccountId(accounts[0].id);
+		}
+	}, [accounts, selectedAccountId]);
+
+	// Inicializar API Key local con la global
+	useEffect(() => {
+		if (geminiApiKey) {
+			setLocalApiKey(geminiApiKey);
+		}
+	}, [geminiApiKey]);
+
+	// Resetear estados al cerrar
+	const handleClose = () => {
+		setStep('config');
+		setCsvText('');
+		setCsvRows([]);
+		setCsvFilename('');
+		setIsPdf(false);
+		setPdfBase64('');
+		setAiText('');
+		setImportedTxs([]);
+		setError('');
+		setIsLoading(false);
+		onClose();
+	};
+
+	// Manejar arrastre en la zona de archivos
+	const handleDragOver = (e: React.DragEvent) => {
+		e.preventDefault();
+	};
+
+	const handleDrop = (e: React.DragEvent) => {
+		e.preventDefault();
+		const file = e.dataTransfer.files?.[0];
+		if (file) handleFile(file);
+	};
+
+	const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (file) handleFile(file);
+	};
+
+	const handleFile = (file: File) => {
+		const isPdfFile = file.name.toLowerCase().endsWith('.pdf');
+		const isCsvFile = file.name.toLowerCase().endsWith('.csv');
+
+		if (!isPdfFile && !isCsvFile) {
+			setError('Por favor, selecciona un archivo en formato .csv o .pdf');
+			return;
+		}
+		setError('');
+		setCsvFilename(file.name);
+
+		if (isPdfFile) {
+			setIsPdf(true);
+			setCsvText('');
+			setCsvRows([]);
+			
+			const reader = new FileReader();
+			reader.onload = (event) => {
+				const result = event.target?.result as string;
+				const base64Data = result.split(',')[1] || '';
+				setPdfBase64(base64Data);
+			};
+			reader.readAsDataURL(file);
+		} else {
+			setIsPdf(false);
+			setPdfBase64('');
+			
+			const reader = new FileReader();
+			reader.onload = (event) => {
+				const text = event.target?.result as string;
+				setCsvText(text);
+				
+				// Auto-detectar separador
+				const sep = detectSeparator(text);
+				const rows = parseCSV(text, sep);
+				setCsvRows(rows);
+
+				// Intentar auto-seleccionar plantilla según nombre
+				const lowerName = file.name.toLowerCase();
+				if (lowerName.includes('bbva')) {
+					setTemplateKey('bbva');
+				} else if (lowerName.includes('santander')) {
+					setTemplateKey('santander');
+				} else if (lowerName.includes('caixa')) {
+					setTemplateKey('caixabank');
+				} else if (lowerName.includes('revolut')) {
+					setTemplateKey('revolut');
+				} else {
+					setTemplateKey('generic');
+				}
+			};
+			reader.readAsText(file);
+		}
+	};
+
+	// Procesar Paso 1
+	const handleProcessConfig = async () => {
+		setError('');
+		if (!selectedAccountId) {
+			setError('Por favor, selecciona una cuenta para asociar los movimientos.');
+			return;
+		}
+
+		if (method === 'csv') {
+			if (isPdf) {
+				if (!pdfBase64) {
+					setError('Por favor, selecciona un archivo PDF válido.');
+					return;
+				}
+				const activeKey = localApiKey || geminiApiKey;
+				if (!activeKey) {
+					setError('Se requiere una API Key de Gemini para utilizar el parseador inteligente de PDF.');
+					return;
+				}
+
+				setIsLoading(true);
+				try {
+					const parsed = await askGeminiToParsePdf(activeKey, pdfBase64);
+					if (parsed.length === 0) {
+						setError('La IA no pudo detectar transacciones en el PDF provisto. Asegúrate de que el documento es un extracto válido.');
+						setIsLoading(false);
+						return;
+					}
+
+					const targetAccount = accounts.find(a => a.id === selectedAccountId);
+					const owner = targetAccount ? targetAccount.owner : 'joint';
+					const paidBy: 'userA' | 'userB' | 'shared' = owner === 'userA' ? 'userA' : owner === 'userB' ? 'userB' : 'shared';
+
+					const finalTxs = parsed.map(tx => ({
+						...tx,
+						owner,
+						paidBy
+					}));
+
+					const checkedTxs = detectDuplicates(finalTxs, transactions);
+					setImportedTxs(checkedTxs);
+					setStep('preview');
+				} catch (err: any) {
+					setError(err.message || 'Ocurrió un error inesperado al procesar el PDF con IA.');
+				} finally {
+					setIsLoading(false);
+				}
+			} else {
+				if (!csvText) {
+					setError('Por favor, carga un archivo CSV de movimientos.');
+					return;
+				}
+
+				if (templateKey === 'custom') {
+					// Ir al configurador de mapeo
+					setStep('mapping');
+				} else {
+					// Procesar con plantilla seleccionada
+					const template = BANK_TEMPLATES[templateKey as keyof typeof BANK_TEMPLATES];
+					const sep = detectSeparator(csvText);
+					const rows = parseCSV(csvText, sep);
+					const parsed = processParsedRows(rows, template);
+					
+					if (parsed.length === 0) {
+						setError('No se pudieron extraer movimientos. Verifica que el archivo CSV tiene el formato esperado.');
+						return;
+					}
+					
+					const targetAccount = accounts.find(a => a.id === selectedAccountId);
+					const owner = targetAccount ? targetAccount.owner : 'joint';
+					const paidBy: 'userA' | 'userB' | 'shared' = owner === 'userA' ? 'userA' : owner === 'userB' ? 'userB' : 'shared';
+
+					const finalTxs = parsed.map(tx => ({
+						...tx,
+						owner,
+						paidBy
+					}));
+
+					const checkedTxs = detectDuplicates(finalTxs, transactions);
+					setImportedTxs(checkedTxs);
+					setStep('preview');
+				}
+			}
+		} else {
+			// Método AI
+			if (!aiText.trim()) {
+				setError('Por favor, pega el texto de tu extracto bancario.');
+				return;
+			}
+			const activeKey = localApiKey || geminiApiKey;
+			if (!activeKey) {
+				setError('Se requiere una API Key de Gemini para utilizar el parseador inteligente.');
+				return;
+			}
+
+			setIsLoading(true);
+			try {
+				const parsed = await askGeminiToParseStatement(activeKey, aiText);
+				if (parsed.length === 0) {
+					setError('La IA no pudo detectar transacciones en el texto provisto. Asegúrate de incluir importes y fechas.');
+					setIsLoading(false);
+					return;
+				}
+
+				const targetAccount = accounts.find(a => a.id === selectedAccountId);
+				const owner = targetAccount ? targetAccount.owner : 'joint';
+				const paidBy: 'userA' | 'userB' | 'shared' = owner === 'userA' ? 'userA' : owner === 'userB' ? 'userB' : 'shared';
+
+				const finalTxs = parsed.map(tx => ({
+					...tx,
+					owner,
+					paidBy
+				}));
+
+				const checkedTxs = detectDuplicates(finalTxs, transactions);
+				setImportedTxs(checkedTxs);
+				setStep('preview');
+			} catch (err: any) {
+				setError(err.message || 'Ocurrió un error inesperado al procesar con IA.');
+			} finally {
+				setIsLoading(false);
+			}
+		}
+	};
+
+	// Confirmar mapeo personalizado
+	const handleProcessCustomMapping = () => {
+		const parsed = processParsedRows(csvRows, customMapping);
+		if (parsed.length === 0) {
+			setError('No se pudieron extraer movimientos con este mapeo. Comprueba los índices de las columnas.');
+			return;
+		}
+
+		const targetAccount = accounts.find(a => a.id === selectedAccountId);
+		const owner = targetAccount ? targetAccount.owner : 'joint';
+		const paidBy: 'userA' | 'userB' | 'shared' = owner === 'userA' ? 'userA' : owner === 'userB' ? 'userB' : 'shared';
+
+		const finalTxs = parsed.map(tx => ({
+			...tx,
+			owner,
+			paidBy
+		}));
+
+		const checkedTxs = detectDuplicates(finalTxs, transactions);
+		setImportedTxs(checkedTxs);
+		setStep('preview');
+	};
+
+	// Cambios en los inputs de transacciones en vista previa
+	const handleTxChange = (id: string, patch: Partial<ImportedTransaction>) => {
+		setImportedTxs(prev =>
+			prev.map(tx => (tx.id === id ? { ...tx, ...patch } as ImportedTransaction : tx))
+		);
+	};
+
+	// Alternar selección de una transacción en vista previa
+	const toggleSelectTx = (id: string) => {
+		setImportedTxs(prev =>
+			prev.map(tx => (tx.id === id ? { ...tx, selected: !tx.selected } : tx))
+		);
+	};
+
+	// Alternar selección de todas las transacciones
+	const toggleSelectAll = () => {
+		const allSelected = importedTxs.every(tx => tx.selected);
+		setImportedTxs(prev =>
+			prev.map(tx => ({ ...tx, selected: !allSelected }))
+		);
+	};
+
+	// Eliminar fila de la vista previa
+	const handleDeleteRow = (id: string) => {
+		setImportedTxs(prev => prev.filter(tx => tx.id !== id));
+	};
+
+	// Confirmar importación
+	const handleImportConfirm = () => {
+		const selectedTxs = importedTxs.filter(tx => tx.selected);
+		if (selectedTxs.length === 0) {
+			setError('Debes seleccionar al menos una transacción para importar.');
+			return;
+		}
+
+		const getTransferOwner = (fromId?: string, toId?: string) => {
+			const fromAcc = accounts.find((a) => a.id === fromId);
+			const toAcc = accounts.find((a) => a.id === toId);
+			if (fromAcc && toAcc) {
+				if (fromAcc.owner === toAcc.owner) return fromAcc.owner;
+			}
+			return 'joint';
+		};
+
+		const formattedTxs = selectedTxs.map(tx => {
+			const isTransfer = tx.type === 'transfer';
+			return {
+				id: tx.id,
+				desc: tx.desc,
+				money: {
+					amount: tx.amount,
+					currency: 'EUR' as const
+				},
+				type: tx.type,
+				tag: tx.tag,
+				date: tx.date,
+				recurrence: 'one-off' as const,
+				owner: isTransfer 
+					? getTransferOwner(tx.fromAccountId || '', tx.toAccountId || '') 
+					: tx.owner,
+				paidBy: isTransfer ? undefined : tx.paidBy,
+				accountId: isTransfer ? undefined : selectedAccountId,
+				fromAccountId: isTransfer ? (tx.fromAccountId || selectedAccountId) : undefined,
+				toAccountId: isTransfer ? (tx.toAccountId || '') : undefined
+			};
+		});
+
+		// Mezclar y ordenar por fecha descendente
+		const newTransactionsList = [...formattedTxs, ...transactions].sort((a, b) =>
+			b.date.localeCompare(a.date)
+		);
+
+		setTransactions(newTransactionsList);
+		handleClose();
+	};
+
+	const handleNextFromPreview = () => {
+		const selectedTxs = importedTxs.filter(tx => tx.selected);
+		if (selectedTxs.length === 0) {
+			setError('Debes seleccionar al menos una transacción para importar.');
+			return;
+		}
+
+		// Check if any selected transaction is a transfer
+		const hasTransfers = selectedTxs.some(tx => tx.type === 'transfer');
+		if (hasTransfers) {
+			// Initialize default from/to accounts for transfer transactions if they are not set yet
+			setImportedTxs(prev =>
+				prev.map(tx => {
+					if (tx.selected && tx.type === 'transfer') {
+						const otherAccounts = accounts.filter(a => a.id !== selectedAccountId);
+						const defaultOtherId = otherAccounts[0]?.id || '';
+						
+						return {
+							...tx,
+							fromAccountId: tx.fromAccountId || (tx.originalType === 'expense' ? selectedAccountId : defaultOtherId),
+							toAccountId: tx.toAccountId || (tx.originalType === 'income' ? selectedAccountId : defaultOtherId)
+						};
+					}
+					return tx;
+				})
+			);
+			setStep('transfers');
+		} else {
+			handleImportConfirm();
+		}
+	};
+
+	return (
+		<Dialog open={isOpen} onOpenChange={(val) => { if (!val) handleClose(); }}>
+			<DialogContent className={`premium-card p-6 border border-slate-800 bg-slate-900 shadow-2xl text-slate-100 max-h-[90vh] overflow-y-auto ${step === 'preview' || step === 'transfers' ? 'sm:max-w-5xl w-[90vw]' : 'sm:max-w-xl w-[95vw]'}`}>
+				<DialogHeader className="mb-4">
+					<div className="flex items-center gap-3">
+						<div className="p-2.5 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 text-indigo-400">
+							<Upload className="w-5 h-5" />
+						</div>
+						<div>
+							<DialogTitle className="text-xl font-bold tracking-wide text-slate-100">
+								Importar Extracto Bancario
+							</DialogTitle>
+							<DialogDescription className="text-xs text-slate-450 mt-1">
+								{step === 'config' && 'Configura el origen y el método de carga.'}
+								{step === 'mapping' && 'Asocia las columnas de tu CSV con los campos requeridos.'}
+								{step === 'preview' && 'Revisa, categoriza y valida los movimientos antes de agregarlos.'}
+								{step === 'transfers' && 'Asocia las cuentas de origen y destino para cada traspaso.'}
+							</DialogDescription>
+						</div>
+					</div>
+				</DialogHeader>
+
+				{/* INDICADOR DE PASOS */}
+				<div className="flex items-center gap-2 mb-6 border-b border-slate-800/80 pb-4 text-xs font-semibold shrink-0">
+					<span className={`px-2 py-1 rounded-lg ${step === 'config' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950 text-slate-450'}`}>
+						1. Configuración
+					</span>
+					<ChevronRight className="w-3.5 h-3.5 text-slate-650" />
+					{templateKey === 'custom' && (
+						<>
+							<span className={`px-2 py-1 rounded-lg ${step === 'mapping' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950 text-slate-450'}`}>
+								2. Mapeo
+							</span>
+							<ChevronRight className="w-3.5 h-3.5 text-slate-650" />
+						</>
+					)}
+					<span className={`px-2 py-1 rounded-lg ${step === 'preview' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950 text-slate-450'}`}>
+						{templateKey === 'custom' ? '3' : '2'}. Vista Previa
+					</span>
+					{importedTxs.some(t => t.selected && t.type === 'transfer') && (
+						<>
+							<ChevronRight className="w-3.5 h-3.5 text-slate-650" />
+							<span className={`px-2 py-1 rounded-lg ${step === 'transfers' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950 text-slate-450'}`}>
+								{templateKey === 'custom' ? '4' : '3'}. Traspasos
+							</span>
+						</>
+					)}
+				</div>
+
+				{error && (
+					<div className="mb-6 p-4 bg-rose-500/15 border border-rose-500/20 text-rose-400 rounded-2xl flex items-start gap-2 text-xs leading-relaxed animate-in fade-in zoom-in-95">
+						<AlertTriangle className="w-4.5 h-4.5 shrink-0 mt-0.5" />
+						<span>{error}</span>
+					</div>
+				)}
+
+				{/* PASO 1: CONFIGURACIÓN */}
+				{step === 'config' && (
+					<div className="space-y-5">
+						{/* Cuenta Destino */}
+						<div className="space-y-2">
+							<label htmlFor="import-account-selector" className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
+								Cuenta de Destino
+							</label>
+							<Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+								<SelectTrigger id="import-account-selector" className="w-full bg-slate-950 border-slate-800 h-11 text-slate-100">
+									<SelectValue placeholder="Selecciona la cuenta asociada" />
+								</SelectTrigger>
+								<SelectContent>
+									{accounts.map(acc => (
+										<SelectItem key={acc.id} value={acc.id}>
+											{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+
+						{/* Pestañas de Método */}
+						<div className="space-y-2">
+							<label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
+								Método de Importación
+							</label>
+							<div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+								<button
+									type="button"
+									onClick={() => setMethod('csv')}
+									className={`py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+										method === 'csv'
+											? 'bg-indigo-600 text-white shadow-md'
+											: 'text-slate-400 hover:text-slate-200'
+									}`}
+								>
+									<FileText className="w-4 h-4" /> Archivo (CSV / PDF)
+								</button>
+								<button
+									type="button"
+									onClick={() => setMethod('ai')}
+									className={`py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+										method === 'ai'
+											? 'bg-indigo-600 text-white shadow-md'
+											: 'text-slate-400 hover:text-slate-200'
+									}`}
+								>
+									<Sparkles className="w-4 h-4 text-current" /> Copiar y Pegar (IA)
+								</button>
+							</div>
+						</div>
+
+						{/* SUB-SECCIÓN CSV */}
+						{method === 'csv' && (
+							<div className="space-y-5">
+								{/* Selector de plantilla */}
+								{!isPdf ? (
+									<div className="space-y-2">
+										<label htmlFor="csv-template-selector" className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
+											Formato / Banco
+										</label>
+										<Select value={templateKey} onValueChange={setTemplateKey}>
+											<SelectTrigger id="csv-template-selector" className="w-full bg-slate-950 border-slate-800 h-11 text-slate-100">
+												<SelectValue placeholder="Selecciona la plantilla de banco" />
+											</SelectTrigger>
+											<SelectContent>
+												{Object.entries(BANK_TEMPLATES).map(([key, t]) => (
+													<SelectItem key={key} value={key}>
+														{t.name}
+													</SelectItem>
+												))}
+												<SelectItem value="custom">Mapeo Personalizado...</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+								) : (
+									<div className="space-y-4">
+										<div className="p-4 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-2xl flex items-start gap-2.5 text-xs leading-relaxed animate-in fade-in zoom-in-95">
+											<Sparkles className="w-5 h-5 shrink-0 text-indigo-400 mt-0.5 animate-pulse" />
+											<div>
+												<span className="font-bold text-slate-200 block mb-0.5">Procesamiento inteligente de PDF</span>
+												<span>Este archivo PDF se analizará utilizando la API de Gemini para extraer de forma estructurada las fechas, descripciones e importes de tus movimientos bancarios.</span>
+											</div>
+										</div>
+
+										{!geminiApiKey && (
+											<div className="space-y-2 p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl">
+												<label htmlFor="modal-gemini-key-pdf" className="block text-[10px] font-bold text-indigo-400 uppercase tracking-wide">
+													Introduce tu Gemini API Key (Requerida para PDF)
+												</label>
+												<Input
+													id="modal-gemini-key-pdf"
+													type="password"
+													placeholder="AIzaSy..."
+													value={localApiKey}
+													onChange={(e) => setLocalApiKey(e.target.value)}
+													className="bg-slate-950 border-slate-850 px-3 h-10 text-xs text-slate-100"
+												/>
+												<p className="text-[9px] text-slate-500 leading-normal">
+													Tus claves no se guardan en servidores, se cifran y almacenan únicamente en tu navegador.
+												</p>
+											</div>
+										)}
+									</div>
+								)}
+
+								{/* Zona Dropzone */}
+								<div className="space-y-2">
+									<label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
+										Subir Archivo
+									</label>
+									<div
+										onDragOver={handleDragOver}
+										onDrop={handleDrop}
+										onClick={() => fileInputRef.current?.click()}
+										className="border-2 border-dashed border-slate-800 hover:border-indigo-500/40 bg-slate-950/40 hover:bg-slate-950/80 rounded-2xl p-6 text-center cursor-pointer transition-all duration-300 flex flex-col items-center justify-center gap-3 relative group"
+									>
+										<input
+											ref={fileInputRef}
+											type="file"
+											accept=".csv,.pdf"
+											onChange={handleFileSelect}
+											className="hidden"
+										/>
+										<div className="p-3 bg-slate-900 rounded-full group-hover:scale-110 transition-all border border-slate-800">
+											<Upload className="w-6 h-6 text-slate-400 group-hover:text-indigo-400" />
+										</div>
+										<div>
+											<p className="text-xs font-bold text-slate-200">
+												{csvFilename || 'Arrastra tu extracto .csv o .pdf aquí'}
+											</p>
+											<p className="text-[10px] text-slate-500 mt-1">
+												O haz clic para explorar tus archivos
+											</p>
+										</div>
+									</div>
+								</div>
+							</div>
+						)}
+
+						{/* SUB-SECCIÓN AI */}
+						{method === 'ai' && (
+							<div className="space-y-5">
+								{/* API Key si falta */}
+								{!geminiApiKey && (
+									<div className="space-y-2 p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl">
+										<label htmlFor="modal-gemini-key" className="block text-[10px] font-bold text-indigo-400 uppercase tracking-wide">
+											Introduce tu Gemini API Key
+										</label>
+										<Input
+											id="modal-gemini-key"
+											type="password"
+											placeholder="AIzaSy..."
+											value={localApiKey}
+											onChange={(e) => setLocalApiKey(e.target.value)}
+											className="bg-slate-950 border-slate-850 px-3 h-10 text-xs"
+										/>
+										<p className="text-[9px] text-slate-500 leading-normal">
+											Tus claves no se guardan en servidores, se cifran y almacenan únicamente en tu navegador.
+										</p>
+									</div>
+								)}
+
+								{/* Campo de Texto */}
+								<div className="space-y-2">
+									<label htmlFor="ai-paste-textarea" className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
+										Texto del Extracto Copiado
+									</label>
+									<textarea
+										id="ai-paste-textarea"
+										rows={6}
+										value={aiText}
+										onChange={(e) => setAiText(e.target.value)}
+										placeholder="Pega las líneas copiadas de tu app bancaria aquí. Por ejemplo:&#10;05/06/2026 PAGO EN MERCADONA -45,20 EUR&#10;04/06/2026 ABONO NOMINA +1.500,00 EUR"
+										className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-xs font-mono outline-none focus:border-indigo-500 text-slate-200 placeholder:text-slate-600 resize-none h-[150px]"
+									/>
+								</div>
+							</div>
+						)}
+
+						{/* Botón de envío */}
+						<div className="flex gap-3 pt-2">
+							<button
+								type="button"
+								onClick={handleProcessConfig}
+								disabled={isLoading}
+								className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 hover:shadow-[0_0_15px_rgba(99,102,241,0.3)] text-white font-bold py-3 rounded-2xl text-sm transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
+							>
+								{isLoading ? (
+									<>
+										<Loader2 className="w-4.5 h-4.5 animate-spin" />
+										<span>Procesando movimientos...</span>
+									</>
+								) : (
+									<>
+										<span>Siguiente paso</span>
+										<ChevronRight className="w-4 h-4" />
+									</>
+								)}
+							</button>
+						</div>
+					</div>
+				)}
+
+				{/* PASO 2: MAPEO PERSONALIZADO */}
+				{step === 'mapping' && (
+					<div className="space-y-6">
+						<div className="p-4 bg-slate-950 border border-slate-850 rounded-2xl">
+							<span className="text-xs font-bold text-slate-300 block mb-2">Previsualización del CSV:</span>
+							<div className="overflow-x-auto text-[10px] font-mono text-slate-550 space-y-1.5">
+								{csvRows.slice(0, 4).map((row, idx) => (
+									<div key={idx} className="flex gap-2 bg-slate-900 p-1.5 rounded border border-slate-800/40">
+										<span className="font-bold text-indigo-400 shrink-0 select-none w-4">{idx}:</span>
+										{row.map((field, cellIdx) => (
+											<span key={cellIdx} className="bg-slate-950/80 px-1.5 py-0.5 rounded border border-slate-850 truncate max-w-[120px]">
+												Col {cellIdx}: "{field}"
+											</span>
+										))}
+									</div>
+								))}
+							</div>
+						</div>
+
+						<div className="grid grid-cols-2 gap-4">
+							{/* Selector Fecha */}
+							<div className="space-y-2">
+								<label htmlFor="custom-map-date" className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
+									Columna Fecha
+								</label>
+								<Select
+									value={String(customMapping.dateCol)}
+									onValueChange={(val) => setCustomMapping(prev => ({ ...prev, dateCol: parseInt(val) }))}
+								>
+									<SelectTrigger id="custom-map-date" className="bg-slate-950 border-slate-850 h-10">
+										<SelectValue placeholder="Selecciona columna" />
+									</SelectTrigger>
+									<SelectContent>
+										{csvRows[0]?.map((_, idx) => (
+											<SelectItem key={idx} value={String(idx)}>
+												Columna {idx} (ej. "{csvRows[0][idx] || 'vacía'}")
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+
+							{/* Selector Concepto */}
+							<div className="space-y-2">
+								<label htmlFor="custom-map-desc" className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
+									Columna Concepto
+								</label>
+								<Select
+									value={String(customMapping.descCol)}
+									onValueChange={(val) => setCustomMapping(prev => ({ ...prev, descCol: parseInt(val) }))}
+								>
+									<SelectTrigger id="custom-map-desc" className="bg-slate-950 border-slate-850 h-10">
+										<SelectValue placeholder="Selecciona columna" />
+									</SelectTrigger>
+									<SelectContent>
+										{csvRows[0]?.map((_, idx) => (
+											<SelectItem key={idx} value={String(idx)}>
+												Columna {idx} (ej. "{csvRows[0][idx] || 'vacía'}")
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+
+							{/* Selector Importe */}
+							<div className="space-y-2">
+								<label htmlFor="custom-map-amount" className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
+									Columna Importe
+								</label>
+								<Select
+									value={String(customMapping.amountCol)}
+									onValueChange={(val) => setCustomMapping(prev => ({ ...prev, amountCol: parseInt(val) }))}
+								>
+									<SelectTrigger id="custom-map-amount" className="bg-slate-950 border-slate-850 h-10">
+										<SelectValue placeholder="Selecciona columna" />
+									</SelectTrigger>
+									<SelectContent>
+										{csvRows[0]?.map((_, idx) => (
+											<SelectItem key={idx} value={String(idx)}>
+												Columna {idx} (ej. "{csvRows[0][idx] || 'vacía'}")
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+
+							{/* Checkbox Header */}
+							<div className="flex items-center gap-3 pt-8 pl-2">
+								<button
+									type="button"
+									onClick={() => setCustomMapping(prev => ({ ...prev, hasHeader: !prev.hasHeader }))}
+									className="flex items-center gap-2 text-xs font-semibold text-slate-350 hover:text-slate-200"
+								>
+									{customMapping.hasHeader ? (
+										<CheckSquare className="w-4.5 h-4.5 text-indigo-500" />
+									) : (
+										<Square className="w-4.5 h-4.5 text-slate-700" />
+									)}
+									<span>Omitir primera fila (cabecera)</span>
+								</button>
+							</div>
+						</div>
+
+						<div className="flex gap-3 pt-2">
+							<button
+								type="button"
+								onClick={() => setStep('config')}
+								className="w-1/2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold py-2.5 rounded-2xl text-xs transition-all"
+							>
+								Volver
+							</button>
+							<button
+								type="button"
+								onClick={handleProcessCustomMapping}
+								className="w-1/2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-bold py-2.5 rounded-2xl text-xs transition-all shadow-md active:scale-95"
+							>
+								Procesar
+							</button>
+						</div>
+					</div>
+				)}
+
+				{/* PASO 3: VISTA PREVIA */}
+				{step === 'preview' && (
+					<div className="space-y-6 flex flex-col min-h-0">
+						{/* Resumen Informativo */}
+						<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-950/60 border border-slate-850 rounded-2xl text-xs">
+							<div className="space-y-1">
+								<span className="font-semibold text-slate-300">Cuenta de Destino:</span>
+								<span className="text-slate-100 font-bold block">
+									{accounts.find(a => a.id === selectedAccountId)?.name}
+								</span>
+							</div>
+							<div className="flex gap-4">
+								<div className="text-center bg-slate-900 border border-slate-850 px-3 py-1.5 rounded-xl">
+									<span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">Importar</span>
+									<span className="text-sm font-black text-indigo-400">
+										{importedTxs.filter(t => t.selected).length}
+									</span>
+								</div>
+								<div className="text-center bg-slate-900 border border-slate-850 px-3 py-1.5 rounded-xl">
+									<span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">Gasto</span>
+									<span className="text-sm font-black text-rose-400">
+										{importedTxs.filter(t => t.selected && t.type === 'expense').length}
+									</span>
+								</div>
+								<div className="text-center bg-slate-900 border border-slate-850 px-3 py-1.5 rounded-xl">
+									<span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">Ingreso</span>
+									<span className="text-sm font-black text-emerald-400">
+										{importedTxs.filter(t => t.selected && t.type === 'income').length}
+									</span>
+								</div>
+							</div>
+						</div>
+
+						{/* Tabla */}
+						<div className="overflow-x-auto max-h-[45vh] pr-1 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
+							<table className="w-full text-left border-collapse min-w-[700px]">
+								<thead>
+									<tr className="border-b border-slate-800/80 text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-950/40 sticky top-0 z-10 backdrop-blur-sm">
+										<th className="py-2.5 pl-3 w-10 text-center">
+											<button
+												type="button"
+												onClick={toggleSelectAll}
+												className="p-1 hover:bg-slate-800 rounded text-indigo-400 flex items-center justify-center mx-auto"
+												title="Seleccionar / Deseleccionar todos"
+											>
+												{importedTxs.every(tx => tx.selected) ? (
+													<CheckSquare className="w-4 h-4" />
+												) : (
+													<Square className="w-4 h-4 text-slate-500" />
+												)}
+											</button>
+										</th>
+										<th className="py-2.5 w-[110px]">Fecha</th>
+										<th className="py-2.5">Concepto</th>
+										<th className="py-2.5 w-[90px] text-right">Importe (€)</th>
+										<th className="py-2.5 w-[90px] text-center">Tipo</th>
+										<th className="py-2.5 w-[140px]">Etiqueta</th>
+										<th className="py-2.5 w-[130px]">Propietario</th>
+										<th className="py-2.5 w-10 text-center"></th>
+									</tr>
+								</thead>
+								<tbody className="divide-y divide-slate-850 text-xs">
+									{importedTxs.map((tx) => (
+										<tr
+											key={tx.id}
+											className={`transition-all ${
+												tx.selected ? 'bg-slate-950/10 hover:bg-slate-900/40' : 'opacity-40 hover:opacity-70'
+											} ${tx.isDuplicate ? 'border-l-2 border-l-amber-500' : ''}`}
+										>
+											<td className="py-3 text-center align-middle">
+												<button
+													type="button"
+													onClick={() => toggleSelectTx(tx.id)}
+													className="p-1 hover:bg-slate-850 rounded flex items-center justify-center mx-auto text-indigo-400"
+												>
+													{tx.selected ? (
+														<CheckSquare className="w-4 h-4" />
+													) : (
+														<Square className="w-4 h-4 text-slate-650" />
+													)}
+												</button>
+											</td>
+											<td className="py-3 pr-2">
+												<Input
+													type="date"
+													value={tx.date}
+													onChange={(e) => handleTxChange(tx.id, { date: e.target.value })}
+													className="h-8 text-[11px] font-mono px-1.5 bg-slate-950 border-slate-850 text-slate-100"
+												/>
+											</td>
+											<td className="py-3 pr-2 space-y-1">
+												<Input
+													type="text"
+													value={tx.desc}
+													onChange={(e) => handleTxChange(tx.id, { desc: e.target.value })}
+													className="h-8 text-[11px] px-2 bg-slate-950 border-slate-850 text-slate-200"
+												/>
+												{tx.isDuplicate && (
+													<span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 text-[9px] text-amber-500 rounded font-bold animate-pulse">
+														<AlertTriangle className="w-3 h-3" /> Posible duplicado
+													</span>
+												)}
+											</td>
+											<td className="py-3 pr-2">
+												<Input
+													type="number"
+													step="0.01"
+													value={tx.amount}
+													onChange={(e) => handleTxChange(tx.id, { amount: e.target.value })}
+													className="h-8 text-[11px] text-right font-mono px-1.5 bg-slate-950 border-slate-850 text-slate-100"
+												/>
+											</td>
+											<td className="py-3 pr-2 text-center align-middle">
+												<select
+													value={tx.type}
+													onChange={(e) => {
+														const newType = e.target.value as TransactionType;
+														handleTxChange(tx.id, {
+															type: newType,
+															tag: DEFAULT_TAGS[newType][0]
+														});
+													}}
+													className="h-8 text-[11px] bg-slate-950 border border-slate-850 rounded-lg text-slate-300 px-1 font-semibold outline-none w-full"
+												>
+													<option value="expense">Gasto</option>
+													<option value="income">Ingreso</option>
+													<option value="transfer">Traspaso</option>
+												</select>
+											</td>
+											<td className="py-3 pr-2">
+												<select
+													value={tx.tag}
+													onChange={(e) => handleTxChange(tx.id, { tag: e.target.value })}
+													className="h-8 text-[11px] bg-slate-950 border border-slate-850 rounded-lg text-slate-350 px-1.5 outline-none w-full"
+												>
+													{DEFAULT_TAGS[tx.type].map(tag => (
+														<option key={tag} value={tag}>
+															{tag}
+														</option>
+													))}
+												</select>
+											</td>
+											<td className="py-3 pr-2">
+												<select
+													value={`${tx.owner}-${tx.paidBy}`}
+													onChange={(e) => {
+														const [newOwner, newPaidBy] = e.target.value.split('-');
+														handleTxChange(tx.id, {
+															owner: newOwner as 'userA' | 'userB' | 'joint',
+															paidBy: newPaidBy as 'userA' | 'userB' | 'shared'
+														});
+													}}
+													className="h-8 text-[11px] bg-slate-950 border border-slate-850 rounded-lg text-slate-350 px-1 outline-none w-full"
+												>
+													<option value="joint-shared">Conjunto (Común)</option>
+													<option value="userA-userA">{userAName} (Propio)</option>
+													<option value="userB-userB">{userBName} (Propio)</option>
+													<option value="joint-userA">Conjunto (paga {userAName})</option>
+													<option value="joint-userB">Conjunto (paga {userBName})</option>
+												</select>
+											</td>
+											<td className="py-3 text-center align-middle">
+												<button
+													type="button"
+													onClick={() => handleDeleteRow(tx.id)}
+													className="p-1.5 hover:bg-rose-500/10 text-slate-500 hover:text-rose-450 rounded-lg transition-colors"
+													title="Eliminar fila"
+												>
+													<Trash2 className="w-3.5 h-3.5" />
+												</button>
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
+
+						{/* Botones de Acción */}
+						<div className="flex gap-3 pt-2">
+							<button
+								type="button"
+								onClick={() => setStep('config')}
+								className="w-1/2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold py-3 rounded-2xl text-xs transition-all"
+							>
+								Volver a configurar
+							</button>
+							<button
+								type="button"
+								onClick={handleNextFromPreview}
+								className="w-1/2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-3 rounded-2xl text-xs transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
+							>
+								<CheckCircle className="w-4 h-4" />
+								<span>
+									{importedTxs.some(t => t.selected && t.type === 'transfer') 
+										? 'Configurar traspasos' 
+										: `Importar seleccionados (${importedTxs.filter(t => t.selected).length})`}
+								</span>
+							</button>
+						</div>
+					</div>
+				)}
+
+				{/* PASO: GESTIONAR TRASPASOS */}
+				{step === 'transfers' && (
+					<div className="space-y-6 flex flex-col min-h-0">
+						<div className="p-4 bg-slate-950/60 border border-slate-850 rounded-2xl text-xs space-y-2">
+							<span className="font-bold text-slate-200 block">Asociación de Cuentas para Traspasos</span>
+							<p className="text-slate-450 text-[11px] leading-relaxed">
+								Para cada traspaso seleccionado, define la otra cuenta implicada en el movimiento.
+							</p>
+						</div>
+
+						<div className="overflow-y-auto max-h-[45vh] pr-1 space-y-4 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
+							{importedTxs.filter(t => t.selected && t.type === 'transfer').map((tx) => {
+								const otherAccounts = accounts.filter(a => a.id !== selectedAccountId);
+								const activeAccountName = accounts.find(a => a.id === selectedAccountId)?.name || 'Cuenta activa';
+
+								return (
+									<div key={tx.id} className="p-4 bg-slate-950/40 border border-slate-850 rounded-2xl space-y-3 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+										<div className="space-y-1 md:max-w-[40%]">
+											<span className="text-[10px] font-mono text-slate-500 block">{tx.date}</span>
+											<span className="font-bold text-slate-250 block truncate" title={tx.desc}>{tx.desc}</span>
+											<span className="text-xs font-black text-indigo-400 block">{parseFloat(tx.amount).toFixed(2)} €</span>
+										</div>
+
+										<div className="flex items-center gap-3 shrink-0 bg-slate-900/60 p-3 rounded-xl border border-slate-800/60">
+											{tx.originalType === 'expense' ? (
+												<>
+													<span className="text-xs font-bold text-slate-300 px-2 py-1 bg-slate-950 border border-slate-850 rounded-lg">
+														{activeAccountName}
+													</span>
+													<ChevronRight className="w-4 h-4 text-indigo-400 shrink-0" />
+													<select
+														value={tx.toAccountId || ''}
+														onChange={(e) => handleTxChange(tx.id, { toAccountId: e.target.value })}
+														className="text-xs bg-slate-950 border border-slate-850 rounded-lg text-slate-100 px-2 py-1.5 outline-none font-semibold min-w-[120px]"
+													>
+														{otherAccounts.map(acc => (
+															<option key={acc.id} value={acc.id}>
+																{acc.name}
+															</option>
+														))}
+														{otherAccounts.length === 0 && (
+															<option value="">(No hay otras cuentas)</option>
+														)}
+													</select>
+												</>
+											) : (
+												<>
+													<select
+														value={tx.fromAccountId || ''}
+														onChange={(e) => handleTxChange(tx.id, { fromAccountId: e.target.value })}
+														className="text-xs bg-slate-950 border border-slate-850 rounded-lg text-slate-100 px-2 py-1.5 outline-none font-semibold min-w-[120px]"
+													>
+														{otherAccounts.map(acc => (
+															<option key={acc.id} value={acc.id}>
+																{acc.name}
+															</option>
+														))}
+														{otherAccounts.length === 0 && (
+															<option value="">(No hay otras cuentas)</option>
+														)}
+													</select>
+													<ChevronRight className="w-4 h-4 text-indigo-400 shrink-0" />
+													<span className="text-xs font-bold text-slate-300 px-2 py-1 bg-slate-950 border border-slate-850 rounded-lg">
+														{activeAccountName}
+													</span>
+												</>
+											)}
+										</div>
+									</div>
+								);
+							})}
+						</div>
+
+						{/* Botones de Acción */}
+						<div className="flex gap-3 pt-2">
+							<button
+								type="button"
+								onClick={() => setStep('preview')}
+								className="w-1/2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold py-3 rounded-2xl text-xs transition-all"
+							>
+								Volver a vista previa
+							</button>
+							<button
+								type="button"
+								onClick={handleImportConfirm}
+								className="w-1/2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-3 rounded-2xl text-xs transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
+							>
+								<CheckCircle className="w-4 h-4" />
+								<span>Confirmar e importar</span>
+							</button>
+						</div>
+					</div>
+				)}
+			</DialogContent>
+		</Dialog>
+	);
+}
