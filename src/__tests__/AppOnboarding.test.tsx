@@ -3,9 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import App from '../components/App';
 
 vi.mock('../components/transactions/ImportStatementModal', () => ({
-	ImportStatementModal: ({ isOpen }: { isOpen: boolean }) => (
+	ImportStatementModal: ({ isOpen }: { isOpen: boolean }) =>
 		isOpen ? <div role="dialog">Importar Extracto Bancario</div> : null
-	)
 }));
 
 describe('onboarding inicial', () => {

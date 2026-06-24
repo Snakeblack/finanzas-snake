@@ -278,7 +278,8 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 						clearHandshakeTimeout();
 						setStatus('error');
 						setErrorMsg(
-							err.message || 'No se pudo conectar. Verifica que el código es correcto y el PC emisor sigue activo.'
+							err.message ||
+								'No se pudo conectar. Verifica que el código es correcto y el PC emisor sigue activo.'
 						);
 					}
 				},
@@ -367,8 +368,18 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 				{/* Cabecera común */}
 				<div className="text-center">
 					<div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-						<svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-							<path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+						<svg
+							className="w-6 h-6 text-white"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							strokeWidth={2}
+						>
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+							/>
 						</svg>
 					</div>
 					<h2 className="text-xl font-bold text-slate-100">Sincronización P2P</h2>
@@ -385,7 +396,13 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 							className="w-full flex items-center gap-4 p-4 bg-slate-950 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 rounded-2xl text-left transition-all group"
 						>
 							<div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl group-hover:bg-indigo-500/20 transition-all">
-								<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+								<svg
+									className="w-6 h-6"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+									strokeWidth={2}
+								>
 									<path
 										strokeLinecap="round"
 										strokeLinejoin="round"
@@ -408,7 +425,13 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 							className="w-full flex items-center gap-4 p-4 bg-slate-950 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 rounded-2xl text-left transition-all group"
 						>
 							<div className="p-3 bg-violet-500/10 text-violet-400 rounded-xl group-hover:bg-violet-500/20 transition-all">
-								<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+								<svg
+									className="w-6 h-6"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+									strokeWidth={2}
+								>
 									<path
 										strokeLinecap="round"
 										strokeLinejoin="round"
@@ -417,9 +440,12 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 								</svg>
 							</div>
 							<div>
-								<span className="font-semibold text-slate-200 block text-sm">Recibir datos (en este dispositivo)</span>
+								<span className="font-semibold text-slate-200 block text-sm">
+									Recibir datos (en este dispositivo)
+								</span>
 								<span className="text-[11px] text-slate-500 block leading-normal mt-0.5">
-									Introduce el código del otro dispositivo para descargar y sobreescribir tus datos locales.
+									Introduce el código del otro dispositivo para descargar y sobreescribir tus datos
+									locales.
 								</span>
 							</div>
 						</button>
@@ -455,8 +481,8 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 										>
 											Metered.ca
 										</a>{' '}
-										y pega aquí la lista de <strong>iceServers</strong> (en formato JSON) de tu cuenta para forzar la
-										red de relevo:
+										y pega aquí la lista de <strong>iceServers</strong> (en formato JSON) de tu
+										cuenta para forzar la red de relevo:
 									</p>
 									<textarea
 										value={customIceServersInput}
@@ -467,9 +493,13 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 										rows={5}
 										className="w-full bg-slate-900 border border-slate-850 rounded-xl px-3 py-2 text-[10px] font-mono text-slate-300 focus:border-indigo-500 outline-none resize-none leading-relaxed"
 									/>
-									{advancedError && <p className="text-[9px] text-rose-400 font-medium">{advancedError}</p>}
+									{advancedError && (
+										<p className="text-[9px] text-rose-400 font-medium">{advancedError}</p>
+									)}
 									{advancedSuccess && (
-										<p className="text-[9px] text-emerald-400 font-medium">✓ Ajustes guardados correctamente.</p>
+										<p className="text-[9px] text-emerald-400 font-medium">
+											✓ Ajustes guardados correctamente.
+										</p>
 									)}
 									<button
 										type="button"
@@ -497,7 +527,8 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 						{status === 'idle' && (
 							<div className="space-y-4">
 								<p className="text-xs text-slate-400">
-									Introduce este código temporal en la opción **"Recibir datos"** de tu móvil/otro dispositivo:
+									Introduce este código temporal en la opción **"Recibir datos"** de tu móvil/otro
+									dispositivo:
 								</p>
 								<div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 inline-block">
 									<span className="text-4xl font-mono font-black tracking-widest text-indigo-400 select-all">
@@ -505,7 +536,8 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 									</span>
 								</div>
 								<p className="text-[10px] text-slate-500 italic">
-									Mantén esta pestaña abierta. El envío comenzará de forma automática al conectarse el móvil.
+									Mantén esta pestaña abierta. El envío comenzará de forma automática al conectarse el
+									móvil.
 								</p>
 							</div>
 						)}
@@ -520,7 +552,13 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 						{status === 'completed' && (
 							<div className="space-y-3">
 								<div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto">
-									<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+									<svg
+										className="w-6 h-6"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+										strokeWidth={3}
+									>
 										<path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
 									</svg>
 								</div>
@@ -542,7 +580,10 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 						{status === 'idle' && (
 							<form onSubmit={handleConnectToHost} className="space-y-4">
 								<div className="space-y-2">
-									<label htmlFor="sync-code-input" className="block text-xs font-medium text-slate-400">
+									<label
+										htmlFor="sync-code-input"
+										className="block text-xs font-medium text-slate-400"
+									>
 										Código de Conexión (6 letras/números)
 									</label>
 									<Input
@@ -572,8 +613,8 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 										/>
 									</svg>
 									<span>
-										<strong>Atención:</strong> Al conectar e importar, se reemplazarán por completo todas tus cuentas,
-										movimientos y deudas de este dispositivo con los del emisor.
+										<strong>Atención:</strong> Al conectar e importar, se reemplazarán por completo
+										todas tus cuentas, movimientos y deudas de este dispositivo con los del emisor.
 									</span>
 								</div>
 
@@ -612,7 +653,13 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 						{status === 'completed' && (
 							<div className="space-y-3 text-center">
 								<div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto">
-									<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+									<svg
+										className="w-6 h-6"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+										strokeWidth={3}
+									>
 										<path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
 									</svg>
 								</div>
@@ -626,7 +673,13 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 				{status === 'error' && (
 					<div className="space-y-4 text-center pt-2">
 						<div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
-							<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+							<svg
+								className="w-6 h-6"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								strokeWidth={2.5}
+							>
 								<path
 									strokeLinecap="round"
 									strokeLinejoin="round"

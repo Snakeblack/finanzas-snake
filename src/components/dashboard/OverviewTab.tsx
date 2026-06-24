@@ -260,7 +260,11 @@ export function OverviewTab() {
 
 				{/* Vista de Escritorio: Gráfico de Cascada Horizontal */}
 				<div className="hidden md:block w-full h-64 relative select-none">
-					<svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+					<svg
+						viewBox={`0 0 ${width} ${height}`}
+						className="w-full h-full"
+						preserveAspectRatio="xMidYMid meet"
+					>
 						<defs>
 							<linearGradient id="gradient-emerald" x1="0" y1="0" x2="0" y2="1">
 								<stop offset="0%" stopColor="#34d399" />
@@ -587,7 +591,9 @@ export function OverviewTab() {
 							>
 								<div className="font-bold flex justify-between items-center text-slate-200">
 									<span>{steps[hoveredIndex].name}</span>
-									<span className={steps[hoveredIndex].textColor}>{getLabelText(steps[hoveredIndex].amount)}</span>
+									<span className={steps[hoveredIndex].textColor}>
+										{getLabelText(steps[hoveredIndex].amount)}
+									</span>
 								</div>
 								<p className="text-[10px] text-slate-400">{steps[hoveredIndex].description}</p>
 								{steps[hoveredIndex].name !== 'Ingresos' && totalIncomes > 0 && (
@@ -711,14 +717,18 @@ export function OverviewTab() {
 									<div className="text-rose-400 font-bold text-lg mt-1">
 										{userBName} debe a {userAName}
 									</div>
-									<div className="text-3xl font-black text-rose-400 mt-2">{formatAmount(netOwed)}</div>
+									<div className="text-3xl font-black text-rose-400 mt-2">
+										{formatAmount(netOwed)}
+									</div>
 								</div>
 							) : (
 								<div>
 									<div className="text-rose-400 font-bold text-lg mt-1">
 										{userAName} debe a {userBName}
 									</div>
-									<div className="text-3xl font-black text-rose-400 mt-2">{formatAmount(Math.abs(netOwed))}</div>
+									<div className="text-3xl font-black text-rose-400 mt-2">
+										{formatAmount(Math.abs(netOwed))}
+									</div>
 								</div>
 							)}
 						</div>
@@ -731,7 +741,9 @@ export function OverviewTab() {
 
 			{/* Resumen de Deudas Activas */}
 			<div className="lg:col-span-12 premium-card rounded-2xl p-6">
-				<h3 className="font-heading text-lg font-bold text-slate-100 mb-4">Deudas Activas al Mes {selectedMonth}</h3>
+				<h3 className="font-heading text-lg font-bold text-slate-100 mb-4">
+					Deudas Activas al Mes {selectedMonth}
+				</h3>
 
 				{filteredDebts.length === 0 ? (
 					<p className="text-sm text-slate-500">
@@ -742,7 +754,9 @@ export function OverviewTab() {
 						{filteredDebts.map((d) => {
 							const cuota = calculateDebtMonthlyPayment(d, selectedMonth);
 							const isPlan = isPaymentPlanDebt(d);
-							const totalIntereses = isPlan ? d.fees : calculateClassicDebtInstallment(d) * d.termMonths - d.principal;
+							const totalIntereses = isPlan
+								? d.fees
+								: calculateClassicDebtInstallment(d) * d.termMonths - d.principal;
 							const overdueAmount = isPlan ? getPaymentPlanOverdueAmount(d, selectedMonth) : 0;
 							return (
 								<div
@@ -753,36 +767,52 @@ export function OverviewTab() {
 										<span className="text-[10px] font-semibold px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded">
 											{d.tag}
 										</span>
-										<span className="text-xs text-slate-500 font-mono">{normalizeMonth(d.date)}</span>
+										<span className="text-xs text-slate-500 font-mono">
+											{normalizeMonth(d.date)}
+										</span>
 									</div>
 									<h4 className="font-bold text-slate-200 text-sm mb-1">{d.desc}</h4>
 									<div className="grid grid-cols-2 gap-2 my-3 text-xs border-y border-slate-800 py-2">
 										<div>
-											<span className="text-slate-500 block">{isPlan ? 'Financiado:' : 'Capital Inicial:'}</span>
+											<span className="text-slate-500 block">
+												{isPlan ? 'Financiado:' : 'Capital Inicial:'}
+											</span>
 											<span className="font-semibold text-slate-300">
 												{formatAmount(isPlan ? d.financedAmount : d.principal, { decimals: 0 })}
 											</span>
 										</div>
 										<div>
-											<span className="text-slate-500 block">{isPlan ? 'Comisiones:' : 'Intereses Totales:'}</span>
-											<span className="font-semibold text-rose-400">{formatAmount(totalIntereses)}</span>
+											<span className="text-slate-500 block">
+												{isPlan ? 'Comisiones:' : 'Intereses Totales:'}
+											</span>
+											<span className="font-semibold text-rose-400">
+												{formatAmount(totalIntereses)}
+											</span>
 										</div>
 									</div>
 									<div className="flex justify-between items-center text-xs mt-2 gap-3">
 										<div>
-											<span className="text-slate-500 block">{isPlan ? 'Tipo / Pendiente:' : 'Plazo / Tipo:'}</span>
+											<span className="text-slate-500 block">
+												{isPlan ? 'Tipo / Pendiente:' : 'Plazo / Tipo:'}
+											</span>
 											<span className="font-semibold text-slate-300">
 												{isPlan
 													? `Fraccionamiento · ${formatAmount(getPaymentPlanRemainingAmount(d))}`
 													: `${d.termMonths}m / ${getDebtRateLabel(d)}`}
 											</span>
 											{overdueAmount > 0 && (
-												<span className="block text-[10px] text-rose-400">Vencido: {formatAmount(overdueAmount)}</span>
+												<span className="block text-[10px] text-rose-400">
+													Vencido: {formatAmount(overdueAmount)}
+												</span>
 											)}
 										</div>
 										<div className="text-right">
-											<span className="text-slate-500 block">{isPlan ? 'Exigible este mes:' : 'Cuota Mensual:'}</span>
-											<span className="font-bold text-sm text-indigo-400">{formatAmount(cuota)}</span>
+											<span className="text-slate-500 block">
+												{isPlan ? 'Exigible este mes:' : 'Cuota Mensual:'}
+											</span>
+											<span className="font-bold text-sm text-indigo-400">
+												{formatAmount(cuota)}
+											</span>
 										</div>
 									</div>
 								</div>

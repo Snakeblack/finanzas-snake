@@ -175,7 +175,13 @@ export function EditTransactionForm({
 							<SelectContent>
 								{accounts.map((acc) => (
 									<SelectItem key={acc.id} value={acc.id}>
-										{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+										{acc.name} (
+										{acc.owner === 'userA'
+											? userAName
+											: acc.owner === 'userB'
+												? userBName
+												: 'Compartida'}
+										)
 									</SelectItem>
 								))}
 							</SelectContent>
@@ -198,7 +204,13 @@ export function EditTransactionForm({
 									.filter((acc) => acc.id !== editForm.fromAccountId)
 									.map((acc) => (
 										<SelectItem key={acc.id} value={acc.id}>
-											{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+											{acc.name} (
+											{acc.owner === 'userA'
+												? userAName
+												: acc.owner === 'userB'
+													? userBName
+													: 'Compartida'}
+											)
 										</SelectItem>
 									))}
 							</SelectContent>
@@ -230,7 +242,13 @@ export function EditTransactionForm({
 								<SelectItem value="none">Sin Cuenta (Manual)</SelectItem>
 								{accounts.map((acc) => (
 									<SelectItem key={acc.id} value={acc.id}>
-										{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+										{acc.name} (
+										{acc.owner === 'userA'
+											? userAName
+											: acc.owner === 'userB'
+												? userBName
+												: 'Compartida'}
+										)
 									</SelectItem>
 								))}
 							</SelectContent>

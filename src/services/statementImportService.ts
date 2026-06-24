@@ -1,4 +1,10 @@
-import { Account, ImportedTransaction, ImportedTransactionPossibleDuplicate, Transaction, TransactionType } from '../types';
+import {
+	Account,
+	ImportedTransaction,
+	ImportedTransactionPossibleDuplicate,
+	Transaction,
+	TransactionType
+} from '../types';
 import { deduceTagFromConcept } from './financeService';
 import { askGemini, createGeminiApiKeyUnavailableError, isGeminiApiKeyError } from './geminiService';
 import { DEFAULT_TAGS } from '../constants';
@@ -27,7 +33,16 @@ interface GeminiTransactionPayload {
 
 const EXTERNAL_TRANSFER_TAG = 'Transferencia externa';
 const RECEIVED_TRANSFER_TERMS = ['recibida', 'recibido', 'de tercero', 'abono'];
-const SENT_TRANSFER_TERMS = ['realizada', 'realizado', 'enviada', 'enviado', 'emitida', 'emitido', 'a cuenta', 'bizum enviado'];
+const SENT_TRANSFER_TERMS = [
+	'realizada',
+	'realizado',
+	'enviada',
+	'enviado',
+	'emitida',
+	'emitido',
+	'a cuenta',
+	'bizum enviado'
+];
 const POSSIBLE_DUPLICATE_DATE_WINDOW_DAYS = 3;
 const POSSIBLE_DUPLICATE_REASON = 'concepto similar, mismo importe y fecha cercana';
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -119,8 +134,9 @@ const asString = (value: unknown): string => (typeof value === 'string' ? value 
 const asNumericString = (value: unknown): string =>
 	typeof value === 'number' && Number.isFinite(value) ? String(value) : asString(value);
 
-const hasConfirmedInternalTransferEndpoints = (tx: Pick<ImportedTransaction, 'fromAccountId' | 'toAccountId'>): boolean =>
-	Boolean(tx.fromAccountId && tx.toAccountId);
+const hasConfirmedInternalTransferEndpoints = (
+	tx: Pick<ImportedTransaction, 'fromAccountId' | 'toAccountId'>
+): boolean => Boolean(tx.fromAccountId && tx.toAccountId);
 
 const classifyUnconfirmedTransfer = (desc: string, amountType: TransactionType): TransactionType => {
 	const searchableText = normalizeFingerprintPart(desc);
@@ -188,7 +204,11 @@ const createImportedTransactionFromGemini = (
 	const isExternalTransfer = parsedType === 'transfer' && normalizedType !== 'transfer';
 	const allowedTags = DEFAULT_TAGS[normalizedType] as readonly string[];
 	const rawTag = asString(payload.tag);
-	const tag = isExternalTransfer ? EXTERNAL_TRANSFER_TAG : allowedTags.includes(rawTag) ? rawTag : getFallbackTag(normalizedType);
+	const tag = isExternalTransfer
+		? EXTERNAL_TRANSFER_TAG
+		: allowedTags.includes(rawTag)
+			? rawTag
+			: getFallbackTag(normalizedType);
 	const balance = normalizeBalance(asNumericString(payload.balance));
 
 	return {
@@ -378,11 +398,26 @@ export function parseCSV(text: string, separator: string = ';'): string[][] {
  * Plantillas preconfiguradas para los bancos más habituales.
  */
 export const BANK_TEMPLATES = {
-	bbva: { name: 'BBVA (operaciones)', dateCol: 0, descCol: 2, amountCol: 3, balanceCol: 5, hasHeader: true, separator: ';' },
+	bbva: {
+		name: 'BBVA (operaciones)',
+		dateCol: 0,
+		descCol: 2,
+		amountCol: 3,
+		balanceCol: 5,
+		hasHeader: true,
+		separator: ';'
+	},
 	santander: { name: 'Santander', dateCol: 0, descCol: 3, amountCol: 5, hasHeader: true, separator: ';' },
 	caixabank: { name: 'CaixaBank', dateCol: 0, descCol: 2, amountCol: 3, hasHeader: true, separator: ';' },
 	revolut: { name: 'Revolut', dateCol: 2, descCol: 1, amountCol: 3, hasHeader: true, separator: ',' },
-	generic: { name: 'Estándar (Fecha, Concepto, Importe)', dateCol: 0, descCol: 1, amountCol: 2, hasHeader: true, separator: ',' }
+	generic: {
+		name: 'Estándar (Fecha, Concepto, Importe)',
+		dateCol: 0,
+		descCol: 1,
+		amountCol: 2,
+		hasHeader: true,
+		separator: ','
+	}
 };
 
 /**
@@ -404,14 +439,18 @@ export function processParsedRows(
 		const dateRaw = row[options.dateCol];
 		const descRaw = row[options.descCol];
 		const amountRaw = row[options.amountCol];
-		const balanceRaw = options.balanceCol !== undefined && options.balanceCol !== -1 && row.length > options.balanceCol ? row[options.balanceCol] : undefined;
+		const balanceRaw =
+			options.balanceCol !== undefined && options.balanceCol !== -1 && row.length > options.balanceCol
+				? row[options.balanceCol]
+				: undefined;
 
 		if (!dateRaw || !descRaw || !amountRaw) continue;
 
 		const date = normalizeDate(dateRaw);
 		const { amount, type } = normalizeAmount(amountRaw);
 		const desc = descRaw.trim();
-		const fallbackTag = type === 'income' ? 'Otros Ingresos' : type === 'transfer' ? 'Otros Traspasos' : 'Otros Gastos';
+		const fallbackTag =
+			type === 'income' ? 'Otros Ingresos' : type === 'transfer' ? 'Otros Traspasos' : 'Otros Gastos';
 		const tag = deduceTagFromConcept(desc, type) || fallbackTag;
 		const balance = normalizeBalance(balanceRaw || '');
 
@@ -464,11 +503,12 @@ export function correlateInternalTransfers(importedTxs: ImportedTransaction[]): 
 	const transfersById = new Map<string, ImportedTransaction>();
 
 	for (const expense of importedTxs.filter((tx) => tx.type === 'expense')) {
-		const matches = importedTxs.filter((income) =>
-			income.type === 'income' &&
-			income.date === expense.date &&
-			income.amount === expense.amount &&
-			income.accountId !== expense.accountId
+		const matches = importedTxs.filter(
+			(income) =>
+				income.type === 'income' &&
+				income.date === expense.date &&
+				income.amount === expense.amount &&
+				income.accountId !== expense.accountId
 		);
 
 		if (matches.length !== 1) {
@@ -476,11 +516,12 @@ export function correlateInternalTransfers(importedTxs: ImportedTransaction[]): 
 		}
 
 		const [income] = matches;
-		const inverseMatches = importedTxs.filter((candidate) =>
-			candidate.type === 'expense' &&
-			candidate.date === income.date &&
-			candidate.amount === income.amount &&
-			candidate.accountId !== income.accountId
+		const inverseMatches = importedTxs.filter(
+			(candidate) =>
+				candidate.type === 'expense' &&
+				candidate.date === income.date &&
+				candidate.amount === income.amount &&
+				candidate.accountId !== income.accountId
 		);
 
 		if (inverseMatches.length !== 1 || matchedIds.has(expense.id) || matchedIds.has(income.id)) {
@@ -589,7 +630,11 @@ function formatRegularImportedTransaction(tx: ImportedTransaction, accounts: Acc
 	};
 }
 
-function getTransferOwner(accounts: Account[], fromAccountId?: string, toAccountId?: string): 'userA' | 'userB' | 'joint' {
+function getTransferOwner(
+	accounts: Account[],
+	fromAccountId?: string,
+	toAccountId?: string
+): 'userA' | 'userB' | 'joint' {
 	const fromAccount = accounts.find((account) => account.id === fromAccountId);
 	const toAccount = accounts.find((account) => account.id === toAccountId);
 
@@ -624,7 +669,9 @@ export function detectDuplicates(
 			const sameDate = existing.date === imported.date;
 			const sameAccount = hasMatchingAccountEvidence(existing, imported);
 			const sameFingerprint = Boolean(imported.importFingerprint && existing.id === imported.importFingerprint);
-			const sameTransferCorrelation = Boolean(imported.transferCorrelationId && existing.id === imported.transferCorrelationId);
+			const sameTransferCorrelation = Boolean(
+				imported.transferCorrelationId && existing.id === imported.transferCorrelationId
+			);
 
 			const desc1 = existing.desc.toLowerCase().trim();
 			const desc2 = imported.desc.toLowerCase().trim();
@@ -638,7 +685,10 @@ export function detectDuplicates(
 				}
 			}
 
-			if ((sameFingerprint && sameDate && sameAmount && sameAccount) || (sameTransferCorrelation && sameDate && sameAmount)) {
+			if (
+				(sameFingerprint && sameDate && sameAmount && sameAccount) ||
+				(sameTransferCorrelation && sameDate && sameAmount)
+			) {
 				return true;
 			}
 
@@ -646,13 +696,18 @@ export function detectDuplicates(
 				return true;
 			}
 
-			const isExactDuplicate = sameType && sameAmount && sameDate && sameDesc && (!imported.accountId || sameAccount);
+			const isExactDuplicate =
+				sameType && sameAmount && sameDate && sameDesc && (!imported.accountId || sameAccount);
 			if (isExactDuplicate) {
 				return true;
 			}
 
 			if (!possibleDuplicate) {
-				possibleDuplicate = getPossibleDuplicateMatch(existing, imported, { sameAmount, sameType, sameAccount });
+				possibleDuplicate = getPossibleDuplicateMatch(existing, imported, {
+					sameAmount,
+					sameType,
+					sameAccount
+				});
 			}
 
 			return false;
@@ -695,9 +750,15 @@ function getPossibleDuplicateMatch(
 }
 
 function hasMatchingAccountEvidence(existing: Transaction, imported: ImportedTransaction): boolean {
-	const sameRegularAccount = Boolean(existing.accountId && imported.accountId && existing.accountId === imported.accountId);
-	const sameFromAccount = Boolean(existing.fromAccountId && imported.fromAccountId && existing.fromAccountId === imported.fromAccountId);
-	const sameToAccount = Boolean(existing.toAccountId && imported.toAccountId && existing.toAccountId === imported.toAccountId);
+	const sameRegularAccount = Boolean(
+		existing.accountId && imported.accountId && existing.accountId === imported.accountId
+	);
+	const sameFromAccount = Boolean(
+		existing.fromAccountId && imported.fromAccountId && existing.fromAccountId === imported.fromAccountId
+	);
+	const sameToAccount = Boolean(
+		existing.toAccountId && imported.toAccountId && existing.toAccountId === imported.toAccountId
+	);
 
 	return sameRegularAccount || sameFromAccount || sameToAccount;
 }
@@ -728,10 +789,7 @@ function isManualTransferDuplicate(
 /**
  * Llama a la API de Gemini para procesar un extracto bancario en texto plano.
  */
-export async function askGeminiToParseStatement(
-	apiKey: string,
-	statementText: string
-): Promise<ImportedTransaction[]> {
+export async function askGeminiToParseStatement(apiKey: string, statementText: string): Promise<ImportedTransaction[]> {
 	const systemInstruction = `
 Actúas como un extractor de datos bancarios estructurados en formato JSON. Tu objetivo es procesar el texto de un extracto o movimientos de cuenta bancaria y devolver estrictamente un JSON válido que contiene un array de objetos con las transacciones detectadas.
 
@@ -806,9 +864,9 @@ Reglas estrictas:
 			createImportedTransactionFromGemini(tx, index, 'imported-ai')
 		);
 	} catch (err: unknown) {
-		console.error("Error al parsear el JSON de Gemini:", err, "Texto recibido:", resultText);
+		console.error('Error al parsear el JSON de Gemini:', err, 'Texto recibido:', resultText);
 		throw new Error(
-			"No se pudo procesar el extracto con IA. Asegúrate de que el texto contiene movimientos válidos y que tu API Key es correcta."
+			'No se pudo procesar el extracto con IA. Asegúrate de que el texto contiene movimientos válidos y que tu API Key es correcta.'
 		);
 	}
 }
@@ -950,9 +1008,9 @@ Reglas estrictas:
 			throw createGeminiApiKeyUnavailableError();
 		}
 
-		console.error("Error al procesar extracto PDF con Gemini:", err);
+		console.error('Error al procesar extracto PDF con Gemini:', err);
 		throw new Error(
-			"No se pudo procesar el extracto PDF con IA. Asegúrate de que el documento es válido y tu API Key es correcta."
+			'No se pudo procesar el extracto PDF con IA. Asegúrate de que el documento es válido y tu API Key es correcta.'
 		);
 	}
 }

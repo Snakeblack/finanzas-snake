@@ -6,16 +6,9 @@ import { Icons } from '../common/Icons';
 import { ImportStatementModal } from './ImportStatementModal';
 import { Upload } from 'lucide-react';
 import { Input } from '../ui/input';
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue
-} from '../ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { toNumber } from '../../utils/formatters';
 import { Transaction } from '../../types';
-
 
 /**
  * Componente que renderiza la pestaña de Transacciones.
@@ -134,7 +127,13 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 				>
 					{isMobileFormOpen ? (
 						<>
-							<svg className="w-4 h-4 text-rose-450" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+							<svg
+								className="w-4 h-4 text-rose-450"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								strokeWidth={2}
+							>
 								<path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
 							</svg>
 							<span>Ocultar Form</span>
@@ -158,7 +157,9 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 			</div>
 
 			{/* Formulario */}
-			<div className={`${isMobileFormOpen ? 'block' : 'hidden'} lg:block lg:col-span-4 premium-card rounded-2xl p-6 h-fit lg:max-h-full lg:overflow-y-auto shrink-0 lg:shrink`}>
+			<div
+				className={`${isMobileFormOpen ? 'block' : 'hidden'} lg:block lg:col-span-4 premium-card rounded-2xl p-6 h-fit lg:max-h-full lg:overflow-y-auto shrink-0 lg:shrink`}
+			>
 				<div className="flex flex-col gap-4 mb-6">
 					<h3 className="font-heading text-lg font-bold text-slate-100 flex items-center">
 						<span className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg mr-2">
@@ -205,7 +206,9 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 							</button>
 							<button
 								type="button"
-								onClick={() => setTxForm({ ...txForm, type: 'transfer', tag: DEFAULT_TAGS.transfer[0] })}
+								onClick={() =>
+									setTxForm({ ...txForm, type: 'transfer', tag: DEFAULT_TAGS.transfer[0] })
+								}
 								className={`py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 									txForm.type === 'transfer'
 										? 'bg-sky-500 text-white shadow-md'
@@ -303,7 +306,10 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 					{txForm.type === 'transfer' ? (
 						<>
 							<div>
-								<label htmlFor="tx-from-account" className="block text-xs font-medium text-slate-400 mb-1.5">
+								<label
+									htmlFor="tx-from-account"
+									className="block text-xs font-medium text-slate-400 mb-1.5"
+								>
 									Cuenta de Origen
 								</label>
 								<Select
@@ -316,7 +322,13 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 									<SelectContent>
 										{accounts.map((acc) => (
 											<SelectItem key={acc.id} value={acc.id}>
-												{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+												{acc.name} (
+												{acc.owner === 'userA'
+													? userAName
+													: acc.owner === 'userB'
+														? userBName
+														: 'Compartida'}
+												)
 											</SelectItem>
 										))}
 									</SelectContent>
@@ -324,7 +336,10 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 							</div>
 
 							<div>
-								<label htmlFor="tx-to-account" className="block text-xs font-medium text-slate-400 mb-1.5">
+								<label
+									htmlFor="tx-to-account"
+									className="block text-xs font-medium text-slate-400 mb-1.5"
+								>
 									Cuenta de Destino
 								</label>
 								<Select
@@ -335,11 +350,19 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 										<SelectValue placeholder="Selecciona cuenta de destino" />
 									</SelectTrigger>
 									<SelectContent>
-										{accounts.filter((acc) => acc.id !== txForm.fromAccountId).map((acc) => (
-											<SelectItem key={acc.id} value={acc.id}>
-												{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
-											</SelectItem>
-										))}
+										{accounts
+											.filter((acc) => acc.id !== txForm.fromAccountId)
+											.map((acc) => (
+												<SelectItem key={acc.id} value={acc.id}>
+													{acc.name} (
+													{acc.owner === 'userA'
+														? userAName
+														: acc.owner === 'userB'
+															? userBName
+															: 'Compartida'}
+													)
+												</SelectItem>
+											))}
 									</SelectContent>
 								</Select>
 							</div>
@@ -369,7 +392,13 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 										<SelectItem value="none">Sin Cuenta (Manual)</SelectItem>
 										{accounts.map((acc) => (
 											<SelectItem key={acc.id} value={acc.id}>
-												{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+												{acc.name} (
+												{acc.owner === 'userA'
+													? userAName
+													: acc.owner === 'userB'
+														? userBName
+														: 'Compartida'}
+												)
 											</SelectItem>
 										))}
 									</SelectContent>
@@ -417,7 +446,9 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 
 							{!txForm.accountId && txForm.owner === 'joint' && txForm.type === 'expense' && (
 								<div>
-									<label className="block text-xs font-medium text-slate-400 mb-1.5">Pagado por</label>
+									<label className="block text-xs font-medium text-slate-400 mb-1.5">
+										Pagado por
+									</label>
 									<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
 										<button
 											type="button"
@@ -497,7 +528,9 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 			{/* Listado de Historial */}
 			<div className="lg:col-span-8 premium-card rounded-2xl p-6 flex flex-col lg:h-full lg:max-h-full min-h-0">
 				<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 shrink-0">
-					<h3 className="font-heading text-lg font-bold text-slate-100">Historial para el mes {selectedMonth}</h3>
+					<h3 className="font-heading text-lg font-bold text-slate-100">
+						Historial para el mes {selectedMonth}
+					</h3>
 					<div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800/80 text-xs font-semibold shrink-0">
 						<button
 							type="button"
@@ -575,7 +608,10 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 									<div className="flex justify-between items-start">
 										<div className="space-y-1">
 											<div className="flex items-center gap-1.5 flex-wrap">
-												<div className="cursor-grab active:cursor-grabbing p-0.5 hover:bg-slate-850 rounded text-slate-500 flex items-center justify-center" title="Arrastrar para reordenar">
+												<div
+													className="cursor-grab active:cursor-grabbing p-0.5 hover:bg-slate-850 rounded text-slate-500 flex items-center justify-center"
+													title="Arrastrar para reordenar"
+												>
 													<Icons.GripVertical className="w-3.5 h-3.5" />
 												</div>
 												<span className="font-semibold text-slate-100 text-sm">{t.desc}</span>
@@ -589,12 +625,18 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 												{t.date}
 												{t.type === 'transfer' ? (
 													<span className="block mt-0.5">
-														{accounts.find((a) => a.id === t.fromAccountId)?.name || 'Origen'} ➔ {accounts.find((a) => a.id === t.toAccountId)?.name || 'Destino'}
+														{accounts.find((a) => a.id === t.fromAccountId)?.name ||
+															'Origen'}{' '}
+														➔{' '}
+														{accounts.find((a) => a.id === t.toAccountId)?.name ||
+															'Destino'}
 													</span>
 												) : (
 													t.accountId && (
 														<span className="block mt-0.5">
-															Cuenta: {accounts.find((a) => a.id === t.accountId)?.name || 'Desconocida'}
+															Cuenta:{' '}
+															{accounts.find((a) => a.id === t.accountId)?.name ||
+																'Desconocida'}
 														</span>
 													)
 												)}
@@ -607,7 +649,9 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 													{formatAmount(toNumber(t.money?.amount))}
 												</span>
 											) : (
-												<span className={`font-bold text-sm ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
+												<span
+													className={`font-bold text-sm ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}
+												>
 													{formatAmount(toNumber(t.money?.amount), { showSign: true })}
 												</span>
 											)}
@@ -692,7 +736,9 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 											onDrop={(e) => handleDrop(e, t.id)}
 											onDragEnd={handleDragEnd}
 											className={`transition-all duration-200 ${
-												draggedTxId === t.id ? 'opacity-40 cursor-grabbing' : 'hover:bg-slate-800/20'
+												draggedTxId === t.id
+													? 'opacity-40 cursor-grabbing'
+													: 'hover:bg-slate-800/20'
 											} ${
 												dragOverTxId === t.id
 													? 'bg-indigo-950/50 border-t-2 border-b-2 border-indigo-500/50 shadow-[inset_0_0_8px_rgba(99,102,241,0.2)]'
@@ -700,7 +746,10 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 											}`}
 										>
 											<td className="py-3.5 pl-2 text-center align-middle w-8">
-												<div className="cursor-grab active:cursor-grabbing p-1 hover:bg-slate-800/50 rounded flex items-center justify-center text-slate-500" title="Arrastrar para reordenar">
+												<div
+													className="cursor-grab active:cursor-grabbing p-1 hover:bg-slate-800/50 rounded flex items-center justify-center text-slate-500"
+													title="Arrastrar para reordenar"
+												>
 													<Icons.GripVertical className="w-3.5 h-3.5" />
 												</div>
 											</td>
@@ -710,12 +759,22 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 													<div className="flex items-center space-x-2">
 														<span>{t.desc}</span>
 														{t.recurrence === 'recurring' && (
-															<span 
+															<span
 																title="Movimiento Recurrente"
 																className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
 															>
-																<svg className="w-3 h-3 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-																	<path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.5" />
+																<svg
+																	className="w-3 h-3 mr-0.5"
+																	fill="none"
+																	viewBox="0 0 24 24"
+																	stroke="currentColor"
+																	strokeWidth={2}
+																>
+																	<path
+																		strokeLinecap="round"
+																		strokeLinejoin="round"
+																		d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.5"
+																	/>
 																</svg>
 																Recurrente
 															</span>
@@ -723,12 +782,18 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 													</div>
 													{t.type === 'transfer' ? (
 														<div className="text-[10px] text-slate-500 font-mono mt-0.5">
-															{accounts.find((a) => a.id === t.fromAccountId)?.name || 'Sin origen'} ➔ {accounts.find((a) => a.id === t.toAccountId)?.name || 'Sin destino'}
+															{accounts.find((a) => a.id === t.fromAccountId)?.name ||
+																'Sin origen'}{' '}
+															➔{' '}
+															{accounts.find((a) => a.id === t.toAccountId)?.name ||
+																'Sin destino'}
 														</div>
 													) : (
 														t.accountId && (
 															<div className="text-[10px] text-slate-500 font-mono mt-0.5">
-																Cuenta: {accounts.find((a) => a.id === t.accountId)?.name || 'Desconocida'}
+																Cuenta:{' '}
+																{accounts.find((a) => a.id === t.accountId)?.name ||
+																	'Desconocida'}
 															</div>
 														)
 													)}
@@ -754,7 +819,9 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 															: t.owner === 'userB'
 																? userBName
 																: 'Conjunto'}
-														{t.owner === 'joint' && t.type === 'expense' && ` (${t.paidBy === 'userA' ? userAName : t.paidBy === 'userB' ? userBName : 'Común'})`}
+														{t.owner === 'joint' &&
+															t.type === 'expense' &&
+															` (${t.paidBy === 'userA' ? userAName : t.paidBy === 'userB' ? userBName : 'Común'})`}
 													</span>
 												)}
 											</td>
@@ -796,16 +863,32 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 															const txAmount = toNumber(t.money?.amount);
 															const netChange = (toW - fromW) * txAmount;
 															if (netChange > 0.001) {
-																return <span className="text-emerald-400 font-bold">{formatAmount(txAmount, { showSign: true })}</span>;
+																return (
+																	<span className="text-emerald-400 font-bold">
+																		{formatAmount(txAmount, { showSign: true })}
+																	</span>
+																);
 															} else if (netChange < -0.001) {
-																return <span className="text-rose-400 font-bold">{formatAmount(-txAmount)}</span>;
+																return (
+																	<span className="text-rose-400 font-bold">
+																		{formatAmount(-txAmount)}
+																	</span>
+																);
 															}
 														}
-														return <span className="text-sky-400 font-bold">{formatAmount(toNumber(t.money?.amount))}</span>;
+														return (
+															<span className="text-sky-400 font-bold">
+																{formatAmount(toNumber(t.money?.amount))}
+															</span>
+														);
 													}
 													return (
-														<span className={`font-bold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}>
-															{formatAmount(toNumber(t.money?.amount), { showSign: t.type === 'income' })}
+														<span
+															className={`font-bold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}
+														>
+															{formatAmount(toNumber(t.money?.amount), {
+																showSign: t.type === 'income'
+															})}
 														</span>
 													);
 												})()}
@@ -835,10 +918,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 				)}
 			</div>
 
-			<ImportStatementModal
-				isOpen={isImportModalOpen}
-				onClose={() => setIsImportModalOpen(false)}
-			/>
+			<ImportStatementModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} />
 		</div>
 	);
 }

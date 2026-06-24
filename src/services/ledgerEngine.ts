@@ -12,14 +12,14 @@ export const computeCurrentBalances = (
 	const balances: Record<string, Big> = {};
 
 	// Inicializar saldos con el balance de apertura de cada cuenta
-	accounts.forEach(acc => {
+	accounts.forEach((acc) => {
 		balances[acc.id] = new Big(acc.initialBalance.toString());
 	});
 
 	// Ordenación cronológica estricta para garantizar consistencia temporal
 	const sortedTx = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
 
-	sortedTx.forEach(tx => {
+	sortedTx.forEach((tx) => {
 		if (!tx.money || tx.money.currency !== targetCurrency) return; // Omitir temporalmente descalces de FX o transacciones sin money
 		const amt = new Big(tx.money.amount);
 
@@ -34,7 +34,7 @@ export const computeCurrentBalances = (
 	});
 
 	const result: Record<string, string> = {};
-	Object.keys(balances).forEach(id => {
+	Object.keys(balances).forEach((id) => {
 		result[id] = balances[id].toFixed(2);
 	});
 	return result;

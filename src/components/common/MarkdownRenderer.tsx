@@ -1,7 +1,6 @@
 import { Fragment, type ReactNode } from 'react';
 import { decodeHtmlEntities } from '../../utils/formatters';
 
-
 /**
  * Renderiza código inline envuelto en comillas simples invertidas (`).
  */
@@ -11,7 +10,10 @@ function renderInlineCode(text: string, key: string): ReactNode[] {
 		if (part.startsWith('`') && part.endsWith('`')) {
 			const codeText = part.slice(1, -1);
 			return (
-				<code key={`${key}-${cIdx}`} className="bg-slate-900 border border-slate-800 text-indigo-300 px-1.5 py-0.5 rounded font-mono text-xs mx-0.5 font-semibold">
+				<code
+					key={`${key}-${cIdx}`}
+					className="bg-slate-900 border border-slate-800 text-indigo-300 px-1.5 py-0.5 rounded font-mono text-xs mx-0.5 font-semibold"
+				>
 					{codeText}
 				</code>
 			);
@@ -57,8 +59,15 @@ export function MarkdownRenderer({ text }: MarkdownRendererProps) {
 						code = lines.slice(1, -1).join('\n');
 					}
 					return (
-						<pre key={index} className="bg-slate-900 border border-slate-800 p-4 rounded-xl font-mono text-xs overflow-x-auto text-slate-200 my-2">
-							{language !== 'text' && <span className="block text-[10px] text-slate-500 uppercase tracking-widest mb-2 font-sans font-bold">{language}</span>}
+						<pre
+							key={index}
+							className="bg-slate-900 border border-slate-800 p-4 rounded-xl font-mono text-xs overflow-x-auto text-slate-200 my-2"
+						>
+							{language !== 'text' && (
+								<span className="block text-[10px] text-slate-500 uppercase tracking-widest mb-2 font-sans font-bold">
+									{language}
+								</span>
+							)}
 							<code>{code}</code>
 						</pre>
 					);
@@ -72,17 +81,27 @@ export function MarkdownRenderer({ text }: MarkdownRendererProps) {
 						if (listItems.length > 0) {
 							if (listType === 'ul') {
 								renderedElements.push(
-									<ul key={`ul-${key}`} className="list-disc list-inside pl-4 space-y-1.5 my-2 text-slate-350">
+									<ul
+										key={`ul-${key}`}
+										className="list-disc list-inside pl-4 space-y-1.5 my-2 text-slate-350"
+									>
 										{listItems.map((item, idx) => (
-											<li key={idx} className="text-slate-300">{renderInlineMarkdown(item)}</li>
+											<li key={idx} className="text-slate-300">
+												{renderInlineMarkdown(item)}
+											</li>
 										))}
 									</ul>
 								);
 							} else if (listType === 'ol') {
 								renderedElements.push(
-									<ol key={`ol-${key}`} className="list-decimal list-inside pl-4 space-y-1.5 my-2 text-slate-350">
+									<ol
+										key={`ol-${key}`}
+										className="list-decimal list-inside pl-4 space-y-1.5 my-2 text-slate-350"
+									>
 										{listItems.map((item, idx) => (
-											<li key={idx} className="text-slate-300">{renderInlineMarkdown(item)}</li>
+											<li key={idx} className="text-slate-300">
+												{renderInlineMarkdown(item)}
+											</li>
 										))}
 									</ol>
 								);
@@ -94,25 +113,25 @@ export function MarkdownRenderer({ text }: MarkdownRendererProps) {
 
 					const parseTable = (tableLines: string[]): ReactNode => {
 						if (tableLines.length < 2) return null;
-						
+
 						const splitRow = (l: string) => {
 							const parts = l.trim().split('|');
 							if (l.trim().startsWith('|')) parts.shift();
 							if (l.trim().endsWith('|')) parts.pop();
-							return parts.map(p => p.trim());
+							return parts.map((p) => p.trim());
 						};
 
 						const headers = splitRow(tableLines[0]);
 						const sepLine = tableLines[1].trim();
 						const isSeparator = /^\|?(\s*:?-+\s*:?\s*\|)+\s*:?-+\s*:?\|?$/.test(sepLine);
-						
+
 						let rowsStartIndex = 1;
 						let alignStyles: Array<Record<string, string>> = [];
-						
+
 						if (isSeparator) {
 							rowsStartIndex = 2;
 							const sepCells = splitRow(tableLines[1]);
-							alignStyles = sepCells.map(cell => {
+							alignStyles = sepCells.map((cell) => {
 								const trimmed = cell.trim();
 								const left = trimmed.startsWith(':');
 								const right = trimmed.endsWith(':');
@@ -123,7 +142,7 @@ export function MarkdownRenderer({ text }: MarkdownRendererProps) {
 							});
 						}
 
-						const rows = tableLines.slice(rowsStartIndex).map(rowLine => splitRow(rowLine));
+						const rows = tableLines.slice(rowsStartIndex).map((rowLine) => splitRow(rowLine));
 
 						return (
 							<div className="overflow-x-auto my-3 border border-slate-800 rounded-xl bg-slate-900/50">
@@ -131,9 +150,9 @@ export function MarkdownRenderer({ text }: MarkdownRendererProps) {
 									<thead className="bg-slate-900 text-slate-350 font-bold uppercase tracking-wider">
 										<tr>
 											{headers.map((h, idx) => (
-												<th 
-													key={idx} 
-													style={alignStyles[idx] || {}} 
+												<th
+													key={idx}
+													style={alignStyles[idx] || {}}
 													className="px-4 py-2.5 text-left font-semibold border-r border-slate-800 last:border-r-0"
 												>
 													{renderInlineMarkdown(h)}
@@ -143,13 +162,16 @@ export function MarkdownRenderer({ text }: MarkdownRendererProps) {
 									</thead>
 									<tbody className="divide-y divide-slate-850 text-slate-300">
 										{rows.map((row, rIdx) => (
-											<tr key={rIdx} className="hover:bg-slate-800/30 transition-colors odd:bg-slate-950/20">
+											<tr
+												key={rIdx}
+												className="hover:bg-slate-800/30 transition-colors odd:bg-slate-950/20"
+											>
 												{headers.map((_, cIdx) => {
 													const cellValue = row[cIdx] || '';
 													return (
-														<td 
-															key={cIdx} 
-															style={alignStyles[cIdx] || {}} 
+														<td
+															key={cIdx}
+															style={alignStyles[cIdx] || {}}
 															className="px-4 py-2 border-r border-slate-850 last:border-r-0"
 														>
 															{renderInlineMarkdown(cellValue)}
@@ -180,14 +202,17 @@ export function MarkdownRenderer({ text }: MarkdownRendererProps) {
 								i++;
 								tableLines.push(lines[i]);
 							}
-							
+
 							const tableNode = parseTable(tableLines);
 							if (tableNode) {
 								renderedElements.push(tableNode);
 							} else {
 								tableLines.forEach((tLine, tlIdx) => {
 									renderedElements.push(
-										<p key={`table-fallback-${i}-${tlIdx}`} className="my-1.5 text-slate-300 leading-relaxed text-sm">
+										<p
+											key={`table-fallback-${i}-${tlIdx}`}
+											className="my-1.5 text-slate-300 leading-relaxed text-sm"
+										>
 											{renderInlineMarkdown(tLine)}
 										</p>
 									);
@@ -201,17 +226,33 @@ export function MarkdownRenderer({ text }: MarkdownRendererProps) {
 							flushList(i);
 							const level = headerMatch[1].length;
 							const content = headerMatch[2];
-							const headerClasses = 
-								level === 1 ? 'text-lg font-black text-white mt-3 mb-1.5' :
-								level === 2 ? 'text-base font-extrabold text-slate-200 mt-3 mb-1.5' :
-								level === 3 ? 'text-sm font-bold text-slate-200 mt-2 mb-1' :
-								'text-xs font-bold text-slate-300 mt-2 mb-1';
-							
+							const headerClasses =
+								level === 1
+									? 'text-lg font-black text-white mt-3 mb-1.5'
+									: level === 2
+										? 'text-base font-extrabold text-slate-200 mt-3 mb-1.5'
+										: level === 3
+											? 'text-sm font-bold text-slate-200 mt-2 mb-1'
+											: 'text-xs font-bold text-slate-300 mt-2 mb-1';
+
 							renderedElements.push(
-								level === 1 ? <h3 key={i} className={headerClasses}>{renderInlineMarkdown(content)}</h3> :
-								level === 2 ? <h4 key={i} className={headerClasses}>{renderInlineMarkdown(content)}</h4> :
-								level === 3 ? <h5 key={i} className={headerClasses}>{renderInlineMarkdown(content)}</h5> :
-								<h6 key={i} className={headerClasses}>{renderInlineMarkdown(content)}</h6>
+								level === 1 ? (
+									<h3 key={i} className={headerClasses}>
+										{renderInlineMarkdown(content)}
+									</h3>
+								) : level === 2 ? (
+									<h4 key={i} className={headerClasses}>
+										{renderInlineMarkdown(content)}
+									</h4>
+								) : level === 3 ? (
+									<h5 key={i} className={headerClasses}>
+										{renderInlineMarkdown(content)}
+									</h5>
+								) : (
+									<h6 key={i} className={headerClasses}>
+										{renderInlineMarkdown(content)}
+									</h6>
+								)
 							);
 							continue;
 						}

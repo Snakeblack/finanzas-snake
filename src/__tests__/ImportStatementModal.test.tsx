@@ -47,7 +47,11 @@ describe('ImportStatementModal UI', () => {
 		expect(screen.getByText('Método de Importación')).toBeInTheDocument();
 		expect(screen.getByText('Archivo (CSV / PDF)')).toBeInTheDocument();
 		expect(screen.getByText('Copiar y Pegar (IA)')).toBeInTheDocument();
-		expect(screen.getByText('Asigná cada archivo a la cuenta del banco que lo emitió. La app usará esa cuenta para detectar transferencias entre cuentas.')).toBeInTheDocument();
+		expect(
+			screen.getByText(
+				'Asigná cada archivo a la cuenta del banco que lo emitió. La app usará esa cuenta para detectar transferencias entre cuentas.'
+			)
+		).toBeInTheDocument();
 		expect(screen.queryByText('Cuenta de Destino')).toBeNull();
 	});
 
@@ -85,7 +89,9 @@ describe('ImportStatementModal UI', () => {
 
 		render(<MockApp isOpen={true} onClose={onCloseMock} />);
 		fireEvent.click(screen.getByText('Copiar y Pegar (IA)'));
-		fireEvent.change(screen.getByLabelText('Texto del Extracto Copiado'), { target: { value: '05/06/2026 PAGO MERCADONA -45,20' } });
+		fireEvent.change(screen.getByLabelText('Texto del Extracto Copiado'), {
+			target: { value: '05/06/2026 PAGO MERCADONA -45,20' }
+		});
 		fireEvent.change(screen.getByLabelText('Introduce tu Gemini API Key'), { target: { value: 'test-key' } });
 		fireEvent.click(screen.getByText('Siguiente paso'));
 
@@ -107,16 +113,16 @@ describe('ImportStatementModal UI', () => {
 		render(<MockApp isOpen={true} onClose={onCloseMock} />);
 		const btnNext = screen.getByText('Siguiente paso');
 		fireEvent.click(btnNext);
-		
+
 		expect(await screen.findByText('Por favor, carga un archivo CSV de movimientos.')).toBeInTheDocument();
 	});
 
 	it('debe mostrar error en Step 1 si se intenta avanzar con texto AI vacío', async () => {
 		render(<MockApp isOpen={true} onClose={onCloseMock} />);
-		
+
 		// Ir a método AI
 		fireEvent.click(screen.getByText('Copiar y Pegar (IA)'));
-		
+
 		const btnNext = screen.getByText('Siguiente paso');
 		fireEvent.click(btnNext);
 
@@ -127,7 +133,9 @@ describe('ImportStatementModal UI', () => {
 		render(<MockApp isOpen={true} onClose={onCloseMock} />);
 
 		fireEvent.click(screen.getByText('Copiar y Pegar (IA)'));
-		fireEvent.change(screen.getByLabelText('Texto del Extracto Copiado'), { target: { value: '05/06/2026 PAGO MERCADONA -45,20' } });
+		fireEvent.change(screen.getByLabelText('Texto del Extracto Copiado'), {
+			target: { value: '05/06/2026 PAGO MERCADONA -45,20' }
+		});
 		fireEvent.click(screen.getByText('Siguiente paso'));
 
 		expect(await screen.findByText(/Gemini no está disponible: configura una API Key activa/)).toBeInTheDocument();
@@ -137,13 +145,15 @@ describe('ImportStatementModal UI', () => {
 
 	it('debe permitir configurar mapeo en personalizado e ir al Paso 2', async () => {
 		render(<MockApp isOpen={true} onClose={onCloseMock} />);
-		
+
 		// Mock de carga de archivo
-		const file = new File(['fecha,concepto,importe\n05/06/2026,Compra Mercadona,-45.20'], 'extracto.csv', { type: 'text/csv' });
-		
+		const file = new File(['fecha,concepto,importe\n05/06/2026,Compra Mercadona,-45.20'], 'extracto.csv', {
+			type: 'text/csv'
+		});
+
 		// Buscamos el input oculto y simulamos la carga
 		const input = document.querySelector('input[type="file"]')!;
-		
+
 		// Cambiar a formato personalizado
 		// Nota: En radix select podemos mockear el valor o cambiar la plantilla
 		// Pero para hacerlo directo simulamos directamente la inyección de estados
@@ -160,10 +170,10 @@ describe('ImportStatementModal UI', () => {
 
 	it('debe admitir la carga de un archivo PDF y requerir API Key si no está configurada', async () => {
 		render(<MockApp isOpen={true} onClose={onCloseMock} />);
-		
+
 		const file = new File(['pdf-dummy-content'], 'extracto.pdf', { type: 'application/pdf' });
 		const input = document.querySelector('input[type="file"]')!;
-		
+
 		await act(async () => {
 			fireEvent.change(input, { target: { files: [file] } });
 		});
@@ -174,7 +184,7 @@ describe('ImportStatementModal UI', () => {
 
 		// Debe mostrar el disclaimer del PDF
 		expect(screen.getByText('Procesamiento inteligente de PDF')).toBeInTheDocument();
-		
+
 		// Dado que no hay API key global en este test mockeado, debe mostrar el input para la clave API
 		expect(screen.getByText('Introduce tu Gemini API Key (Requerida para PDF)')).toBeInTheDocument();
 	});
@@ -255,7 +265,8 @@ describe('ImportStatementModal UI', () => {
 		render(<MockApp isOpen={true} onClose={onCloseMock} />);
 		const input = document.querySelector('input[type="file"]')!;
 		const bbvaCsv = 'Fecha;Valor;Concepto;Importe\n05/06/2026;05/06/2026;PAGO BBVA;-10,00';
-		const santanderCsv = 'Fecha;Valor;Referencia;Concepto;Divisa;Importe\n05/06/2026;05/06/2026;1;PAGO SANTANDER;EUR;-20,00';
+		const santanderCsv =
+			'Fecha;Valor;Referencia;Concepto;Divisa;Importe\n05/06/2026;05/06/2026;1;PAGO SANTANDER;EUR;-20,00';
 
 		await act(async () => {
 			fireEvent.change(input, {
@@ -324,7 +335,9 @@ describe('ImportStatementModal UI', () => {
 		fireEvent.click(duplicateSelection);
 		fireEvent.click(screen.getByText(/Importar seleccionados/));
 
-		expect(await screen.findByText('Debes seleccionar al menos una transacción para importar.')).toBeInTheDocument();
+		expect(
+			await screen.findByText('Debes seleccionar al menos una transacción para importar.')
+		).toBeInTheDocument();
 		expect(formatterSpy).not.toHaveBeenCalled();
 	});
 
@@ -363,10 +376,12 @@ describe('ImportStatementModal UI', () => {
 
 	it('debe guiar al usuario al paso de traspasos si se detecta un traspaso en la vista previa', async () => {
 		render(<MockApp isOpen={true} onClose={onCloseMock} />);
-		
-		const file = new File(['fecha,concepto,importe\n05/06/2026,Traspaso hucha,150.00'], 'extracto.csv', { type: 'text/csv' });
+
+		const file = new File(['fecha,concepto,importe\n05/06/2026,Traspaso hucha,150.00'], 'extracto.csv', {
+			type: 'text/csv'
+		});
 		const input = document.querySelector('input[type="file"]')!;
-		
+
 		await act(async () => {
 			fireEvent.change(input, { target: { files: [file] } });
 		});
@@ -388,7 +403,9 @@ describe('ImportStatementModal UI', () => {
 
 		// Esperar que esté en vista previa
 		await waitFor(() => {
-			expect(screen.getByText('Revisa, categoriza y valida los movimientos antes de agregarlos.')).toBeInTheDocument();
+			expect(
+				screen.getByText('Revisa, categoriza y valida los movimientos antes de agregarlos.')
+			).toBeInTheDocument();
 		});
 
 		// Cambiar el tipo de transacción a 'transfer' (Traspaso)
@@ -410,7 +427,9 @@ describe('ImportStatementModal UI', () => {
 		const formatterSpy = vi.spyOn(statementImportService, 'formatImportedTransactionsForPersistence');
 		render(<MockApp isOpen={true} onClose={onCloseMock} />);
 		const input = document.querySelector('input[type="file"]')!;
-		const file = new File(['fecha,concepto,importe\n05/06/2026,Traspaso hucha,150.00'], 'extracto.csv', { type: 'text/csv' });
+		const file = new File(['fecha,concepto,importe\n05/06/2026,Traspaso hucha,150.00'], 'extracto.csv', {
+			type: 'text/csv'
+		});
 
 		await act(async () => {
 			fireEvent.change(input, { target: { files: [file] } });

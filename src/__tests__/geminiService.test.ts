@@ -27,12 +27,24 @@ const makeDefaultPromptParams = (overrides: Partial<PromptContextParams> = {}): 
 	],
 	filteredTransactions: [
 		{
-			id: 'tx-1', desc: 'Nómina', money: { amount: '2500.00', currency: 'EUR' }, type: 'income',
-			tag: 'Sueldo', date: '2026-05-01', recurrence: 'recurring', owner: 'userA'
+			id: 'tx-1',
+			desc: 'Nómina',
+			money: { amount: '2500.00', currency: 'EUR' },
+			type: 'income',
+			tag: 'Sueldo',
+			date: '2026-05-01',
+			recurrence: 'recurring',
+			owner: 'userA'
 		} as Transaction,
 		{
-			id: 'tx-2', desc: 'Netflix', money: { amount: '15.00', currency: 'EUR' }, type: 'expense',
-			tag: 'Suscripciones', date: '2026-05-01', recurrence: 'recurring', owner: 'joint'
+			id: 'tx-2',
+			desc: 'Netflix',
+			money: { amount: '15.00', currency: 'EUR' },
+			type: 'expense',
+			tag: 'Suscripciones',
+			date: '2026-05-01',
+			recurrence: 'recurring',
+			owner: 'joint'
 		} as Transaction
 	],
 	debts: [],
@@ -115,15 +127,23 @@ describe('buildFinanceDataPrompt', () => {
 
 	it('debe incluir deudas clásicas activas', () => {
 		const classicDebt: ClassicDebt = {
-			id: 'd1', kind: 'classic', desc: 'Hipoteca Test',
-			tag: 'Hipoteca', date: '2026-01', principal: 100000,
-			tae: 3, termMonths: 360, owner: 'userA'
+			id: 'd1',
+			kind: 'classic',
+			desc: 'Hipoteca Test',
+			tag: 'Hipoteca',
+			date: '2026-01',
+			principal: 100000,
+			tae: 3,
+			termMonths: 360,
+			owner: 'userA'
 		};
 
-		const prompt = buildFinanceDataPrompt(makeDefaultPromptParams({
-			debts: [classicDebt],
-			filteredDebts: [classicDebt]
-		}));
+		const prompt = buildFinanceDataPrompt(
+			makeDefaultPromptParams({
+				debts: [classicDebt],
+				filteredDebts: [classicDebt]
+			})
+		);
 		expect(prompt).toContain('Hipoteca Test');
 		expect(prompt).toContain('Préstamo clásico');
 		expect(prompt).toContain('Capital: 100000€');
@@ -132,18 +152,24 @@ describe('buildFinanceDataPrompt', () => {
 
 	it('debe incluir deudas paymentPlan', () => {
 		const ppDebt: PaymentPlanDebt = {
-			id: 'd2', kind: 'paymentPlan', desc: 'Fraccionamiento Test',
-			tag: 'Test', date: '2026-03', financedAmount: 1200,
-			fees: 60, totalToPay: 1260, owner: 'userB',
-			installments: [
-				{ id: 'i1', dueMonth: '2026-05', amount: 105, status: 'pending', label: 'Cuota 1' }
-			]
+			id: 'd2',
+			kind: 'paymentPlan',
+			desc: 'Fraccionamiento Test',
+			tag: 'Test',
+			date: '2026-03',
+			financedAmount: 1200,
+			fees: 60,
+			totalToPay: 1260,
+			owner: 'userB',
+			installments: [{ id: 'i1', dueMonth: '2026-05', amount: 105, status: 'pending', label: 'Cuota 1' }]
 		};
 
-		const prompt = buildFinanceDataPrompt(makeDefaultPromptParams({
-			debts: [ppDebt],
-			filteredDebts: [ppDebt]
-		}));
+		const prompt = buildFinanceDataPrompt(
+			makeDefaultPromptParams({
+				debts: [ppDebt],
+				filteredDebts: [ppDebt]
+			})
+		);
 		expect(prompt).toContain('Fraccionamiento Test');
 		expect(prompt).toContain('Fraccionamiento manual');
 		expect(prompt).toContain('1200€');
@@ -156,22 +182,30 @@ describe('buildFinanceDataPrompt', () => {
 
 	it('debe incluir datos de reunificación cuando hay deudas consolidadas', () => {
 		const classicDebt: ClassicDebt = {
-			id: 'd1', kind: 'classic', desc: 'Deuda 1',
-			tag: 'Test', date: '2026-01', principal: 5000,
-			tae: 5, termMonths: 24, owner: 'joint'
+			id: 'd1',
+			kind: 'classic',
+			desc: 'Deuda 1',
+			tag: 'Test',
+			date: '2026-01',
+			principal: 5000,
+			tae: 5,
+			termMonths: 24,
+			owner: 'joint'
 		};
 
-		const prompt = buildFinanceDataPrompt(makeDefaultPromptParams({
-			consolidatedDebtsObjects: [classicDebt],
-			consolidatedPrincipal: 5000,
-			additionalCapital: 1000,
-			totalNewPrincipal: 6000,
-			currentConsolidatedMonthlySum: 220,
-			currentTotalInterests: 280,
-			newConsolidatedCuota: 180,
-			newTotalConsolidatedPayment: 6480,
-			newConsolidatedInterests: 480
-		}));
+		const prompt = buildFinanceDataPrompt(
+			makeDefaultPromptParams({
+				consolidatedDebtsObjects: [classicDebt],
+				consolidatedPrincipal: 5000,
+				additionalCapital: 1000,
+				totalNewPrincipal: 6000,
+				currentConsolidatedMonthlySum: 220,
+				currentTotalInterests: 280,
+				newConsolidatedCuota: 180,
+				newTotalConsolidatedPayment: 6480,
+				newConsolidatedInterests: 480
+			})
+		);
 		expect(prompt).toContain('5000.00€');
 		expect(prompt).toContain('1000.00€');
 		expect(prompt).toContain('6000.00€');
@@ -184,15 +218,23 @@ describe('buildFinanceDataPrompt', () => {
 
 	it('debe marcar deudas futuras con su fecha de inicio', () => {
 		const futureDebt: ClassicDebt = {
-			id: 'd1', kind: 'classic', desc: 'Deuda Futura',
-			tag: 'Test', date: '2027-01', principal: 5000,
-			tae: 5, termMonths: 12, owner: 'joint'
+			id: 'd1',
+			kind: 'classic',
+			desc: 'Deuda Futura',
+			tag: 'Test',
+			date: '2027-01',
+			principal: 5000,
+			tae: 5,
+			termMonths: 12,
+			owner: 'joint'
 		};
 
-		const prompt = buildFinanceDataPrompt(makeDefaultPromptParams({
-			debts: [futureDebt],
-			filteredDebts: []
-		}));
+		const prompt = buildFinanceDataPrompt(
+			makeDefaultPromptParams({
+				debts: [futureDebt],
+				filteredDebts: []
+			})
+		);
 		expect(prompt).toContain('Futura');
 		expect(prompt).toContain('2027-01');
 	});
@@ -212,14 +254,17 @@ describe('askGemini', () => {
 	it('debe retornar la respuesta del modelo en caso exitoso', async () => {
 		globalThis.fetch = vi.fn().mockResolvedValue({
 			ok: true,
-			json: () => Promise.resolve({
-				candidates: [{ content: { parts: [{ text: 'Respuesta de prueba' }] } }]
-			})
+			json: () =>
+				Promise.resolve({
+					candidates: [{ content: { parts: [{ text: 'Respuesta de prueba' }] } }]
+				})
 		});
 
-		const result = await askGemini('test-key', [
-			{ role: 'user', content: 'Hola', timestamp: '12:00' }
-		], 'system prompt');
+		const result = await askGemini(
+			'test-key',
+			[{ role: 'user', content: 'Hola', timestamp: '12:00' }],
+			'system prompt'
+		);
 
 		expect(result).toBe('Respuesta de prueba');
 		expect(globalThis.fetch).toHaveBeenCalledTimes(1);
@@ -231,9 +276,11 @@ describe('askGemini', () => {
 			json: () => Promise.resolve({ candidates: [{ content: { parts: [] } }] })
 		});
 
-		const result = await askGemini('test-key', [
-			{ role: 'user', content: 'Hola', timestamp: '12:00' }
-		], 'system prompt');
+		const result = await askGemini(
+			'test-key',
+			[{ role: 'user', content: 'Hola', timestamp: '12:00' }],
+			'system prompt'
+		);
 
 		expect(result).toBe('No se ha obtenido respuesta de Gemini.');
 	});
@@ -246,13 +293,13 @@ describe('askGemini', () => {
 			status: 500
 		});
 
-		const promise = askGemini('test-key', [
-			{ role: 'user', content: 'Hola', timestamp: '12:00' }
-		], 'system prompt');
+		const promise = askGemini('test-key', [{ role: 'user', content: 'Hola', timestamp: '12:00' }], 'system prompt');
 
 		// Attach rejection handler immediately to prevent unhandled rejection
 		let caughtError: Error | null = null;
-		promise.catch((err) => { caughtError = err; });
+		promise.catch((err) => {
+			caughtError = err;
+		});
 
 		// Avanzar los timers para los 4 reintentos (delays: 1000, 2000, 4000, 8000ms)
 		for (let i = 0; i < 4; i++) {
@@ -260,7 +307,11 @@ describe('askGemini', () => {
 		}
 
 		// Wait for the promise to settle
-		try { await promise; } catch { /* expected */ }
+		try {
+			await promise;
+		} catch {
+			/* expected */
+		}
 
 		expect(caughtError).not.toBeNull();
 		expect(caughtError!.message).toContain('Error tras 5 intentos');
@@ -274,20 +325,24 @@ describe('askGemini', () => {
 
 		globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
 
-		const promise = askGemini('test-key', [
-			{ role: 'user', content: 'Hola', timestamp: '12:00' }
-		], 'system prompt');
+		const promise = askGemini('test-key', [{ role: 'user', content: 'Hola', timestamp: '12:00' }], 'system prompt');
 
 		// Attach rejection handler immediately to prevent unhandled rejection
 		let caughtError: Error | null = null;
-		promise.catch((err) => { caughtError = err; });
+		promise.catch((err) => {
+			caughtError = err;
+		});
 
 		for (let i = 0; i < 4; i++) {
 			await vi.advanceTimersByTimeAsync(16000);
 		}
 
 		// Wait for the promise to settle
-		try { await promise; } catch { /* expected */ }
+		try {
+			await promise;
+		} catch {
+			/* expected */
+		}
 
 		expect(caughtError).not.toBeNull();
 		expect(caughtError!.message).toContain('Error tras 5 intentos');
@@ -299,9 +354,10 @@ describe('askGemini', () => {
 	it('debe enviar el payload correcto a la API', async () => {
 		globalThis.fetch = vi.fn().mockResolvedValue({
 			ok: true,
-			json: () => Promise.resolve({
-				candidates: [{ content: { parts: [{ text: 'OK' }] } }]
-			})
+			json: () =>
+				Promise.resolve({
+					candidates: [{ content: { parts: [{ text: 'OK' }] } }]
+				})
 		});
 
 		const messages: ChatMessage[] = [
@@ -334,15 +390,14 @@ describe('askGemini', () => {
 			}
 			return Promise.resolve({
 				ok: true,
-				json: () => Promise.resolve({
-					candidates: [{ content: { parts: [{ text: 'Éxito en reintento' }] } }]
-				})
+				json: () =>
+					Promise.resolve({
+						candidates: [{ content: { parts: [{ text: 'Éxito en reintento' }] } }]
+					})
 			});
 		});
 
-		const promise = askGemini('test-key', [
-			{ role: 'user', content: 'Hola', timestamp: '12:00' }
-		], 'prompt');
+		const promise = askGemini('test-key', [{ role: 'user', content: 'Hola', timestamp: '12:00' }], 'prompt');
 
 		// Avanzar el timer para el primer retry (1000ms delay)
 		await vi.advanceTimersByTimeAsync(1500);

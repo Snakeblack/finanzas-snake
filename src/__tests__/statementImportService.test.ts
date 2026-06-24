@@ -24,7 +24,9 @@ vi.mock('../services/geminiService', async (importOriginal) => {
 	};
 });
 
-const createImportedFixture = (overrides: Partial<ImportedTransaction> & { accountId?: string } = {}): ImportedTransaction => ({
+const createImportedFixture = (
+	overrides: Partial<ImportedTransaction> & { accountId?: string } = {}
+): ImportedTransaction => ({
 	id: overrides.id ?? 'imported-fixture',
 	date: overrides.date ?? '2026-06-05',
 	desc: overrides.desc ?? 'Transferencia entre cuentas',
@@ -44,7 +46,9 @@ const createImportedFixture = (overrides: Partial<ImportedTransaction> & { accou
 	transferCorrelationId: overrides.transferCorrelationId
 });
 
-const createPreparedFixture = (overrides: Partial<ImportedTransaction> & { accountId: string }): ImportedTransaction => {
+const createPreparedFixture = (
+	overrides: Partial<ImportedTransaction> & { accountId: string }
+): ImportedTransaction => {
 	const [prepared] = prepareImportedTransactions({
 		transactions: [createImportedFixture(overrides)],
 		accountId: overrides.accountId,
@@ -159,7 +163,7 @@ describe('statementImportService', () => {
 			expect(txs[1].desc).toBe('Nómina');
 			expect(txs[1].amount).toBe('1500.00');
 			expect(txs[1].type).toBe('income');
-			 expect(txs[1].tag).toBe('Sueldo');
+			expect(txs[1].tag).toBe('Sueldo');
 		});
 
 		it('debe crear el mismo importFingerprint para el mismo CSV importado dos veces en la misma cuenta', () => {
@@ -192,7 +196,13 @@ describe('statementImportService', () => {
 				['05/06/2026', 'Mercadona', '-45,20', '1.024,50 €'],
 				['06/06/2026', 'Nómina', '1500,00', '-50,20']
 			];
-			const txs = processParsedRows(rows, { dateCol: 0, descCol: 1, amountCol: 2, balanceCol: 3, hasHeader: true });
+			const txs = processParsedRows(rows, {
+				dateCol: 0,
+				descCol: 1,
+				amountCol: 2,
+				balanceCol: 3,
+				hasHeader: true
+			});
 			expect(txs).toHaveLength(2);
 			expect(txs[0].balance).toBe('1024.50');
 			expect(txs[1].balance).toBe('-50.20');
@@ -249,7 +259,14 @@ describe('statementImportService', () => {
 
 		it('debe marcar duplicados por fingerprint, fecha, importe y cuenta', () => {
 			const imported = prepareImportedTransactions({
-				transactions: [createImportedFixture({ id: 'random-id', desc: 'Mercadona Super', amount: '45.20', type: 'expense' })],
+				transactions: [
+					createImportedFixture({
+						id: 'random-id',
+						desc: 'Mercadona Super',
+						amount: '45.20',
+						type: 'expense'
+					})
+				],
 				accountId: 'checking',
 				sourceName: 'checking.csv',
 				accountOwner: 'joint'
@@ -275,7 +292,9 @@ describe('statementImportService', () => {
 
 		it('debe detectar como duplicado un traspaso manual reimportado desde su fila original', () => {
 			const [imported] = prepareImportedTransactions({
-				transactions: [createImportedFixture({ id: 'csv-row-1', desc: 'Traspaso hucha', amount: '150.00', type: 'income' })],
+				transactions: [
+					createImportedFixture({ id: 'csv-row-1', desc: 'Traspaso hucha', amount: '150.00', type: 'income' })
+				],
 				accountId: 'savings',
 				sourceName: 'extracto.csv',
 				accountOwner: 'userB'
@@ -302,7 +321,14 @@ describe('statementImportService', () => {
 
 		it('no debe marcar como duplicado un movimiento regular igual en otra cuenta', () => {
 			const imported = prepareImportedTransactions({
-				transactions: [createImportedFixture({ id: 'csv-row-2', desc: 'Mercadona Super', amount: '45.20', type: 'expense' })],
+				transactions: [
+					createImportedFixture({
+						id: 'csv-row-2',
+						desc: 'Mercadona Super',
+						amount: '45.20',
+						type: 'expense'
+					})
+				],
 				accountId: 'credit-card',
 				sourceName: 'credit-card.csv',
 				accountOwner: 'joint'
@@ -328,7 +354,15 @@ describe('statementImportService', () => {
 
 		it('debe avisar posible duplicado si importe y concepto similar caen en una ventana cercana', () => {
 			const imported = prepareImportedTransactions({
-				transactions: [createImportedFixture({ id: 'csv-row-3', desc: 'Mercadona compra supermercado', amount: '45.20', type: 'expense', date: '2026-06-07' })],
+				transactions: [
+					createImportedFixture({
+						id: 'csv-row-3',
+						desc: 'Mercadona compra supermercado',
+						amount: '45.20',
+						type: 'expense',
+						date: '2026-06-07'
+					})
+				],
 				accountId: 'checking',
 				sourceName: 'checking.csv',
 				accountOwner: 'joint'
@@ -360,7 +394,15 @@ describe('statementImportService', () => {
 
 		it('no debe avisar posible duplicado si la fecha queda fuera de la ventana cercana', () => {
 			const imported = prepareImportedTransactions({
-				transactions: [createImportedFixture({ id: 'csv-row-4', desc: 'Mercadona compra supermercado', amount: '45.20', type: 'expense', date: '2026-06-10' })],
+				transactions: [
+					createImportedFixture({
+						id: 'csv-row-4',
+						desc: 'Mercadona compra supermercado',
+						amount: '45.20',
+						type: 'expense',
+						date: '2026-06-10'
+					})
+				],
 				accountId: 'checking',
 				sourceName: 'checking.csv',
 				accountOwner: 'joint'
@@ -389,8 +431,18 @@ describe('statementImportService', () => {
 	describe('correlateInternalTransfers', () => {
 		it('debe correlacionar gasto e ingreso de mismo día e importe en cuentas distintas', () => {
 			const result = correlateInternalTransfers([
-				createPreparedFixture({ id: 'out', type: 'expense', accountId: 'account-a', desc: 'Transferencia enviada' }),
-				createPreparedFixture({ id: 'in', type: 'income', accountId: 'account-b', desc: 'Transferencia recibida' })
+				createPreparedFixture({
+					id: 'out',
+					type: 'expense',
+					accountId: 'account-a',
+					desc: 'Transferencia enviada'
+				}),
+				createPreparedFixture({
+					id: 'in',
+					type: 'income',
+					accountId: 'account-b',
+					desc: 'Transferencia recibida'
+				})
 			]);
 
 			expect(result[0].type).toBe('transfer');
@@ -401,8 +453,20 @@ describe('statementImportService', () => {
 
 		it('no debe correlacionar movimientos comunes aunque coincidan fecha e importe', () => {
 			const result = correlateInternalTransfers([
-				createPreparedFixture({ id: 'salary', type: 'income', accountId: 'account-a', desc: 'Nómina empresa', tag: 'Sueldo' }),
-				createPreparedFixture({ id: 'expense', type: 'expense', accountId: 'account-b', desc: 'Compra supermercado', tag: 'Alimentación' })
+				createPreparedFixture({
+					id: 'salary',
+					type: 'income',
+					accountId: 'account-a',
+					desc: 'Nómina empresa',
+					tag: 'Sueldo'
+				}),
+				createPreparedFixture({
+					id: 'expense',
+					type: 'expense',
+					accountId: 'account-b',
+					desc: 'Compra supermercado',
+					tag: 'Alimentación'
+				})
 			]);
 
 			expect(result).toHaveLength(2);
@@ -433,7 +497,12 @@ describe('statementImportService', () => {
 
 		it('debe mantener transferencias no correlacionadas como gasto o ingreso externo', () => {
 			const result = correlateInternalTransfers([
-				createPreparedFixture({ id: 'out', type: 'expense', accountId: 'account-a', desc: 'Transferencia SEPA a tercero' })
+				createPreparedFixture({
+					id: 'out',
+					type: 'expense',
+					accountId: 'account-a',
+					desc: 'Transferencia SEPA a tercero'
+				})
 			]);
 
 			expect(result[0].type).toBe('expense');
@@ -442,10 +511,12 @@ describe('statementImportService', () => {
 		});
 	});
 
-		describe('formatImportedTransactionsForPersistence', () => {
+	describe('formatImportedTransactionsForPersistence', () => {
 		it('debe persistir una transacción preparada de texto IA con la cuenta seleccionada', () => {
 			const [prepared] = prepareImportedTransactions({
-				transactions: [createImportedFixture({ id: 'ai-row-1', desc: 'PAGO MERCADONA', amount: '45.20', type: 'expense' })],
+				transactions: [
+					createImportedFixture({ id: 'ai-row-1', desc: 'PAGO MERCADONA', amount: '45.20', type: 'expense' })
+				],
 				accountId: 'checking',
 				sourceName: 'Texto pegado (IA)',
 				accountOwner: 'userA'
@@ -481,8 +552,18 @@ describe('statementImportService', () => {
 
 		it('no vuelve a persistir una transferencia interna correlacionada ya importada', () => {
 			const correlated = correlateInternalTransfers([
-				createPreparedFixture({ id: 'out', type: 'expense', accountId: 'account-a', desc: 'Transferencia enviada' }),
-				createPreparedFixture({ id: 'in', type: 'income', accountId: 'account-b', desc: 'Transferencia recibida' })
+				createPreparedFixture({
+					id: 'out',
+					type: 'expense',
+					accountId: 'account-a',
+					desc: 'Transferencia enviada'
+				}),
+				createPreparedFixture({
+					id: 'in',
+					type: 'income',
+					accountId: 'account-b',
+					desc: 'Transferencia recibida'
+				})
 			]);
 			const existing: Transaction[] = [
 				{
@@ -506,10 +587,30 @@ describe('statementImportService', () => {
 
 		it('debe persistir dos traspasos internos opuestos del mismo día e importe como dos movimientos', () => {
 			const correlated = correlateInternalTransfers([
-				createPreparedFixture({ id: 'out-001', type: 'expense', accountId: 'account-a', desc: 'Transferencia enviada operacion 001' }),
-				createPreparedFixture({ id: 'in-001', type: 'income', accountId: 'account-b', desc: 'Transferencia recibida operacion 001' }),
-				createPreparedFixture({ id: 'out-002', type: 'expense', accountId: 'account-b', desc: 'Transferencia enviada operacion 002' }),
-				createPreparedFixture({ id: 'in-002', type: 'income', accountId: 'account-a', desc: 'Transferencia recibida operacion 002' })
+				createPreparedFixture({
+					id: 'out-001',
+					type: 'expense',
+					accountId: 'account-a',
+					desc: 'Transferencia enviada operacion 001'
+				}),
+				createPreparedFixture({
+					id: 'in-001',
+					type: 'income',
+					accountId: 'account-b',
+					desc: 'Transferencia recibida operacion 001'
+				}),
+				createPreparedFixture({
+					id: 'out-002',
+					type: 'expense',
+					accountId: 'account-b',
+					desc: 'Transferencia enviada operacion 002'
+				}),
+				createPreparedFixture({
+					id: 'in-002',
+					type: 'income',
+					accountId: 'account-a',
+					desc: 'Transferencia recibida operacion 002'
+				})
 			]);
 
 			const result = formatImportedTransactionsForPersistence(correlated, []);
@@ -635,10 +736,12 @@ describe('statementImportService', () => {
 					]
 				})
 			};
-			
+
 			const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(fakeResponse as any);
-			
-			const result = await askGeminiToParsePdf('api-key-test', 'pdf-base64-data', { accountName: 'Cuenta nómina' });
+
+			const result = await askGeminiToParsePdf('api-key-test', 'pdf-base64-data', {
+				accountName: 'Cuenta nómina'
+			});
 			expect(result).toHaveLength(1);
 			expect(result[0].desc).toBe('PAGO COMPRA');
 			expect(result[0].amount).toBe('12.50');
@@ -646,7 +749,7 @@ describe('statementImportService', () => {
 			expect(result[0].balance).toBe('980.50');
 			expect(fetchSpy).toHaveBeenCalled();
 			expect(JSON.stringify(fetchSpy.mock.calls[0][1]?.body)).toContain('Cuenta nómina');
-			
+
 			fetchSpy.mockRestore();
 		});
 
@@ -746,11 +849,11 @@ describe('statementImportService', () => {
 				status: 500
 			};
 			const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(fakeResponse as any);
-			
+
 			await expect(askGeminiToParsePdf('api-key-test', 'pdf-base64-data')).rejects.toThrow(
 				'No se pudo procesar el extracto PDF con IA'
 			);
-			
+
 			fetchSpy.mockRestore();
 			setTimeoutSpy.mockRestore();
 		});

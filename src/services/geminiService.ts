@@ -21,7 +21,9 @@ export const isGeminiApiKeyError = (error: unknown): boolean => {
 		return false;
 	}
 
-	return /Gemini no está disponible|Código HTTP (401|403)|API_KEY_INVALID|API key not valid|invalid api key|permission denied/i.test(error.message);
+	return /Gemini no está disponible|Código HTTP (401|403)|API_KEY_INVALID|API key not valid|invalid api key|permission denied/i.test(
+		error.message
+	);
 };
 
 export const createGeminiApiKeyUnavailableError = (): Error => new Error(GEMINI_API_KEY_UNAVAILABLE_MESSAGE);

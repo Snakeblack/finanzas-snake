@@ -57,7 +57,12 @@ import {
 	getEffectiveAmount,
 	getDebtRateLabel
 } from '../services/financeService';
-import { buildFinanceDataPrompt, askGemini, GEMINI_API_KEY_UNAVAILABLE_MESSAGE, isGeminiApiKeyError } from '../services/geminiService';
+import {
+	buildFinanceDataPrompt,
+	askGemini,
+	GEMINI_API_KEY_UNAVAILABLE_MESSAGE,
+	isGeminiApiKeyError
+} from '../services/geminiService';
 
 /**
  * Interfaz que define el valor del contexto de finanzas globales.
@@ -574,9 +579,12 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			const firstJoint = accounts.find((a) => a.owner === 'joint')?.id || accounts[0].id;
 			setTxForm((prev) => ({
 				...prev,
-				accountId: prev.accountId && accounts.some((a) => a.id === prev.accountId) ? prev.accountId : firstJoint,
+				accountId:
+					prev.accountId && accounts.some((a) => a.id === prev.accountId) ? prev.accountId : firstJoint,
 				fromAccountId:
-					prev.fromAccountId && accounts.some((a) => a.id === prev.fromAccountId) ? prev.fromAccountId : accounts[0].id,
+					prev.fromAccountId && accounts.some((a) => a.id === prev.fromAccountId)
+						? prev.fromAccountId
+						: accounts[0].id,
 				toAccountId:
 					prev.toAccountId && accounts.some((a) => a.id === prev.toAccountId)
 						? prev.toAccountId
@@ -718,7 +726,8 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		Math.trunc(toNumber(consolidationForm.termMonths || '1'))
 	);
 
-	const newTotalConsolidatedPayment = newConsolidatedCuota * Math.trunc(toNumber(consolidationForm.termMonths || '1'));
+	const newTotalConsolidatedPayment =
+		newConsolidatedCuota * Math.trunc(toNumber(consolidationForm.termMonths || '1'));
 	const newConsolidatedInterests = Math.max(0, newTotalConsolidatedPayment - totalNewPrincipal);
 
 	// === ACCIONES DE GESTIÓN (MANEJADORES) ===
@@ -1083,7 +1092,8 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 				setTransactions(
 					transactions.filter(
 						(t) =>
-							t.id !== id && !(t.date.substring(0, 7) >= currentMonth && (t.id === rootId || t.originId === rootId))
+							t.id !== id &&
+							!(t.date.substring(0, 7) >= currentMonth && (t.id === rootId || t.originId === rootId))
 					)
 				);
 				return;
@@ -1328,7 +1338,10 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 				...debt,
 				installments: debt.installments.map((installment) =>
 					installment.id === installmentId
-						? { ...installment, status: (installment.status === 'paid' ? 'pending' : 'paid') as InstallmentStatus }
+						? {
+								...installment,
+								status: (installment.status === 'paid' ? 'pending' : 'paid') as InstallmentStatus
+							}
 						: installment
 				)
 			};
@@ -1729,7 +1742,8 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			debts.length > 0
 				? debts
 						.map((d) => {
-							const ownerLabel = d.owner === 'userA' ? userAName : d.owner === 'userB' ? userBName : 'Conjunta';
+							const ownerLabel =
+								d.owner === 'userA' ? userAName : d.owner === 'userB' ? userBName : 'Conjunta';
 							const cuota = calculateDebtMonthlyPayment(d, selectedMonth);
 							const isActive = filteredDebts.some((fd) => fd.id === d.id);
 							const isFuture = d.date > selectedMonth;
@@ -1767,7 +1781,8 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			filteredTransactions.length > 0
 				? filteredTransactions
 						.map((t) => {
-							const ownerLabel = t.owner === 'userA' ? userAName : t.owner === 'userB' ? userBName : 'Conjunta';
+							const ownerLabel =
+								t.owner === 'userA' ? userAName : t.owner === 'userB' ? userBName : 'Conjunta';
 							return `
 				<tr>
 					<td>${escapeHtml(t.desc)}</td>

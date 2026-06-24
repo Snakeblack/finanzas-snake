@@ -308,7 +308,10 @@ describe('Integración de FinanzasContext', () => {
 
 	it('debe permitir generar el mes siguiente', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month: getCurrentMonth(), openingBalance: 1000 }]));
+		localStorage.setItem(
+			STORAGE_KEYS.periods,
+			JSON.stringify([{ month: getCurrentMonth(), openingBalance: 1000 }])
+		);
 
 		await renderCtxAndInit();
 		expect(screen.getByTestId('periods-count')).toHaveTextContent('1');
@@ -391,7 +394,10 @@ describe('Integración de FinanzasContext', () => {
 
 	it('debe permitir cambiar una transacción de puntual a recurrente y propagarla', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month: getCurrentMonth(), openingBalance: 1000 }]));
+		localStorage.setItem(
+			STORAGE_KEYS.periods,
+			JSON.stringify([{ month: getCurrentMonth(), openingBalance: 1000 }])
+		);
 
 		await renderCtxAndInit();
 
@@ -1113,7 +1119,10 @@ describe('Gemini AI', () => {
 		const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
 		// Set messages via localStorage BEFORE render
-		localStorage.setItem(STORAGE_KEYS.aiChat, JSON.stringify([{ role: 'user', content: 'Hola', timestamp: '12:00' }]));
+		localStorage.setItem(
+			STORAGE_KEYS.aiChat,
+			JSON.stringify([{ role: 'user', content: 'Hola', timestamp: '12:00' }])
+		);
 
 		renderCtx();
 		expect(ctxRef.chatMessages.length).toBeGreaterThan(0);
@@ -1210,7 +1219,9 @@ describe('Import / Export', () => {
 				termMonths: 12
 			}
 		];
-		const exportedPeriods = [{ month: getCurrentMonth(), openingBalance: 100, openingBalanceA: 60, openingBalanceB: 40 }];
+		const exportedPeriods = [
+			{ month: getCurrentMonth(), openingBalance: 100, openingBalanceA: 60, openingBalanceB: 40 }
+		];
 		const exportedChat = [{ role: 'user' as const, content: 'Hola export', timestamp: '12:00' }];
 
 		await act(async () => {
@@ -1378,16 +1389,37 @@ describe('Valores Calculados', () => {
 
 	it('debe ordenar filteredTransactions por fecha descendente y por índice original para el mismo día', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(
-			STORAGE_KEYS.periods,
-			JSON.stringify([{ month: '2026-05', openingBalance: 0 }])
-		);
+		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month: '2026-05', openingBalance: 0 }]));
 		localStorage.setItem(
 			STORAGE_KEYS.transactions,
 			JSON.stringify([
-				{ id: 't1', desc: 'Primero en array (mismo dia)', money: { amount: '10.00', currency: 'EUR' }, type: 'expense', tag: 'T', date: '2026-05-15', owner: 'joint' },
-				{ id: 't2', desc: 'Segundo en array (mismo dia)', money: { amount: '20.00', currency: 'EUR' }, type: 'expense', tag: 'T', date: '2026-05-15', owner: 'joint' },
-				{ id: 't3', desc: 'Tercero en array (dia posterior)', money: { amount: '30.00', currency: 'EUR' }, type: 'expense', tag: 'T', date: '2026-05-20', owner: 'joint' }
+				{
+					id: 't1',
+					desc: 'Primero en array (mismo dia)',
+					money: { amount: '10.00', currency: 'EUR' },
+					type: 'expense',
+					tag: 'T',
+					date: '2026-05-15',
+					owner: 'joint'
+				},
+				{
+					id: 't2',
+					desc: 'Segundo en array (mismo dia)',
+					money: { amount: '20.00', currency: 'EUR' },
+					type: 'expense',
+					tag: 'T',
+					date: '2026-05-15',
+					owner: 'joint'
+				},
+				{
+					id: 't3',
+					desc: 'Tercero en array (dia posterior)',
+					money: { amount: '30.00', currency: 'EUR' },
+					type: 'expense',
+					tag: 'T',
+					date: '2026-05-20',
+					owner: 'joint'
+				}
 			])
 		);
 
@@ -1519,7 +1551,9 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 		renderCtx();
 
 		// El useEffect debe correr en el primer render/mount y propagar a 2026-05 (mes actual)
-		const hasCloned = ctxRef.transactions.some((t) => t.date.startsWith('2026-05') && t.desc === 'Sueldo Recurrente');
+		const hasCloned = ctxRef.transactions.some(
+			(t) => t.date.startsWith('2026-05') && t.desc === 'Sueldo Recurrente'
+		);
 		expect(hasCloned).toBe(true);
 	});
 

@@ -42,13 +42,9 @@ export const generateSalt = (): Uint8Array => {
  * Deriva una clave criptográfica CryptoKey a partir de una contraseña y un salt usando PBKDF2.
  */
 export const deriveKeyFromPassword = async (password: string, salt: Uint8Array): Promise<CryptoKey> => {
-	const baseKey = await window.crypto.subtle.importKey(
-		'raw',
-		ENCODER.encode(password),
-		'PBKDF2',
-		false,
-		['deriveKey']
-	);
+	const baseKey = await window.crypto.subtle.importKey('raw', ENCODER.encode(password), 'PBKDF2', false, [
+		'deriveKey'
+	]);
 
 	return window.crypto.subtle.deriveKey(
 		{

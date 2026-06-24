@@ -170,7 +170,7 @@ export const connectToSyncHost = (
 	callbacks: ClientCallbacks,
 	customIceServers?: any[]
 ): { destroy: () => void } => {
-	let peer: Peer | null = new Peer(undefined, getPeerConfig(customIceServers));
+	const peer: Peer | null = new Peer(undefined, getPeerConfig(customIceServers));
 	let conn: any = null;
 	let isDestroyed = false;
 
