@@ -39,8 +39,6 @@ import {
 	readStoredDebtsSync,
 	readUserNames,
 	saveUserNames,
-	buildFinanceBackupPayload,
-	importFinanceBackupPayload,
 	executeSilentMigrationIfRequired
 } from '../services/storageService';
 import { addMonthsToMonth, getValidDateForMonth, normalizeMonth } from '../utils/dateUtils';
@@ -63,6 +61,7 @@ import {
 import type { PromptContextParams } from '../services/geminiService';
 import { useAiAdvisor } from '../hooks/useAiAdvisor';
 import { useSecurity } from '../hooks/useSecurity';
+import { useBackupSync } from '../hooks/useBackupSync';
 
 /**
  * Interfaz que define el valor del contexto de finanzas globales.
@@ -511,8 +510,33 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		aiBridgeRef.current = { geminiApiKey, chatMessages, setGeminiApiKey, setChatMessages };
 	});
 	const [copiedChat] = useState(false);
-	const [importError, setImportError] = useState('');
-	const [importSuccess, setImportSuccess] = useState('');
+
+	// Backup local (export/import) — useBackupSync (D1). Como atraviesa todo el dominio, le
+	// pasamos getSnapshot (estado a serializar) y appliers (setters para volcar lo importado).
+	const { importError, setImportError, importSuccess, setImportSuccess, handleExportData, handleImportData } =
+		useBackupSync({
+			getSnapshot: () => ({
+				accounts,
+				transactions,
+				debts,
+				periods,
+				userAName,
+				userBName,
+				geminiApiKey,
+				chatMessages
+			}),
+			appliers: {
+				setAccounts,
+				setTransactions,
+				setDebts,
+				setPeriods,
+				setUserAName,
+				setUserBName,
+				setGeminiApiKey,
+				setChatMessages,
+				setSelectedMonth
+			}
+		});
 
 	useEffect(() => {
 		let cancelled = false;
@@ -1496,85 +1520,6 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 				document.body.removeChild(iframe);
 			}, 1000);
 		}, 300);
-	};
-
-	const handleExportData = () => {
-		try {
-			const backupData = buildFinanceBackupPayload({
-				accounts,
-				transactions,
-				debts,
-				periods,
-				userAName,
-				userBName,
-				geminiApiKey,
-				chatMessages
-			});
-
-			const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(backupData, null, 2))}`;
-			const downloadAnchor = document.createElement('a');
-			downloadAnchor.setAttribute('href', jsonString);
-
-			const today = new Date();
-			const yyyy = today.getFullYear();
-			const mm = String(today.getMonth() + 1).padStart(2, '0');
-			const dd = String(today.getDate()).padStart(2, '0');
-			downloadAnchor.setAttribute('download', `${yyyy}${mm}${dd}-backup-finanzaspro.json`);
-
-			document.body.appendChild(downloadAnchor);
-			downloadAnchor.click();
-			document.body.removeChild(downloadAnchor);
-		} catch (err: any) {
-			window.alert(`Error al exportar datos: ${err.message}`);
-		}
-	};
-
-	const handleImportData = async (e: SyntheticEvent<HTMLFormElement>, jsonString: string) => {
-		e.preventDefault();
-		setImportError('');
-		setImportSuccess('');
-
-		if (!jsonString.trim()) {
-			setImportError('Introduce un JSON de backup válido.');
-			return;
-		}
-
-		try {
-			const parsed = JSON.parse(jsonString);
-			const imported = await importFinanceBackupPayload(parsed);
-
-			if (imported.userAName !== undefined) {
-				setUserAName(imported.userAName);
-			}
-			if (imported.userBName !== undefined) {
-				setUserBName(imported.userBName);
-			}
-			if (imported.accounts !== undefined) {
-				setAccounts(imported.accounts);
-			}
-			if (imported.transactions !== undefined) {
-				setTransactions(imported.transactions);
-			}
-			if (imported.debts !== undefined) {
-				setDebts(imported.debts);
-			}
-			if (imported.periods !== undefined) {
-				setPeriods(imported.periods);
-			}
-			if (imported.geminiApiKey !== undefined) {
-				setGeminiApiKey(imported.geminiApiKey);
-			}
-			if (imported.chatMessages !== undefined) {
-				setChatMessages(imported.chatMessages);
-			}
-			if (imported.selectedMonth) {
-				setSelectedMonth(imported.selectedMonth);
-			}
-
-			setImportSuccess('Datos importados y validados con éxito.');
-		} catch (err: any) {
-			setImportError(`Error al procesar el backup: ${err.message}`);
-		}
 	};
 
 	return (

@@ -64,8 +64,15 @@ hooks/servicios por dominio, **sin cambiar el contrato de `useFinanzas`** (los c
      No invertir ese orden ni mover el estado IA al ref reactivo (rompería la persistencia).
    - Helpers puros `bytesToHex`/`hexToBytes` → `utils/hexEncoding.ts` con test (5 casos).
      `FinanzasContext.tsx`: 1836 → 1735 líneas.
-4. `useBackupSync` — `handleExportData`, `handleImportData`, backup payload. *(SIGUIENTE PASO)*
-5. `useTransactions` / `useDebts` / `useAccounts` — estado + handlers de cada dominio.
+4. `useBackupSync` → `hooks/useBackupSync.ts` ✅ *(HECHO)*
+   - El hook posee `importError`/`importSuccess` y los handlers `handleExportData`/`handleImportData`.
+     Mismo patrón cross-domain que useSecurity: el contexto le pasa `getSnapshot()` (estado a
+     serializar, tipado con `FinanceBackupSnapshot` de storageService) y `appliers` (setters para
+     volcar lo importado). **Sin dependencia circular** (ambos handlers son event-time; nada
+     reactivo consume su estado), así que se llama directamente tras useAiAdvisor sin ref.
+   - No se añadió test nuevo: no hay pieza pura nueva (build/importFinanceBackupPayload ya viven y
+     se testean en storageService). `FinanzasContext.tsx`: 1735 → 1680 líneas.
+5. `useTransactions` / `useDebts` / `useAccounts` — estado + handlers de cada dominio. *(SIGUIENTE PASO)*
 6. `FinanzasContext` queda como compositor.
 
 ### Reglas del refactor (obligatorias)
