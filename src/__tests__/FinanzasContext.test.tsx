@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act, fireEvent, cleanup } from '@testing-library/react';
 import { FinanzasProvider } from '../context/FinanzasContext';
 import { useFinanzas } from '../hooks/useFinanzas';
@@ -11,6 +11,23 @@ import type { FinanzasContextType } from '../context/FinanzasContext';
 // Helper de renderizado que expone todo el contexto
 // =====================================================================
 let ctxRef: FinanzasContextType;
+
+const originalFetch = globalThis.fetch;
+const getCurrentMonth = () => new Date().toISOString().substring(0, 7);
+const getCurrentMonthDate = (day: string) => `${getCurrentMonth()}-${day}`;
+const resetIndexedDB = () => {
+	(globalThis as typeof globalThis & { __resetMockIndexedDBForTests?: () => void }).__resetMockIndexedDBForTests?.();
+};
+
+afterEach(() => {
+	cleanup();
+	vi.useRealTimers();
+	vi.restoreAllMocks();
+	globalThis.fetch = originalFetch;
+	document.body.innerHTML = '';
+	resetIndexedDB();
+	localStorage.clear();
+});
 
 const FullTestComponent = () => {
 	const ctx = useFinanzas();
@@ -158,8 +175,9 @@ const FullTestComponent = () => {
 	);
 };
 
-const renderCtx = () => {
+const renderCtx = ({ preserveIndexedDB = false }: { preserveIndexedDB?: boolean } = {}) => {
 	cleanup();
+	if (!preserveIndexedDB) resetIndexedDB();
 	localStorage.removeItem('finanzas_v5_unified_idb');
 	localStorage.removeItem('finanzas_v4_idb_migrated');
 	render(
@@ -205,7 +223,7 @@ describe('Integración de FinanzasContext', () => {
 		await executeSilentMigrationIfRequired();
 		localStorage.clear();
 
-		renderCtx();
+		renderCtx({ preserveIndexedDB: true });
 		await screen.findByText('true', { selector: '[data-testid="is-initialized"]' });
 		await screen.findByText('Ana', { selector: '[data-testid="userA"]' });
 
@@ -290,7 +308,10 @@ describe('Integración de FinanzasContext', () => {
 
 	it('debe permitir generar el mes siguiente', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month: '2026-05', openingBalance: 1000 }]));
+		localStorage.setItem(
+			STORAGE_KEYS.periods,
+			JSON.stringify([{ month: getCurrentMonth(), openingBalance: 1000 }])
+		);
 
 		await renderCtxAndInit();
 		expect(screen.getByTestId('periods-count')).toHaveTextContent('1');
@@ -342,7 +363,7 @@ describe('Integración de FinanzasContext', () => {
 
 	it('debe propagar transacciones recurrentes al crear mes siguiente', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month: '2026-05', openingBalance: 0 }]));
+		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month: getCurrentMonth(), openingBalance: 0 }]));
 		localStorage.setItem(
 			STORAGE_KEYS.transactions,
 			JSON.stringify([
@@ -352,7 +373,7 @@ describe('Integración de FinanzasContext', () => {
 					amount: 2000,
 					type: 'income',
 					tag: 'Sueldo',
-					date: '2026-05-15',
+					date: getCurrentMonthDate('15'),
 					recurrence: 'recurring',
 					owner: 'joint',
 					paidBy: 'shared',
@@ -373,7 +394,10 @@ describe('Integración de FinanzasContext', () => {
 
 	it('debe permitir cambiar una transacción de puntual a recurrente y propagarla', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month: '2026-05', openingBalance: 1000 }]));
+		localStorage.setItem(
+			STORAGE_KEYS.periods,
+			JSON.stringify([{ month: getCurrentMonth(), openingBalance: 1000 }])
+		);
 
 		await renderCtxAndInit();
 
@@ -986,7 +1010,10 @@ describe('Gemini AI', () => {
 			await ctxRef.handleAskGemini('Analiza mis finanzas');
 		});
 
-		expect(screen.getByTestId('ai-error').textContent).toContain('API Key');
+		expect(screen.getByTestId('ai-error').textContent).toContain(
+			'Gemini no está disponible: configura una API Key activa. Obtén tu clave en https://aistudio.google.com/api-keys.'
+		);
+		expect(ctxRef.chatMessages).toHaveLength(0);
 	});
 
 	it('handleAskGemini no debe hacer nada si la pregunta está vacía', async () => {
@@ -1065,12 +1092,37 @@ describe('Gemini AI', () => {
 		vi.useRealTimers();
 	}, 30000);
 
+	it('handleAskGemini debe normalizar errores de API Key inválida', async () => {
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = vi.fn().mockResolvedValue({
+			ok: false,
+			status: 403
+		});
+
+		await renderCtxAndInit();
+		await act(async () => {
+			ctxRef.setGeminiApiKey('api-key-invalida');
+		});
+		await act(async () => {
+			await ctxRef.handleAskGemini('Analiza');
+		});
+
+		expect(ctxRef.aiError).toContain(
+			'Gemini no está disponible: configura una API Key activa. Obtén tu clave en https://aistudio.google.com/api-keys.'
+		);
+
+		globalThis.fetch = originalFetch;
+	});
+
 	it('handleClearChat debe limpiar el historial', async () => {
 		// Mock window.confirm to return true (handleClearChat requires it)
 		const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
 		// Set messages via localStorage BEFORE render
-		localStorage.setItem(STORAGE_KEYS.aiChat, JSON.stringify([{ role: 'user', content: 'Hola', timestamp: '12:00' }]));
+		localStorage.setItem(
+			STORAGE_KEYS.aiChat,
+			JSON.stringify([{ role: 'user', content: 'Hola', timestamp: '12:00' }])
+		);
 
 		renderCtx();
 		expect(ctxRef.chatMessages.length).toBeGreaterThan(0);
@@ -1147,7 +1199,7 @@ describe('Import / Export', () => {
 				money: { amount: '2000.00', currency: 'EUR' as const },
 				type: 'income' as const,
 				tag: 'Sueldo',
-				date: '2026-05-01',
+				date: getCurrentMonthDate('01'),
 				recurrence: 'recurring' as const,
 				owner: 'userA' as const,
 				paidBy: 'userA' as const,
@@ -1160,14 +1212,16 @@ describe('Import / Export', () => {
 				kind: 'classic' as const,
 				desc: 'Deuda Export',
 				tag: 'Préstamo Personal',
-				date: '2026-05',
+				date: getCurrentMonth(),
 				owner: 'userB' as const,
 				principal: 1000,
 				tae: 3,
 				termMonths: 12
 			}
 		];
-		const exportedPeriods = [{ month: '2026-05', openingBalance: 100, openingBalanceA: 60, openingBalanceB: 40 }];
+		const exportedPeriods = [
+			{ month: getCurrentMonth(), openingBalance: 100, openingBalanceA: 60, openingBalanceB: 40 }
+		];
 		const exportedChat = [{ role: 'user' as const, content: 'Hola export', timestamp: '12:00' }];
 
 		await act(async () => {
@@ -1335,16 +1389,37 @@ describe('Valores Calculados', () => {
 
 	it('debe ordenar filteredTransactions por fecha descendente y por índice original para el mismo día', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(
-			STORAGE_KEYS.periods,
-			JSON.stringify([{ month: '2026-05', openingBalance: 0 }])
-		);
+		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month: '2026-05', openingBalance: 0 }]));
 		localStorage.setItem(
 			STORAGE_KEYS.transactions,
 			JSON.stringify([
-				{ id: 't1', desc: 'Primero en array (mismo dia)', money: { amount: '10.00', currency: 'EUR' }, type: 'expense', tag: 'T', date: '2026-05-15', owner: 'joint' },
-				{ id: 't2', desc: 'Segundo en array (mismo dia)', money: { amount: '20.00', currency: 'EUR' }, type: 'expense', tag: 'T', date: '2026-05-15', owner: 'joint' },
-				{ id: 't3', desc: 'Tercero en array (dia posterior)', money: { amount: '30.00', currency: 'EUR' }, type: 'expense', tag: 'T', date: '2026-05-20', owner: 'joint' }
+				{
+					id: 't1',
+					desc: 'Primero en array (mismo dia)',
+					money: { amount: '10.00', currency: 'EUR' },
+					type: 'expense',
+					tag: 'T',
+					date: '2026-05-15',
+					owner: 'joint'
+				},
+				{
+					id: 't2',
+					desc: 'Segundo en array (mismo dia)',
+					money: { amount: '20.00', currency: 'EUR' },
+					type: 'expense',
+					tag: 'T',
+					date: '2026-05-15',
+					owner: 'joint'
+				},
+				{
+					id: 't3',
+					desc: 'Tercero en array (dia posterior)',
+					money: { amount: '30.00', currency: 'EUR' },
+					type: 'expense',
+					tag: 'T',
+					date: '2026-05-20',
+					owner: 'joint'
+				}
 			])
 		);
 
@@ -1476,7 +1551,9 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 		renderCtx();
 
 		// El useEffect debe correr en el primer render/mount y propagar a 2026-05 (mes actual)
-		const hasCloned = ctxRef.transactions.some((t) => t.date.startsWith('2026-05') && t.desc === 'Sueldo Recurrente');
+		const hasCloned = ctxRef.transactions.some(
+			(t) => t.date.startsWith('2026-05') && t.desc === 'Sueldo Recurrente'
+		);
 		expect(hasCloned).toBe(true);
 	});
 

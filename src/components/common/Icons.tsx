@@ -8,17 +8,17 @@ interface IconProps {
  * Diccionario de iconos SVG utilizados en la aplicación.
  */
 export const Icons = {
-	TrendingUp: ({ className = "w-5 h-5 text-emerald-500" }: IconProps) => (
+	TrendingUp: ({ className = 'w-5 h-5 text-emerald-500' }: IconProps) => (
 		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
 		</svg>
 	),
-	TrendingDown: ({ className = "w-5 h-5 text-rose-500" }: IconProps) => (
+	TrendingDown: ({ className = 'w-5 h-5 text-rose-500' }: IconProps) => (
 		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path strokeLinecap="round" strokeLinejoin="round" d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6" />
 		</svg>
 	),
-	CreditCard: ({ className = "w-5 h-5 text-amber-500" }: IconProps) => (
+	CreditCard: ({ className = 'w-5 h-5 text-amber-500' }: IconProps) => (
 		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path
 				strokeLinecap="round"
@@ -27,7 +27,7 @@ export const Icons = {
 			/>
 		</svg>
 	),
-	Scale: ({ className = "w-5 h-5 text-indigo-500" }: IconProps) => (
+	Scale: ({ className = 'w-5 h-5 text-indigo-500' }: IconProps) => (
 		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path
 				strokeLinecap="round"
@@ -36,7 +36,7 @@ export const Icons = {
 			/>
 		</svg>
 	),
-	Trash: ({ className = "w-4 h-4" }: IconProps) => (
+	Trash: ({ className = 'w-4 h-4' }: IconProps) => (
 		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path
 				strokeLinecap="round"
@@ -45,19 +45,13 @@ export const Icons = {
 			/>
 		</svg>
 	),
-	Plus: ({ className = "w-4 h-4 mr-1" }: IconProps) => (
+	Plus: ({ className = 'w-4 h-4 mr-1' }: IconProps) => (
 		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
 		</svg>
 	),
-	Info: ({ className = "w-4 h-4 text-slate-400 inline cursor-help" }: IconProps) => (
-		<svg
-			className={className}
-			fill="none"
-			viewBox="0 0 24 24"
-			stroke="currentColor"
-			strokeWidth={2}
-		>
+	Info: ({ className = 'w-4 h-4 text-slate-400 inline cursor-help' }: IconProps) => (
+		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path
 				strokeLinecap="round"
 				strokeLinejoin="round"
@@ -65,7 +59,7 @@ export const Icons = {
 			/>
 		</svg>
 	),
-	Sparkles: ({ className = "w-5 h-5 text-indigo-400" }: IconProps) => (
+	Sparkles: ({ className = 'w-5 h-5 text-indigo-400' }: IconProps) => (
 		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path
 				strokeLinecap="round"
@@ -74,7 +68,7 @@ export const Icons = {
 			/>
 		</svg>
 	),
-	Lock: ({ className = "w-4 h-4 text-slate-500" }: IconProps) => (
+	Lock: ({ className = 'w-4 h-4 text-slate-500' }: IconProps) => (
 		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path
 				strokeLinecap="round"
@@ -83,7 +77,7 @@ export const Icons = {
 			/>
 		</svg>
 	),
-	Edit: ({ className = "w-4 h-4" }: IconProps) => (
+	Edit: ({ className = 'w-4 h-4' }: IconProps) => (
 		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path
 				strokeLinecap="round"
@@ -111,7 +105,7 @@ export const Icons = {
 			/>
 		</svg>
 	),
-	GripVertical: ({ className = "w-4 h-4 text-slate-500" }: IconProps) => (
+	GripVertical: ({ className = 'w-4 h-4 text-slate-500' }: IconProps) => (
 		<svg className={className} fill="currentColor" viewBox="0 0 24 24">
 			<path d="M10 6a2 2 0 11-4 0 2 2 0 014 0zM10 12a2 2 0 11-4 0 2 2 0 014 0zM10 18a2 2 0 11-4 0 2 2 0 014 0zM18 6a2 2 0 11-4 0 2 2 0 014 0zM18 12a2 2 0 11-4 0 2 2 0 014 0zM18 18a2 2 0 11-4 0 2 2 0 014 0z" />
 		</svg>

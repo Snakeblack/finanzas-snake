@@ -1,20 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFinanzas } from '../../hooks/useFinanzas';
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogDescription
-} from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Input } from '../ui/input';
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue
-} from '../ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import {
 	parseCSV,
 	detectSeparator,
@@ -27,6 +15,11 @@ import {
 	askGeminiToParseStatement,
 	askGeminiToParsePdf
 } from '../../services/statementImportService';
+import {
+	GEMINI_API_KEY_SETUP_URL,
+	GEMINI_API_KEY_UNAVAILABLE_MESSAGE,
+	isGeminiApiKeyError
+} from '../../services/geminiService';
 import { DEFAULT_TAGS } from '../../constants';
 import { ImportedTransaction, TransactionType } from '../../types';
 import {
@@ -39,8 +32,6 @@ import {
 	ChevronRight,
 	Loader2,
 	Trash2,
-	RefreshCw,
-	Settings,
 	Sparkles
 } from 'lucide-react';
 
@@ -67,6 +58,18 @@ interface ImportAttachment {
 	error?: string;
 }
 
+const getErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : '');
+
+const getGeminiApiKeyFailureMessage = (results: PromiseSettledResult<ImportedTransaction[]>[]): string => {
+	const geminiFailure = results.find((result) => result.status === 'rejected' && isGeminiApiKeyError(result.reason));
+
+	if (!geminiFailure || geminiFailure.status !== 'rejected') {
+		return '';
+	}
+
+	return getErrorMessage(geminiFailure.reason) || GEMINI_API_KEY_UNAVAILABLE_MESSAGE;
+};
+
 const detectTemplateKey = (fileName: string): keyof typeof BANK_TEMPLATES => {
 	const lowerName = fileName.toLowerCase();
 
@@ -79,14 +82,7 @@ const detectTemplateKey = (fileName: string): keyof typeof BANK_TEMPLATES => {
 };
 
 export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalProps) {
-	const {
-		accounts,
-		transactions,
-		setTransactions,
-		geminiApiKey,
-		userAName,
-		userBName
-	} = useFinanzas();
+	const { accounts, transactions, setTransactions, geminiApiKey, userAName, userBName } = useFinanzas();
 
 	// Estados principales
 	const [step, setStep] = useState<Step>('config');
@@ -99,12 +95,13 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 	const [csvRows, setCsvRows] = useState<string[][]>([]);
 	const [csvFilename, setCsvFilename] = useState<string>('');
 	const [attachments, setAttachments] = useState<ImportAttachment[]>([]);
-	
+
 	// Mapeo Personalizado
 	const [customMapping, setCustomMapping] = useState({
 		dateCol: 0,
 		descCol: 1,
 		amountCol: 2,
+		balanceCol: -1,
 		hasHeader: true
 	});
 
@@ -123,6 +120,11 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 
 	// Vista Previa de Transacciones
 	const [importedTxs, setImportedTxs] = useState<ImportedTransaction[]>([]);
+	const hasBalance = importedTxs.some((tx) => tx.balance !== undefined && tx.balance !== null && tx.balance !== '');
+	const possibleDuplicateCount = importedTxs.filter((tx) => tx.possibleDuplicate && !tx.isDuplicate).length;
+	const selectedImportableTxs = importedTxs.filter((tx) => tx.selected && !tx.isDuplicate);
+	const importableTxs = importedTxs.filter((tx) => !tx.isDuplicate);
+	const allImportableTxsSelected = importableTxs.length > 0 && importableTxs.every((tx) => tx.selected);
 
 	// Referencias de archivos
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -206,7 +208,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 			setIsPdf(true);
 			setCsvText('');
 			setCsvRows([]);
-			
+
 			const reader = new FileReader();
 			reader.onload = (event) => {
 				const result = event.target?.result as string;
@@ -215,7 +217,12 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 				setAttachments((prev) =>
 					prev.map((attachment) =>
 						attachment.id === attachmentId
-							? { ...attachment, pdfBase64: base64Data, status: base64Data ? 'ready' : 'error', error: base64Data ? undefined : 'PDF inválido' }
+							? {
+									...attachment,
+									pdfBase64: base64Data,
+									status: base64Data ? 'ready' : 'error',
+									error: base64Data ? undefined : 'PDF inválido'
+								}
 							: attachment
 					)
 				);
@@ -224,12 +231,12 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 		} else {
 			setIsPdf(false);
 			setPdfBase64('');
-			
+
 			const reader = new FileReader();
 			reader.onload = (event) => {
 				const text = event.target?.result as string;
 				setCsvText(text);
-				
+
 				// Auto-detectar separador
 				const sep = detectSeparator(text);
 				const rows = parseCSV(text, sep);
@@ -249,7 +256,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 	};
 
 	const parseAttachment = async (attachment: ImportAttachment): Promise<ImportedTransaction[]> => {
-		const targetAccount = accounts.find(a => a.id === attachment.accountId);
+		const targetAccount = accounts.find((a) => a.id === attachment.accountId);
 		if (!targetAccount) {
 			throw new Error('Cuenta no encontrada');
 		}
@@ -257,10 +264,12 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 		if (attachment.type === 'pdf') {
 			const activeKey = localApiKey || geminiApiKey;
 			if (!activeKey) {
-				throw new Error('Se requiere una API Key de Gemini para procesar PDFs.');
+				throw new Error(GEMINI_API_KEY_UNAVAILABLE_MESSAGE);
 			}
 
-			const parsed = await askGeminiToParsePdf(activeKey, attachment.pdfBase64, { accountName: targetAccount.name });
+			const parsed = await askGeminiToParsePdf(activeKey, attachment.pdfBase64, {
+				accountName: targetAccount.name
+			});
 			return prepareImportedTransactions({
 				transactions: parsed,
 				accountId: attachment.accountId,
@@ -270,7 +279,10 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 		}
 
 		const template = BANK_TEMPLATES[attachment.templateKey];
-		const rows = attachment.csvRows.length > 0 ? attachment.csvRows : parseCSV(attachment.csvText, detectSeparator(attachment.csvText));
+		const rows =
+			attachment.csvRows.length > 0
+				? attachment.csvRows
+				: parseCSV(attachment.csvText, detectSeparator(attachment.csvText));
 		const parsed = processParsedRows(rows, template);
 
 		return prepareImportedTransactions({
@@ -304,13 +316,16 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 		setIsLoading(true);
 		try {
 			const parsedGroups = await Promise.allSettled(attachments.map(parseAttachment));
-			const successfulTxs = parsedGroups.flatMap((result) => result.status === 'fulfilled' ? result.value : []);
+			const successfulTxs = parsedGroups.flatMap((result) => (result.status === 'fulfilled' ? result.value : []));
 			const failedAttachments = parsedGroups
-				.map((result, index) => result.status === 'rejected' ? attachments[index].name : '')
+				.map((result, index) => (result.status === 'rejected' ? attachments[index].name : ''))
 				.filter(Boolean);
 
 			if (successfulTxs.length === 0) {
-				setError('No se pudieron extraer movimientos de los adjuntos cargados.');
+				setError(
+					getGeminiApiKeyFailureMessage(parsedGroups) ||
+						'No se pudieron extraer movimientos de los adjuntos cargados.'
+				);
 				return true;
 			}
 
@@ -322,8 +337,8 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 			if (failedAttachments.length > 0) {
 				setError(`No se pudieron procesar estos adjuntos: ${failedAttachments.join(', ')}.`);
 			}
-		} catch (err: any) {
-			setError(err.message || 'Ocurrió un error inesperado al procesar los adjuntos.');
+		} catch (err: unknown) {
+			setError(getErrorMessage(err) || 'Ocurrió un error inesperado al procesar los adjuntos.');
 		} finally {
 			setIsLoading(false);
 		}
@@ -337,7 +352,9 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 		if (method === 'csv' && templateKey === 'custom') {
 			const csvAttachments = attachments.filter((attachment) => attachment.type === 'csv');
 			if (csvAttachments.length !== 1 || attachments.length !== 1) {
-				setError('El mapeo personalizado solo admite un adjunto CSV. Quita los demás adjuntos o usa una plantilla por archivo.');
+				setError(
+					'El mapeo personalizado solo admite un adjunto CSV. Quita los demás adjuntos o usa una plantilla por archivo.'
+				);
 				return;
 			}
 			const [attachment] = csvAttachments;
@@ -362,7 +379,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 			return;
 		}
 
-		if (method === 'csv' && await processAttachments()) {
+		if (method === 'csv' && (await processAttachments())) {
 			return;
 		}
 		if (!selectedAccountId) {
@@ -378,16 +395,20 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 				}
 				const activeKey = localApiKey || geminiApiKey;
 				if (!activeKey) {
-					setError('Se requiere una API Key de Gemini para utilizar el parseador inteligente de PDF.');
+					setError(GEMINI_API_KEY_UNAVAILABLE_MESSAGE);
 					return;
 				}
 
 				setIsLoading(true);
 				try {
-					const targetAccount = accounts.find(a => a.id === selectedAccountId);
-					const parsed = await askGeminiToParsePdf(activeKey, pdfBase64, { accountName: targetAccount?.name });
+					const targetAccount = accounts.find((a) => a.id === selectedAccountId);
+					const parsed = await askGeminiToParsePdf(activeKey, pdfBase64, {
+						accountName: targetAccount?.name
+					});
 					if (parsed.length === 0) {
-						setError('La IA no pudo detectar transacciones en el PDF provisto. Asegúrate de que el documento es un extracto válido.');
+						setError(
+							'La IA no pudo detectar transacciones en el PDF provisto. Asegúrate de que el documento es un extracto válido.'
+						);
 						setIsLoading(false);
 						return;
 					}
@@ -422,13 +443,15 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 					const sep = detectSeparator(csvText);
 					const rows = parseCSV(csvText, sep);
 					const parsed = processParsedRows(rows, template);
-					
+
 					if (parsed.length === 0) {
-						setError('No se pudieron extraer movimientos. Verifica que el archivo CSV tiene el formato esperado.');
+						setError(
+							'No se pudieron extraer movimientos. Verifica que el archivo CSV tiene el formato esperado.'
+						);
 						return;
 					}
-					
-					const targetAccount = accounts.find(a => a.id === selectedAccountId);
+
+					const targetAccount = accounts.find((a) => a.id === selectedAccountId);
 					const finalTxs = prepareImportedTransactions({
 						transactions: parsed,
 						accountId: selectedAccountId,
@@ -449,7 +472,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 			}
 			const activeKey = localApiKey || geminiApiKey;
 			if (!activeKey) {
-				setError('Se requiere una API Key de Gemini para utilizar el parseador inteligente.');
+				setError(GEMINI_API_KEY_UNAVAILABLE_MESSAGE);
 				return;
 			}
 
@@ -457,12 +480,14 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 			try {
 				const parsed = await askGeminiToParseStatement(activeKey, aiText);
 				if (parsed.length === 0) {
-					setError('La IA no pudo detectar transacciones en el texto provisto. Asegúrate de incluir importes y fechas.');
+					setError(
+						'La IA no pudo detectar transacciones en el texto provisto. Asegúrate de incluir importes y fechas.'
+					);
 					setIsLoading(false);
 					return;
 				}
 
-				const targetAccount = accounts.find(a => a.id === selectedAccountId);
+				const targetAccount = accounts.find((a) => a.id === selectedAccountId);
 				const finalTxs = prepareImportedTransactions({
 					transactions: parsed,
 					accountId: selectedAccountId,
@@ -489,7 +514,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 			return;
 		}
 
-		const targetAccount = accounts.find(a => a.id === selectedAccountId);
+		const targetAccount = accounts.find((a) => a.id === selectedAccountId);
 		const finalTxs = prepareImportedTransactions({
 			transactions: parsed,
 			accountId: selectedAccountId,
@@ -504,88 +529,93 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 
 	// Cambios en los inputs de transacciones en vista previa
 	const handleTxChange = (id: string, patch: Partial<ImportedTransaction>) => {
-		setImportedTxs(prev =>
-			prev.map(tx => (tx.id === id ? { ...tx, ...patch } as ImportedTransaction : tx))
-		);
+		setImportedTxs((prev) => prev.map((tx) => (tx.id === id ? ({ ...tx, ...patch } as ImportedTransaction) : tx)));
 	};
 
 	const handleAttachmentAccountChange = (id: string, accountId: string) => {
-		setAttachments(prev =>
-			prev.map(attachment => (attachment.id === id ? { ...attachment, accountId } : attachment))
+		setAttachments((prev) =>
+			prev.map((attachment) => (attachment.id === id ? { ...attachment, accountId } : attachment))
 		);
 	};
 
 	const handleAttachmentTemplateChange = (id: string, attachmentTemplateKey: keyof typeof BANK_TEMPLATES) => {
-		setAttachments(prev =>
-			prev.map(attachment => (attachment.id === id ? { ...attachment, templateKey: attachmentTemplateKey } : attachment))
+		setAttachments((prev) =>
+			prev.map((attachment) =>
+				attachment.id === id ? { ...attachment, templateKey: attachmentTemplateKey } : attachment
+			)
 		);
 	};
 
 	const handleRemoveAttachment = (id: string) => {
-		setAttachments(prev => prev.filter(attachment => attachment.id !== id));
+		setAttachments((prev) => prev.filter((attachment) => attachment.id !== id));
 	};
 
 	// Alternar selección de una transacción en vista previa
 	const toggleSelectTx = (id: string) => {
-		setImportedTxs(prev =>
-			prev.map(tx => (tx.id === id ? { ...tx, selected: !tx.selected } : tx))
+		setImportedTxs((prev) =>
+			prev.map((tx) => (tx.id === id && !tx.isDuplicate ? { ...tx, selected: !tx.selected } : tx))
 		);
 	};
 
 	// Alternar selección de todas las transacciones
 	const toggleSelectAll = () => {
-		const allSelected = importedTxs.every(tx => tx.selected);
-		setImportedTxs(prev =>
-			prev.map(tx => ({ ...tx, selected: !allSelected }))
+		setImportedTxs((prev) =>
+			prev.map((tx) => (tx.isDuplicate ? tx : { ...tx, selected: !allImportableTxsSelected }))
 		);
 	};
 
 	// Eliminar fila de la vista previa
 	const handleDeleteRow = (id: string) => {
-		setImportedTxs(prev => prev.filter(tx => tx.id !== id));
+		setImportedTxs((prev) => prev.filter((tx) => tx.id !== id));
 	};
 
 	// Confirmar importación
 	const handleImportConfirm = () => {
-		const selectedTxs = importedTxs.filter(tx => tx.selected);
-		if (selectedTxs.length === 0) {
+		if (selectedImportableTxs.length === 0) {
 			setError('Debes seleccionar al menos una transacción para importar.');
 			return;
 		}
 
-		const formattedTxs = formatImportedTransactionsForPersistence(selectedTxs, accounts);
+		const formattedTxs = formatImportedTransactionsForPersistence(selectedImportableTxs, accounts);
 
 		// Mezclar y ordenar por fecha descendente
-		const newTransactionsList = [...formattedTxs, ...transactions].sort((a, b) =>
-			b.date.localeCompare(a.date)
-		);
+		const newTransactionsList = [...formattedTxs, ...transactions].sort((a, b) => b.date.localeCompare(a.date));
 
 		setTransactions(newTransactionsList);
 		handleClose();
 	};
 
+	const getPossibleDuplicateLabel = (tx: ImportedTransaction): string => {
+		if (!tx.possibleDuplicate) {
+			return '';
+		}
+
+		return `Revisar posible duplicado: ${tx.possibleDuplicate.reason}. Movimiento existente del ${tx.possibleDuplicate.existingDate}.`;
+	};
+
 	const handleNextFromPreview = () => {
-		const selectedTxs = importedTxs.filter(tx => tx.selected);
-		if (selectedTxs.length === 0) {
+		if (selectedImportableTxs.length === 0) {
 			setError('Debes seleccionar al menos una transacción para importar.');
 			return;
 		}
 
 		// Check if any selected transaction is a transfer
-		const hasTransfers = selectedTxs.some(tx => tx.type === 'transfer' && !tx.transferCorrelationId);
+		const hasTransfers = selectedImportableTxs.some((tx) => tx.type === 'transfer' && !tx.transferCorrelationId);
 		if (hasTransfers) {
 			// Initialize default from/to accounts for transfer transactions if they are not set yet
-			setImportedTxs(prev =>
-				prev.map(tx => {
+			setImportedTxs((prev) =>
+				prev.map((tx) => {
 					if (tx.selected && tx.type === 'transfer') {
 						const rowAccountId = tx.accountId || selectedAccountId;
-						const otherAccounts = accounts.filter(a => a.id !== rowAccountId);
+						const otherAccounts = accounts.filter((a) => a.id !== rowAccountId);
 						const defaultOtherId = otherAccounts[0]?.id || '';
-						
+
 						return {
 							...tx,
-							fromAccountId: tx.fromAccountId || (tx.originalType === 'expense' ? rowAccountId : defaultOtherId),
-							toAccountId: tx.toAccountId || (tx.originalType === 'income' ? rowAccountId : defaultOtherId)
+							fromAccountId:
+								tx.fromAccountId || (tx.originalType === 'expense' ? rowAccountId : defaultOtherId),
+							toAccountId:
+								tx.toAccountId || (tx.originalType === 'income' ? rowAccountId : defaultOtherId)
 						};
 					}
 					return tx;
@@ -598,8 +628,15 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 	};
 
 	return (
-		<Dialog open={isOpen} onOpenChange={(val) => { if (!val) handleClose(); }}>
-			<DialogContent className={`premium-card p-6 border border-slate-800 bg-slate-900 shadow-2xl text-slate-100 max-h-[90vh] overflow-y-auto ${step === 'preview' || step === 'transfers' ? 'sm:max-w-5xl w-[90vw]' : 'sm:max-w-xl w-[95vw]'}`}>
+		<Dialog
+			open={isOpen}
+			onOpenChange={(val) => {
+				if (!val) handleClose();
+			}}
+		>
+			<DialogContent
+				className={`premium-card p-6 border border-slate-800 bg-slate-900 shadow-2xl text-slate-100 max-h-[90vh] overflow-y-auto ${step === 'preview' || step === 'transfers' ? 'sm:max-w-5xl w-[90vw]' : 'sm:max-w-xl w-[95vw]'}`}
+			>
 				<DialogHeader className="mb-4">
 					<div className="flex items-center gap-3">
 						<div className="p-2.5 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 text-indigo-400">
@@ -612,7 +649,8 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 							<DialogDescription className="text-xs text-slate-450 mt-1">
 								{step === 'config' && 'Configura el origen y el método de carga.'}
 								{step === 'mapping' && 'Asocia las columnas de tu CSV con los campos requeridos.'}
-								{step === 'preview' && 'Revisa, categoriza y valida los movimientos antes de agregarlos.'}
+								{step === 'preview' &&
+									'Revisa, categoriza y valida los movimientos antes de agregarlos.'}
 								{step === 'transfers' && 'Asocia las cuentas de origen y destino para cada traspaso.'}
 							</DialogDescription>
 						</div>
@@ -621,25 +659,33 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 
 				{/* INDICADOR DE PASOS */}
 				<div className="flex items-center gap-2 mb-6 border-b border-slate-800/80 pb-4 text-xs font-semibold shrink-0">
-					<span className={`px-2 py-1 rounded-lg ${step === 'config' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950 text-slate-450'}`}>
+					<span
+						className={`px-2 py-1 rounded-lg ${step === 'config' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950 text-slate-450'}`}
+					>
 						1. Configuración
 					</span>
 					<ChevronRight className="w-3.5 h-3.5 text-slate-650" />
 					{templateKey === 'custom' && (
 						<>
-							<span className={`px-2 py-1 rounded-lg ${step === 'mapping' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950 text-slate-450'}`}>
+							<span
+								className={`px-2 py-1 rounded-lg ${step === 'mapping' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950 text-slate-450'}`}
+							>
 								2. Mapeo
 							</span>
 							<ChevronRight className="w-3.5 h-3.5 text-slate-650" />
 						</>
 					)}
-					<span className={`px-2 py-1 rounded-lg ${step === 'preview' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950 text-slate-450'}`}>
+					<span
+						className={`px-2 py-1 rounded-lg ${step === 'preview' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950 text-slate-450'}`}
+					>
 						{templateKey === 'custom' ? '3' : '2'}. Vista Previa
 					</span>
-					{importedTxs.some(t => t.selected && t.type === 'transfer' && !t.transferCorrelationId) && (
+					{importedTxs.some((t) => t.selected && t.type === 'transfer' && !t.transferCorrelationId) && (
 						<>
 							<ChevronRight className="w-3.5 h-3.5 text-slate-650" />
-							<span className={`px-2 py-1 rounded-lg ${step === 'transfers' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950 text-slate-450'}`}>
+							<span
+								className={`px-2 py-1 rounded-lg ${step === 'transfers' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950 text-slate-450'}`}
+							>
 								{templateKey === 'custom' ? '4' : '3'}. Traspasos
 							</span>
 						</>
@@ -689,17 +735,29 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 
 						{method === 'ai' && (
 							<div className="space-y-2">
-								<label htmlFor="import-account-selector" className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
+								<label
+									htmlFor="import-account-selector"
+									className="block text-xs font-bold text-slate-400 uppercase tracking-wide"
+								>
 									Cuenta del texto pegado
 								</label>
 								<Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-									<SelectTrigger id="import-account-selector" className="w-full bg-slate-950 border-slate-800 h-11 text-slate-100">
+									<SelectTrigger
+										id="import-account-selector"
+										className="w-full bg-slate-950 border-slate-800 h-11 text-slate-100"
+									>
 										<SelectValue placeholder="Selecciona la cuenta asociada" />
 									</SelectTrigger>
 									<SelectContent>
-										{accounts.map(acc => (
+										{accounts.map((acc) => (
 											<SelectItem key={acc.id} value={acc.id}>
-												{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+												{acc.name} (
+												{acc.owner === 'userA'
+													? userAName
+													: acc.owner === 'userB'
+														? userBName
+														: 'Compartida'}
+												)
 											</SelectItem>
 										))}
 									</SelectContent>
@@ -716,11 +774,17 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 								{/* Selector de plantilla */}
 								{!isPdf ? (
 									<div className="space-y-2">
-										<label htmlFor="csv-template-selector" className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
+										<label
+											htmlFor="csv-template-selector"
+											className="block text-xs font-bold text-slate-400 uppercase tracking-wide"
+										>
 											Formato / Banco
 										</label>
 										<Select value={templateKey} onValueChange={setTemplateKey}>
-											<SelectTrigger id="csv-template-selector" className="w-full bg-slate-950 border-slate-800 h-11 text-slate-100">
+											<SelectTrigger
+												id="csv-template-selector"
+												className="w-full bg-slate-950 border-slate-800 h-11 text-slate-100"
+											>
 												<SelectValue placeholder="Selecciona la plantilla de banco" />
 											</SelectTrigger>
 											<SelectContent>
@@ -738,14 +802,23 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 										<div className="p-4 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-2xl flex items-start gap-2.5 text-xs leading-relaxed animate-in fade-in zoom-in-95">
 											<Sparkles className="w-5 h-5 shrink-0 text-indigo-400 mt-0.5 animate-pulse" />
 											<div>
-												<span className="font-bold text-slate-200 block mb-0.5">Procesamiento inteligente de PDF</span>
-												<span>Este archivo PDF se analizará utilizando la API de Gemini para extraer de forma estructurada las fechas, descripciones e importes de tus movimientos bancarios.</span>
+												<span className="font-bold text-slate-200 block mb-0.5">
+													Procesamiento inteligente de PDF
+												</span>
+												<span>
+													Este archivo PDF se analizará utilizando la API de Gemini para
+													extraer de forma estructurada las fechas, descripciones e importes
+													de tus movimientos bancarios.
+												</span>
 											</div>
 										</div>
 
 										{!geminiApiKey && (
 											<div className="space-y-2 p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl">
-												<label htmlFor="modal-gemini-key-pdf" className="block text-[10px] font-bold text-indigo-400 uppercase tracking-wide">
+												<label
+													htmlFor="modal-gemini-key-pdf"
+													className="block text-[10px] font-bold text-indigo-400 uppercase tracking-wide"
+												>
 													Introduce tu Gemini API Key (Requerida para PDF)
 												</label>
 												<Input
@@ -757,7 +830,8 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 													className="bg-slate-950 border-slate-850 px-3 h-10 text-xs text-slate-100"
 												/>
 												<p className="text-[9px] text-slate-500 leading-normal">
-													Tus claves no se guardan en servidores, se cifran y almacenan únicamente en tu navegador.
+													Obtén tu clave en {GEMINI_API_KEY_SETUP_URL}. Tus claves se guardan
+													localmente según la configuración de la app.
 												</p>
 											</div>
 										)}
@@ -770,7 +844,8 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 										Subir Archivo
 									</label>
 									<p className="text-[11px] leading-relaxed text-slate-500">
-										Asigná cada archivo a la cuenta del banco que lo emitió. La app usará esa cuenta para detectar transferencias entre cuentas.
+										Asigná cada archivo a la cuenta del banco que lo emitió. La app usará esa cuenta
+										para detectar transferencias entre cuentas.
 									</p>
 									<div
 										onDragOver={handleDragOver}
@@ -804,43 +879,73 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 									<div className="space-y-3">
 										<div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
 											<span className="text-xs font-bold text-slate-300">Adjuntos cargados</span>
-											<span className="text-[10px] text-slate-500">La cuenta asignada será el origen del archivo.</span>
+											<span className="text-[10px] text-slate-500">
+												La cuenta asignada será el origen del archivo.
+											</span>
 										</div>
 										<div className="grid gap-2">
-										{attachments.map((attachment) => (
-											<div key={attachment.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 grid gap-3 sm:grid-cols-[1fr_220px_220px_auto] sm:items-center">
-												<div className="min-w-0">
-													<span className="block truncate text-xs font-bold text-slate-200">{attachment.name}</span>
-													<span className={`text-[10px] ${attachment.status === 'error' ? 'text-rose-400' : 'text-slate-500'}`}>
-														{attachment.status === 'loading' ? 'Leyendo archivo' : attachment.status === 'error' ? attachment.error : attachment.type.toUpperCase()}
-													</span>
-												</div>
-												<label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-													<span>{`Cuenta para ${attachment.name}`}</span>
-													<select
-														aria-label={`Cuenta para ${attachment.name}`}
-														value={attachment.accountId}
-														onChange={(event) => handleAttachmentAccountChange(attachment.id, event.target.value)}
-														className="h-9 rounded-xl border border-slate-800 bg-slate-950 px-2 text-xs normal-case tracking-normal text-slate-100 outline-none focus:border-indigo-500"
-													>
-														<option value="">Selecciona cuenta</option>
-														{accounts.map(acc => (
-															<option key={acc.id} value={acc.id}>{acc.name}</option>
-														))}
-													</select>
-												</label>
+											{attachments.map((attachment) => (
+												<div
+													key={attachment.id}
+													className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 grid gap-3 sm:grid-cols-[1fr_220px_220px_auto] sm:items-center"
+												>
+													<div className="min-w-0">
+														<span className="block truncate text-xs font-bold text-slate-200">
+															{attachment.name}
+														</span>
+														<span
+															className={`text-[10px] ${attachment.status === 'error' ? 'text-rose-400' : 'text-slate-500'}`}
+														>
+															{attachment.status === 'loading'
+																? 'Leyendo archivo'
+																: attachment.status === 'error'
+																	? attachment.error
+																	: attachment.type.toUpperCase()}
+														</span>
+													</div>
+													<label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+														<span>{`Cuenta para ${attachment.name}`}</span>
+														<select
+															aria-label={`Cuenta para ${attachment.name}`}
+															value={attachment.accountId}
+															onChange={(event) =>
+																handleAttachmentAccountChange(
+																	attachment.id,
+																	event.target.value
+																)
+															}
+															className="h-9 rounded-xl border border-slate-800 bg-slate-950 px-2 text-xs normal-case tracking-normal text-slate-100 outline-none focus:border-indigo-500"
+														>
+															<option value="">Selecciona cuenta</option>
+															{accounts.map((acc) => (
+																<option key={acc.id} value={acc.id}>
+																	{acc.name}
+																</option>
+															))}
+														</select>
+													</label>
 													{attachment.type === 'csv' && (
 														<label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
 															<span>{`Plantilla para ${attachment.name}`}</span>
 															<select
 																aria-label={`Plantilla para ${attachment.name}`}
 																value={attachment.templateKey}
-																onChange={(event) => handleAttachmentTemplateChange(attachment.id, event.target.value as keyof typeof BANK_TEMPLATES)}
+																onChange={(event) =>
+																	handleAttachmentTemplateChange(
+																		attachment.id,
+																		event.target
+																			.value as keyof typeof BANK_TEMPLATES
+																	)
+																}
 																className="h-9 rounded-xl border border-slate-800 bg-slate-950 px-2 text-xs normal-case tracking-normal text-slate-100 outline-none focus:border-indigo-500"
 															>
-																{Object.entries(BANK_TEMPLATES).map(([key, template]) => (
-																	<option key={key} value={key}>{template.name}</option>
-																))}
+																{Object.entries(BANK_TEMPLATES).map(
+																	([key, template]) => (
+																		<option key={key} value={key}>
+																			{template.name}
+																		</option>
+																	)
+																)}
 															</select>
 														</label>
 													)}
@@ -866,7 +971,10 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 								{/* API Key si falta */}
 								{!geminiApiKey && (
 									<div className="space-y-2 p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl">
-										<label htmlFor="modal-gemini-key" className="block text-[10px] font-bold text-indigo-400 uppercase tracking-wide">
+										<label
+											htmlFor="modal-gemini-key"
+											className="block text-[10px] font-bold text-indigo-400 uppercase tracking-wide"
+										>
 											Introduce tu Gemini API Key
 										</label>
 										<Input
@@ -878,14 +986,18 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 											className="bg-slate-950 border-slate-850 px-3 h-10 text-xs"
 										/>
 										<p className="text-[9px] text-slate-500 leading-normal">
-											Tus claves no se guardan en servidores, se cifran y almacenan únicamente en tu navegador.
+											Obtén tu clave en {GEMINI_API_KEY_SETUP_URL}. Tus claves se guardan
+											localmente según la configuración de la app.
 										</p>
 									</div>
 								)}
 
 								{/* Campo de Texto */}
 								<div className="space-y-2">
-									<label htmlFor="ai-paste-textarea" className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
+									<label
+										htmlFor="ai-paste-textarea"
+										className="block text-xs font-bold text-slate-400 uppercase tracking-wide"
+									>
 										Texto del Extracto Copiado
 									</label>
 									<textarea
@@ -928,13 +1040,23 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 				{step === 'mapping' && (
 					<div className="space-y-6">
 						<div className="p-4 bg-slate-950 border border-slate-850 rounded-2xl">
-							<span className="text-xs font-bold text-slate-300 block mb-2">Previsualización del CSV:</span>
+							<span className="text-xs font-bold text-slate-300 block mb-2">
+								Previsualización del CSV:
+							</span>
 							<div className="overflow-x-auto text-[10px] font-mono text-slate-550 space-y-1.5">
 								{csvRows.slice(0, 4).map((row, idx) => (
-									<div key={idx} className="flex gap-2 bg-slate-900 p-1.5 rounded border border-slate-800/40">
-										<span className="font-bold text-indigo-400 shrink-0 select-none w-4">{idx}:</span>
+									<div
+										key={idx}
+										className="flex gap-2 bg-slate-900 p-1.5 rounded border border-slate-800/40"
+									>
+										<span className="font-bold text-indigo-400 shrink-0 select-none w-4">
+											{idx}:
+										</span>
 										{row.map((field, cellIdx) => (
-											<span key={cellIdx} className="bg-slate-950/80 px-1.5 py-0.5 rounded border border-slate-850 truncate max-w-[120px]">
+											<span
+												key={cellIdx}
+												className="bg-slate-950/80 px-1.5 py-0.5 rounded border border-slate-850 truncate max-w-[120px]"
+											>
 												Col {cellIdx}: "{field}"
 											</span>
 										))}
@@ -946,12 +1068,17 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 						<div className="grid grid-cols-2 gap-4">
 							{/* Selector Fecha */}
 							<div className="space-y-2">
-								<label htmlFor="custom-map-date" className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
+								<label
+									htmlFor="custom-map-date"
+									className="block text-xs font-bold text-slate-400 uppercase tracking-wide"
+								>
 									Columna Fecha
 								</label>
 								<Select
 									value={String(customMapping.dateCol)}
-									onValueChange={(val) => setCustomMapping(prev => ({ ...prev, dateCol: parseInt(val) }))}
+									onValueChange={(val) =>
+										setCustomMapping((prev) => ({ ...prev, dateCol: parseInt(val) }))
+									}
 								>
 									<SelectTrigger id="custom-map-date" className="bg-slate-950 border-slate-850 h-10">
 										<SelectValue placeholder="Selecciona columna" />
@@ -968,12 +1095,17 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 
 							{/* Selector Concepto */}
 							<div className="space-y-2">
-								<label htmlFor="custom-map-desc" className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
+								<label
+									htmlFor="custom-map-desc"
+									className="block text-xs font-bold text-slate-400 uppercase tracking-wide"
+								>
 									Columna Concepto
 								</label>
 								<Select
 									value={String(customMapping.descCol)}
-									onValueChange={(val) => setCustomMapping(prev => ({ ...prev, descCol: parseInt(val) }))}
+									onValueChange={(val) =>
+										setCustomMapping((prev) => ({ ...prev, descCol: parseInt(val) }))
+									}
 								>
 									<SelectTrigger id="custom-map-desc" className="bg-slate-950 border-slate-850 h-10">
 										<SelectValue placeholder="Selecciona columna" />
@@ -990,17 +1122,56 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 
 							{/* Selector Importe */}
 							<div className="space-y-2">
-								<label htmlFor="custom-map-amount" className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
+								<label
+									htmlFor="custom-map-amount"
+									className="block text-xs font-bold text-slate-400 uppercase tracking-wide"
+								>
 									Columna Importe
 								</label>
 								<Select
 									value={String(customMapping.amountCol)}
-									onValueChange={(val) => setCustomMapping(prev => ({ ...prev, amountCol: parseInt(val) }))}
+									onValueChange={(val) =>
+										setCustomMapping((prev) => ({ ...prev, amountCol: parseInt(val) }))
+									}
 								>
-									<SelectTrigger id="custom-map-amount" className="bg-slate-950 border-slate-850 h-10">
+									<SelectTrigger
+										id="custom-map-amount"
+										className="bg-slate-950 border-slate-850 h-10"
+									>
 										<SelectValue placeholder="Selecciona columna" />
 									</SelectTrigger>
 									<SelectContent>
+										{csvRows[0]?.map((_, idx) => (
+											<SelectItem key={idx} value={String(idx)}>
+												Columna {idx} (ej. "{csvRows[0][idx] || 'vacía'}")
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+
+							{/* Selector Saldo */}
+							<div className="space-y-2">
+								<label
+									htmlFor="custom-map-balance"
+									className="block text-xs font-bold text-slate-400 uppercase tracking-wide"
+								>
+									Columna Saldo (Opcional)
+								</label>
+								<Select
+									value={String(customMapping.balanceCol)}
+									onValueChange={(val) =>
+										setCustomMapping((prev) => ({ ...prev, balanceCol: parseInt(val) }))
+									}
+								>
+									<SelectTrigger
+										id="custom-map-balance"
+										className="bg-slate-950 border-slate-850 h-10"
+									>
+										<SelectValue placeholder="Selecciona columna" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="-1">Ninguna (Omitir)</SelectItem>
 										{csvRows[0]?.map((_, idx) => (
 											<SelectItem key={idx} value={String(idx)}>
 												Columna {idx} (ej. "{csvRows[0][idx] || 'vacía'}")
@@ -1014,7 +1185,9 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 							<div className="flex items-center gap-3 pt-8 pl-2">
 								<button
 									type="button"
-									onClick={() => setCustomMapping(prev => ({ ...prev, hasHeader: !prev.hasHeader }))}
+									onClick={() =>
+										setCustomMapping((prev) => ({ ...prev, hasHeader: !prev.hasHeader }))
+									}
 									className="flex items-center gap-2 text-xs font-semibold text-slate-350 hover:text-slate-200"
 								>
 									{customMapping.hasHeader ? (
@@ -1054,26 +1227,39 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 							<div className="space-y-1">
 								<span className="font-semibold text-slate-300">Origen:</span>
 								<span className="text-slate-100 font-bold block">
-									{attachments.length > 0 ? `${attachments.length} adjunto(s)` : accounts.find(a => a.id === selectedAccountId)?.name}
+									{attachments.length > 0
+										? `${attachments.length} adjunto(s)`
+										: accounts.find((a) => a.id === selectedAccountId)?.name}
 								</span>
+								{possibleDuplicateCount > 0 && (
+									<span className="block text-[11px] text-amber-400">
+										{possibleDuplicateCount} movimiento(s) requieren revisión por posible duplicado.
+									</span>
+								)}
 							</div>
 							<div className="flex gap-4">
 								<div className="text-center bg-slate-900 border border-slate-850 px-3 py-1.5 rounded-xl">
-									<span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">Importar</span>
+									<span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">
+										Importar
+									</span>
 									<span className="text-sm font-black text-indigo-400">
-										{importedTxs.filter(t => t.selected).length}
+										{selectedImportableTxs.length}
 									</span>
 								</div>
 								<div className="text-center bg-slate-900 border border-slate-850 px-3 py-1.5 rounded-xl">
-									<span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">Gasto</span>
+									<span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">
+										Gasto
+									</span>
 									<span className="text-sm font-black text-rose-400">
-										{importedTxs.filter(t => t.selected && t.type === 'expense').length}
+										{importedTxs.filter((t) => t.selected && t.type === 'expense').length}
 									</span>
 								</div>
 								<div className="text-center bg-slate-900 border border-slate-850 px-3 py-1.5 rounded-xl">
-									<span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">Ingreso</span>
+									<span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">
+										Ingreso
+									</span>
 									<span className="text-sm font-black text-emerald-400">
-										{importedTxs.filter(t => t.selected && t.type === 'income').length}
+										{importedTxs.filter((t) => t.selected && t.type === 'income').length}
 									</span>
 								</div>
 							</div>
@@ -1081,7 +1267,9 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 
 						{/* Tabla */}
 						<div className="overflow-x-auto max-h-[45vh] pr-1 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
-							<table className="w-full text-left border-collapse min-w-[700px]">
+							<table
+								className={`w-full text-left border-collapse ${hasBalance ? 'min-w-[800px]' : 'min-w-[700px]'}`}
+							>
 								<thead>
 									<tr className="border-b border-slate-800/80 text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-950/40 sticky top-0 z-10 backdrop-blur-sm">
 										<th className="py-2.5 pl-3 w-10 text-center">
@@ -1091,7 +1279,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 												className="p-1 hover:bg-slate-800 rounded text-indigo-400 flex items-center justify-center mx-auto"
 												title="Seleccionar / Deseleccionar todos"
 											>
-												{importedTxs.every(tx => tx.selected) ? (
+												{allImportableTxsSelected ? (
 													<CheckSquare className="w-4 h-4" />
 												) : (
 													<Square className="w-4 h-4 text-slate-500" />
@@ -1102,6 +1290,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 										<th className="py-2.5 w-[170px]">Origen</th>
 										<th className="py-2.5">Concepto</th>
 										<th className="py-2.5 w-[90px] text-right">Importe (€)</th>
+										{hasBalance && <th className="py-2.5 w-[90px] text-right">Saldo (€)</th>}
 										<th className="py-2.5 w-[90px] text-center">Tipo</th>
 										<th className="py-2.5 w-[140px]">Etiqueta</th>
 										<th className="py-2.5 w-[130px]">Propietario</th>
@@ -1113,14 +1302,22 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 										<tr
 											key={tx.id}
 											className={`transition-all ${
-												tx.selected ? 'bg-slate-950/10 hover:bg-slate-900/40' : 'opacity-40 hover:opacity-70'
-											} ${tx.isDuplicate ? 'border-l-2 border-l-amber-500' : ''}`}
+												tx.selected
+													? 'bg-slate-950/10 hover:bg-slate-900/40'
+													: 'opacity-40 hover:opacity-70'
+											} ${tx.isDuplicate || tx.possibleDuplicate ? 'border-l-2 border-l-amber-500' : ''}`}
 										>
 											<td className="py-3 text-center align-middle">
 												<button
 													type="button"
 													onClick={() => toggleSelectTx(tx.id)}
-													className="p-1 hover:bg-slate-850 rounded flex items-center justify-center mx-auto text-indigo-400"
+													disabled={tx.isDuplicate}
+													aria-label={
+														tx.isDuplicate
+															? `Duplicado exacto no importable: ${tx.desc}`
+															: `Seleccionar movimiento: ${tx.desc}`
+													}
+													className={`p-1 rounded flex items-center justify-center mx-auto text-indigo-400 ${tx.isDuplicate ? 'cursor-not-allowed opacity-50' : 'hover:bg-slate-850'}`}
 												>
 													{tx.selected ? (
 														<CheckSquare className="w-4 h-4" />
@@ -1129,23 +1326,26 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 													)}
 												</button>
 											</td>
-										<td className="py-3 pr-2">
-											<Input
+											<td className="py-3 pr-2">
+												<Input
 													type="date"
 													value={tx.date}
 													onChange={(e) => handleTxChange(tx.id, { date: e.target.value })}
 													className="h-8 text-[11px] font-mono px-1.5 bg-slate-950 border-slate-850 text-slate-100"
-											/>
-										</td>
-										<td className="py-3 pr-2 align-middle">
-											<span className="block text-[11px] font-bold text-slate-200">
-												{accounts.find(a => a.id === tx.accountId)?.name || 'Sin cuenta'}
-											</span>
-											<span className="block max-w-[150px] truncate text-[10px] text-slate-500" title={tx.sourceName}>
-												{tx.sourceName || csvFilename || 'Origen manual'}
-											</span>
-										</td>
-										<td className="py-3 pr-2 space-y-1">
+												/>
+											</td>
+											<td className="py-3 pr-2 align-middle">
+												<span className="block text-[11px] font-bold text-slate-200">
+													{accounts.find((a) => a.id === tx.accountId)?.name || 'Sin cuenta'}
+												</span>
+												<span
+													className="block max-w-[150px] truncate text-[10px] text-slate-500"
+													title={tx.sourceName}
+												>
+													{tx.sourceName || csvFilename || 'Origen manual'}
+												</span>
+											</td>
+											<td className="py-3 pr-2 space-y-1">
 												<Input
 													type="text"
 													value={tx.desc}
@@ -1154,7 +1354,15 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 												/>
 												{tx.isDuplicate && (
 													<span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 text-[9px] text-amber-500 rounded font-bold animate-pulse">
-														<AlertTriangle className="w-3 h-3" /> Posible duplicado
+														<AlertTriangle className="w-3 h-3" /> Duplicado exacto
+													</span>
+												)}
+												{tx.possibleDuplicate && !tx.isDuplicate && (
+													<span
+														className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 text-[9px] text-amber-400 rounded font-bold"
+														title={getPossibleDuplicateLabel(tx)}
+													>
+														<AlertTriangle className="w-3 h-3" /> Revisar posible duplicado
 													</span>
 												)}
 											</td>
@@ -1167,6 +1375,13 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 													className="h-8 text-[11px] text-right font-mono px-1.5 bg-slate-950 border-slate-850 text-slate-100"
 												/>
 											</td>
+											{hasBalance && (
+												<td className="py-3 pr-2 text-right font-mono text-slate-400 align-middle shrink-0">
+													{tx.balance
+														? `${parseFloat(tx.balance).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+														: '-'}
+												</td>
+											)}
 											<td className="py-3 pr-2 text-center align-middle">
 												<select
 													value={tx.type}
@@ -1190,7 +1405,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 													onChange={(e) => handleTxChange(tx.id, { tag: e.target.value })}
 													className="h-8 text-[11px] bg-slate-950 border border-slate-850 rounded-lg text-slate-350 px-1.5 outline-none w-full"
 												>
-													{DEFAULT_TAGS[tx.type].map(tag => (
+													{DEFAULT_TAGS[tx.type].map((tag) => (
 														<option key={tag} value={tag}>
 															{tag}
 														</option>
@@ -1248,9 +1463,11 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 							>
 								<CheckCircle className="w-4 h-4" />
 								<span>
-									{importedTxs.some(t => t.selected && t.type === 'transfer' && !t.transferCorrelationId)
-										? 'Configurar traspasos' 
-										: `Importar seleccionados (${importedTxs.filter(t => t.selected).length})`}
+									{importedTxs.some(
+										(t) => t.selected && t.type === 'transfer' && !t.transferCorrelationId
+									)
+										? 'Configurar traspasos'
+										: `Importar seleccionados (${selectedImportableTxs.length})`}
 								</span>
 							</button>
 						</div>
@@ -1263,88 +1480,120 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 						<div className="p-4 bg-slate-950/60 border border-slate-850 rounded-2xl text-xs space-y-2">
 							<span className="font-bold text-slate-200 block">Asociación de Cuentas para Traspasos</span>
 							<p className="text-slate-450 text-[11px] leading-relaxed">
-								La cuenta del archivo ya está asignada. Acá solo elegís la cuenta contraparte para resolver manualmente el traspaso.
+								La cuenta del archivo ya está asignada. Acá solo elegís la cuenta contraparte para
+								resolver manualmente el traspaso.
 							</p>
 						</div>
 
 						<div className="overflow-y-auto max-h-[45vh] pr-1 space-y-4 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
-							{importedTxs.filter(t => t.selected && t.type === 'transfer').map((tx) => {
-								const rowAccountId = tx.accountId || selectedAccountId;
-								const otherAccounts = accounts.filter(a => a.id !== rowAccountId);
-								const activeAccountName = accounts.find(a => a.id === rowAccountId)?.name || 'Cuenta activa';
+							{importedTxs
+								.filter((t) => t.selected && t.type === 'transfer')
+								.map((tx) => {
+									const rowAccountId = tx.accountId || selectedAccountId;
+									const otherAccounts = accounts.filter((a) => a.id !== rowAccountId);
+									const activeAccountName =
+										accounts.find((a) => a.id === rowAccountId)?.name || 'Cuenta activa';
 
-								return (
-									<div key={tx.id} className="p-4 bg-slate-950/40 border border-slate-850 rounded-2xl space-y-3 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-										<div className="space-y-1 md:max-w-[40%]">
-											<span className="text-[10px] font-mono text-slate-500 block">{tx.date}</span>
-											<span className="font-bold text-slate-250 block truncate" title={tx.desc}>{tx.desc}</span>
-											<span className="text-xs font-black text-indigo-400 block">{parseFloat(tx.amount).toFixed(2)} €</span>
-										</div>
+									return (
+										<div
+											key={tx.id}
+											className="p-4 bg-slate-950/40 border border-slate-850 rounded-2xl space-y-3 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+										>
+											<div className="space-y-1 md:max-w-[40%]">
+												<span className="text-[10px] font-mono text-slate-500 block">
+													{tx.date}
+												</span>
+												<span
+													className="font-bold text-slate-250 block truncate"
+													title={tx.desc}
+												>
+													{tx.desc}
+												</span>
+												<span className="text-xs font-black text-indigo-400 block">
+													{parseFloat(tx.amount).toFixed(2)} €
+												</span>
+											</div>
 
-										<div className="flex flex-col gap-3 shrink-0 bg-slate-900/60 p-3 rounded-xl border border-slate-800/60 sm:flex-row sm:items-end">
-											{tx.originalType === 'expense' ? (
-												<>
-													<div className="grid gap-1">
-														<span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Cuenta de origen</span>
-														<span className="text-xs font-bold text-slate-300 px-2 py-1.5 bg-slate-950 border border-slate-850 rounded-lg">
-															{activeAccountName}
-														</span>
-													</div>
-													<ChevronRight className="hidden w-4 h-4 text-indigo-400 shrink-0 mb-2 sm:block" />
-													<label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-														<span>Cuenta de destino</span>
-														<select
-															aria-label={`Cuenta de destino para ${tx.desc}`}
-															value={tx.toAccountId || ''}
-															onChange={(e) => handleTxChange(tx.id, { toAccountId: e.target.value })}
-															className="min-w-[160px] text-xs bg-slate-950 border border-slate-850 rounded-lg text-slate-100 px-2 py-1.5 outline-none font-semibold normal-case tracking-normal"
-														>
-															{otherAccounts.map(acc => (
-																<option key={acc.id} value={acc.id}>
-																	{acc.name}
-																</option>
-															))}
-															{otherAccounts.length === 0 && (
-																<option value="">(No hay otras cuentas)</option>
-															)}
-														</select>
-														<span className="normal-case tracking-normal text-slate-500 font-medium">Contraparte de este traspaso manual.</span>
-													</label>
-												</>
-											) : (
-												<>
-													<label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-														<span>Cuenta de origen</span>
-														<select
-															aria-label={`Cuenta de origen para ${tx.desc}`}
-															value={tx.fromAccountId || ''}
-															onChange={(e) => handleTxChange(tx.id, { fromAccountId: e.target.value })}
-															className="min-w-[160px] text-xs bg-slate-950 border border-slate-850 rounded-lg text-slate-100 px-2 py-1.5 outline-none font-semibold normal-case tracking-normal"
-														>
-															{otherAccounts.map(acc => (
-																<option key={acc.id} value={acc.id}>
-																	{acc.name}
-																</option>
-															))}
-															{otherAccounts.length === 0 && (
-																<option value="">(No hay otras cuentas)</option>
-															)}
-														</select>
-														<span className="normal-case tracking-normal text-slate-500 font-medium">Contraparte de este traspaso manual.</span>
-													</label>
-													<ChevronRight className="hidden w-4 h-4 text-indigo-400 shrink-0 mb-2 sm:block" />
-													<div className="grid gap-1">
-														<span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Cuenta de destino</span>
-														<span className="text-xs font-bold text-slate-300 px-2 py-1.5 bg-slate-950 border border-slate-850 rounded-lg">
-															{activeAccountName}
-														</span>
-													</div>
-												</>
-											)}
+											<div className="flex flex-col gap-3 shrink-0 bg-slate-900/60 p-3 rounded-xl border border-slate-800/60 sm:flex-row sm:items-end">
+												{tx.originalType === 'expense' ? (
+													<>
+														<div className="grid gap-1">
+															<span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+																Cuenta de origen
+															</span>
+															<span className="text-xs font-bold text-slate-300 px-2 py-1.5 bg-slate-950 border border-slate-850 rounded-lg">
+																{activeAccountName}
+															</span>
+														</div>
+														<ChevronRight className="hidden w-4 h-4 text-indigo-400 shrink-0 mb-2 sm:block" />
+														<label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+															<span>Cuenta de destino</span>
+															<select
+																aria-label={`Cuenta de destino para ${tx.desc}`}
+																value={tx.toAccountId || ''}
+																onChange={(e) =>
+																	handleTxChange(tx.id, {
+																		toAccountId: e.target.value
+																	})
+																}
+																className="min-w-[160px] text-xs bg-slate-950 border border-slate-850 rounded-lg text-slate-100 px-2 py-1.5 outline-none font-semibold normal-case tracking-normal"
+															>
+																{otherAccounts.map((acc) => (
+																	<option key={acc.id} value={acc.id}>
+																		{acc.name}
+																	</option>
+																))}
+																{otherAccounts.length === 0 && (
+																	<option value="">(No hay otras cuentas)</option>
+																)}
+															</select>
+															<span className="normal-case tracking-normal text-slate-500 font-medium">
+																Contraparte de este traspaso manual.
+															</span>
+														</label>
+													</>
+												) : (
+													<>
+														<label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+															<span>Cuenta de origen</span>
+															<select
+																aria-label={`Cuenta de origen para ${tx.desc}`}
+																value={tx.fromAccountId || ''}
+																onChange={(e) =>
+																	handleTxChange(tx.id, {
+																		fromAccountId: e.target.value
+																	})
+																}
+																className="min-w-[160px] text-xs bg-slate-950 border border-slate-850 rounded-lg text-slate-100 px-2 py-1.5 outline-none font-semibold normal-case tracking-normal"
+															>
+																{otherAccounts.map((acc) => (
+																	<option key={acc.id} value={acc.id}>
+																		{acc.name}
+																	</option>
+																))}
+																{otherAccounts.length === 0 && (
+																	<option value="">(No hay otras cuentas)</option>
+																)}
+															</select>
+															<span className="normal-case tracking-normal text-slate-500 font-medium">
+																Contraparte de este traspaso manual.
+															</span>
+														</label>
+														<ChevronRight className="hidden w-4 h-4 text-indigo-400 shrink-0 mb-2 sm:block" />
+														<div className="grid gap-1">
+															<span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+																Cuenta de destino
+															</span>
+															<span className="text-xs font-bold text-slate-300 px-2 py-1.5 bg-slate-950 border border-slate-850 rounded-lg">
+																{activeAccountName}
+															</span>
+														</div>
+													</>
+												)}
+											</div>
 										</div>
-									</div>
-								);
-							})}
+									);
+								})}
 						</div>
 
 						{/* Botones de Acción */}

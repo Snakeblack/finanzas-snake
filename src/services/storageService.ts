@@ -334,7 +334,9 @@ export const migrateTransaction = (rawTransaction: any, index: number): Transact
 				? rawTransaction.owner
 				: 'joint',
 		paidBy:
-			rawTransaction?.paidBy === 'userA' || rawTransaction?.paidBy === 'userB' || rawTransaction?.paidBy === 'shared'
+			rawTransaction?.paidBy === 'userA' ||
+			rawTransaction?.paidBy === 'userB' ||
+			rawTransaction?.paidBy === 'shared'
 				? rawTransaction.paidBy
 				: 'shared',
 		accountId: rawTransaction?.accountId ? String(rawTransaction.accountId) : undefined,
@@ -352,7 +354,9 @@ export const migrateDebt = (rawDebt: any): Debt => {
 	const tag = String(rawDebt?.tag ?? DEFAULT_TAGS.debt[0]);
 	const date = normalizeMonth(rawDebt?.date);
 	const owner =
-		rawDebt?.owner === 'userA' || rawDebt?.owner === 'userB' || rawDebt?.owner === 'joint' ? rawDebt.owner : 'joint';
+		rawDebt?.owner === 'userA' || rawDebt?.owner === 'userB' || rawDebt?.owner === 'joint'
+			? rawDebt.owner
+			: 'joint';
 	const paymentAccountId = rawDebt?.paymentAccountId ? String(rawDebt.paymentAccountId) : undefined;
 	const rawChargeDay = Math.trunc(toNumber(rawDebt?.chargeDay));
 	const chargeDay = rawChargeDay >= 1 && rawChargeDay <= 31 ? rawChargeDay : undefined;
@@ -625,7 +629,8 @@ export const readStoredDebts = async (): Promise<Debt[]> => {
 export const readStoredDebtsSync = (): Debt[] => {
 	if (
 		typeof window !== 'undefined' &&
-		(localStorage.getItem('finanzas_v3_password_salt') || localStorage.getItem('finanzas_v5_unified_idb') === 'true')
+		(localStorage.getItem('finanzas_v3_password_salt') ||
+			localStorage.getItem('finanzas_v5_unified_idb') === 'true')
 	) {
 		return [];
 	}
@@ -663,9 +668,13 @@ export const readStoredPeriods = async (existingTx: Transaction[], existingDebts
 					month: normalizeMonth(rawPeriod?.month),
 					openingBalance,
 					openingBalanceA:
-						rawPeriod?.openingBalanceA !== undefined ? toNumber(rawPeriod.openingBalanceA) : openingBalance / 2,
+						rawPeriod?.openingBalanceA !== undefined
+							? toNumber(rawPeriod.openingBalanceA)
+							: openingBalance / 2,
 					openingBalanceB:
-						rawPeriod?.openingBalanceB !== undefined ? toNumber(rawPeriod.openingBalanceB) : openingBalance / 2,
+						rawPeriod?.openingBalanceB !== undefined
+							? toNumber(rawPeriod.openingBalanceB)
+							: openingBalance / 2,
 					isManualInit: !!rawPeriod?.isManualInit
 				};
 			});
@@ -730,7 +739,8 @@ export const getInitialData = (): {
 } => {
 	if (
 		typeof window !== 'undefined' &&
-		(localStorage.getItem('finanzas_v3_password_salt') || localStorage.getItem('finanzas_v5_unified_idb') === 'true')
+		(localStorage.getItem('finanzas_v3_password_salt') ||
+			localStorage.getItem('finanzas_v5_unified_idb') === 'true')
 	) {
 		// La base de datos está bloqueada por PIN/Contraseña o ya migrada a IndexedDB V5.
 		return {
@@ -777,9 +787,13 @@ export const getInitialData = (): {
 							month: normalizeMonth(rawPeriod?.month),
 							openingBalance,
 							openingBalanceA:
-								rawPeriod?.openingBalanceA !== undefined ? toNumber(rawPeriod.openingBalanceA) : openingBalance / 2,
+								rawPeriod?.openingBalanceA !== undefined
+									? toNumber(rawPeriod.openingBalanceA)
+									: openingBalance / 2,
 							openingBalanceB:
-								rawPeriod?.openingBalanceB !== undefined ? toNumber(rawPeriod.openingBalanceB) : openingBalance / 2,
+								rawPeriod?.openingBalanceB !== undefined
+									? toNumber(rawPeriod.openingBalanceB)
+									: openingBalance / 2,
 							isManualInit: !!rawPeriod?.isManualInit
 						};
 					});
@@ -900,7 +914,8 @@ export const readGeminiApiKey = async (): Promise<string> => {
 export const readGeminiApiKeySync = (): string => {
 	if (
 		typeof window !== 'undefined' &&
-		(localStorage.getItem('finanzas_v3_password_salt') || localStorage.getItem('finanzas_v5_unified_idb') === 'true')
+		(localStorage.getItem('finanzas_v3_password_salt') ||
+			localStorage.getItem('finanzas_v5_unified_idb') === 'true')
 	) {
 		return '';
 	}
@@ -952,7 +967,8 @@ export const readAiChat = async (): Promise<ChatMessage[]> => {
 export const readAiChatSync = (): ChatMessage[] => {
 	if (
 		typeof window !== 'undefined' &&
-		(localStorage.getItem('finanzas_v3_password_salt') || localStorage.getItem('finanzas_v5_unified_idb') === 'true')
+		(localStorage.getItem('finanzas_v3_password_salt') ||
+			localStorage.getItem('finanzas_v5_unified_idb') === 'true')
 	) {
 		return [];
 	}
@@ -988,8 +1004,10 @@ const normalizePeriodsForBackup = (periods: Period[]): Period[] =>
 		const normalizedPeriod: Period = {
 			month: normalizeMonth(period.month),
 			openingBalance,
-			openingBalanceA: period.openingBalanceA !== undefined ? toNumber(period.openingBalanceA) : openingBalance / 2,
-			openingBalanceB: period.openingBalanceB !== undefined ? toNumber(period.openingBalanceB) : openingBalance / 2
+			openingBalanceA:
+				period.openingBalanceA !== undefined ? toNumber(period.openingBalanceA) : openingBalance / 2,
+			openingBalanceB:
+				period.openingBalanceB !== undefined ? toNumber(period.openingBalanceB) : openingBalance / 2
 		};
 		if (period.isManualInit !== undefined) {
 			normalizedPeriod.isManualInit = !!period.isManualInit;

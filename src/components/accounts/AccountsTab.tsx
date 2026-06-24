@@ -55,18 +55,30 @@ export function AccountsTab() {
 				{/* Listado de Cuentas */}
 				<div className="lg:col-span-8 premium-card rounded-2xl p-6">
 					<h3 className="font-heading text-lg font-bold text-slate-100 mb-2 flex items-center gap-2">
-						<svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-							<path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+						<svg
+							className="w-5 h-5 text-indigo-400"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							strokeWidth={2}
+						>
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+							/>
 						</svg>
 						Cuentas Configuradas
 					</h3>
 					<p className="text-xs text-slate-400 mb-6">
-						Tus cuentas financieras activas. Los saldos de apertura de la cronología se calculan en base a sus saldos iniciales.
+						Tus cuentas financieras activas. Los saldos de apertura de la cronología se calculan en base a
+						sus saldos iniciales.
 					</p>
 
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 						{accounts.map((acc) => {
-							const closingBal = timelineBalances[selectedMonth]?.accountBalances[acc.id] ?? acc.initialBalance;
+							const closingBal =
+								timelineBalances[selectedMonth]?.accountBalances[acc.id] ?? acc.initialBalance;
 							return (
 								<div
 									key={acc.id}
@@ -74,7 +86,9 @@ export function AccountsTab() {
 								>
 									<div>
 										<div className="flex justify-between items-start mb-2">
-											<h4 className="font-bold text-slate-100 text-sm truncate max-w-[150px]">{acc.name}</h4>
+											<h4 className="font-bold text-slate-100 text-sm truncate max-w-[150px]">
+												{acc.name}
+											</h4>
 											<span
 												className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold ${
 													acc.owner === 'userA'
@@ -98,8 +112,12 @@ export function AccountsTab() {
 
 									<div className="mt-4 pt-4 border-t border-slate-900/60 flex items-center justify-between">
 										<div>
-											<span className="block text-[10px] text-slate-500">Saldo en {selectedMonth}:</span>
-											<span className={`text-sm font-extrabold ${closingBal >= 0 ? 'text-indigo-400' : 'text-rose-500'}`}>
+											<span className="block text-[10px] text-slate-500">
+												Saldo en {selectedMonth}:
+											</span>
+											<span
+												className={`text-sm font-extrabold ${closingBal >= 0 ? 'text-indigo-400' : 'text-rose-500'}`}
+											>
 												{formatAmount(closingBal)}
 											</span>
 										</div>
@@ -151,7 +169,9 @@ export function AccountsTab() {
 						</div>
 
 						<div>
-							<label className="block text-xs font-medium text-slate-400 mb-1.5">Propietario / Tipo</label>
+							<label className="block text-xs font-medium text-slate-400 mb-1.5">
+								Propietario / Tipo
+							</label>
 							<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
 								<button
 									type="button"
@@ -232,13 +252,24 @@ export function AccountsTab() {
 			{/* Copia de Seguridad (Backup) */}
 			<div className="premium-card rounded-2xl p-6">
 				<h3 className="font-heading text-lg font-bold text-slate-100 mb-2 flex items-center gap-2">
-					<svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-						<path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2v-9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+					<svg
+						className="w-5 h-5 text-indigo-400"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+						strokeWidth={2}
+					>
+						<path
+							strokeLinecap="round"
+							strokeLinejoin="round"
+							d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2v-9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+						/>
 					</svg>
 					Copia de Seguridad (Backup)
 				</h3>
 				<p className="text-xs text-slate-400 mb-6">
-					Guarda o restaura toda tu información financiera (cuentas, movimientos, deudas, perfiles y chat) para tener un respaldo o transferirla a otro ordenador.
+					Guarda o restaura toda tu información financiera (cuentas, movimientos, deudas, perfiles y chat)
+					para tener un respaldo o transferirla a otro ordenador.
 				</p>
 
 				<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -246,15 +277,26 @@ export function AccountsTab() {
 						<div>
 							<h4 className="font-bold text-slate-100 text-sm mb-1">Exportar Datos</h4>
 							<p className="text-xs text-slate-500 leading-relaxed">
-								Descarga un archivo JSON en tu ordenador que contiene toda la configuración y registros actuales de la aplicación.
+								Descarga un archivo JSON en tu ordenador que contiene toda la configuración y registros
+								actuales de la aplicación.
 							</p>
 						</div>
 						<button
 							onClick={handleExportData}
 							className="mt-4 w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md"
 						>
-							<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-								<path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+							<svg
+								className="w-4 h-4"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								strokeWidth={2}
+							>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+								/>
 							</svg>
 							Exportar en JSON
 						</button>
@@ -264,7 +306,10 @@ export function AccountsTab() {
 						<div>
 							<h4 className="font-bold text-slate-100 text-sm mb-1">Importar Copia de Seguridad</h4>
 							<p className="text-xs text-slate-500 leading-relaxed">
-								Sube un archivo de copia de seguridad JSON previamente exportado. <span className="text-amber-500 font-semibold">Esto reemplazará todos tus datos locales actuales.</span>
+								Sube un archivo de copia de seguridad JSON previamente exportado.{' '}
+								<span className="text-amber-500 font-semibold">
+									Esto reemplazará todos tus datos locales actuales.
+								</span>
 							</p>
 						</div>
 						<div className="mt-4 relative">
@@ -279,8 +324,18 @@ export function AccountsTab() {
 								htmlFor="import-backup-file"
 								className="w-full bg-slate-900/60 hover:bg-slate-850/80 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer text-center"
 							>
-								<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-									<path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
+								<svg
+									className="w-4 h-4"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+									strokeWidth={2}
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12"
+									/>
 								</svg>
 								Seleccionar Archivo JSON
 							</label>
@@ -291,15 +346,26 @@ export function AccountsTab() {
 						<div>
 							<h4 className="font-bold text-slate-100 text-sm mb-1">Sincronización P2P</h4>
 							<p className="text-xs text-slate-500 leading-relaxed">
-								Transfiere datos en tiempo real entre tu ordenador y tu móvil. Directo, cifrado y sin usar servidores de terceros.
+								Transfiere datos en tiempo real entre tu ordenador y tu móvil. Directo, cifrado y sin
+								usar servidores de terceros.
 							</p>
 						</div>
 						<button
 							onClick={() => setIsSyncModalOpen(true)}
 							className="mt-4 w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 hover:shadow-[0_0_15px_rgba(139,92,246,0.4)] text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md"
 						>
-							<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-								<path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+							<svg
+								className="w-4 h-4"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								strokeWidth={2}
+							>
+								<path
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+								/>
 							</svg>
 							Sincronizar Dispositivos
 						</button>
@@ -308,16 +374,36 @@ export function AccountsTab() {
 
 				{importError && (
 					<div className="mt-4 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-450 text-xs rounded-xl flex items-center gap-2">
-						<svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-							<path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+						<svg
+							className="w-4 h-4 shrink-0"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							strokeWidth={2}
+						>
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+							/>
 						</svg>
 						<span>{importError}</span>
 					</div>
 				)}
 				{importSuccess && (
 					<div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-450 text-xs rounded-xl flex items-center gap-2 animate-pulse">
-						<svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-							<path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+						<svg
+							className="w-4 h-4 shrink-0"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							strokeWidth={2}
+						>
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+							/>
 						</svg>
 						<span>{importSuccess}</span>
 					</div>

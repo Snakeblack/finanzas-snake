@@ -36,7 +36,8 @@ export function ConsolidationTab() {
 			<div className="lg:col-span-6 premium-card rounded-2xl p-6">
 				<h3 className="text-lg font-semibold text-slate-200 mb-4">Paso 1: Selecciona las Deudas a Unificar</h3>
 				<p className="text-xs text-slate-400 mb-6">
-					Marca aquellas pequeñas deudas o deudas activas que te gustaría liquidar mediante un único préstamo unificado.
+					Marca aquellas pequeñas deudas o deudas activas que te gustaría liquidar mediante un único préstamo
+					unificado.
 				</p>
 
 				{debts.length === 0 ? (
@@ -77,7 +78,9 @@ export function ConsolidationTab() {
 										</div>
 									</div>
 									<div className="text-right">
-										<span className="block text-[10px] text-slate-500">{isPlan ? 'Exigible' : 'Cuota'}</span>
+										<span className="block text-[10px] text-slate-500">
+											{isPlan ? 'Exigible' : 'Cuota'}
+										</span>
 										<span className="text-sm font-bold text-slate-350">
 											{formatAmount(cuota)}
 											{isPlan ? '' : '/mes'}
@@ -94,7 +97,9 @@ export function ConsolidationTab() {
 			<div className="lg:col-span-6 space-y-6">
 				{/* Parámetros del préstamo consolidado */}
 				<div className="premium-card rounded-2xl p-6">
-					<h3 className="text-lg font-semibold text-slate-200 mb-4">Paso 2: Parámetros del Préstamo Unificado</h3>
+					<h3 className="text-lg font-semibold text-slate-200 mb-4">
+						Paso 2: Parámetros del Préstamo Unificado
+					</h3>
 
 					<div className="space-y-4">
 						<div className="grid grid-cols-2 gap-4">
@@ -107,7 +112,9 @@ export function ConsolidationTab() {
 									type="number"
 									step="0.01"
 									value={consolidationForm.tae}
-									onChange={(e) => setConsolidationForm({ ...consolidationForm, tae: e.target.value })}
+									onChange={(e) =>
+										setConsolidationForm({ ...consolidationForm, tae: e.target.value })
+									}
 									className="font-mono"
 								/>
 							</div>
@@ -119,7 +126,9 @@ export function ConsolidationTab() {
 									id="new-term"
 									type="number"
 									value={consolidationForm.termMonths}
-									onChange={(e) => setConsolidationForm({ ...consolidationForm, termMonths: e.target.value })}
+									onChange={(e) =>
+										setConsolidationForm({ ...consolidationForm, termMonths: e.target.value })
+									}
 									className="font-mono"
 								/>
 							</div>
@@ -137,7 +146,9 @@ export function ConsolidationTab() {
 								min="0"
 								placeholder="Ej. 500 para un nuevo proyecto"
 								value={consolidationForm.extraCapital}
-								onChange={(e) => setConsolidationForm({ ...consolidationForm, extraCapital: e.target.value })}
+								onChange={(e) =>
+									setConsolidationForm({ ...consolidationForm, extraCapital: e.target.value })
+								}
 								className="font-mono"
 							/>
 						</div>
@@ -188,17 +199,25 @@ export function ConsolidationTab() {
 						<div className="glass-panel p-4 rounded-xl space-y-2 text-sm">
 							<div className="flex justify-between">
 								<span className="text-slate-400">Intereses Totales Actuales:</span>
-								<span className="font-semibold text-slate-300 font-mono">{formatAmount(currentTotalInterests)}</span>
+								<span className="font-semibold text-slate-300 font-mono">
+									{formatAmount(currentTotalInterests)}
+								</span>
 							</div>
 							<div className="flex justify-between">
-								<span className="text-slate-400">Intereses Préstamo Unificado (incl. nuevo dinero):</span>
-								<span className="font-semibold text-slate-300 font-mono">{formatAmount(newConsolidatedInterests)}</span>
+								<span className="text-slate-400">
+									Intereses Préstamo Unificado (incl. nuevo dinero):
+								</span>
+								<span className="font-semibold text-slate-300 font-mono">
+									{formatAmount(newConsolidatedInterests)}
+								</span>
 							</div>
 							<div className="border-t border-slate-800/60 pt-2 flex justify-between font-bold">
 								<span className="text-slate-300">Diferencial de Interés Neto:</span>
 								<span
 									className={`font-mono ${
-										newConsolidatedInterests > currentTotalInterests ? 'text-rose-400' : 'text-emerald-400'
+										newConsolidatedInterests > currentTotalInterests
+											? 'text-rose-400'
+											: 'text-emerald-400'
 									}`}
 								>
 									{formatAmount(newConsolidatedInterests - currentTotalInterests)}
@@ -210,11 +229,12 @@ export function ConsolidationTab() {
 						</div>
 
 						<div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-xs text-indigo-300 leading-relaxed">
-							<span className="font-bold">⚠️ Análisis Técnico:</span> Alargar los plazos reduce tu asfixia de caja
-							actual. Sin embargo, al añadir **
-							{additionalCapital > 0 ? `${additionalCapital}€ de capital adicional` : 'capital nuevo'}**, incrementas la
-							base de cálculo del préstamo, lo cual incrementa exponencialmente los intereses pagados a largo plazo.
-							Utiliza el módulo de **Asesor Gemini** para que realice un estudio automático de esta simulación.
+							<span className="font-bold">⚠️ Análisis Técnico:</span> Alargar los plazos reduce tu asfixia
+							de caja actual. Sin embargo, al añadir **
+							{additionalCapital > 0 ? `${additionalCapital}€ de capital adicional` : 'capital nuevo'}**,
+							incrementas la base de cálculo del préstamo, lo cual incrementa exponencialmente los
+							intereses pagados a largo plazo. Utiliza el módulo de **Asesor Gemini** para que realice un
+							estudio automático de esta simulación.
 						</div>
 					</div>
 				)}

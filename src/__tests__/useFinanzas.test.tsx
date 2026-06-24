@@ -8,18 +8,16 @@ describe('useFinanzas', () => {
 	it('debe lanzar un error si se usa fuera del FinanzasProvider', () => {
 		// Suprimir el error de consola de React que se produce con el renderHook fallido
 		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-		
+
 		expect(() => {
 			renderHook(() => useFinanzas());
 		}).toThrow('useFinanzas debe ser utilizado dentro de un FinanzasProvider.');
-		
+
 		spy.mockRestore();
 	});
 
 	it('debe devolver el contexto cuando se usa dentro del FinanzasProvider', () => {
-		const wrapper = ({ children }: { children: ReactNode }) => (
-			<FinanzasProvider>{children}</FinanzasProvider>
-		);
+		const wrapper = ({ children }: { children: ReactNode }) => <FinanzasProvider>{children}</FinanzasProvider>;
 
 		const { result } = renderHook(() => useFinanzas(), { wrapper });
 

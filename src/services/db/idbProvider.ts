@@ -7,7 +7,7 @@ export class IndexedDBProvider {
 	public initDB(): Promise<IDBDatabase> {
 		return new Promise((resolve, reject) => {
 			const request = indexedDB.open(this.dbName, this.version);
-			
+
 			request.onupgradeneeded = () => {
 				const db = request.result;
 				if (!db.objectStoreNames.contains('transactions')) {
@@ -40,8 +40,8 @@ export class IndexedDBProvider {
 		return new Promise((resolve, reject) => {
 			const transaction = db.transaction(storeName, 'readwrite');
 			const store = transaction.objectStore(storeName);
-			
-			entities.forEach(entity => store.put(entity));
+
+			entities.forEach((entity) => store.put(entity));
 
 			transaction.oncomplete = () => resolve();
 			transaction.onerror = () => reject(transaction.error);

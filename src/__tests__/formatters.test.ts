@@ -49,7 +49,7 @@ describe('toNumber', () => {
 describe('decodeHtmlEntities', () => {
 	it('debe retornar string vacía para entrada vacía o falsy', () => {
 		expect(decodeHtmlEntities('')).toBe('');
-		expect(decodeHtmlEntities((null as unknown) as string)).toBe('');
+		expect(decodeHtmlEntities(null as unknown as string)).toBe('');
 	});
 
 	it('debe decodificar entidades HTML básicas correctamente', () => {
@@ -59,8 +59,9 @@ describe('decodeHtmlEntities', () => {
 	});
 
 	it('debe decodificar entidades HTML doble-escapadas', () => {
-		expect(decodeHtmlEntities('3. Estrategia &amp;quot;bajo control&amp;quot;')).toBe('3. Estrategia "bajo control"');
+		expect(decodeHtmlEntities('3. Estrategia &amp;quot;bajo control&amp;quot;')).toBe(
+			'3. Estrategia "bajo control"'
+		);
 		expect(decodeHtmlEntities('a &amp;lt; b &amp;amp;&amp;amp; c &amp;gt; d')).toBe('a < b && c > d');
 	});
 });
-

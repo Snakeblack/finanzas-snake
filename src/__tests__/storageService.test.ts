@@ -381,7 +381,9 @@ describe('Migración unificada IndexedDB', () => {
 	});
 
 	it('debe conservar localStorage y permitir reintento si falla una escritura IDB durante la migración', async () => {
-		const legacyAccounts: Account[] = [{ id: 'acc-fail', name: 'Cuenta Legacy', owner: 'joint', initialBalance: 100 }];
+		const legacyAccounts: Account[] = [
+			{ id: 'acc-fail', name: 'Cuenta Legacy', owner: 'joint', initialBalance: 100 }
+		];
 		const legacyTransactions: Transaction[] = [
 			{
 				id: 'tx-fail',

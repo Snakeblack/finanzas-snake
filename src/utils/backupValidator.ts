@@ -280,7 +280,9 @@ const validateDebts = (debts: unknown): Debt[] => {
 			const totalToPay = validateNumber(rawDebt.totalToPay, `${prefix}.totalToPay`, true);
 
 			if (!Array.isArray(rawDebt.installments)) {
-				throw new Error(`La deuda de fraccionamiento en ${prefix}.installments debe contener un array de cuotas.`);
+				throw new Error(
+					`La deuda de fraccionamiento en ${prefix}.installments debe contener un array de cuotas.`
+				);
 			}
 
 			const installments = rawDebt.installments.map((inst, instIdx) => {

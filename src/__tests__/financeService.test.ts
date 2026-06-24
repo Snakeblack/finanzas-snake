@@ -311,7 +311,9 @@ describe('PaymentPlan due/cashflow/overdue', () => {
 		// Simular que hay una cuota overdue
 		const debtWithOverdue: PaymentPlanDebt = {
 			...paymentPlanDebt,
-			installments: paymentPlanDebt.installments.map((i) => (i.id === 'i1' ? { ...i, status: 'pending' as const } : i))
+			installments: paymentPlanDebt.installments.map((i) =>
+				i.id === 'i1' ? { ...i, status: 'pending' as const } : i
+			)
 		};
 		const due = getPaymentPlanDueInstallments(debtWithOverdue, '2026-05');
 		// i1 (2026-03 pending), i3 (2026-05 pending) = 2

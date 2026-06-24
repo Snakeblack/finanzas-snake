@@ -169,7 +169,9 @@ export function DebtsTab() {
 					</div>
 
 					<div>
-						<label className="block text-xs font-medium text-slate-400 mb-1.5">¿De quién es la deuda?</label>
+						<label className="block text-xs font-medium text-slate-400 mb-1.5">
+							¿De quién es la deuda?
+						</label>
 						<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
 							<button
 								type="button"
@@ -208,7 +210,10 @@ export function DebtsTab() {
 					</div>
 
 					<div>
-						<label htmlFor="debt-payment-account" className="block text-xs font-medium text-slate-400 mb-1.5">
+						<label
+							htmlFor="debt-payment-account"
+							className="block text-xs font-medium text-slate-400 mb-1.5"
+						>
 							Cuenta para el Pago de la Cuota
 						</label>
 						<Select
@@ -230,7 +235,13 @@ export function DebtsTab() {
 								<SelectItem value="none">Sin Cuenta (Automático por Propietario)</SelectItem>
 								{accounts.map((acc) => (
 									<SelectItem key={acc.id} value={acc.id}>
-										{acc.name} ({acc.owner === 'userA' ? userAName : acc.owner === 'userB' ? userBName : 'Compartida'})
+										{acc.name} (
+										{acc.owner === 'userA'
+											? userAName
+											: acc.owner === 'userB'
+												? userBName
+												: 'Compartida'}
+										)
 									</SelectItem>
 								))}
 							</SelectContent>
@@ -240,7 +251,10 @@ export function DebtsTab() {
 					{debtForm.kind === 'classic' ? (
 						<>
 							<div>
-								<label htmlFor="debt-principal" className="block text-xs font-medium text-slate-400 mb-1.5">
+								<label
+									htmlFor="debt-principal"
+									className="block text-xs font-medium text-slate-400 mb-1.5"
+								>
 									Capital Solicitado (€)
 								</label>
 								<Input
@@ -256,7 +270,10 @@ export function DebtsTab() {
 
 							<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 								<div>
-									<label htmlFor="debt-opening-commission" className="block text-xs font-medium text-slate-400 mb-1.5">
+									<label
+										htmlFor="debt-opening-commission"
+										className="block text-xs font-medium text-slate-400 mb-1.5"
+									>
 										Comisión de apertura (€)
 										<span className="text-slate-500"> (opcional)</span>
 									</label>
@@ -267,12 +284,17 @@ export function DebtsTab() {
 										min="0"
 										placeholder="0"
 										value={debtForm.openingCommission}
-										onChange={(e) => setDebtForm({ ...debtForm, openingCommission: e.target.value })}
+										onChange={(e) =>
+											setDebtForm({ ...debtForm, openingCommission: e.target.value })
+										}
 									/>
 								</div>
 
 								<div>
-									<label htmlFor="debt-recurring-costs" className="block text-xs font-medium text-slate-400 mb-1.5">
+									<label
+										htmlFor="debt-recurring-costs"
+										className="block text-xs font-medium text-slate-400 mb-1.5"
+									>
 										Costes recurrentes / seguros (€ al mes)
 										<span className="text-slate-500"> (opcional)</span>
 									</label>
@@ -283,14 +305,19 @@ export function DebtsTab() {
 										min="0"
 										placeholder="0"
 										value={debtForm.recurringMonthlyCosts}
-										onChange={(e) => setDebtForm({ ...debtForm, recurringMonthlyCosts: e.target.value })}
+										onChange={(e) =>
+											setDebtForm({ ...debtForm, recurringMonthlyCosts: e.target.value })
+										}
 									/>
 								</div>
 							</div>
 
 							<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 								<div>
-									<label htmlFor="debt-tin" className="block text-xs font-medium text-slate-400 mb-1.5">
+									<label
+										htmlFor="debt-tin"
+										className="block text-xs font-medium text-slate-400 mb-1.5"
+									>
 										TIN (%)
 									</label>
 									<Input
@@ -305,7 +332,10 @@ export function DebtsTab() {
 								</div>
 
 								<div>
-									<label htmlFor="debt-tae" className="block text-xs font-medium text-slate-400 mb-1.5">
+									<label
+										htmlFor="debt-tae"
+										className="block text-xs font-medium text-slate-400 mb-1.5"
+									>
 										TAE/CER (%)
 									</label>
 									<Input
@@ -321,7 +351,10 @@ export function DebtsTab() {
 								</div>
 
 								<div>
-									<label htmlFor="debt-term" className="block text-xs font-medium text-slate-400 mb-1.5">
+									<label
+										htmlFor="debt-term"
+										className="block text-xs font-medium text-slate-400 mb-1.5"
+									>
 										Plazo (Meses)
 									</label>
 									<Input
@@ -337,16 +370,19 @@ export function DebtsTab() {
 							</div>
 
 							<p className="text-[10px] text-slate-500 -mt-2">
-								Si cargás TIN, la cuota y la amortización usan TIN nominal mensual. Si lo dejás vacío, se deriva el tipo
-								mensual desde TAE/CER. La comisión queda como coste inicial y los costes/seguros se suman a la cuota
-								mensual.
+								Si cargás TIN, la cuota y la amortización usan TIN nominal mensual. Si lo dejás vacío,
+								se deriva el tipo mensual desde TAE/CER. La comisión queda como coste inicial y los
+								costes/seguros se suman a la cuota mensual.
 							</p>
 						</>
 					) : (
 						<>
 							<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 								<div>
-									<label htmlFor="plan-financed" className="block text-xs font-medium text-slate-400 mb-1.5">
+									<label
+										htmlFor="plan-financed"
+										className="block text-xs font-medium text-slate-400 mb-1.5"
+									>
 										Importe fraccionado (€)
 									</label>
 									<Input
@@ -361,7 +397,10 @@ export function DebtsTab() {
 									/>
 								</div>
 								<div>
-									<label htmlFor="plan-fees" className="block text-xs font-medium text-slate-400 mb-1.5">
+									<label
+										htmlFor="plan-fees"
+										className="block text-xs font-medium text-slate-400 mb-1.5"
+									>
 										Comisiones / intereses (€)
 									</label>
 									<Input
@@ -377,7 +416,10 @@ export function DebtsTab() {
 							</div>
 
 							<div>
-								<label htmlFor="plan-recurring-costs" className="block text-xs font-medium text-slate-400 mb-1.5">
+								<label
+									htmlFor="plan-recurring-costs"
+									className="block text-xs font-medium text-slate-400 mb-1.5"
+								>
 									Costes recurrentes / seguros (€ al mes)
 									<span className="text-slate-500"> (opcional)</span>
 								</label>
@@ -388,7 +430,9 @@ export function DebtsTab() {
 									min="0"
 									placeholder="0"
 									value={debtForm.recurringMonthlyCosts}
-									onChange={(e) => setDebtForm({ ...debtForm, recurringMonthlyCosts: e.target.value })}
+									onChange={(e) =>
+										setDebtForm({ ...debtForm, recurringMonthlyCosts: e.target.value })
+									}
 								/>
 							</div>
 
@@ -412,19 +456,25 @@ export function DebtsTab() {
 												min="1"
 												placeholder="Ej. 7"
 												value={tranche.months}
-												onChange={(e) => updatePaymentPlanTranche(tranche.id, { months: e.target.value })}
+												onChange={(e) =>
+													updatePaymentPlanTranche(tranche.id, { months: e.target.value })
+												}
 												className="px-3 py-2"
 											/>
 										</div>
 										<div>
-											<label className="block text-[10px] text-slate-500 mb-1">Cuota mensual (€)</label>
+											<label className="block text-[10px] text-slate-500 mb-1">
+												Cuota mensual (€)
+											</label>
 											<Input
 												type="number"
 												min="0.01"
 												step="0.01"
 												placeholder="Ej. 100"
 												value={tranche.amount}
-												onChange={(e) => updatePaymentPlanTranche(tranche.id, { amount: e.target.value })}
+												onChange={(e) =>
+													updatePaymentPlanTranche(tranche.id, { amount: e.target.value })
+												}
 												className="px-3 py-2"
 											/>
 										</div>
@@ -444,7 +494,9 @@ export function DebtsTab() {
 							<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs space-y-1">
 								<div className="flex justify-between">
 									<span className="text-slate-500">Total a pagar:</span>
-									<span className="font-semibold text-slate-300">{paymentPlanTotalToPay.toFixed(2)}€</span>
+									<span className="font-semibold text-slate-300">
+										{paymentPlanTotalToPay.toFixed(2)}€
+									</span>
 								</div>
 								<div className="flex justify-between">
 									<span className="text-slate-500">Suma de cuotas:</span>
@@ -459,8 +511,8 @@ export function DebtsTab() {
 									</span>
 								</div>
 								<p className="text-[10px] text-slate-500">
-									La suma de cuotas tiene que coincidir con el total a pagar. Las vencidas no pagadas se arrastran al
-									mes activo.
+									La suma de cuotas tiene que coincidir con el total a pagar. Las vencidas no pagadas
+									se arrastran al mes activo.
 								</p>
 							</div>
 						</>
@@ -482,7 +534,10 @@ export function DebtsTab() {
 						</div>
 
 						<div>
-							<label htmlFor="debt-charge-day" className="block text-xs font-medium text-slate-400 mb-1.5">
+							<label
+								htmlFor="debt-charge-day"
+								className="block text-xs font-medium text-slate-400 mb-1.5"
+							>
 								Día habitual de cobro
 								<span className="text-slate-500"> (opcional)</span>
 							</label>
@@ -581,7 +636,9 @@ export function DebtsTab() {
 												<span className="block text-[10px] text-slate-500">
 													{isPlan ? 'Exigible este mes' : 'Cuota Mensual'}
 												</span>
-												<span className="text-base font-extrabold text-amber-500">{formatAmount(cuota)}</span>
+												<span className="text-base font-extrabold text-amber-500">
+													{formatAmount(cuota)}
+												</span>
 											</div>
 
 											<div className="flex sm:flex-col gap-1.5 w-full sm:w-auto">
@@ -645,38 +702,64 @@ export function DebtsTab() {
 									</thead>
 									<tbody className="divide-y divide-slate-800/50 text-slate-300">
 										{selectedDebtSchedule.installments.map((installment) => {
-											const isOverdue = installment.status === 'pending' && installment.dueMonth < selectedMonth;
+											const isOverdue =
+												installment.status === 'pending' &&
+												installment.dueMonth < selectedMonth;
 											const isCurrentRow = installment.dueMonth === currentCalendarMonth;
 											const recurringCosts = toNumber(selectedDebtSchedule.recurringMonthlyCosts);
 											return (
 												<tr
 													key={installment.id}
 													ref={isCurrentRow ? currentMonthRowRef : null}
-													className={getScheduleRowClassName(installment.dueMonth, currentCalendarMonth)}
+													className={getScheduleRowClassName(
+														installment.dueMonth,
+														currentCalendarMonth
+													)}
 												>
 													<td className="p-2 text-slate-400">
-														<span className="font-mono capitalize">{formatScheduleMonth(installment.dueMonth)}</span>
+														<span className="font-mono capitalize">
+															{formatScheduleMonth(installment.dueMonth)}
+														</span>
 														{isCurrentRow && (
 															<span className="ml-2 rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-bold text-indigo-200">
 																Actual
 															</span>
 														)}
 													</td>
-													<td className="p-2 font-mono">{formatAmount(installment.amount + recurringCosts)}</td>
+													<td className="p-2 font-mono">
+														{formatAmount(installment.amount + recurringCosts)}
+													</td>
 													{recurringCosts > 0 && (
-														<td className="p-2 font-mono text-sky-300">{formatAmount(recurringCosts)}</td>
+														<td className="p-2 font-mono text-sky-300">
+															{formatAmount(recurringCosts)}
+														</td>
 													)}
-													<td className={isOverdue ? 'p-2 text-rose-400 font-semibold' : 'p-2 text-slate-300'}>
-														{installment.status === 'paid' ? 'Pagada' : isOverdue ? 'Vencida' : 'Pendiente'}
+													<td
+														className={
+															isOverdue
+																? 'p-2 text-rose-400 font-semibold'
+																: 'p-2 text-slate-300'
+														}
+													>
+														{installment.status === 'paid'
+															? 'Pagada'
+															: isOverdue
+																? 'Vencida'
+																: 'Pendiente'}
 													</td>
 													<td className="p-2 text-right">
 														<button
 															onClick={() =>
-																togglePaymentPlanInstallmentStatus(selectedDebtSchedule.id, installment.id)
+																togglePaymentPlanInstallmentStatus(
+																	selectedDebtSchedule.id,
+																	installment.id
+																)
 															}
 															className="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[10px] font-semibold"
 														>
-															{installment.status === 'paid' ? 'Marcar pendiente' : 'Marcar pagada'}
+															{installment.status === 'paid'
+																? 'Marcar pendiente'
+																: 'Marcar pagada'}
 														</button>
 													</td>
 												</tr>
@@ -703,10 +786,15 @@ export function DebtsTab() {
 												<tr
 													key={row.month}
 													ref={isCurrentRow ? currentMonthRowRef : null}
-													className={getScheduleRowClassName(row.dueMonth, currentCalendarMonth)}
+													className={getScheduleRowClassName(
+														row.dueMonth,
+														currentCalendarMonth
+													)}
 												>
 													<td className="p-2 text-slate-400">
-														<span className="capitalize">{formatScheduleMonth(row.dueMonth)}</span>
+														<span className="capitalize">
+															{formatScheduleMonth(row.dueMonth)}
+														</span>
 														{isCurrentRow && (
 															<span className="ml-2 rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-bold text-indigo-200">
 																Actual
@@ -715,11 +803,19 @@ export function DebtsTab() {
 													</td>
 													<td className="p-2">{formatAmount(row.totalPayment)}</td>
 													{hasRecurringCostsInSchedule && (
-														<td className="p-2 text-sky-300">{formatAmount(row.recurringCosts)}</td>
+														<td className="p-2 text-sky-300">
+															{formatAmount(row.recurringCosts)}
+														</td>
 													)}
-													<td className="p-2 text-emerald-400">{formatAmount(row.principalPaid)}</td>
-													<td className="p-2 text-rose-400">{formatAmount(row.interestPayment)}</td>
-													<td className="p-2 text-right text-slate-400">{formatAmount(row.remainingPrincipal)}</td>
+													<td className="p-2 text-emerald-400">
+														{formatAmount(row.principalPaid)}
+													</td>
+													<td className="p-2 text-rose-400">
+														{formatAmount(row.interestPayment)}
+													</td>
+													<td className="p-2 text-right text-slate-400">
+														{formatAmount(row.remainingPrincipal)}
+													</td>
 												</tr>
 											);
 										})}
@@ -729,8 +825,8 @@ export function DebtsTab() {
 						</div>
 						{isPaymentPlanDebt(selectedDebtSchedule) && (
 							<p className="text-[10px] text-slate-500 mt-3">
-								Las cuotas pendientes vencidas se suman al flujo exigible del mes activo hasta que las marques como
-								pagadas.
+								Las cuotas pendientes vencidas se suman al flujo exigible del mes activo hasta que las
+								marques como pagadas.
 							</p>
 						)}
 					</div>
