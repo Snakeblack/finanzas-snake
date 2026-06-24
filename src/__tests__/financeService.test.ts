@@ -14,7 +14,9 @@ import {
 	getPaymentPlanDueInstallments,
 	getPaymentPlanCashflowForMonth,
 	getPaymentPlanOverdueAmount,
+	getPaymentPlanInstallmentsForMonth,
 	calculateDebtMonthlyPayment,
+	calculateDebtCashflowForMonth,
 	calculateClassicDebtInstallment,
 	generateAmortizationSchedule,
 	getTransactionOwner,
@@ -332,6 +334,35 @@ describe('PaymentPlan due/cashflow/overdue', () => {
 
 	it('getPaymentPlanOverdueAmount debe retornar 0 si no hay vencidas', () => {
 		expect(getPaymentPlanOverdueAmount(paymentPlanDebt, '2026-03')).toBe(0);
+	});
+});
+
+describe('getPaymentPlanInstallmentsForMonth / calculateDebtCashflowForMonth', () => {
+	it('getPaymentPlanInstallmentsForMonth devuelve solo las cuotas programadas en ese mes exacto', () => {
+		const due = getPaymentPlanInstallmentsForMonth(paymentPlanDebt, '2026-05');
+		expect(due).toHaveLength(1);
+		expect(due[0].id).toBe('i3');
+		expect(getPaymentPlanInstallmentsForMonth(paymentPlanDebt, '2026-02')).toHaveLength(0);
+	});
+
+	it('calculateDebtCashflowForMonth imputa la cuota del mes + costes recurrentes una sola vez', () => {
+		expect(calculateDebtCashflowForMonth(paymentPlanDebt, '2026-05')).toBe(105);
+		expect(calculateDebtCashflowForMonth({ ...paymentPlanDebt, recurringMonthlyCosts: 12 }, '2026-05')).toBe(117);
+	});
+
+	it('calculateDebtCashflowForMonth devuelve 0 en un mes sin cuota programada (no cuenta vencidos)', () => {
+		expect(calculateDebtCashflowForMonth({ ...paymentPlanDebt, recurringMonthlyCosts: 12 }, '2026-02')).toBe(0);
+	});
+
+	it('calculateDebtCashflowForMonth para deuda clásica = cuota + costes recurrentes', () => {
+		expect(calculateDebtCashflowForMonth(classicDebt, '2026-05')).toBeCloseTo(
+			calculateClassicDebtInstallment(classicDebt),
+			2
+		);
+		expect(calculateDebtCashflowForMonth({ ...classicDebt, recurringMonthlyCosts: 25 }, '2026-05')).toBeCloseTo(
+			calculateClassicDebtInstallment(classicDebt) + 25,
+			2
+		);
 	});
 });
 
@@ -700,6 +731,59 @@ describe('calculateTimelineBalances', () => {
 
 		const result = calculateTimelineBalances(periods, [], [futureDebt], accounts, 'all');
 		expect(result['2026-05'].debtPayments).toBe(0);
+	});
+
+	describe('plan de pagos a lo largo de varios meses (regresión: no acumular vencidos)', () => {
+		const pmtAccounts: Account[] = [{ id: 'acc', name: 'Cuenta', owner: 'joint', initialBalance: 1000 }];
+		const pmtPeriods: Period[] = [
+			{ month: '2026-01', openingBalance: 1000 },
+			{ month: '2026-02', openingBalance: 0 },
+			{ month: '2026-03', openingBalance: 0 }
+		];
+		const buildPlan = (overrides: Partial<PaymentPlanDebt> = {}): PaymentPlanDebt => ({
+			id: 'pp',
+			kind: 'paymentPlan',
+			desc: 'Plan',
+			tag: 'Préstamo Personal',
+			date: '2026-01',
+			financedAmount: 300,
+			fees: 0,
+			totalToPay: 300,
+			owner: 'joint',
+			paymentAccountId: 'acc',
+			installments: [
+				{ id: 'p1', dueMonth: '2026-01', amount: 100, status: 'pending', label: 'C1' },
+				{ id: 'p2', dueMonth: '2026-02', amount: 100, status: 'pending', label: 'C2' },
+				{ id: 'p3', dueMonth: '2026-03', amount: 100, status: 'pending', label: 'C3' }
+			],
+			...overrides
+		});
+
+		it('debe imputar cada cuota una sola vez al saldo acumulado (no re-restar vencidas sin pagar)', () => {
+			const result = calculateTimelineBalances(pmtPeriods, [], [buildPlan()], pmtAccounts, 'all');
+			expect(result['2026-01'].accountBalances['acc']).toBeCloseTo(900, 2);
+			expect(result['2026-02'].accountBalances['acc']).toBeCloseTo(800, 2);
+			expect(result['2026-03'].accountBalances['acc']).toBeCloseTo(700, 2);
+		});
+
+		it('debe reportar debtPayments con la cuota de ese mes, no el acumulado vencido', () => {
+			const result = calculateTimelineBalances(pmtPeriods, [], [buildPlan()], pmtAccounts, 'all');
+			expect(result['2026-01'].debtPayments).toBeCloseTo(100, 2);
+			expect(result['2026-02'].debtPayments).toBeCloseTo(100, 2);
+			expect(result['2026-03'].debtPayments).toBeCloseTo(100, 2);
+		});
+
+		it('debe sumar los costes recurrentes una sola vez por mes (no por cuota vencida)', () => {
+			const result = calculateTimelineBalances(
+				pmtPeriods,
+				[],
+				[buildPlan({ recurringMonthlyCosts: 10 })],
+				pmtAccounts,
+				'all'
+			);
+			expect(result['2026-02'].debtPayments).toBeCloseTo(110, 2);
+			expect(result['2026-03'].accountBalances['acc']).toBeCloseTo(1000 - 3 * 110, 2);
+		});
 	});
 });
 

@@ -348,6 +348,34 @@ export const calculateDebtMonthlyPayment = (debt: Debt, month: string): number =
 };
 
 /**
+ * Cuotas de un plan de pagos **programadas en un mes contable exacto** (no acumula vencidos).
+ */
+export const getPaymentPlanInstallmentsForMonth = (debt: PaymentPlanDebt, month: string): PaymentPlanInstallment[] =>
+	debt.installments.filter((installment) => normalizeMonth(installment.dueMonth) === month);
+
+/**
+ * Flujo de caja imputable a un mes contable concreto.
+ *
+ * A diferencia de `calculateDebtMonthlyPayment` —que devuelve el total exigible para *ponerse al
+ * día*, sumando todo lo vencido hasta el mes y un coste recurrente por cuota vencida—, esta función
+ * imputa solo la cuota **programada en ese mes** más los costes recurrentes **una vez**. Es la que
+ * usa el motor de saldos acumulativo (`calculateTimelineBalances`): aplicar el catch-up mes a mes
+ * sobre un saldo que se arrastra re-restaría las cuotas vencidas en cada período.
+ */
+export const calculateDebtCashflowForMonth = (debt: Debt, month: string): number => {
+	const recurringCosts = getDebtRecurringMonthlyCosts(debt);
+	if (isPaymentPlanDebt(debt)) {
+		const scheduled = getPaymentPlanInstallmentsForMonth(debt, month);
+		if (scheduled.length === 0) return 0;
+		return scheduled.reduce((sum, installment) => sum + installment.amount, 0) + recurringCosts;
+	}
+
+	const installment = calculateClassicDebtInstallment(debt);
+	if (installment <= 0) return 0;
+	return installment + recurringCosts;
+};
+
+/**
  * Genera el cuadro de amortización completo de un préstamo francés.
  */
 export const generateAmortizationSchedule = (debt: ClassicDebt): AmortizationRow[] => {
@@ -498,12 +526,12 @@ export const calculateTimelineBalances = (
 			let rawPayment = 0;
 			if (isPaymentPlanDebt(d)) {
 				if (dStart <= m) {
-					rawPayment = calculateDebtMonthlyPayment(d, m);
+					rawPayment = calculateDebtCashflowForMonth(d, m);
 				}
 			} else {
 				const dEnd = addMonthsToMonth(dStart, d.termMonths - 1);
 				if (m >= dStart && m <= dEnd) {
-					rawPayment = calculateDebtMonthlyPayment(d, m);
+					rawPayment = calculateDebtCashflowForMonth(d, m);
 				}
 			}
 
@@ -585,12 +613,12 @@ export const calculateTimelineBalances = (
 			let rawPay = 0;
 			if (isPaymentPlanDebt(d)) {
 				if (dStart <= m) {
-					rawPay = calculateDebtMonthlyPayment(d, m);
+					rawPay = calculateDebtCashflowForMonth(d, m);
 				}
 			} else {
 				const dEnd = addMonthsToMonth(dStart, d.termMonths - 1);
 				if (m >= dStart && m <= dEnd) {
-					rawPay = calculateDebtMonthlyPayment(d, m);
+					rawPay = calculateDebtCashflowForMonth(d, m);
 				}
 			}
 			return sum + getEffectiveDebtPayment(d, rawPay);
