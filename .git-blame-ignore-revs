@@ -1,0 +1,5 @@
+# Commits puramente mecánicos (formato/estilo) que git blame debe ignorar.
+# Configurar una vez: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: aplica baseline de Prettier a todo src
+744511ec8f3bce5e653cf7c053284d861db7945a
