@@ -36,15 +36,14 @@ hooks/servicios por dominio, **sin cambiar el contrato de `useFinanzas`** (los c
 
 ### Orden de extracción (de menor a mayor acoplamiento)
 
-1. **PDF export** → `services/chatPdfExport.ts` *(SIGUIENTE PASO)*
-   - Extraer `handleDownloadChatPDF` (función grande, ~hoy en `FinanzasContext.tsx` después de
-     `handleCopyChatPlaintext`) a una **función pura** que recibe un snapshot tipado
-     (`accounts`, `chatMessages`, `tagData`, `debts`, `transactions` + derivados que use) y las
-     `options { showContext, showDebts, showTransactions, showChat }`.
-   - El contexto conserva un wrapper delgado que junta los datos y delega.
-   - Ya se extrajo su dependencia pura `convertMarkdownToHtml` (en `utils/markdownToHtml.ts`).
+1. **PDF export** → `services/chatPdfExport.ts` ✅ *(HECHO)*
+   - Extraída la función pura `buildChatPdfHtml(snapshot, options, now?) → { html, pdfTitle }` a
+     `services/chatPdfExport.ts` (tipos `ChatPdfSnapshot`/`ChatPdfOptions`; `now` inyectable para
+     tests deterministas). El contexto conserva un wrapper delgado que arma el snapshot y hace el
+     iframe/`doc.write`/`print`. Test unitario en `__tests__/chatPdfExport.test.ts` (9 casos).
+   - `FinanzasContext.tsx`: 2399 → 1922 líneas. Gate verde tras la extracción.
 2. `useAiAdvisor` — `chatMessages`, `geminiApiKey`, `aiLoading`, `aiError`, `customQuestion`,
-   `handleAskGemini`, `handleClearChat`, `handleCopyChatPlaintext`.
+   `handleAskGemini`, `handleClearChat`, `handleCopyChatPlaintext`. *(SIGUIENTE PASO)*
 3. `useSecurity` — `isLocked`, `hasPasswordSet`, `passwordError`, `handleSetupPassword`,
    `handleUnlock`, `handleLockApp` (crypto/PIN).
 4. `useBackupSync` — `handleExportData`, `handleImportData`, backup payload.
