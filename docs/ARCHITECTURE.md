@@ -78,7 +78,7 @@ Sin backend de datos: todo vive en el navegador.
 
 | # | Área | Problema | Impacto |
 |---|------|----------|---------|
-| D1 | `FinanzasContext` | God-object: dominio + UI + crypto + PDF + IA + sync mezclados. **En progreso**: extraído `convertMarkdownToHtml`→`utils/`, `buildChatPdfHtml`→`services/chatPdfExport.ts` (función pura del export PDF) y el asesor IA → `hooks/useAiAdvisor.ts` (+ helpers puros `utils/chatPlaintext.ts`) → 2572→1836 líneas. Pendiente: hooks `useSecurity`/`useBackupSync`/`useTransactions`/`useDebts`/`useAccounts` | Altísimo coste de cambio |
+| D1 | `FinanzasContext` | God-object: dominio + UI + crypto + PDF + IA + sync mezclados. **En progreso**: extraído `convertMarkdownToHtml`→`utils/`, `buildChatPdfHtml`→`services/chatPdfExport.ts`, asesor IA → `hooks/useAiAdvisor.ts` (+ `utils/chatPlaintext.ts`) y seguridad/PIN → `hooks/useSecurity.ts` (+ `utils/hexEncoding.ts`; ⚠️ dependencia circular con useAiAdvisor resuelta vía orden + `aiBridgeRef`) → 2572→1735 líneas. Pendiente: hooks `useBackupSync`/`useTransactions`/`useDebts`/`useAccounts` | Altísimo coste de cambio |
 | D10 | `utils/markdownToHtml` | Bug latente pre-existente: el regex de separador de tablas no acepta fila separadora con pipe de cierre + alineación (`\| :-- \| --: \|`); se trata como datos | Tablas con alineación mal renderizadas en PDF |
 | D2 | `ImportStatementModal`, `App` | Componentes de ~1.4k líneas | Difíciles de mantener/revisar |
 | D3 | `storageService` | Persistencia + migraciones + backup + dominio en un solo archivo (1.1k); usa `any` | Acoplamiento, riesgo en migraciones |

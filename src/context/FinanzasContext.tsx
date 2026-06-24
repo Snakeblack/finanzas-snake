@@ -1,4 +1,13 @@
-import { createContext, useState, useEffect, useRef, type ReactNode, type SyntheticEvent } from 'react';
+import {
+	createContext,
+	useState,
+	useEffect,
+	useRef,
+	type ReactNode,
+	type SyntheticEvent,
+	type Dispatch,
+	type SetStateAction
+} from 'react';
 import type {
 	Account,
 	Transaction,
@@ -22,11 +31,8 @@ import {
 	saveStoredDebts,
 	saveStoredPeriods,
 	saveStoredAccounts,
-	saveGeminiApiKey,
-	saveAiChat,
 	readGeminiApiKey,
 	readAiChat,
-	setCryptoKey,
 	readStoredTransactions,
 	readStoredAccounts,
 	readStoredPeriods,
@@ -37,7 +43,6 @@ import {
 	importFinanceBackupPayload,
 	executeSilentMigrationIfRequired
 } from '../services/storageService';
-import { deriveKeyFromPassword, encryptWithKey, decryptWithKey, generateSalt } from '../services/cryptoService';
 import { addMonthsToMonth, getValidDateForMonth, normalizeMonth } from '../utils/dateUtils';
 import { toNumber } from '../utils/formatters';
 import { parseOpeningBalanceInput } from '../utils/openingBalance';
@@ -57,6 +62,7 @@ import {
 } from '../services/financeService';
 import type { PromptContextParams } from '../services/geminiService';
 import { useAiAdvisor } from '../hooks/useAiAdvisor';
+import { useSecurity } from '../hooks/useSecurity';
 
 /**
  * Interfaz que define el valor del contexto de finanzas globales.
@@ -311,20 +317,9 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		return `${sign}${formatted}€`;
 	};
 
-	// Estados de Seguridad y PIN (OWASP)
-	const [isLocked, setIsLocked] = useState(() => {
-		if (typeof window !== 'undefined') {
-			return localStorage.getItem('finanzas_v3_password_salt') !== null;
-		}
-		return false;
-	});
-	const [hasPasswordSet, setHasPasswordSet] = useState(() => {
-		if (typeof window !== 'undefined') {
-			return localStorage.getItem('finanzas_v3_password_salt') !== null;
-		}
-		return false;
-	});
-	const [passwordError, setPasswordError] = useState('');
+	// El estado de seguridad/PIN (isLocked, hasPasswordSet, passwordError) y sus flujos
+	// viven en useSecurity (D1); el hook se inicializa más abajo, tras declarar el estado
+	// de dominio que necesita para cifrar/descifrar.
 
 	// Estado local para evitar sobreescrituras accidentales durante el arranque
 	const [isInitialized, setIsInitialized] = useState(false);
@@ -435,10 +430,60 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		extraCapital: ''
 	});
 
-	// === INTEGRACIÓN GEMINI AI ===
+	// === SEGURIDAD (PIN) + ASESOR IA ===
+	// Ambos hooks comparten ciclo de vida: el bloqueo afecta la persistencia del chat, y
+	// configurar/desbloquear/bloquear vuelca o limpia el estado IA. useSecurity va primero
+	// porque expone isLocked (reactivo) que useAiAdvisor necesita en sus efectos. A la inversa,
+	// useSecurity solo lee/escribe el estado IA en sus handlers (a nivel de evento), así que se
+	// lo pasamos vía aiBridgeRef (poblado tras el commit) sin introducir un ciclo reactivo.
+	const aiBridgeRef = useRef<{
+		geminiApiKey: string;
+		chatMessages: ChatMessage[];
+		setGeminiApiKey: Dispatch<SetStateAction<string>>;
+		setChatMessages: Dispatch<SetStateAction<ChatMessage[]>>;
+	}>({
+		geminiApiKey: '',
+		chatMessages: [],
+		setGeminiApiKey: () => {},
+		setChatMessages: () => {}
+	});
+
+	const {
+		isLocked,
+		setIsLocked,
+		hasPasswordSet,
+		passwordError,
+		setPasswordError,
+		handleSetupPassword,
+		handleUnlock,
+		handleLockApp
+	} = useSecurity({
+		getSnapshot: () => ({
+			accounts,
+			transactions,
+			debts,
+			periods,
+			geminiApiKey: aiBridgeRef.current.geminiApiKey,
+			chatMessages: aiBridgeRef.current.chatMessages,
+			userAName,
+			userBName
+		}),
+		appliers: {
+			setAccounts,
+			setTransactions,
+			setDebts,
+			setPeriods,
+			setUserAName,
+			setUserBName,
+			setGeminiApiKey: (value) => aiBridgeRef.current.setGeminiApiKey(value),
+			setChatMessages: (value) => aiBridgeRef.current.setChatMessages(value),
+			setSelectedMonth,
+			setIsInitialized
+		}
+	});
+
 	// El asesor IA vive en useAiAdvisor (D1). El prompt necesita el snapshot financiero
-	// derivado más abajo en este render; se lo pasamos vía ref para no acoplar el orden de
-	// declaración (la ref se actualiza tras calcular los derivados, antes de cualquier pregunta).
+	// derivado más abajo en este render; se lo pasamos vía ref que se actualiza tras el commit.
 	const promptParamsRef = useRef<() => PromptContextParams>(() => {
 		throw new Error('promptParamsRef usado antes de calcular el contexto financiero');
 	});
@@ -459,6 +504,11 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		isInitialized,
 		isLocked,
 		getPromptParams: () => promptParamsRef.current()
+	});
+
+	// Puente del estado IA hacia useSecurity (sus handlers lo consumen a nivel de evento).
+	useEffect(() => {
+		aiBridgeRef.current = { geminiApiKey, chatMessages, setGeminiApiKey, setChatMessages };
 	});
 	const [copiedChat] = useState(false);
 	const [importError, setImportError] = useState('');
@@ -545,7 +595,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		return () => {
 			cancelled = true;
 		};
-	}, [isLocked, hasPasswordSet, setGeminiApiKey, setChatMessages]);
+	}, [isLocked, hasPasswordSet, setIsLocked, setGeminiApiKey, setChatMessages]);
 
 	useEffect(() => {
 		if (!isInitialized || isLocked) return;
@@ -1477,157 +1527,6 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		} catch (err: any) {
 			window.alert(`Error al exportar datos: ${err.message}`);
 		}
-	};
-
-	const handleSetupPassword = async (password: string): Promise<boolean> => {
-		setPasswordError('');
-		if (password.length < 4) {
-			setPasswordError('El PIN debe tener al menos 4 caracteres.');
-			return false;
-		}
-		try {
-			const salt = generateSalt();
-			const key = await deriveKeyFromPassword(password, salt);
-
-			// Cifrar el vector de prueba "valid"
-			const checkCiphertext = await encryptWithKey('valid', key);
-
-			// Guardar el salt y el vector de prueba en LocalStorage
-			const saltHex = Array.from(salt)
-				.map((b) => b.toString(16).padStart(2, '0'))
-				.join('');
-			localStorage.setItem('finanzas_v3_password_salt', saltHex);
-			localStorage.setItem('finanzas_v3_password_check', checkCiphertext);
-
-			// Establecer clave activa en storage
-			setCryptoKey(key);
-
-			// Cifrar y guardar el estado actual (si existía previamente en texto plano)
-			await saveStoredAccounts(accounts);
-			await saveStoredTransactions(transactions);
-			await saveStoredDebts(debts);
-			await saveStoredPeriods(periods);
-			await saveGeminiApiKey(geminiApiKey);
-			await saveAiChat(chatMessages);
-			await saveUserNames({ userAName, userBName });
-
-			setHasPasswordSet(true);
-			setIsLocked(false);
-			setIsInitialized(true);
-			return true;
-		} catch (err: any) {
-			setPasswordError(`Error al configurar PIN: ${err.message}`);
-			return false;
-		}
-	};
-
-	const handleUnlock = async (password: string): Promise<boolean> => {
-		setPasswordError('');
-		const saltHex = localStorage.getItem('finanzas_v3_password_salt');
-		const checkCiphertext = localStorage.getItem('finanzas_v3_password_check');
-		if (!saltHex || !checkCiphertext) {
-			setPasswordError('No se ha configurado un PIN.');
-			return false;
-		}
-		try {
-			const bytes = new Uint8Array(saltHex.length / 2);
-			for (let i = 0; i < bytes.length; i++) {
-				bytes[i] = parseInt(saltHex.substring(i * 2, i * 2 + 2), 16);
-			}
-
-			const key = await deriveKeyFromPassword(password, bytes);
-			const checkText = await decryptWithKey(checkCiphertext, key);
-
-			if (checkText === 'valid') {
-				setCryptoKey(key);
-
-				// Ejecutar migración silenciosa si es necesario
-				await executeSilentMigrationIfRequired();
-				const loadedUserNames = await readUserNames();
-
-				const loadedTx = await readStoredTransactions();
-				const loadedDebts = await readStoredDebts();
-				const loadedPeriods = await readStoredPeriods(loadedTx, loadedDebts);
-				const loadedAccounts = await readStoredAccounts();
-				const loadedKey = await readGeminiApiKey();
-				const loadedChat = await readAiChat();
-
-				if (loadedAccounts.length === 0 && (loadedTx.length > 0 || loadedDebts.length > 0)) {
-					const sortedPeriods = [...loadedPeriods].sort((a, b) => a.month.localeCompare(b.month));
-					const firstPeriod = sortedPeriods.length > 0 ? sortedPeriods[0] : null;
-					const initialBalA = firstPeriod
-						? firstPeriod.openingBalanceA !== undefined
-							? firstPeriod.openingBalanceA
-							: firstPeriod.openingBalance / 2
-						: 0;
-					const initialBalB = firstPeriod
-						? firstPeriod.openingBalanceB !== undefined
-							? firstPeriod.openingBalanceB
-							: firstPeriod.openingBalance / 2
-						: 0;
-					const defaultAccs: Account[] = [
-						{
-							id: 'default-a',
-							name: `Efectivo ${loadedUserNames.userAName}`,
-							owner: 'userA',
-							initialBalance: initialBalA
-						},
-						{
-							id: 'default-b',
-							name: `Efectivo ${loadedUserNames.userBName}`,
-							owner: 'userB',
-							initialBalance: initialBalB
-						},
-						{ id: 'default-joint', name: 'Cuenta Común', owner: 'joint', initialBalance: 0 }
-					];
-					setAccounts(defaultAccs);
-					await saveStoredAccounts(defaultAccs);
-				} else {
-					setAccounts(loadedAccounts);
-				}
-
-				setTransactions(loadedTx);
-				setDebts(loadedDebts);
-				setPeriods(loadedPeriods);
-				setUserAName(loadedUserNames.userAName);
-				setUserBName(loadedUserNames.userBName);
-				setGeminiApiKey(loadedKey);
-				setChatMessages(loadedChat);
-
-				if (loadedPeriods.length > 0) {
-					const sortedP = [...loadedPeriods].sort((a, b) => a.month.localeCompare(b.month));
-					const currentMonth = new Date().toISOString().substring(0, 7);
-					const exists = sortedP.some((p) => p.month === currentMonth);
-					if (exists) {
-						setSelectedMonth(currentMonth);
-					} else {
-						setSelectedMonth(sortedP[sortedP.length - 1].month);
-					}
-				}
-
-				setIsLocked(false);
-				setIsInitialized(true);
-				return true;
-			} else {
-				setPasswordError('PIN incorrecto. Vuelve a intentarlo.');
-				return false;
-			}
-		} catch {
-			setPasswordError('PIN incorrecto o error al descifrar.');
-			return false;
-		}
-	};
-
-	const handleLockApp = () => {
-		setIsInitialized(false);
-		setCryptoKey(null);
-		setAccounts([]);
-		setTransactions([]);
-		setDebts([]);
-		setPeriods([]);
-		setGeminiApiKey('');
-		setChatMessages([]);
-		setIsLocked(true);
 	};
 
 	const handleImportData = async (e: SyntheticEvent<HTMLFormElement>, jsonString: string) => {

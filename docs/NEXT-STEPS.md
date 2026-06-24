@@ -52,9 +52,19 @@ hooks/servicios por dominio, **sin cambiar el contrato de `useFinanzas`** (los c
      commit (evita acoplar el orden de declaración y no muta refs en render).
    - Helpers puros extraídos a `utils/chatPlaintext.ts` (`stripMarkdown`, `buildChatPlaintext`) con
      test `__tests__/chatPlaintext.test.ts` (9 casos). `FinanzasContext.tsx`: 1922 → 1836 líneas.
-3. `useSecurity` — `isLocked`, `hasPasswordSet`, `passwordError`, `handleSetupPassword`,
-   `handleUnlock`, `handleLockApp` (crypto/PIN). *(SIGUIENTE PASO)*
-4. `useBackupSync` — `handleExportData`, `handleImportData`, backup payload.
+3. `useSecurity` → `hooks/useSecurity.ts` ✅ *(HECHO)*
+   - El hook posee el estado de bloqueo (`isLocked`, `hasPasswordSet`, `passwordError`) y los
+     flujos de crypto (`handleSetupPassword`/`handleUnlock`/`handleLockApp`). Como son
+     orquestadores cross-domain, el contexto le pasa `getSnapshot()` (estado a cifrar en setup) y
+     `appliers` (setters para volcar/limpiar en unlock/lock).
+   - ⚠️ Hay **dependencia circular** entre `useSecurity` y `useAiAdvisor`: el primero expone
+     `isLocked` (reactivo) que el segundo necesita en sus efectos; el segundo expone el estado IA
+     que el primero usa solo en handlers (a nivel de evento). Se rompe llamando `useSecurity`
+     **primero** y puenteando el estado IA hacia él con `aiBridgeRef` (poblado en un `useEffect`).
+     No invertir ese orden ni mover el estado IA al ref reactivo (rompería la persistencia).
+   - Helpers puros `bytesToHex`/`hexToBytes` → `utils/hexEncoding.ts` con test (5 casos).
+     `FinanzasContext.tsx`: 1836 → 1735 líneas.
+4. `useBackupSync` — `handleExportData`, `handleImportData`, backup payload. *(SIGUIENTE PASO)*
 5. `useTransactions` / `useDebts` / `useAccounts` — estado + handlers de cada dominio.
 6. `FinanzasContext` queda como compositor.
 
