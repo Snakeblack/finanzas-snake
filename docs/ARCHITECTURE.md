@@ -78,7 +78,8 @@ Sin backend de datos: todo vive en el navegador.
 
 | # | Área | Problema | Impacto |
 |---|------|----------|---------|
-| D1 | `FinanzasContext` | God-object de 2.5k líneas: dominio + UI + crypto + PDF + IA + sync mezclados | Altísimo coste de cambio; difícil de testear/razonar |
+| D1 | `FinanzasContext` | God-object: dominio + UI + crypto + PDF + IA + sync mezclados. **En progreso**: extraído `convertMarkdownToHtml`→`utils/` (2572→2399 líneas). Pendiente: PDF export (handleDownloadChatPDF), hooks `useAiAdvisor`/`useSecurity`/`useBackupSync`/`useTransactions`/`useDebts`/`useAccounts` | Altísimo coste de cambio |
+| D10 | `utils/markdownToHtml` | Bug latente pre-existente: el regex de separador de tablas no acepta fila separadora con pipe de cierre + alineación (`\| :-- \| --: \|`); se trata como datos | Tablas con alineación mal renderizadas en PDF |
 | D2 | `ImportStatementModal`, `App` | Componentes de ~1.4k líneas | Difíciles de mantener/revisar |
 | D3 | `storageService` | Persistencia + migraciones + backup + dominio en un solo archivo (1.1k); usa `any` | Acoplamiento, riesgo en migraciones |
 | D4 | **Precisión monetaria** | `ledgerEngine` usa `big.js`/string pero `calculateTimelineBalances` agrega en `number` (float) | Posibles descuadres de céntimos en la línea temporal |
