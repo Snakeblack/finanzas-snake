@@ -18,7 +18,6 @@ import type {
 	ConsolidationForm,
 	ChatMessage,
 	ActiveTab,
-	InstallmentStatus,
 	ClassicDebt,
 	TagBreakdown,
 	TransactionRecurrence
@@ -36,7 +35,6 @@ import {
 	readStoredTransactions,
 	readStoredAccounts,
 	readStoredPeriods,
-	readStoredDebtsSync,
 	readUserNames,
 	saveUserNames,
 	executeSilentMigrationIfRequired
@@ -51,7 +49,6 @@ import {
 	calculateMonthlyPayment,
 	getPaymentPlanRemainingAmount,
 	getPaymentPlanOverdueAmount,
-	generatePaymentPlanInstallments,
 	calculateTimelineBalances,
 	getTagBreakdown,
 	isPaymentPlanDebt,
@@ -62,6 +59,7 @@ import type { PromptContextParams } from '../services/geminiService';
 import { useAiAdvisor } from '../hooks/useAiAdvisor';
 import { useSecurity } from '../hooks/useSecurity';
 import { useBackupSync } from '../hooks/useBackupSync';
+import { useDebts } from '../hooks/useDebts';
 
 /**
  * Interfaz que define el valor del contexto de finanzas globales.
@@ -357,9 +355,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	});
 
 	const [transactions, setTransactions] = useState<Transaction[]>(() => getInitialData().transactions);
-	const [debts, setDebts] = useState<Debt[]>(() => readStoredDebtsSync());
 	const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
-	const [selectedDebtSchedule, setSelectedDebtSchedule] = useState<Debt | null>(null);
 
 	// Formularios
 	const [txForm, setTxForm] = useState<TxForm>({
@@ -376,26 +372,6 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		fromAccountId: '',
 		toAccountId: ''
 	});
-
-	const [debtForm, setDebtForm] = useState<DebtForm>({
-		kind: 'classic',
-		desc: '',
-		principal: '',
-		openingCommission: '',
-		recurringMonthlyCosts: '',
-		financedAmount: '',
-		fees: '',
-		tin: '',
-		tae: '',
-		termMonths: '',
-		tranches: [{ id: 'initial-tranche', months: '', amount: '' }],
-		tag: DEFAULT_TAGS.debt[0],
-		date: selectedMonth,
-		chargeDay: '',
-		owner: 'joint',
-		paymentAccountId: ''
-	});
-	const [debtFormError, setDebtFormError] = useState('');
 
 	// Estados de gestión de Cuentas
 	const [editingAccount, setEditingAccount] = useState<Account | null>(null);
@@ -427,6 +403,32 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		tae: '5.5',
 		termMonths: '36',
 		extraCapital: ''
+	});
+
+	// === DOMINIO DE DEUDAS ===
+	// El estado de deudas (debts, debtForm, debtFormError, selectedDebtSchedule) y sus handlers
+	// viven en useDebts (D1). Se llama antes que useSecurity/useBackupSync porque sus appliers
+	// necesitan setDebts. La persistencia y los derivados (filteredDebts, consolidación) siguen
+	// en el contexto. El borrado limpia la selección de reunificación vía onDebtDeleted.
+	const {
+		debts,
+		setDebts,
+		debtForm,
+		setDebtForm,
+		debtFormError,
+		setDebtFormError,
+		selectedDebtSchedule,
+		setSelectedDebtSchedule,
+		handleAddDebt,
+		handleDeleteDebt,
+		updatePaymentPlanTranche,
+		addPaymentPlanTranche,
+		removePaymentPlanTranche,
+		togglePaymentPlanInstallmentStatus
+	} = useDebts({
+		initialDebtFormDate: selectedMonth,
+		onDebtDeleted: (id) =>
+			setSelectedDebtsForConsolidation(selectedDebtsForConsolidation.filter((itemId) => itemId !== id))
 	});
 
 	// === SEGURIDAD (PIN) + ASESOR IA ===
@@ -619,7 +621,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		return () => {
 			cancelled = true;
 		};
-	}, [isLocked, hasPasswordSet, setIsLocked, setGeminiApiKey, setChatMessages]);
+	}, [isLocked, hasPasswordSet, setIsLocked, setDebts, setGeminiApiKey, setChatMessages]);
 
 	useEffect(() => {
 		if (!isInitialized || isLocked) return;
@@ -1217,122 +1219,6 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		setTransactions(transactions.filter((t) => t.id !== id));
 	};
 
-	const handleDeleteDebt = (id: string) => {
-		setDebts(debts.filter((d) => d.id !== id));
-		setSelectedDebtsForConsolidation(selectedDebtsForConsolidation.filter((itemId) => itemId !== id));
-		if (selectedDebtSchedule?.id === id) {
-			setSelectedDebtSchedule(null);
-		}
-	};
-
-	const handleAddDebt = (e: SyntheticEvent<HTMLFormElement>) => {
-		e.preventDefault();
-		setDebtFormError('');
-
-		if (!debtForm.desc) return;
-
-		const rawChargeDay = debtForm.chargeDay.trim();
-		const chargeDay = rawChargeDay ? Math.trunc(toNumber(rawChargeDay)) : undefined;
-		const recurringMonthlyCosts = Math.abs(toNumber(debtForm.recurringMonthlyCosts));
-		if (chargeDay !== undefined && (chargeDay < 1 || chargeDay > 31)) {
-			setDebtFormError('El día habitual de cobro debe estar entre 1 y 31.');
-			return;
-		}
-
-		if (debtForm.kind === 'classic') {
-			if (!debtForm.principal || !debtForm.tae || !debtForm.termMonths) return;
-
-			const tin = debtForm.tin ? Math.abs(parseFloat(debtForm.tin)) : undefined;
-			const newDebt: Debt = {
-				id: Date.now().toString(),
-				kind: 'classic',
-				desc: debtForm.desc,
-				principal: Math.abs(parseFloat(debtForm.principal)),
-				openingCommission: Math.abs(toNumber(debtForm.openingCommission)),
-				recurringMonthlyCosts,
-				tin,
-				tae: Math.abs(parseFloat(debtForm.tae)),
-				termMonths: Math.abs(parseInt(debtForm.termMonths)),
-				tag: debtForm.tag,
-				date: normalizeMonth(debtForm.date),
-				chargeDay,
-				owner: debtForm.owner,
-				paymentAccountId: debtForm.paymentAccountId || undefined
-			};
-
-			setDebts([newDebt, ...debts]);
-			setDebtForm({
-				...debtForm,
-				desc: '',
-				principal: '',
-				openingCommission: '',
-				recurringMonthlyCosts: '',
-				tin: '',
-				tae: '',
-				termMonths: '',
-				chargeDay: '',
-				owner: 'joint',
-				paymentAccountId: ''
-			});
-			return;
-		}
-
-		if (!debtForm.financedAmount) return;
-
-		const validTranches = debtForm.tranches.filter(
-			(tranche) => toNumber(tranche.months) > 0 && toNumber(tranche.amount) > 0
-		);
-		if (validTranches.length === 0) {
-			setDebtFormError('Agregá al menos un tramo con meses e importe mensual.');
-			return;
-		}
-
-		const financedAmount = Math.abs(toNumber(debtForm.financedAmount));
-		const fees = Math.abs(toNumber(debtForm.fees));
-		const totalToPay = financedAmount + fees;
-		const scheduleTotal = validTranches.reduce(
-			(sum, tranche) => sum + Math.trunc(toNumber(tranche.months)) * Math.abs(toNumber(tranche.amount)),
-			0
-		);
-
-		if (Math.abs(scheduleTotal - totalToPay) > 0.01) {
-			setDebtFormError(
-				`La suma de cuotas (${scheduleTotal.toFixed(2)}€) debe coincidir con el total a pagar (${totalToPay.toFixed(2)}€).`
-			);
-			return;
-		}
-
-		const id = Date.now().toString();
-		const newDebt: Debt = {
-			id,
-			kind: 'paymentPlan',
-			desc: debtForm.desc,
-			financedAmount,
-			fees,
-			totalToPay,
-			installments: generatePaymentPlanInstallments(id, normalizeMonth(debtForm.date), validTranches),
-			tag: debtForm.tag,
-			date: normalizeMonth(debtForm.date),
-			chargeDay,
-			recurringMonthlyCosts,
-			owner: debtForm.owner,
-			paymentAccountId: debtForm.paymentAccountId || undefined
-		};
-
-		setDebts([newDebt, ...debts]);
-		setDebtForm({
-			...debtForm,
-			desc: '',
-			financedAmount: '',
-			fees: '',
-			recurringMonthlyCosts: '',
-			tranches: [{ id: `tranche-${Date.now()}`, months: '', amount: '' }],
-			chargeDay: '',
-			owner: 'joint',
-			paymentAccountId: ''
-		});
-	};
-
 	const handleAddAccount = (e: SyntheticEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		if (!accountForm.name) return;
@@ -1422,46 +1308,6 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		} else {
 			setSelectedDebtsForConsolidation([...selectedDebtsForConsolidation, id]);
 		}
-	};
-
-	const updatePaymentPlanTranche = (id: string, patch: Partial<{ id: string; months: string; amount: string }>) => {
-		setDebtForm((prev) => ({
-			...prev,
-			tranches: prev.tranches.map((tranche) => (tranche.id === id ? { ...tranche, ...patch } : tranche))
-		}));
-	};
-
-	const addPaymentPlanTranche = () => {
-		setDebtForm((prev) => ({
-			...prev,
-			tranches: [...prev.tranches, { id: `tranche-${Date.now()}`, months: '', amount: '' }]
-		}));
-	};
-
-	const removePaymentPlanTranche = (id: string) => {
-		setDebtForm((prev) => ({
-			...prev,
-			tranches: prev.tranches.length > 1 ? prev.tranches.filter((tranche) => tranche.id !== id) : prev.tranches
-		}));
-	};
-
-	const togglePaymentPlanInstallmentStatus = (debtId: string, installmentId: string) => {
-		const updatedDebts: Debt[] = debts.map((debt) => {
-			if (!isPaymentPlanDebt(debt) || debt.id !== debtId) return debt;
-			return {
-				...debt,
-				installments: debt.installments.map((installment) =>
-					installment.id === installmentId
-						? {
-								...installment,
-								status: (installment.status === 'paid' ? 'pending' : 'paid') as InstallmentStatus
-							}
-						: installment
-				)
-			};
-		});
-		setDebts(updatedDebts);
-		setSelectedDebtSchedule(updatedDebts.find((debt) => debt.id === debtId) ?? null);
 	};
 
 	const handleDownloadChatPDF = (options: ChatPdfOptions) => {
