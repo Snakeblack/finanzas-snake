@@ -42,10 +42,18 @@ hooks/servicios por dominio, **sin cambiar el contrato de `useFinanzas`** (los c
      tests deterministas). El contexto conserva un wrapper delgado que arma el snapshot y hace el
      iframe/`doc.write`/`print`. Test unitario en `__tests__/chatPdfExport.test.ts` (9 casos).
    - `FinanzasContext.tsx`: 2399 → 1922 líneas. Gate verde tras la extracción.
-2. `useAiAdvisor` — `chatMessages`, `geminiApiKey`, `aiLoading`, `aiError`, `customQuestion`,
-   `handleAskGemini`, `handleClearChat`, `handleCopyChatPlaintext`. *(SIGUIENTE PASO)*
+2. `useAiAdvisor` → `hooks/useAiAdvisor.ts` ✅ *(HECHO)*
+   - El hook posee el estado IA (`geminiApiKey`, `customQuestion`, `chatMessages`, `aiLoading`,
+     `aiError`), sus dos efectos de persistencia y los handlers `handleAskGemini`/`handleClearChat`/
+     `handleCopyChatPlaintext`. El contexto lo consume y reexpone por `useFinanzas`, y usa los
+     setters devueltos en lock/unlock/import/reset/setup (siguen en el contexto).
+   - El prompt del asesor necesita el snapshot financiero derivado en el contexto: se le pasa por
+     `getPromptParams` apoyado en un `promptParamsRef` que se actualiza en un `useEffect` tras cada
+     commit (evita acoplar el orden de declaración y no muta refs en render).
+   - Helpers puros extraídos a `utils/chatPlaintext.ts` (`stripMarkdown`, `buildChatPlaintext`) con
+     test `__tests__/chatPlaintext.test.ts` (9 casos). `FinanzasContext.tsx`: 1922 → 1836 líneas.
 3. `useSecurity` — `isLocked`, `hasPasswordSet`, `passwordError`, `handleSetupPassword`,
-   `handleUnlock`, `handleLockApp` (crypto/PIN).
+   `handleUnlock`, `handleLockApp` (crypto/PIN). *(SIGUIENTE PASO)*
 4. `useBackupSync` — `handleExportData`, `handleImportData`, backup payload.
 5. `useTransactions` / `useDebts` / `useAccounts` — estado + handlers de cada dominio.
 6. `FinanzasContext` queda como compositor.

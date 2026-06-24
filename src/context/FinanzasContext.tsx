@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect, type ReactNode, type SyntheticEvent } from 'react';
+import { createContext, useState, useEffect, useRef, type ReactNode, type SyntheticEvent } from 'react';
 import type {
 	Account,
 	Transaction,
@@ -14,7 +14,7 @@ import type {
 	TagBreakdown,
 	TransactionRecurrence
 } from '../types';
-import { DEFAULT_TAGS, STORAGE_KEYS } from '../constants';
+import { DEFAULT_TAGS } from '../constants';
 import {
 	getInitialData,
 	readStoredDebts,
@@ -31,8 +31,6 @@ import {
 	readStoredAccounts,
 	readStoredPeriods,
 	readStoredDebtsSync,
-	readGeminiApiKeySync,
-	readAiChatSync,
 	readUserNames,
 	saveUserNames,
 	buildFinanceBackupPayload,
@@ -41,7 +39,7 @@ import {
 } from '../services/storageService';
 import { deriveKeyFromPassword, encryptWithKey, decryptWithKey, generateSalt } from '../services/cryptoService';
 import { addMonthsToMonth, getValidDateForMonth, normalizeMonth } from '../utils/dateUtils';
-import { toNumber, decodeHtmlEntities } from '../utils/formatters';
+import { toNumber } from '../utils/formatters';
 import { parseOpeningBalanceInput } from '../utils/openingBalance';
 import { buildChatPdfHtml, type ChatPdfOptions } from '../services/chatPdfExport';
 import {
@@ -57,12 +55,8 @@ import {
 	isClassicDebt,
 	getEffectiveAmount
 } from '../services/financeService';
-import {
-	buildFinanceDataPrompt,
-	askGemini,
-	GEMINI_API_KEY_UNAVAILABLE_MESSAGE,
-	isGeminiApiKeyError
-} from '../services/geminiService';
+import type { PromptContextParams } from '../services/geminiService';
+import { useAiAdvisor } from '../hooks/useAiAdvisor';
 
 /**
  * Interfaz que define el valor del contexto de finanzas globales.
@@ -442,11 +436,30 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	});
 
 	// === INTEGRACIÓN GEMINI AI ===
-	const [geminiApiKey, setGeminiApiKey] = useState(() => readGeminiApiKeySync());
-	const [customQuestion, setCustomQuestion] = useState('');
-	const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => readAiChatSync());
-	const [aiLoading, setAiLoading] = useState(false);
-	const [aiError, setAiError] = useState('');
+	// El asesor IA vive en useAiAdvisor (D1). El prompt necesita el snapshot financiero
+	// derivado más abajo en este render; se lo pasamos vía ref para no acoplar el orden de
+	// declaración (la ref se actualiza tras calcular los derivados, antes de cualquier pregunta).
+	const promptParamsRef = useRef<() => PromptContextParams>(() => {
+		throw new Error('promptParamsRef usado antes de calcular el contexto financiero');
+	});
+	const {
+		geminiApiKey,
+		setGeminiApiKey,
+		customQuestion,
+		setCustomQuestion,
+		chatMessages,
+		setChatMessages,
+		aiLoading,
+		aiError,
+		setAiError,
+		handleAskGemini,
+		handleClearChat,
+		handleCopyChatPlaintext
+	} = useAiAdvisor({
+		isInitialized,
+		isLocked,
+		getPromptParams: () => promptParamsRef.current()
+	});
 	const [copiedChat] = useState(false);
 	const [importError, setImportError] = useState('');
 	const [importSuccess, setImportSuccess] = useState('');
@@ -532,7 +545,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		return () => {
 			cancelled = true;
 		};
-	}, [isLocked, hasPasswordSet]);
+	}, [isLocked, hasPasswordSet, setGeminiApiKey, setChatMessages]);
 
 	useEffect(() => {
 		if (!isInitialized || isLocked) return;
@@ -548,16 +561,6 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		if (!isInitialized || isLocked) return;
 		saveStoredPeriods(periods);
 	}, [periods, isInitialized, isLocked]);
-
-	useEffect(() => {
-		if (!isInitialized || isLocked) return;
-		saveGeminiApiKey(geminiApiKey);
-	}, [geminiApiKey, isInitialized, isLocked]);
-
-	useEffect(() => {
-		if (!isInitialized || isLocked) return;
-		saveAiChat(chatMessages);
-	}, [chatMessages, isInitialized, isLocked]);
 
 	useEffect(() => {
 		if (!isInitialized || isLocked) return;
@@ -729,6 +732,43 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	const newTotalConsolidatedPayment =
 		newConsolidatedCuota * Math.trunc(toNumber(consolidationForm.termMonths || '1'));
 	const newConsolidatedInterests = Math.max(0, newTotalConsolidatedPayment - totalNewPrincipal);
+
+	// Snapshot financiero para el prompt del asesor IA (consumido por useAiAdvisor al preguntar).
+	// Se actualiza tras cada commit para que la pregunta use siempre los derivados más recientes.
+	useEffect(() => {
+		promptParamsRef.current = () => ({
+			userAName,
+			userBName,
+			viewMode,
+			selectedMonth,
+			totalIncomes,
+			recurringIncomes,
+			oneOffIncomes,
+			totalExpenses,
+			recurringExpenses,
+			oneOffExpenses,
+			totalMonthlyDebtPayments,
+			netMonthlyBalance,
+			jointPaidByA,
+			jointPaidByB,
+			netOwed,
+			tagData,
+			filteredTransactions,
+			debts,
+			filteredDebts,
+			consolidatedDebtsObjects,
+			consolidatedPrincipal,
+			additionalCapital,
+			totalNewPrincipal,
+			currentConsolidatedMonthlySum,
+			currentTotalInterests,
+			newConsolidatedCuota,
+			newTotalConsolidatedPayment,
+			newConsolidatedInterests,
+			consolidationFormTae: consolidationForm.tae,
+			consolidationFormTermMonths: consolidationForm.termMonths
+		});
+	});
 
 	// === ACCIONES DE GESTIÓN (MANEJADORES) ===
 	const handleInitAccount = (e: SyntheticEvent<HTMLFormElement>) => {
@@ -1348,132 +1388,6 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		});
 		setDebts(updatedDebts);
 		setSelectedDebtSchedule(updatedDebts.find((debt) => debt.id === debtId) ?? null);
-	};
-
-	// === LÓGICA DE GEMINI ===
-	const handleAskGemini = async (questionText: string) => {
-		if (!geminiApiKey) {
-			setAiError(GEMINI_API_KEY_UNAVAILABLE_MESSAGE);
-			return;
-		}
-		if (!questionText.trim()) return;
-
-		setAiLoading(true);
-		setAiError('');
-
-		const userMsg: ChatMessage = {
-			role: 'user',
-			content: questionText,
-			timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-		};
-		const updatedMessages = [...chatMessages, userMsg];
-		setChatMessages(updatedMessages);
-		setCustomQuestion('');
-
-		try {
-			const promptParams = {
-				userAName,
-				userBName,
-				viewMode,
-				selectedMonth,
-				totalIncomes,
-				recurringIncomes,
-				oneOffIncomes,
-				totalExpenses,
-				recurringExpenses,
-				oneOffExpenses,
-				totalMonthlyDebtPayments,
-				netMonthlyBalance,
-				jointPaidByA,
-				jointPaidByB,
-				netOwed,
-				tagData,
-				filteredTransactions,
-				debts,
-				filteredDebts,
-				consolidatedDebtsObjects,
-				consolidatedPrincipal,
-				additionalCapital,
-				totalNewPrincipal,
-				currentConsolidatedMonthlySum,
-				currentTotalInterests,
-				newConsolidatedCuota,
-				newTotalConsolidatedPayment,
-				newConsolidatedInterests,
-				consolidationFormTae: consolidationForm.tae,
-				consolidationFormTermMonths: consolidationForm.termMonths
-			};
-
-			const systemPrompt = buildFinanceDataPrompt(promptParams);
-			const responseText = await askGemini(geminiApiKey, updatedMessages, systemPrompt);
-			const cleanedResponse = decodeHtmlEntities(responseText);
-
-			const aiMsg: ChatMessage = {
-				role: 'model',
-				content: cleanedResponse,
-				timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-			};
-			setChatMessages((prev) => [...prev, aiMsg]);
-		} catch (err: unknown) {
-			if (isGeminiApiKeyError(err)) {
-				setAiError(GEMINI_API_KEY_UNAVAILABLE_MESSAGE);
-				return;
-			}
-
-			setAiError(err instanceof Error ? err.message : 'Error de comunicación con Gemini.');
-		} finally {
-			setAiLoading(false);
-		}
-	};
-
-	const handleClearChat = () => {
-		if (window.confirm('¿Seguro que quieres borrar el historial de la conversación?')) {
-			setChatMessages([]);
-			localStorage.removeItem(STORAGE_KEYS.aiChat);
-		}
-	};
-
-	const stripMarkdown = (text: string): string => {
-		let output = text;
-		output = output.replace(/```[a-zA-Z]*\n([\s\S]*?)\n```/g, '$1');
-		output = output.replace(/```([\s\S]*?)```/g, '$1');
-		output = output.replace(/`([^`\n]+)`/g, '$1');
-		output = output.replace(/\*\*([^*]+)\*\*/g, '$1');
-		output = output.replace(/\*([^*]+)\*/g, '$1');
-		output = output.replace(/__([^_]+)__/g, '$1');
-		output = output.replace(/_([^_]+)_/g, '$1');
-		output = output.replace(/^#{1,6}\s+(.*)$/gm, '$1');
-		output = output.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
-		output = output.replace(/^\|?\s*:?-+\s*:?\s*(?:\|\s*:?-+\s*:?\s*)*\|?$/gm, '');
-		output = output.replace(/^[ \t]*\|(.*)\|[ \t]*$/gm, (_, content) => {
-			return content
-				.split('|')
-				.map((cell) => cell.trim())
-				.filter((c) => c !== '')
-				.join('\t');
-		});
-		output = output.replace(/[ \t]+$/gm, '');
-		output = output.replace(/\n{3,}/g, '\n\n');
-		return output.trim();
-	};
-
-	const handleCopyChatPlaintext = () => {
-		const text = chatMessages
-			.map((msg) => {
-				const roleName = msg.role === 'user' ? 'Tú' : 'Asesor Gemini';
-				const plainContent = msg.role === 'user' ? msg.content : stripMarkdown(msg.content);
-				return `[${msg.timestamp}] ${roleName}:\n${plainContent}`;
-			})
-			.join('\n\n');
-
-		navigator.clipboard
-			.writeText(text)
-			.then(() => {
-				// Copied successfully. We can manage a temporary visual feedback if needed.
-			})
-			.catch((err) => {
-				console.error('Failed to copy text: ', err);
-			});
 	};
 
 	const handleDownloadChatPDF = (options: ChatPdfOptions) => {
