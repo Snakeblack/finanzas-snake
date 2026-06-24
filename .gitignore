@@ -12,5 +12,6 @@ dist/
 .atl/
 .pi/
 .pi-lens/
+.ospec/
 
 coverage/
