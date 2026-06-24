@@ -54,6 +54,7 @@ export function OverviewTab() {
 		selectedMonth,
 		userAName,
 		userBName,
+		profileCount,
 		totalIncomes,
 		totalExpenses,
 		totalMonthlyDebtPayments,
@@ -132,7 +133,7 @@ export function OverviewTab() {
 			description: 'Ingresos totales del mes'
 		},
 		{
-			name: 'G. Comunes',
+			name: profileCount === 1 ? 'Gastos' : 'G. Comunes',
 			amount: -totalExpenses,
 			type: 'outflow' as const,
 			start: totalIncomes,
@@ -140,7 +141,7 @@ export function OverviewTab() {
 			colorClass: 'from-rose-600 to-rose-400',
 			textColor: 'text-rose-400',
 			dotColor: 'bg-rose-500',
-			description: 'Gastos comunes y compartidos'
+			description: profileCount === 1 ? 'Gastos mensuales' : 'Gastos comunes y compartidos'
 		},
 		{
 			name: 'Cuota Deuda',
@@ -658,86 +659,88 @@ export function OverviewTab() {
 			</div>
 
 			{/* Tarjeta: Hacer Cuentas (Liquidación de Gastos Conjuntos) */}
-			<div className="lg:col-span-12 premium-card rounded-2xl p-6">
-				<h3 className="font-heading text-lg font-bold text-slate-100 mb-2 flex items-center gap-2">
-					<svg
-						className="w-5 h-5 text-indigo-400"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-						strokeWidth={2}
-					>
-						<path
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-						/>
-					</svg>
-					Cuentas del Mes ({selectedMonth})
-				</h3>
-				<p className="text-xs text-slate-400 mb-6">
-					Desglose de los gastos comunes y quién los ha pagado para cuadrar cuentas a final de mes.
-				</p>
+			{profileCount === 2 && (
+				<div className="lg:col-span-12 premium-card rounded-2xl p-6">
+					<h3 className="font-heading text-lg font-bold text-slate-100 mb-2 flex items-center gap-2">
+						<svg
+							className="w-5 h-5 text-indigo-400"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							strokeWidth={2}
+						>
+							<path
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+							/>
+						</svg>
+						Cuentas del Mes ({selectedMonth})
+					</h3>
+					<p className="text-xs text-slate-400 mb-6">
+						Desglose de los gastos comunes y quién los ha pagado para cuadrar cuentas a final de mes.
+					</p>
 
-				<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-					{/* Columna Usuario A */}
-					<div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/60 backdrop-blur-sm shadow-inner transition-all hover:border-indigo-500/20">
-						<div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">
-							Gastos comunes pagados por
-						</div>
-						<div className="text-xl font-bold text-slate-200">{userAName}</div>
-						<div className="text-2xl font-black text-indigo-400 mt-2">{formatAmount(jointPaidByA)}</div>
-						<p className="text-[10px] text-slate-500 mt-1">
-							Aportación correspondiente: {formatAmount(jointPaidByA / 2)} por persona
-						</p>
-					</div>
-
-					{/* Columna Usuario B */}
-					<div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/60 backdrop-blur-sm shadow-inner transition-all hover:border-indigo-500/20">
-						<div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">
-							Gastos comunes pagados por
-						</div>
-						<div className="text-xl font-bold text-slate-200">{userBName}</div>
-						<div className="text-2xl font-black text-indigo-400 mt-2">{formatAmount(jointPaidByB)}</div>
-						<p className="text-[10px] text-slate-500 mt-1">
-							Aportación correspondiente: {formatAmount(jointPaidByB / 2)} por persona
-						</p>
-					</div>
-
-					{/* Columna Liquidación */}
-					<div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/60 backdrop-blur-sm shadow-inner flex flex-col justify-between transition-all hover:border-indigo-500/20">
-						<div>
+					<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+						{/* Columna Usuario A */}
+						<div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/60 backdrop-blur-sm shadow-inner transition-all hover:border-indigo-500/20">
 							<div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">
-								Estado de Cuentas
+								Gastos comunes pagados por
 							</div>
-							{netOwed === 0 ? (
-								<div className="text-emerald-400 font-bold text-lg mt-2">¡Cuentas al día!</div>
-							) : netOwed > 0 ? (
-								<div>
-									<div className="text-rose-400 font-bold text-lg mt-1">
-										{userBName} debe a {userAName}
-									</div>
-									<div className="text-3xl font-black text-rose-400 mt-2">
-										{formatAmount(netOwed)}
-									</div>
-								</div>
-							) : (
-								<div>
-									<div className="text-rose-400 font-bold text-lg mt-1">
-										{userAName} debe a {userBName}
-									</div>
-									<div className="text-3xl font-black text-rose-400 mt-2">
-										{formatAmount(Math.abs(netOwed))}
-									</div>
-								</div>
-							)}
+							<div className="text-xl font-bold text-slate-200">{userAName}</div>
+							<div className="text-2xl font-black text-indigo-400 mt-2">{formatAmount(jointPaidByA)}</div>
+							<p className="text-[10px] text-slate-500 mt-1">
+								Aportación correspondiente: {formatAmount(jointPaidByA / 2)} por persona
+							</p>
 						</div>
-						<p className="text-[10px] text-slate-500 mt-2">
-							Calculado en base a gastos compartidos 50/50 donde uno adelanta el pago.
-						</p>
+
+						{/* Columna Usuario B */}
+						<div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/60 backdrop-blur-sm shadow-inner transition-all hover:border-indigo-500/20">
+							<div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">
+								Gastos comunes pagados por
+							</div>
+							<div className="text-xl font-bold text-slate-200">{userBName}</div>
+							<div className="text-2xl font-black text-indigo-400 mt-2">{formatAmount(jointPaidByB)}</div>
+							<p className="text-[10px] text-slate-500 mt-1">
+								Aportación correspondiente: {formatAmount(jointPaidByB / 2)} por persona
+							</p>
+						</div>
+
+						{/* Columna Liquidación */}
+						<div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/60 backdrop-blur-sm shadow-inner flex flex-col justify-between transition-all hover:border-indigo-500/20">
+							<div>
+								<div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">
+									Estado de Cuentas
+								</div>
+								{netOwed === 0 ? (
+									<div className="text-emerald-400 font-bold text-lg mt-2">¡Cuentas al día!</div>
+								) : netOwed > 0 ? (
+									<div>
+										<div className="text-rose-400 font-bold text-lg mt-1">
+											{userBName} debe a {userAName}
+										</div>
+										<div className="text-3xl font-black text-rose-400 mt-2">
+											{formatAmount(netOwed)}
+										</div>
+									</div>
+								) : (
+									<div>
+										<div className="text-rose-400 font-bold text-lg mt-1">
+											{userAName} debe a {userBName}
+										</div>
+										<div className="text-3xl font-black text-rose-400 mt-2">
+											{formatAmount(Math.abs(netOwed))}
+										</div>
+									</div>
+								)}
+							</div>
+							<p className="text-[10px] text-slate-500 mt-2">
+								Calculado en base a gastos compartidos 50/50 donde uno adelanta el pago.
+							</p>
+						</div>
 					</div>
 				</div>
-			</div>
+			)}
 
 			{/* Resumen de Deudas Activas */}
 			<div className="lg:col-span-12 premium-card rounded-2xl p-6">

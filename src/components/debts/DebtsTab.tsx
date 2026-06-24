@@ -62,7 +62,8 @@ export function DebtsTab() {
 		removePaymentPlanTranche,
 		updatePaymentPlanTranche,
 		togglePaymentPlanInstallmentStatus,
-		formatAmount
+		formatAmount,
+		profileCount
 	} = useFinanzas();
 
 	// Cálculos locales para el fraccionamiento manual en el formulario
@@ -168,46 +169,48 @@ export function DebtsTab() {
 						</div>
 					</div>
 
-					<div>
-						<label className="block text-xs font-medium text-slate-400 mb-1.5">
-							¿De quién es la deuda?
-						</label>
-						<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
-							<button
-								type="button"
-								onClick={() => setDebtForm({ ...debtForm, owner: 'userA' })}
-								className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
-									debtForm.owner === 'userA'
-										? 'bg-indigo-600 text-white shadow-md'
-										: 'text-slate-400 hover:text-slate-200'
-								}`}
-							>
-								{userAName}
-							</button>
-							<button
-								type="button"
-								onClick={() => setDebtForm({ ...debtForm, owner: 'userB' })}
-								className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
-									debtForm.owner === 'userB'
-										? 'bg-indigo-600 text-white shadow-md'
-										: 'text-slate-400 hover:text-slate-200'
-								}`}
-							>
-								{userBName}
-							</button>
-							<button
-								type="button"
-								onClick={() => setDebtForm({ ...debtForm, owner: 'joint' })}
-								className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
-									debtForm.owner === 'joint' || !debtForm.owner
-										? 'bg-indigo-600 text-white shadow-md'
-										: 'text-slate-400 hover:text-slate-200'
-								}`}
-							>
-								Conjunta
-							</button>
+					{profileCount === 2 && (
+						<div>
+							<label className="block text-xs font-medium text-slate-400 mb-1.5">
+								¿De quién es la deuda?
+							</label>
+							<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+								<button
+									type="button"
+									onClick={() => setDebtForm({ ...debtForm, owner: 'userA' })}
+									className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+										debtForm.owner === 'userA'
+											? 'bg-indigo-600 text-white shadow-md'
+											: 'text-slate-400 hover:text-slate-200'
+									}`}
+								>
+									{userAName}
+								</button>
+								<button
+									type="button"
+									onClick={() => setDebtForm({ ...debtForm, owner: 'userB' })}
+									className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+										debtForm.owner === 'userB'
+											? 'bg-indigo-600 text-white shadow-md'
+											: 'text-slate-400 hover:text-slate-200'
+									}`}
+								>
+									{userBName}
+								</button>
+								<button
+									type="button"
+									onClick={() => setDebtForm({ ...debtForm, owner: 'joint' })}
+									className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+										debtForm.owner === 'joint' || !debtForm.owner
+											? 'bg-indigo-600 text-white shadow-md'
+											: 'text-slate-400 hover:text-slate-200'
+									}`}
+								>
+									Conjunta
+								</button>
+							</div>
 						</div>
-					</div>
+					)}
 
 					<div>
 						<label
@@ -235,13 +238,15 @@ export function DebtsTab() {
 								<SelectItem value="none">Sin Cuenta (Automático por Propietario)</SelectItem>
 								{accounts.map((acc) => (
 									<SelectItem key={acc.id} value={acc.id}>
-										{acc.name} (
-										{acc.owner === 'userA'
-											? userAName
-											: acc.owner === 'userB'
-												? userBName
-												: 'Compartida'}
-										)
+										{acc.name}
+										{profileCount === 2 &&
+											` (${
+												acc.owner === 'userA'
+													? userAName
+													: acc.owner === 'userB'
+														? userBName
+														: 'Compartida'
+											})`}
 									</SelectItem>
 								))}
 							</SelectContent>

@@ -406,6 +406,17 @@ const validateAiChat = (chat: unknown): ChatMessage[] => {
 	});
 };
 
+const tryParseJSONField = (fieldValue: any, fieldName: string): any => {
+	if (typeof fieldValue === 'string') {
+		try {
+			return JSON.parse(fieldValue);
+		} catch {
+			throw new Error(`El campo '${fieldName}' contiene un formato JSON inválido o corrupto.`);
+		}
+	}
+	return fieldValue;
+};
+
 /**
  * Valida de forma estricta todo el contenido de una copia de seguridad JSON.
  * Si es válido, devuelve el objeto sanitizado listo para ser guardado.
@@ -433,6 +444,12 @@ export const validateAndSanitizeBackup = (parsedJson: any): Record<string, any> 
 		);
 	}
 
+	// 1b. Número de perfiles (Opcional, pero validado si existe)
+	if (STORAGE_KEYS.profileCount in parsedJson && parsedJson[STORAGE_KEYS.profileCount] !== null) {
+		const count = parseInt(String(parsedJson[STORAGE_KEYS.profileCount]), 10);
+		validatedBackup[STORAGE_KEYS.profileCount] = count === 1 || count === 2 ? count : 2;
+	}
+
 	// 2. Gemini API Key (Opcional, pero validada si existe)
 	if (STORAGE_KEYS.geminiKey in parsedJson && parsedJson[STORAGE_KEYS.geminiKey] !== null) {
 		const rawKey = parsedJson[STORAGE_KEYS.geminiKey];
@@ -445,46 +462,31 @@ export const validateAndSanitizeBackup = (parsedJson: any): Record<string, any> 
 
 	// 3. Cuentas (Obligatorias o opcionales. Validamos si la clave está presente)
 	if (STORAGE_KEYS.accounts in parsedJson) {
-		const rawAccounts =
-			typeof parsedJson[STORAGE_KEYS.accounts] === 'string'
-				? JSON.parse(parsedJson[STORAGE_KEYS.accounts])
-				: parsedJson[STORAGE_KEYS.accounts];
+		const rawAccounts = tryParseJSONField(parsedJson[STORAGE_KEYS.accounts], 'cuentas');
 		validatedBackup[STORAGE_KEYS.accounts] = validateAccounts(rawAccounts);
 	}
 
 	// 4. Transacciones
 	if (STORAGE_KEYS.transactions in parsedJson) {
-		const rawTx =
-			typeof parsedJson[STORAGE_KEYS.transactions] === 'string'
-				? JSON.parse(parsedJson[STORAGE_KEYS.transactions])
-				: parsedJson[STORAGE_KEYS.transactions];
+		const rawTx = tryParseJSONField(parsedJson[STORAGE_KEYS.transactions], 'transacciones');
 		validatedBackup[STORAGE_KEYS.transactions] = validateTransactions(rawTx);
 	}
 
 	// 5. Deudas
 	if (STORAGE_KEYS.debts in parsedJson) {
-		const rawDebts =
-			typeof parsedJson[STORAGE_KEYS.debts] === 'string'
-				? JSON.parse(parsedJson[STORAGE_KEYS.debts])
-				: parsedJson[STORAGE_KEYS.debts];
+		const rawDebts = tryParseJSONField(parsedJson[STORAGE_KEYS.debts], 'deudas');
 		validatedBackup[STORAGE_KEYS.debts] = validateDebts(rawDebts);
 	}
 
 	// 6. Periodos
 	if (STORAGE_KEYS.periods in parsedJson) {
-		const rawPeriods =
-			typeof parsedJson[STORAGE_KEYS.periods] === 'string'
-				? JSON.parse(parsedJson[STORAGE_KEYS.periods])
-				: parsedJson[STORAGE_KEYS.periods];
+		const rawPeriods = tryParseJSONField(parsedJson[STORAGE_KEYS.periods], 'periodos');
 		validatedBackup[STORAGE_KEYS.periods] = validatePeriods(rawPeriods);
 	}
 
 	// 7. Chat IA
 	if (STORAGE_KEYS.aiChat in parsedJson) {
-		const rawChat =
-			typeof parsedJson[STORAGE_KEYS.aiChat] === 'string'
-				? JSON.parse(parsedJson[STORAGE_KEYS.aiChat])
-				: parsedJson[STORAGE_KEYS.aiChat];
+		const rawChat = tryParseJSONField(parsedJson[STORAGE_KEYS.aiChat], 'chat');
 		validatedBackup[STORAGE_KEYS.aiChat] = validateAiChat(rawChat);
 	}
 

@@ -425,11 +425,13 @@ export const getTransactionOwner = (t: Transaction, accounts: Account[]): 'userA
 export const getEffectiveAmount = (
 	t: Transaction,
 	viewMode: 'all' | 'userA' | 'userB',
-	accounts: Account[]
+	accounts: Account[],
+	profileCount: number = 2
 ): number => {
-	const owner = getTransactionOwner(t, accounts);
 	if (!t.money) return 0;
 	const amt = new Big(t.money.amount);
+	if (profileCount === 1) return toNumber(amt.toString());
+	const owner = getTransactionOwner(t, accounts);
 	if (viewMode === 'all') return toNumber(amt.toString());
 	if (viewMode === 'userA') {
 		if (owner === 'userA') return toNumber(amt.toString());
@@ -467,7 +469,8 @@ export const calculateTimelineBalances = (
 	transactions: Transaction[],
 	debts: Debt[],
 	accounts: Account[],
-	viewMode: 'all' | 'userA' | 'userB'
+	viewMode: 'all' | 'userA' | 'userB',
+	profileCount: number = 2
 ): Record<string, MonthBalanceData> => {
 	const timelineBalances: Record<string, MonthBalanceData> = {};
 	const sortedPeriods = [...periods].sort((a, b) => a.month.localeCompare(b.month));
@@ -555,6 +558,14 @@ export const calculateTimelineBalances = (
 			accBals: Record<string, number>,
 			unassignedBals: Record<'userA' | 'userB' | 'joint', number>
 		) => {
+			if (profileCount === 1) {
+				let total = 0;
+				accounts.forEach((acc) => {
+					total += accBals[acc.id] ?? 0;
+				});
+				total += unassignedBals.userA + unassignedBals.userB + unassignedBals.joint;
+				return total;
+			}
 			let total = 0;
 			accounts.forEach((acc) => {
 				const bal = accBals[acc.id] ?? 0;
@@ -586,13 +597,14 @@ export const calculateTimelineBalances = (
 		// Calcular ingresos y gastos ponderados según la vista activa
 		const incomes = mTx
 			.filter((t) => t.type === 'income')
-			.reduce((sum, t) => sum + getEffectiveAmount(t, viewMode, accounts), 0);
+			.reduce((sum, t) => sum + getEffectiveAmount(t, viewMode, accounts, profileCount), 0);
 		const expenses = mTx
 			.filter((t) => t.type === 'expense')
-			.reduce((sum, t) => sum + getEffectiveAmount(t, viewMode, accounts), 0);
+			.reduce((sum, t) => sum + getEffectiveAmount(t, viewMode, accounts, profileCount), 0);
 
 		// Ponderar el pago de deudas según la vista
 		const getEffectiveDebtPayment = (d: Debt, rawPay: number) => {
+			if (profileCount === 1) return rawPay;
 			const owner = d.owner ?? 'joint';
 			if (viewMode === 'all') return rawPay;
 			if (viewMode === 'userA') {

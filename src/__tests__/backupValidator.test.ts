@@ -153,6 +153,16 @@ describe('Validador de Copias de Seguridad (backupValidator)', () => {
 			expect(result.finanzas_v3_transactions[0].id).toBe('tx-1');
 		});
 
+		it('debe lanzar un error descriptivo si el string JSON está mal formado', () => {
+			const badJsonStringBackup = {
+				...validBackup,
+				finanzas_v3_transactions: '{malformed-json'
+			};
+			expect(() => validateAndSanitizeBackup(badJsonStringBackup)).toThrow(
+				"El campo 'transacciones' contiene un formato JSON inválido o corrupto."
+			);
+		});
+
 		it('debe fallar si la estructura no es un objeto o es nula', () => {
 			expect(() => validateAndSanitizeBackup(null)).toThrow('copia de seguridad no es un objeto');
 			expect(() => validateAndSanitizeBackup('cadena')).toThrow('copia de seguridad no es un objeto');

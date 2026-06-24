@@ -25,14 +25,27 @@ export interface UseAccountsResult {
  * (`handleDeleteAccount`) atraviesa transacciones y deudas, así que se queda en el contexto como
  * orquestador cross-domain. La persistencia (`saveStoredAccounts`) también sigue en el contexto.
  */
-export const useAccounts = (): UseAccountsResult => {
+export const useAccounts = (profileCount: 1 | 2 = 2): UseAccountsResult => {
+	const isSingle = profileCount === 1;
 	const [accounts, setAccounts] = useState<Account[]>(() => getInitialData().accounts);
 	const [editingAccount, setEditingAccount] = useState<Account | null>(null);
 	const [accountForm, setAccountForm] = useState<AccountForm>({
 		name: '',
-		owner: 'joint',
+		owner: isSingle ? 'userA' : 'joint',
 		initialBalance: ''
 	});
+
+	// Asegurar coherencia si cambia profileCount en caliente
+	const [prevProfileCount, setPrevProfileCount] = useState(profileCount);
+	if (profileCount !== prevProfileCount) {
+		setPrevProfileCount(profileCount);
+		if (profileCount === 1) {
+			setAccountForm((prev) => ({
+				...prev,
+				owner: 'userA'
+			}));
+		}
+	}
 
 	const handleAddAccount = (e: SyntheticEvent<HTMLFormElement>) => {
 		e.preventDefault();

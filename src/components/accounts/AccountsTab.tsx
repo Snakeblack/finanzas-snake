@@ -29,7 +29,8 @@ export function AccountsTab() {
 		handleImportData,
 		importError,
 		importSuccess,
-		formatAmount
+		formatAmount,
+		profileCount
 	} = useFinanzas();
 
 	// Adaptador para el input del archivo JSON de copia de seguridad
@@ -89,21 +90,23 @@ export function AccountsTab() {
 											<h4 className="font-bold text-slate-100 text-sm truncate max-w-[150px]">
 												{acc.name}
 											</h4>
-											<span
-												className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold ${
-													acc.owner === 'userA'
-														? 'bg-indigo-500/15 text-indigo-400'
+											{profileCount === 2 && (
+												<span
+													className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold ${
+														acc.owner === 'userA'
+															? 'bg-indigo-500/15 text-indigo-400'
+															: acc.owner === 'userB'
+																? 'bg-violet-500/15 text-violet-400'
+																: 'bg-emerald-500/15 text-emerald-400'
+													}`}
+												>
+													{acc.owner === 'userA'
+														? userAName
 														: acc.owner === 'userB'
-															? 'bg-violet-500/15 text-violet-400'
-															: 'bg-emerald-500/15 text-emerald-400'
-												}`}
-											>
-												{acc.owner === 'userA'
-													? userAName
-													: acc.owner === 'userB'
-														? userBName
-														: 'Compartida'}
-											</span>
+															? userBName
+															: 'Compartida'}
+												</span>
+											)}
 										</div>
 										<div className="text-xs text-slate-500 font-mono mt-1 space-y-1">
 											<div>Saldo Inicial: {formatAmount(acc.initialBalance)}</div>
@@ -168,46 +171,48 @@ export function AccountsTab() {
 							/>
 						</div>
 
-						<div>
-							<label className="block text-xs font-medium text-slate-400 mb-1.5">
-								Propietario / Tipo
-							</label>
-							<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
-								<button
-									type="button"
-									onClick={() => setAccountForm({ ...accountForm, owner: 'userA' })}
-									className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
-										accountForm.owner === 'userA'
-											? 'bg-indigo-600 text-white shadow-md'
-											: 'text-slate-400 hover:text-slate-200'
-									}`}
-								>
-									{userAName}
-								</button>
-								<button
-									type="button"
-									onClick={() => setAccountForm({ ...accountForm, owner: 'userB' })}
-									className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
-										accountForm.owner === 'userB'
-											? 'bg-indigo-600 text-white shadow-md'
-											: 'text-slate-400 hover:text-slate-200'
-									}`}
-								>
-									{userBName}
-								</button>
-								<button
-									type="button"
-									onClick={() => setAccountForm({ ...accountForm, owner: 'joint' })}
-									className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
-										accountForm.owner === 'joint'
-											? 'bg-indigo-600 text-white shadow-md'
-											: 'text-slate-400 hover:text-slate-200'
-									}`}
-								>
-									Compartida
-								</button>
+						{profileCount === 2 && (
+							<div>
+								<label className="block text-xs font-medium text-slate-400 mb-1.5">
+									Propietario / Tipo
+								</label>
+								<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+									<button
+										type="button"
+										onClick={() => setAccountForm({ ...accountForm, owner: 'userA' })}
+										className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+											accountForm.owner === 'userA'
+												? 'bg-indigo-600 text-white shadow-md'
+												: 'text-slate-400 hover:text-slate-200'
+										}`}
+									>
+										{userAName}
+									</button>
+									<button
+										type="button"
+										onClick={() => setAccountForm({ ...accountForm, owner: 'userB' })}
+										className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+											accountForm.owner === 'userB'
+												? 'bg-indigo-600 text-white shadow-md'
+												: 'text-slate-400 hover:text-slate-200'
+										}`}
+									>
+										{userBName}
+									</button>
+									<button
+										type="button"
+										onClick={() => setAccountForm({ ...accountForm, owner: 'joint' })}
+										className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+											accountForm.owner === 'joint'
+												? 'bg-indigo-600 text-white shadow-md'
+												: 'text-slate-400 hover:text-slate-200'
+										}`}
+									>
+										Compartida
+									</button>
+								</div>
 							</div>
-						</div>
+						)}
 
 						<div>
 							<label htmlFor="acc-balance" className="block text-xs font-medium text-slate-400 mb-1.5">
@@ -237,7 +242,11 @@ export function AccountsTab() {
 									type="button"
 									onClick={() => {
 										setEditingAccount(null);
-										setAccountForm({ name: '', owner: 'joint', initialBalance: '' });
+										setAccountForm({
+											name: '',
+											owner: profileCount === 1 ? 'userA' : 'joint',
+											initialBalance: ''
+										});
 									}}
 									className="w-1/2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition-all"
 								>

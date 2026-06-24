@@ -14,6 +14,7 @@ interface UseDebtsParams {
 	 * (estado en el contexto) debe descartar la deuda de su selección.
 	 */
 	onDebtDeleted: (id: string) => void;
+	profileCount?: 1 | 2;
 }
 
 export interface UseDebtsResult {
@@ -42,7 +43,8 @@ export interface UseDebtsResult {
  * consolidación) siguen en el contexto, que reusa `debts`/`setDebts` de este hook.
  * El borrado atraviesa el dominio de reunificación: se notifica vía `onDebtDeleted`.
  */
-export const useDebts = ({ initialDebtFormDate, onDebtDeleted }: UseDebtsParams): UseDebtsResult => {
+export const useDebts = ({ initialDebtFormDate, onDebtDeleted, profileCount = 2 }: UseDebtsParams): UseDebtsResult => {
+	const isSingle = profileCount === 1;
 	const [debts, setDebts] = useState<Debt[]>(() => readStoredDebtsSync());
 	const [selectedDebtSchedule, setSelectedDebtSchedule] = useState<Debt | null>(null);
 	const [debtForm, setDebtForm] = useState<DebtForm>({
@@ -60,10 +62,22 @@ export const useDebts = ({ initialDebtFormDate, onDebtDeleted }: UseDebtsParams)
 		tag: DEFAULT_TAGS.debt[0],
 		date: initialDebtFormDate,
 		chargeDay: '',
-		owner: 'joint',
+		owner: isSingle ? 'userA' : 'joint',
 		paymentAccountId: ''
 	});
 	const [debtFormError, setDebtFormError] = useState('');
+
+	// Asegurar coherencia si profileCount cambia en caliente
+	const [prevProfileCount, setPrevProfileCount] = useState(profileCount);
+	if (profileCount !== prevProfileCount) {
+		setPrevProfileCount(profileCount);
+		if (profileCount === 1) {
+			setDebtForm((prev) => ({
+				...prev,
+				owner: 'userA'
+			}));
+		}
+	}
 
 	const handleDeleteDebt = (id: string) => {
 		setDebts(debts.filter((d) => d.id !== id));

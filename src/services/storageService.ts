@@ -20,7 +20,8 @@ const UNIFIED_IDB_MIGRATION_FLAG = 'finanzas_v5_unified_idb';
 const IDB_CONFIG_KEYS = {
 	migrationCompleted: 'migration:unified-idb:v5',
 	userAName: 'userAName',
-	userBName: 'userBName'
+	userBName: 'userBName',
+	profileCount: 'profileCount'
 } as const;
 const DEFAULT_USER_NAMES = {
 	userAName: 'Usuario A',
@@ -33,6 +34,7 @@ const FINANCE_BACKUP_KEYS = [
 	STORAGE_KEYS.accounts,
 	STORAGE_KEYS.userAName,
 	STORAGE_KEYS.userBName,
+	STORAGE_KEYS.profileCount,
 	STORAGE_KEYS.aiChat,
 	STORAGE_KEYS.geminiKey
 ] as const;
@@ -51,6 +53,7 @@ export interface FinanceBackupSnapshot {
 	userBName: string;
 	geminiApiKey: string;
 	chatMessages: ChatMessage[];
+	profileCount?: number;
 }
 
 export interface ImportedFinanceBackupData {
@@ -63,6 +66,7 @@ export interface ImportedFinanceBackupData {
 	geminiApiKey?: string;
 	chatMessages?: ChatMessage[];
 	selectedMonth?: string;
+	profileCount?: number;
 }
 
 export type FinanceBackupPayload = Record<string, string | null>;
@@ -167,6 +171,24 @@ export const saveUserNames = async (names: Partial<UserNames>): Promise<void> =>
 		await saveUserNamesStrict(names);
 	} catch (error) {
 		console.error('Error saving user names to IndexedDB:', error);
+	}
+};
+
+export const readProfileCount = async (): Promise<number> => {
+	try {
+		const val = await readConfigValue(IDB_CONFIG_KEYS.profileCount);
+		return val ? parseInt(val, 10) : 2;
+	} catch (error) {
+		console.error('Error reading profileCount from IndexedDB:', error);
+		return 2;
+	}
+};
+
+export const saveProfileCount = async (count: number): Promise<void> => {
+	try {
+		await saveConfigValue(IDB_CONFIG_KEYS.profileCount, String(count));
+	} catch (error) {
+		console.error('Error saving profileCount to IndexedDB:', error);
 	}
 };
 
@@ -418,7 +440,6 @@ export const migrateDebt = (rawDebt: any): Debt => {
  * Guarda un array de entidades en lote en un almacén de IndexedDB, limpiándolo primero.
  */
 const saveEntitiesToIdbBulk = async (storeName: string, keyField: string, entities: any[]): Promise<void> => {
-	await idb.clearStore(storeName);
 	if (activeCryptoKey) {
 		const encryptedEntities = await Promise.all(
 			entities.map(async (entity) => {
@@ -427,8 +448,10 @@ const saveEntitiesToIdbBulk = async (storeName: string, keyField: string, entiti
 				return { [keyField]: keyVal, ciphertext };
 			})
 		);
+		await idb.clearStore(storeName);
 		await idb.saveEntitiesBulk(storeName, encryptedEntities);
 	} else {
+		await idb.clearStore(storeName);
 		await idb.saveEntitiesBulk(storeName, entities);
 	}
 };
@@ -1041,18 +1064,20 @@ export const buildFinanceBackupPayload = (snapshot: FinanceBackupSnapshot): Fina
 	[STORAGE_KEYS.accounts]: JSON.stringify(snapshot.accounts),
 	[STORAGE_KEYS.userAName]: snapshot.userAName.trim() || DEFAULT_USER_NAMES.userAName,
 	[STORAGE_KEYS.userBName]: snapshot.userBName.trim() || DEFAULT_USER_NAMES.userBName,
+	[STORAGE_KEYS.profileCount]: snapshot.profileCount !== undefined ? String(snapshot.profileCount) : '2',
 	[STORAGE_KEYS.aiChat]: JSON.stringify(snapshot.chatMessages),
 	[STORAGE_KEYS.geminiKey]: snapshot.geminiApiKey.trim() ? snapshot.geminiApiKey : null
 });
 
 export const readFinanceBackupPayload = async (): Promise<FinanceBackupPayload> => {
-	const [transactions, debts, accounts, userNames, geminiApiKey, chatMessages] = await Promise.all([
+	const [transactions, debts, accounts, userNames, geminiApiKey, chatMessages, profileCount] = await Promise.all([
 		readStoredTransactions(),
 		readStoredDebts(),
 		readStoredAccounts(),
 		readUserNames(),
 		readGeminiApiKey(),
-		readAiChat()
+		readAiChat(),
+		readProfileCount()
 	]);
 	const periods = await readStoredPeriods(transactions, debts);
 
@@ -1064,7 +1089,8 @@ export const readFinanceBackupPayload = async (): Promise<FinanceBackupPayload> 
 		userAName: userNames.userAName,
 		userBName: userNames.userBName,
 		geminiApiKey,
-		chatMessages
+		chatMessages,
+		profileCount
 	});
 };
 
@@ -1085,6 +1111,11 @@ export const importFinanceBackupPayload = async (
 	}
 	if (Object.keys(importedUserNames).length > 0) {
 		await saveUserNamesStrict(importedUserNames);
+	}
+
+	if (validated[STORAGE_KEYS.profileCount] !== undefined) {
+		imported.profileCount = validated[STORAGE_KEYS.profileCount];
+		await saveProfileCount(imported.profileCount);
 	}
 
 	if (validated[STORAGE_KEYS.accounts] !== undefined) {

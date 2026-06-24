@@ -34,7 +34,8 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 		selectedMonth,
 		formatAmount,
 		transactions,
-		setTransactions
+		setTransactions,
+		profileCount
 	} = useFinanzas();
 
 	const [isMobileFormOpen, setIsMobileFormOpen] = useState(false);
@@ -321,13 +322,15 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 									<SelectContent>
 										{accounts.map((acc) => (
 											<SelectItem key={acc.id} value={acc.id}>
-												{acc.name} (
-												{acc.owner === 'userA'
-													? userAName
-													: acc.owner === 'userB'
-														? userBName
-														: 'Compartida'}
-												)
+												{acc.name}
+												{profileCount === 2 &&
+													` (${
+														acc.owner === 'userA'
+															? userAName
+															: acc.owner === 'userB'
+																? userBName
+																: 'Compartida'
+													})`}
 											</SelectItem>
 										))}
 									</SelectContent>
@@ -353,13 +356,15 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 											.filter((acc) => acc.id !== txForm.fromAccountId)
 											.map((acc) => (
 												<SelectItem key={acc.id} value={acc.id}>
-													{acc.name} (
-													{acc.owner === 'userA'
-														? userAName
-														: acc.owner === 'userB'
-															? userBName
-															: 'Compartida'}
-													)
+													{acc.name}
+													{profileCount === 2 &&
+														` (${
+															acc.owner === 'userA'
+																? userAName
+																: acc.owner === 'userB'
+																	? userBName
+																	: 'Compartida'
+														})`}
 												</SelectItem>
 											))}
 									</SelectContent>
@@ -391,99 +396,107 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 										<SelectItem value="none">Sin Cuenta (Manual)</SelectItem>
 										{accounts.map((acc) => (
 											<SelectItem key={acc.id} value={acc.id}>
-												{acc.name} (
-												{acc.owner === 'userA'
-													? userAName
-													: acc.owner === 'userB'
-														? userBName
-														: 'Compartida'}
-												)
+												{acc.name}
+												{profileCount === 2 &&
+													` (${
+														acc.owner === 'userA'
+															? userAName
+															: acc.owner === 'userB'
+																? userBName
+																: 'Compartida'
+													})`}
 											</SelectItem>
 										))}
 									</SelectContent>
 								</Select>
 							</div>
 
-							<div>
-								<label className="block text-xs font-medium text-slate-400 mb-1.5">¿De quién es?</label>
-								<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
-									<button
-										type="button"
-										onClick={() => setTxForm({ ...txForm, owner: 'userA' })}
-										className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
-											txForm.owner === 'userA'
-												? 'bg-indigo-600 text-white shadow-md'
-												: 'text-slate-400 hover:text-slate-200'
-										}`}
-									>
-										{userAName}
-									</button>
-									<button
-										type="button"
-										onClick={() => setTxForm({ ...txForm, owner: 'userB' })}
-										className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
-											txForm.owner === 'userB'
-												? 'bg-indigo-600 text-white shadow-md'
-												: 'text-slate-400 hover:text-slate-200'
-										}`}
-									>
-										{userBName}
-									</button>
-									<button
-										type="button"
-										onClick={() => setTxForm({ ...txForm, owner: 'joint' })}
-										className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
-											txForm.owner === 'joint' || !txForm.owner
-												? 'bg-indigo-600 text-white shadow-md'
-												: 'text-slate-400 hover:text-slate-200'
-										}`}
-									>
-										Conjunto
-									</button>
-								</div>
-							</div>
-
-							{!txForm.accountId && txForm.owner === 'joint' && txForm.type === 'expense' && (
-								<div>
-									<label className="block text-xs font-medium text-slate-400 mb-1.5">
-										Pagado por
-									</label>
-									<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
-										<button
-											type="button"
-											onClick={() => setTxForm({ ...txForm, paidBy: 'userA' })}
-											className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
-												txForm.paidBy === 'userA'
-													? 'bg-slate-755 text-white shadow-md'
-													: 'text-slate-400 hover:text-slate-200'
-											}`}
-										>
-											{userAName}
-										</button>
-										<button
-											type="button"
-											onClick={() => setTxForm({ ...txForm, paidBy: 'userB' })}
-											className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
-												txForm.paidBy === 'userB'
-													? 'bg-slate-755 text-white shadow-md'
-													: 'text-slate-400 hover:text-slate-200'
-											}`}
-										>
-											{userBName}
-										</button>
-										<button
-											type="button"
-											onClick={() => setTxForm({ ...txForm, paidBy: 'shared' })}
-											className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
-												txForm.paidBy === 'shared' || !txForm.paidBy
-													? 'bg-slate-755 text-white shadow-md'
-													: 'text-slate-400 hover:text-slate-200'
-											}`}
-										>
-											Cuenta Común
-										</button>
+							{profileCount === 2 && (
+								<>
+									<div>
+										<label className="block text-xs font-medium text-slate-400 mb-1.5">
+											¿De quién es?
+										</label>
+										<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+											<button
+												type="button"
+												onClick={() => setTxForm({ ...txForm, owner: 'userA' })}
+												className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+													txForm.owner === 'userA'
+														? 'bg-indigo-600 text-white shadow-md'
+														: 'text-slate-400 hover:text-slate-200'
+												}`}
+											>
+												{userAName}
+											</button>
+											<button
+												type="button"
+												onClick={() => setTxForm({ ...txForm, owner: 'userB' })}
+												className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+													txForm.owner === 'userB'
+														? 'bg-indigo-600 text-white shadow-md'
+														: 'text-slate-400 hover:text-slate-200'
+												}`}
+											>
+												{userBName}
+											</button>
+											<button
+												type="button"
+												onClick={() => setTxForm({ ...txForm, owner: 'joint' })}
+												className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
+													txForm.owner === 'joint' || !txForm.owner
+														? 'bg-indigo-600 text-white shadow-md'
+														: 'text-slate-400 hover:text-slate-200'
+												}`}
+											>
+												Conjunto
+											</button>
+										</div>
 									</div>
-								</div>
+
+									{!txForm.accountId && txForm.owner === 'joint' && txForm.type === 'expense' && (
+										<div>
+											<label className="block text-xs font-medium text-slate-400 mb-1.5">
+												Pagado por
+											</label>
+											<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+												<button
+													type="button"
+													onClick={() => setTxForm({ ...txForm, paidBy: 'userA' })}
+													className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+														txForm.paidBy === 'userA'
+															? 'bg-slate-755 text-white shadow-md'
+															: 'text-slate-400 hover:text-slate-200'
+													}`}
+												>
+													{userAName}
+												</button>
+												<button
+													type="button"
+													onClick={() => setTxForm({ ...txForm, paidBy: 'userB' })}
+													className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+														txForm.paidBy === 'userB'
+															? 'bg-slate-755 text-white shadow-md'
+															: 'text-slate-400 hover:text-slate-200'
+													}`}
+												>
+													{userBName}
+												</button>
+												<button
+													type="button"
+													onClick={() => setTxForm({ ...txForm, paidBy: 'shared' })}
+													className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
+														txForm.paidBy === 'shared' || !txForm.paidBy
+															? 'bg-slate-755 text-white shadow-md'
+															: 'text-slate-400 hover:text-slate-200'
+													}`}
+												>
+													Cuenta Común
+												</button>
+											</div>
+										</div>
+									)}
+								</>
 							)}
 						</>
 					)}
@@ -670,7 +683,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 											>
 												{t.tag}
 											</span>
-											{t.type !== 'transfer' && (
+											{profileCount === 2 && t.type !== 'transfer' && (
 												<span
 													className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold ${
 														t.owner === 'userA'
@@ -718,7 +731,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 										<th className="pb-3 pt-2 pl-2 w-8"></th>
 										<th className="pb-3 pt-2 pl-2">Fecha</th>
 										<th className="pb-3 pt-2">Concepto</th>
-										<th className="pb-3 pt-2">Propietario</th>
+										{profileCount === 2 && <th className="pb-3 pt-2">Propietario</th>}
 										<th className="pb-3 pt-2">Etiqueta</th>
 										<th className="pb-3 pt-2 text-right">Importe</th>
 										<th className="pb-3 pt-2 text-center">Acciones</th>
@@ -798,32 +811,34 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 													)}
 												</div>
 											</td>
-											<td className="py-3.5">
-												{t.type === 'transfer' ? (
-													<span className="inline-block px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-bold">
-														Traspaso
-													</span>
-												) : (
-													<span
-														className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-															t.owner === 'userA'
-																? 'bg-indigo-500/15 text-indigo-400'
+											{profileCount === 2 && (
+												<td className="py-3.5">
+													{t.type === 'transfer' ? (
+														<span className="inline-block px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-bold">
+															Traspaso
+														</span>
+													) : (
+														<span
+															className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+																t.owner === 'userA'
+																	? 'bg-indigo-500/15 text-indigo-400'
+																	: t.owner === 'userB'
+																		? 'bg-violet-500/15 text-violet-400'
+																		: 'bg-emerald-500/15 text-emerald-400'
+															}`}
+														>
+															{t.owner === 'userA'
+																? userAName
 																: t.owner === 'userB'
-																	? 'bg-violet-500/15 text-violet-400'
-																	: 'bg-emerald-500/15 text-emerald-400'
-														}`}
-													>
-														{t.owner === 'userA'
-															? userAName
-															: t.owner === 'userB'
-																? userBName
-																: 'Conjunto'}
-														{t.owner === 'joint' &&
-															t.type === 'expense' &&
-															` (${t.paidBy === 'userA' ? userAName : t.paidBy === 'userB' ? userBName : 'Común'})`}
-													</span>
-												)}
-											</td>
+																	? userBName
+																	: 'Conjunto'}
+															{t.owner === 'joint' &&
+																t.type === 'expense' &&
+																` (${t.paidBy === 'userA' ? userAName : t.paidBy === 'userB' ? userBName : 'Común'})`}
+														</span>
+													)}
+												</td>
+											)}
 											<td className="py-3.5">
 												<span
 													className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${

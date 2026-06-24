@@ -22,7 +22,8 @@ import {
 	getTransactionOwner,
 	getEffectiveAmount,
 	calculateTimelineBalances,
-	getTagBreakdown
+	getTagBreakdown,
+	sumMoney
 } from '../services/financeService';
 import type { Account, Period, Transaction, ClassicDebt, PaymentPlanDebt } from '../types';
 
@@ -547,6 +548,12 @@ describe('getEffectiveAmount', () => {
 		expect(getEffectiveAmount(txJoint, 'userB', defaultAccounts)).toBe(200);
 		expect(getEffectiveAmount(txA, 'userB', defaultAccounts)).toBe(0);
 	});
+
+	it('si profileCount es 1: debe retornar 100% de la transacción siempre, ignorando owner y viewMode', () => {
+		expect(getEffectiveAmount(txA, 'userA', defaultAccounts, 1)).toBe(200);
+		expect(getEffectiveAmount(txJoint, 'userA', defaultAccounts, 1)).toBe(400);
+		expect(getEffectiveAmount(txB, 'userA', defaultAccounts, 1)).toBe(300);
+	});
 });
 
 describe('calculateTimelineBalances', () => {
@@ -929,5 +936,30 @@ describe('financeService - Edge Cases de Cobertura', () => {
 		// Con viewMode inválido, paga 0
 		const resInv = calculateTimelineBalances(periods, [], [debtA, debtB], accounts, 'invalid' as any);
 		expect(resInv['2026-05'].debtPayments).toBe(0);
+	});
+});
+
+describe('sumMoney', () => {
+	it('debe sumar importes con la misma divisa correctamente', () => {
+		const result = sumMoney(
+			[
+				{ amount: '100.50', currency: 'EUR' },
+				{ amount: '50.25', currency: 'EUR' }
+			],
+			'EUR'
+		);
+		expect(result).toEqual({ amount: '150.75', currency: 'EUR' });
+	});
+
+	it('debe lanzar un error ante discrepancias de divisa', () => {
+		expect(() =>
+			sumMoney(
+				[
+					{ amount: '100.50', currency: 'EUR' },
+					{ amount: '50.25', currency: 'USD' }
+				],
+				'EUR'
+			)
+		).toThrow(/Operación multi-divisa no soportada/);
 	});
 });

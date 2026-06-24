@@ -62,6 +62,7 @@ export type PromptContextParams = {
 	newConsolidatedInterests: number;
 	consolidationFormTae: string;
 	consolidationFormTermMonths: string;
+	profileCount?: number;
 };
 
 /**
@@ -132,12 +133,17 @@ export const buildFinanceDataPrompt = (params: PromptContextParams): string => {
       `
 			: 'No se ha configurado simulación de reunificación de deudas actualmente.';
 
-	return `
-      Eres un analista financiero experto. Analiza el flujo de caja, balance neto, listado detallado de movimientos (inspecciona los conceptos/descripciones de las transacciones para deducir/corregir si alguna categoría/etiqueta es incorrecta o sugerir mejores agrupaciones) y deudas (tanto activas como futuras, prestando especial atención a préstamos o fraccionamientos que empiecen en meses futuros). Ofrece una respuesta directa, concisa y altamente práctica. Utiliza un formato limpio (negritas, viñetas) y da siempre una crítica rigurosa de los riesgos ocultos en plazos de deudas.
- 
-      CRUCIAL SOBRE RECURRENCIA: Distingue claramente entre ingresos/gastos recurrentes (mensuales/habituales) y puntuales/extraordinarios (one-off, como cancelaciones de deudas puntuales, compras de una sola vez, etc.). Al proyectar el flujo de caja de meses futuros o evaluar la salud financiera a largo plazo, NO asumas que los gastos o ingresos puntuales/extraordinarios se repetirán en los siguientes periodos. Basa tus recomendaciones de ahorro y presupuesto sobre la base de ingresos y gastos recurrentes.
+	const isSingle = params.profileCount === 1;
+	const userContextText = isSingle
+		? `Contexto financiero mensual actual de la aplicación (para un único usuario):
 
-      Contexto financiero mensual actual de la aplicación (para dos usuarios conjuntos):
+      - Nombre del Usuario: ${params.userAName}
+      - Mes Analizado: ${params.selectedMonth}
+      - Total Ingresos: ${params.totalIncomes.toFixed(2)}€ (Ingresos Recurrentes: ${params.recurringIncomes.toFixed(2)}€, Ingresos Puntuales: ${params.oneOffIncomes.toFixed(2)}€)
+      - Total Gastos (excluyendo cuotas de deudas): ${params.totalExpenses.toFixed(2)}€ (Gastos Recurrentes: ${params.recurringExpenses.toFixed(2)}€, Gastos Puntuales: ${params.oneOffExpenses.toFixed(2)}€)
+      - Cuota Total Deudas Actuales: ${params.totalMonthlyDebtPayments.toFixed(2)}€
+      - Balance Neto Mensual Disponible: ${params.netMonthlyBalance.toFixed(2)}€`
+		: `Contexto financiero mensual actual de la aplicación (para dos usuarios conjuntos):
 
       - Nombres de los Usuarios: ${params.userAName} y ${params.userBName}
       - Vista activa analizada: ${vistaActiva}
@@ -150,7 +156,14 @@ export const buildFinanceDataPrompt = (params: PromptContextParams): string => {
       Estado de Cuentas Conjuntas para el mes:
       - Gastos conjuntos pagados por ${params.userAName}: ${params.jointPaidByA.toFixed(2)}€
       - Gastos conjuntos pagados por ${params.userBName}: ${params.jointPaidByB.toFixed(2)}€
-      - Liquidación: ${liquidacionText}
+      - Liquidación: ${liquidacionText}`;
+
+	return `
+      Eres un analista financiero experto. Analiza el flujo de caja, balance neto, listado detallado de movimientos (inspecciona los conceptos/descripciones de las transacciones para deducir/corregir si alguna categoría/etiqueta es incorrecta o sugerir mejores agrupaciones) y deudas (tanto activas como futuras, prestando especial atención a préstamos o fraccionamientos que empiecen en meses futuros). Ofrece una respuesta directa, concisa y altamente práctica. Utiliza un formato limpio (negritas, viñetas) y da siempre una crítica rigurosa de los riesgos ocultos en plazos de deudas.
+ 
+      CRUCIAL SOBRE RECURRENCIA: Distingue claramente entre ingresos/gastos recurrentes (mensuales/habituales) y puntuales/extraordinarios (one-off, como cancelaciones de deudas puntuales, compras de una sola vez, etc.). Al proyectar el flujo de caja de meses futuros o evaluar la salud financiera a largo plazo, NO asumas que los gastos o ingresos puntuales/extraordinarios se repetirán en los siguientes periodos. Basa tus recomendaciones de ahorro y presupuesto sobre la base de ingresos y gastos recurrentes.
+
+      ${userContextText}
 
       Lista de Gastos Agrupados por Etiqueta (en esta vista):
       ${tagBreakdownText}

@@ -1,4 +1,4 @@
-import { useState, useEffect, type Dispatch, type SetStateAction, type SyntheticEvent } from 'react';
+import { useState, type Dispatch, type SetStateAction, type SyntheticEvent } from 'react';
 import type { Account, Period, Transaction, TxForm, TransactionRecurrence } from '../types';
 import { DEFAULT_TAGS } from '../constants';
 import { getInitialData } from '../services/storageService';
@@ -13,6 +13,7 @@ interface UseTransactionsParams {
 	accounts: Account[];
 	/** Periodos vigentes: los handlers propagan recurrencias a los meses futuros existentes. */
 	periods: Period[];
+	profileCount?: 1 | 2;
 }
 
 export interface UseTransactionsResult {
@@ -45,8 +46,10 @@ export const useTransactions = ({
 	currentMonthString,
 	initialSelectedMonth,
 	accounts,
-	periods
+	periods,
+	profileCount = 2
 }: UseTransactionsParams): UseTransactionsResult => {
+	const isSingle = profileCount === 1;
 	const [transactions, setTransactions] = useState<Transaction[]>(() => getInitialData().transactions);
 	const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 	const [editForm, setEditForm] = useState<TxForm>({
@@ -57,8 +60,8 @@ export const useTransactions = ({
 		tag: DEFAULT_TAGS.expense[0],
 		date: `${currentMonthString}-01`,
 		recurrence: 'one-off',
-		owner: 'joint',
-		paidBy: 'shared',
+		owner: isSingle ? 'userA' : 'joint',
+		paidBy: isSingle ? 'userA' : 'shared',
 		accountId: '',
 		fromAccountId: '',
 		toAccountId: ''
@@ -72,15 +75,35 @@ export const useTransactions = ({
 		tag: DEFAULT_TAGS.expense[0],
 		date: `${initialSelectedMonth}-01`,
 		recurrence: 'one-off',
-		owner: 'joint',
-		paidBy: 'shared',
+		owner: isSingle ? 'userA' : 'joint',
+		paidBy: isSingle ? 'userA' : 'shared',
 		accountId: '',
 		fromAccountId: '',
 		toAccountId: ''
 	});
 
+	// Asegurar coherencia si profileCount cambia en caliente
+	const [prevProfileCount, setPrevProfileCount] = useState(profileCount);
+	if (profileCount !== prevProfileCount) {
+		setPrevProfileCount(profileCount);
+		if (profileCount === 1) {
+			setTxForm((prev) => ({
+				...prev,
+				owner: 'userA',
+				paidBy: 'userA'
+			}));
+			setEditForm((prev) => ({
+				...prev,
+				owner: 'userA',
+				paidBy: 'userA'
+			}));
+		}
+	}
+
 	// Mantiene las cuentas referenciadas por `txForm` válidas cuando cambia el set de cuentas.
-	useEffect(() => {
+	const [prevAccounts, setPrevAccounts] = useState(accounts);
+	if (accounts !== prevAccounts) {
+		setPrevAccounts(accounts);
 		if (accounts.length > 0) {
 			const firstJoint = accounts.find((a) => a.owner === 'joint')?.id || accounts[0].id;
 			setTxForm((prev) => ({
@@ -97,7 +120,7 @@ export const useTransactions = ({
 						: accounts[1]?.id || accounts[0].id
 			}));
 		}
-	}, [accounts]);
+	}
 
 	const handleAddTransaction = (e: SyntheticEvent<HTMLFormElement>, customForm?: TxForm) => {
 		e.preventDefault();

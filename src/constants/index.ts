@@ -33,6 +33,7 @@ export const STORAGE_KEYS = {
 	accounts: 'finanzas_v3_accounts',
 	userAName: 'finanzas_v3_userA_name',
 	userBName: 'finanzas_v3_userB_name',
+	profileCount: 'finanzas_v3_profile_count',
 	clearedV2: 'finanzas_v3_cleared_v2'
 } as const;
 

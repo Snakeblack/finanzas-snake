@@ -87,7 +87,9 @@ function MainAppContent() {
 		toggleSensitiveData,
 		formatAmount,
 		theme,
-		toggleTheme
+		toggleTheme,
+		profileCount,
+		setProfileCount
 	} = useFinanzas();
 
 	// Adaptador para el input del archivo JSON de copia de seguridad
@@ -550,10 +552,40 @@ function MainAppContent() {
 							)}
 
 							<div className="space-y-4 border-t border-slate-800/80 pt-4">
+								<label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
+									Número de Perfiles
+								</label>
+								<div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+									<button
+										type="button"
+										onClick={() => setProfileCount(1)}
+										className={`py-2 rounded-lg text-xs font-bold transition-all ${
+											profileCount === 1
+												? 'bg-indigo-600 text-white shadow-md'
+												: 'text-slate-400 hover:text-slate-200'
+										}`}
+									>
+										1 Perfil (Individual)
+									</button>
+									<button
+										type="button"
+										onClick={() => setProfileCount(2)}
+										className={`py-2 rounded-lg text-xs font-bold transition-all ${
+											profileCount === 2
+												? 'bg-indigo-600 text-white shadow-md'
+												: 'text-slate-400 hover:text-slate-200'
+										}`}
+									>
+										2 Perfiles (Pareja/Conjunto)
+									</button>
+								</div>
+							</div>
+
+							<div className="space-y-4 border-t border-slate-800/80 pt-4">
 								<h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
 									Perfiles de Usuario
 								</h3>
-								<div className="grid grid-cols-2 gap-4">
+								<div className={`grid ${profileCount === 2 ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
 									<div>
 										<label
 											htmlFor="user-a-name-input"
@@ -570,22 +602,24 @@ function MainAppContent() {
 											className="px-3 py-2 text-xs"
 										/>
 									</div>
-									<div>
-										<label
-											htmlFor="user-b-name-input"
-											className="block text-[11px] font-medium text-slate-500 mb-1"
-										>
-											Nombre {userBName || 'Usuario B'}
-										</label>
-										<Input
-											id="user-b-name-input"
-											type="text"
-											required
-											value={userBName}
-											onChange={(e) => setUserBName(e.target.value)}
-											className="px-3 py-2 text-xs"
-										/>
-									</div>
+									{profileCount === 2 && (
+										<div>
+											<label
+												htmlFor="user-b-name-input"
+												className="block text-[11px] font-medium text-slate-500 mb-1"
+											>
+												Nombre {userBName || 'Usuario B'}
+											</label>
+											<Input
+												id="user-b-name-input"
+												type="text"
+												required
+												value={userBName}
+												onChange={(e) => setUserBName(e.target.value)}
+												className="px-3 py-2 text-xs"
+											/>
+										</div>
+									)}
 								</div>
 							</div>
 
@@ -594,45 +628,48 @@ function MainAppContent() {
 									Balances de Apertura (€)
 								</h3>
 								<div className="space-y-3">
-									{accounts.map((acc, index) => (
-										<div key={acc.id} className="flex flex-col">
-											<label
-												htmlFor={`init-balance-welcome-${acc.id}`}
-												className="block text-[11px] font-medium text-slate-500 mb-1"
-											>
-												Saldo inicial: {acc.name} (
-												{acc.owner === 'userA'
-													? userAName
-													: acc.owner === 'userB'
-														? userBName
-														: 'Compartida'}
-												)
-											</label>
-											<Input
-												id={`init-balance-welcome-${acc.id}`}
-												type="number"
-												step="0.01"
-												min="0"
-												placeholder="0.00"
-												value={acc.initialBalance || ''}
-												onChange={(e) => {
-													const val = parseOpeningBalanceInput(e.target.value);
-													if (Number.isNaN(val)) return;
-													setAccounts((prev) =>
-														prev.map((a, i) =>
-															i === index ? { ...a, initialBalance: val } : a
-														)
-													);
-												}}
-												className="px-3 py-2.5 text-xs"
-											/>
-										</div>
-									))}
+									{accounts
+										.filter((acc) => profileCount === 2 || acc.owner === 'userA')
+										.map((acc, index) => (
+											<div key={acc.id} className="flex flex-col">
+												<label
+													htmlFor={`init-balance-welcome-${acc.id}`}
+													className="block text-[11px] font-medium text-slate-500 mb-1"
+												>
+													Saldo inicial: {acc.name} (
+													{acc.owner === 'userA'
+														? userAName
+														: acc.owner === 'userB'
+															? userBName
+															: 'Compartida'}
+													)
+												</label>
+												<Input
+													id={`init-balance-welcome-${acc.id}`}
+													type="number"
+													step="0.01"
+													min="0"
+													placeholder="0.00"
+													value={acc.initialBalance || ''}
+													onChange={(e) => {
+														const val = parseOpeningBalanceInput(e.target.value);
+														if (Number.isNaN(val)) return;
+														setAccounts((prev) =>
+															prev.map((a) =>
+																a.id === acc.id ? { ...a, initialBalance: val } : a
+															)
+														);
+													}}
+													className="px-3 py-2.5 text-xs"
+												/>
+											</div>
+										))}
 								</div>
 								<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs flex justify-between items-center text-slate-300">
-									<span>Total Conjunto:</span>
+									<span>Total {profileCount === 1 ? 'Individual' : 'Conjunto'}:</span>
 									<span className="font-bold text-slate-100 text-sm">
 										{accounts
+											.filter((acc) => profileCount === 2 || acc.owner === 'userA')
 											.reduce((sum, a) => sum + (a.initialBalance || 0), 0)
 											.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
 										€
@@ -817,41 +854,43 @@ function MainAppContent() {
 								</button>
 							</div>
 
-							<div className="flex bg-slate-950/80 p-0.5 lg:p-1 rounded-lg lg:rounded-xl border border-slate-850">
-								<button
-									onClick={() => setViewMode('all')}
-									className={`px-2 py-1 lg:px-4 lg:py-1.5 rounded-md lg:rounded-lg text-[10px] lg:text-xs font-semibold transition-all ${
-										viewMode === 'all'
-											? 'bg-indigo-600 text-white shadow-md'
-											: 'text-slate-400 hover:text-slate-200'
-									}`}
-								>
-									<span className="hidden sm:inline">Conjunto</span>
-									<span className="sm:hidden">Conj.</span>
-								</button>
-								<button
-									onClick={() => setViewMode('userA')}
-									className={`px-2 py-1 lg:px-4 lg:py-1.5 rounded-md lg:rounded-lg text-[10px] lg:text-xs font-semibold transition-all ${
-										viewMode === 'userA'
-											? 'bg-indigo-600 text-white shadow-md'
-											: 'text-slate-400 hover:text-slate-200'
-									}`}
-								>
-									<span className="hidden sm:inline">{userAName}</span>
-									<span className="sm:hidden">{userAName ? userAName.substring(0, 3) : 'A'}</span>
-								</button>
-								<button
-									onClick={() => setViewMode('userB')}
-									className={`px-2 py-1 lg:px-4 lg:py-1.5 rounded-md lg:rounded-lg text-[10px] lg:text-xs font-semibold transition-all ${
-										viewMode === 'userB'
-											? 'bg-indigo-600 text-white shadow-md'
-											: 'text-slate-400 hover:text-slate-200'
-									}`}
-								>
-									<span className="hidden sm:inline">{userBName}</span>
-									<span className="sm:hidden">{userBName ? userBName.substring(0, 3) : 'B'}</span>
-								</button>
-							</div>
+							{profileCount === 2 && (
+								<div className="flex bg-slate-950/80 p-0.5 lg:p-1 rounded-lg lg:rounded-xl border border-slate-850">
+									<button
+										onClick={() => setViewMode('all')}
+										className={`px-2 py-1 lg:px-4 lg:py-1.5 rounded-md lg:rounded-lg text-[10px] lg:text-xs font-semibold transition-all ${
+											viewMode === 'all'
+												? 'bg-indigo-600 text-white shadow-md'
+												: 'text-slate-400 hover:text-slate-200'
+										}`}
+									>
+										<span className="hidden sm:inline">Conjunto</span>
+										<span className="sm:hidden">Conj.</span>
+									</button>
+									<button
+										onClick={() => setViewMode('userA')}
+										className={`px-2 py-1 lg:px-4 lg:py-1.5 rounded-md lg:rounded-lg text-[10px] lg:text-xs font-semibold transition-all ${
+											viewMode === 'userA'
+												? 'bg-indigo-600 text-white shadow-md'
+												: 'text-slate-400 hover:text-slate-200'
+										}`}
+									>
+										<span className="hidden sm:inline">{userAName}</span>
+										<span className="sm:hidden">{userAName ? userAName.substring(0, 3) : 'A'}</span>
+									</button>
+									<button
+										onClick={() => setViewMode('userB')}
+										className={`px-2 py-1 lg:px-4 lg:py-1.5 rounded-md lg:rounded-lg text-[10px] lg:text-xs font-semibold transition-all ${
+											viewMode === 'userB'
+												? 'bg-indigo-600 text-white shadow-md'
+												: 'text-slate-400 hover:text-slate-200'
+										}`}
+									>
+										<span className="hidden sm:inline">{userBName}</span>
+										<span className="sm:hidden">{userBName ? userBName.substring(0, 3) : 'B'}</span>
+									</button>
+								</div>
+							)}
 
 							<div className="shrink-0">
 								<button
@@ -1268,10 +1307,40 @@ function MainAppContent() {
 						)}
 
 						<div className="space-y-4 border-t border-slate-800/80 pt-4">
+							<label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
+								Número de Perfiles
+							</label>
+							<div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+								<button
+									type="button"
+									onClick={() => setProfileCount(1)}
+									className={`py-2 rounded-lg text-xs font-bold transition-all ${
+										profileCount === 1
+											? 'bg-indigo-600 text-white shadow-md'
+											: 'text-slate-400 hover:text-slate-200'
+									}`}
+								>
+									1 Perfil (Individual)
+								</button>
+								<button
+									type="button"
+									onClick={() => setProfileCount(2)}
+									className={`py-2 rounded-lg text-xs font-bold transition-all ${
+										profileCount === 2
+											? 'bg-indigo-600 text-white shadow-md'
+											: 'text-slate-400 hover:text-slate-200'
+									}`}
+								>
+									2 Perfiles (Pareja/Conjunto)
+								</button>
+							</div>
+						</div>
+
+						<div className="space-y-4 border-t border-slate-800/80 pt-4">
 							<h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
 								Perfiles de Usuario
 							</h3>
-							<div className="grid grid-cols-2 gap-4">
+							<div className={`grid ${profileCount === 2 ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
 								<div>
 									<label
 										htmlFor="modal-user-a-name"
@@ -1288,22 +1357,24 @@ function MainAppContent() {
 										className="px-3 py-2 text-xs"
 									/>
 								</div>
-								<div>
-									<label
-										htmlFor="modal-user-b-name"
-										className="block text-[11px] font-medium text-slate-500 mb-1"
-									>
-										Nombre {userBName || 'Usuario B'}
-									</label>
-									<Input
-										id="modal-user-b-name"
-										type="text"
-										required
-										value={userBName}
-										onChange={(e) => setUserBName(e.target.value)}
-										className="px-3 py-2 text-xs"
-									/>
-								</div>
+								{profileCount === 2 && (
+									<div>
+										<label
+											htmlFor="modal-user-b-name"
+											className="block text-[11px] font-medium text-slate-500 mb-1"
+										>
+											Nombre {userBName || 'Usuario B'}
+										</label>
+										<Input
+											id="modal-user-b-name"
+											type="text"
+											required
+											value={userBName}
+											onChange={(e) => setUserBName(e.target.value)}
+											className="px-3 py-2 text-xs"
+										/>
+									</div>
+								)}
 							</div>
 						</div>
 
@@ -1312,44 +1383,47 @@ function MainAppContent() {
 								Balances de Apertura (€)
 							</h3>
 							<div className="space-y-3">
-								{reconfigAccounts.map((acc, index) => (
-									<div key={acc.id} className="flex flex-col">
-										<label
-											htmlFor={`init-balance-modal-${acc.id}`}
-											className="block text-[11px] font-medium text-slate-500 mb-1"
-										>
-											Saldo inicial: {acc.name} (
-											{acc.owner === 'userA'
-												? userAName
-												: acc.owner === 'userB'
-													? userBName
-													: 'Compartida'}
-											)
-										</label>
-										<Input
-											id={`init-balance-modal-${acc.id}`}
-											type="number"
-											step="0.01"
-											min="0"
-											value={acc.initialBalance}
-											onChange={(e) => {
-												const val = parseOpeningBalanceInput(e.target.value);
-												if (Number.isNaN(val)) return;
-												setReconfigAccounts((prev) =>
-													prev.map((a, i) =>
-														i === index ? { ...a, initialBalance: val } : a
-													)
-												);
-											}}
-											className="px-3 py-2.5 text-xs"
-										/>
-									</div>
-								))}
+								{reconfigAccounts
+									.filter((acc) => profileCount === 2 || acc.owner === 'userA')
+									.map((acc, index) => (
+										<div key={acc.id} className="flex flex-col">
+											<label
+												htmlFor={`init-balance-modal-${acc.id}`}
+												className="block text-[11px] font-medium text-slate-500 mb-1"
+											>
+												Saldo inicial: {acc.name} (
+												{acc.owner === 'userA'
+													? userAName
+													: acc.owner === 'userB'
+														? userBName
+														: 'Compartida'}
+												)
+											</label>
+											<Input
+												id={`init-balance-modal-${acc.id}`}
+												type="number"
+												step="0.01"
+												min="0"
+												value={acc.initialBalance}
+												onChange={(e) => {
+													const val = parseOpeningBalanceInput(e.target.value);
+													if (Number.isNaN(val)) return;
+													setReconfigAccounts((prev) =>
+														prev.map((a) =>
+															a.id === acc.id ? { ...a, initialBalance: val } : a
+														)
+													);
+												}}
+												className="px-3 py-2.5 text-xs"
+											/>
+										</div>
+									))}
 							</div>
 							<div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs flex justify-between items-center text-slate-300">
-								<span>Total Conjunto:</span>
+								<span>Total {profileCount === 1 ? 'Individual' : 'Conjunto'}:</span>
 								<span className="font-bold text-slate-100 text-sm">
 									{reconfigAccounts
+										.filter((acc) => profileCount === 2 || acc.owner === 'userA')
 										.reduce((sum, a) => sum + (a.initialBalance || 0), 0)
 										.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
 									€
