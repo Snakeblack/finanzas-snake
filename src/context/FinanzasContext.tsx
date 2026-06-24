@@ -35,9 +35,11 @@ import {
 	readStoredPeriods,
 	readUserNames,
 	saveUserNames,
+	readProfileCount,
+	saveProfileCount,
 	executeSilentMigrationIfRequired
 } from '../services/storageService';
-import { addMonthsToMonth, getValidDateForMonth, normalizeMonth } from '../utils/dateUtils';
+import { addMonthsToMonth, getValidDateForMonth, normalizeMonth, autoGenerateMissingPeriods } from '../utils/dateUtils';
 import { toNumber } from '../utils/formatters';
 import { parseOpeningBalanceInput } from '../utils/openingBalance';
 import { buildChatPdfHtml, type ChatPdfOptions } from '../services/chatPdfExport';
@@ -70,6 +72,8 @@ export interface FinanzasContextType {
 	setUserAName: (name: string) => void;
 	userBName: string;
 	setUserBName: (name: string) => void;
+	profileCount: 1 | 2;
+	setProfileCount: (count: 1 | 2) => void;
 
 	// Modos de vista y pestañas
 	viewMode: 'all' | 'userA' | 'userB';
@@ -254,6 +258,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	// === ESTADOS GLOBALES ===
 	const [userAName, setUserAName] = useState('Usuario A');
 	const [userBName, setUserBName] = useState('Usuario B');
+	const [profileCount, setProfileCount] = useState<1 | 2>(2);
 	const [viewMode, setViewMode] = useState<'all' | 'userA' | 'userB'>('all');
 
 	// Estado para ocultar datos sensibles
@@ -336,7 +341,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		handleAddAccount,
 		handleSaveEditAccount,
 		handleStartEditAccount
-	} = useAccounts();
+	} = useAccounts(profileCount);
 
 	const [periods, setPeriods] = useState<Period[]>(() => getInitialData().periods);
 
@@ -400,7 +405,8 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	} = useDebts({
 		initialDebtFormDate: selectedMonth,
 		onDebtDeleted: (id) =>
-			setSelectedDebtsForConsolidation(selectedDebtsForConsolidation.filter((itemId) => itemId !== id))
+			setSelectedDebtsForConsolidation(selectedDebtsForConsolidation.filter((itemId) => itemId !== id)),
+		profileCount
 	});
 
 	// === DOMINIO DE TRANSACCIONES ===
@@ -428,7 +434,8 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		currentMonthString,
 		initialSelectedMonth: selectedMonth,
 		accounts,
-		periods
+		periods,
+		profileCount
 	});
 
 	// === SEGURIDAD (PIN) + ASESOR IA ===
@@ -549,6 +556,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 				if (cancelled) return;
 
 				const loadedUserNames = await readUserNames();
+				const loadedProfileCount = await readProfileCount();
 				const loadedTx = await readStoredTransactions();
 				const loadedDebts = await readStoredDebts();
 				const loadedPeriods = await readStoredPeriods(loadedTx, loadedDebts);
@@ -567,21 +575,32 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 							? firstPeriod.openingBalanceB
 							: firstPeriod.openingBalance / 2
 						: 0;
-					nextAccounts = [
-						{
-							id: 'default-a',
-							name: `Efectivo ${loadedUserNames.userAName}`,
-							owner: 'userA',
-							initialBalance: initialBalA
-						},
-						{
-							id: 'default-b',
-							name: `Efectivo ${loadedUserNames.userBName}`,
-							owner: 'userB',
-							initialBalance: initialBalB
-						},
-						{ id: 'default-joint', name: 'Cuenta Común', owner: 'joint', initialBalance: 0 }
-					];
+					if (loadedProfileCount === 1) {
+						nextAccounts = [
+							{
+								id: 'default-a',
+								name: `Efectivo ${loadedUserNames.userAName}`,
+								owner: 'userA',
+								initialBalance: initialBalA
+							}
+						];
+					} else {
+						nextAccounts = [
+							{
+								id: 'default-a',
+								name: `Efectivo ${loadedUserNames.userAName}`,
+								owner: 'userA',
+								initialBalance: initialBalA
+							},
+							{
+								id: 'default-b',
+								name: `Efectivo ${loadedUserNames.userBName}`,
+								owner: 'userB',
+								initialBalance: initialBalB
+							},
+							{ id: 'default-joint', name: 'Cuenta Común', owner: 'joint', initialBalance: 0 }
+						];
+					}
 					if (!cancelled) {
 						await saveStoredAccounts(nextAccounts);
 					}
@@ -591,17 +610,21 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 				const loadedChat = await readAiChat();
 				if (cancelled) return;
 
-				setTransactions(loadedTx);
+				const generated = autoGenerateMissingPeriods(loadedPeriods, loadedTx);
+
+				setTransactions(generated.transactions);
 				setDebts(loadedDebts);
-				setPeriods(loadedPeriods);
+				setPeriods(generated.periods);
 				setAccounts(nextAccounts);
 				setGeminiApiKey(loadedKey);
 				setChatMessages(loadedChat);
 				setUserAName(loadedUserNames.userAName);
 				setUserBName(loadedUserNames.userBName);
+				setProfileCount(loadedProfileCount as 1 | 2);
 
-				if (loadedPeriods.length > 0) {
-					const sortedP = [...loadedPeriods].sort((a, b) => a.month.localeCompare(b.month));
+				const finalPeriods = generated.periods;
+				if (finalPeriods.length > 0) {
+					const sortedP = [...finalPeriods].sort((a, b) => a.month.localeCompare(b.month));
 					const currentMonth = new Date().toISOString().substring(0, 7);
 					const exists = sortedP.some((p) => p.month === currentMonth);
 					setSelectedMonth(exists ? currentMonth : sortedP[sortedP.length - 1].month);
@@ -659,47 +682,18 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 
 	useEffect(() => {
 		if (!isInitialized || isLocked) return;
+		saveProfileCount(profileCount);
+	}, [profileCount, isInitialized, isLocked]);
+
+	useEffect(() => {
+		if (!isInitialized || isLocked) return;
 		saveStoredAccounts(accounts);
 	}, [accounts, isInitialized, isLocked]);
 
-	// Auto-generación de periodos faltantes si el mes actual es posterior al último registrado
-	useEffect(() => {
-		if (periods.length === 0) return;
-		const sorted = [...periods].sort((a, b) => a.month.localeCompare(b.month));
-		const latestMonth = sorted[sorted.length - 1].month;
-		const currentMonth = new Date().toISOString().substring(0, 7);
 
-		if (currentMonth > latestMonth) {
-			const updatedPeriods = [...periods];
-			let newTransactions = [...transactions];
-			let iter = latestMonth;
-			while (iter < currentMonth) {
-				const prevMonth = iter;
-				iter = addMonthsToMonth(iter, 1);
-				updatedPeriods.push({
-					month: iter,
-					openingBalance: 0
-				});
-
-				// Copiar movimientos recurrentes del mes previo al nuevo mes iterado
-				const recurringTxsInPrev = newTransactions.filter(
-					(t) => t.date.substring(0, 7) === prevMonth && t.recurrence === 'recurring'
-				);
-				const cloned = recurringTxsInPrev.map((t) => ({
-					...t,
-					id: `${t.id}-${iter}`,
-					date: getValidDateForMonth(iter, t.date.substring(8, 10)),
-					originId: t.originId || t.id
-				}));
-				newTransactions = [...cloned, ...newTransactions];
-			}
-			setPeriods(updatedPeriods);
-			setTransactions(newTransactions);
-		}
-	}, [periods, transactions, setTransactions]);
 
 	// === PROPAGAR CÁLCULOS AL MOTOR FINANCIERO ===
-	const timelineBalances = calculateTimelineBalances(periods, transactions, debts, accounts, viewMode);
+	const timelineBalances = calculateTimelineBalances(periods, transactions, debts, accounts, viewMode, profileCount);
 
 	const activePeriodData = timelineBalances[selectedMonth] ?? {
 		month: selectedMonth,
@@ -727,7 +721,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			return transactions.indexOf(a) - transactions.indexOf(b);
 		});
 
-	const getEffectiveAmountWrapper = (t: Transaction) => getEffectiveAmount(t, viewMode, accounts);
+	const getEffectiveAmountWrapper = (t: Transaction) => getEffectiveAmount(t, viewMode, accounts, profileCount);
 
 	const recurringIncomes = filteredTransactions
 		.filter((t) => t.type === 'income' && t.recurrence === 'recurring')
@@ -837,10 +831,59 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	});
 
 	// === ACCIONES DE GESTIÓN (MANEJADORES) ===
+	const handleSetProfileCount = (count: 1 | 2) => {
+		setProfileCount(count);
+		if (count === 2) {
+			setAccounts((prev) => {
+				const next = [...prev];
+				if (!next.some((a) => a.id === 'default-b')) {
+					next.push({
+						id: 'default-b',
+						name: `Efectivo ${userBName}`,
+						owner: 'userB',
+						initialBalance: 0
+					});
+				}
+				if (!next.some((a) => a.id === 'default-joint')) {
+					next.push({
+						id: 'default-joint',
+						name: 'Cuenta Común',
+						owner: 'joint',
+						initialBalance: 0
+					});
+				}
+				return next;
+			});
+			if (isReconfiguring) {
+				setReconfigAccounts((prev) => {
+					const next = [...prev];
+					if (!next.some((a) => a.id === 'default-b')) {
+						next.push({
+							id: 'default-b',
+							name: `Efectivo ${userBName}`,
+							owner: 'userB',
+							initialBalance: 0
+						});
+					}
+					if (!next.some((a) => a.id === 'default-joint')) {
+						next.push({
+							id: 'default-joint',
+							name: 'Cuenta Común',
+							owner: 'joint',
+							initialBalance: 0
+						});
+					}
+					return next;
+				});
+			}
+		}
+	};
+
 	const handleInitAccount = (e: SyntheticEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const sourceAccounts = isReconfiguring ? reconfigAccounts : accounts;
-		const normalizedAccounts = sourceAccounts.map((account) => {
+		const filteredAccounts = sourceAccounts.filter((acc) => profileCount === 2 || acc.owner === 'userA');
+		const normalizedAccounts = filteredAccounts.map((account) => {
 			const initialBalance = parseOpeningBalanceInput(account.initialBalance);
 			return {
 				...account,
@@ -848,9 +891,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			};
 		});
 
-		if (isReconfiguring) {
-			setAccounts(normalizedAccounts);
-		}
+		setAccounts(normalizedAccounts);
 
 		const totalBalance = normalizedAccounts.reduce((sum, account) => sum + account.initialBalance, 0);
 
@@ -1023,6 +1064,8 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 				setUserAName,
 				userBName,
 				setUserBName,
+				profileCount,
+				setProfileCount: handleSetProfileCount,
 				viewMode,
 				setViewMode,
 				activeTab,

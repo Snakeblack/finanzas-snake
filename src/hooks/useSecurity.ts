@@ -17,9 +17,11 @@ import {
 	readStoredPeriods,
 	readStoredAccounts,
 	readGeminiApiKey,
-	readAiChat
+	readAiChat,
+	readProfileCount
 } from '../services/storageService';
 import { bytesToHex, hexToBytes } from '../utils/hexEncoding';
+import { autoGenerateMissingPeriods } from '../utils/dateUtils';
 
 const PASSWORD_SALT_KEY = 'finanzas_v3_password_salt';
 const PASSWORD_CHECK_KEY = 'finanzas_v3_password_check';
@@ -34,6 +36,7 @@ export interface SecurityDataSnapshot {
 	chatMessages: ChatMessage[];
 	userAName: string;
 	userBName: string;
+	profileCount?: number;
 }
 
 /** Setters del contexto que el flujo de seguridad aplica al desbloquear o bloquear. */
@@ -48,6 +51,7 @@ export interface SecurityStateAppliers {
 	setChatMessages: Dispatch<SetStateAction<ChatMessage[]>>;
 	setSelectedMonth: Dispatch<SetStateAction<string>>;
 	setIsInitialized: Dispatch<SetStateAction<boolean>>;
+	setProfileCount?: Dispatch<SetStateAction<1 | 2>>;
 }
 
 interface UseSecurityParams {
@@ -152,6 +156,7 @@ export const useSecurity = ({ getSnapshot, appliers }: UseSecurityParams): UseSe
 				// Ejecutar migración silenciosa si es necesario
 				await executeSilentMigrationIfRequired();
 				const loadedUserNames = await readUserNames();
+				const loadedProfileCount = await readProfileCount();
 
 				const loadedTx = await readStoredTransactions();
 				const loadedDebts = await readStoredDebts();
@@ -173,34 +178,51 @@ export const useSecurity = ({ getSnapshot, appliers }: UseSecurityParams): UseSe
 							? firstPeriod.openingBalanceB
 							: firstPeriod.openingBalance / 2
 						: 0;
-					const defaultAccs: Account[] = [
-						{
-							id: 'default-a',
-							name: `Efectivo ${loadedUserNames.userAName}`,
-							owner: 'userA',
-							initialBalance: initialBalA
-						},
-						{
-							id: 'default-b',
-							name: `Efectivo ${loadedUserNames.userBName}`,
-							owner: 'userB',
-							initialBalance: initialBalB
-						},
-						{ id: 'default-joint', name: 'Cuenta Común', owner: 'joint', initialBalance: 0 }
-					];
+
+					let defaultAccs: Account[];
+					if (loadedProfileCount === 1) {
+						defaultAccs = [
+							{
+								id: 'default-a',
+								name: `Efectivo ${loadedUserNames.userAName}`,
+								owner: 'userA',
+								initialBalance: initialBalA
+							}
+						];
+					} else {
+						defaultAccs = [
+							{
+								id: 'default-a',
+								name: `Efectivo ${loadedUserNames.userAName}`,
+								owner: 'userA',
+								initialBalance: initialBalA
+							},
+							{
+								id: 'default-b',
+								name: `Efectivo ${loadedUserNames.userBName}`,
+								owner: 'userB',
+								initialBalance: initialBalB
+							},
+							{ id: 'default-joint', name: 'Cuenta Común', owner: 'joint', initialBalance: 0 }
+						];
+					}
 					appliers.setAccounts(defaultAccs);
 					await saveStoredAccounts(defaultAccs);
 				} else {
 					appliers.setAccounts(loadedAccounts);
 				}
 
-				appliers.setTransactions(loadedTx);
+				const generated = autoGenerateMissingPeriods(loadedPeriods, loadedTx);
+				appliers.setTransactions(generated.transactions);
 				appliers.setDebts(loadedDebts);
-				appliers.setPeriods(loadedPeriods);
+				appliers.setPeriods(generated.periods);
 				appliers.setUserAName(loadedUserNames.userAName);
 				appliers.setUserBName(loadedUserNames.userBName);
 				appliers.setGeminiApiKey(loadedKey);
 				appliers.setChatMessages(loadedChat);
+				if (appliers.setProfileCount) {
+					appliers.setProfileCount(loadedProfileCount as 1 | 2);
+				}
 
 				if (loadedPeriods.length > 0) {
 					const sortedP = [...loadedPeriods].sort((a, b) => a.month.localeCompare(b.month));

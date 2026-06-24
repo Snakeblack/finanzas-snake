@@ -5,6 +5,7 @@ import { startSyncHost, connectToSyncHost, type SyncData } from '../../services/
 import { Input } from '../ui/input';
 import { STORAGE_KEYS } from '../../constants';
 import { buildFinanceBackupPayload, importFinanceBackupPayload } from '../../services/storageService';
+import { autoGenerateMissingPeriods } from '../../utils/dateUtils';
 
 interface SyncModalProps {
 	isOpen: boolean;
@@ -326,14 +327,22 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 		if (imported.accounts !== undefined) {
 			setAccounts(imported.accounts);
 		}
-		if (imported.transactions !== undefined) {
-			setTransactions(imported.transactions);
+		let finalPeriods = imported.periods;
+		let finalTransactions = imported.transactions;
+		if (finalPeriods !== undefined && finalTransactions !== undefined) {
+			const generated = autoGenerateMissingPeriods(finalPeriods, finalTransactions);
+			finalPeriods = generated.periods;
+			finalTransactions = generated.transactions;
+		}
+
+		if (finalTransactions !== undefined) {
+			setTransactions(finalTransactions);
 		}
 		if (imported.debts !== undefined) {
 			setDebts(imported.debts);
 		}
-		if (imported.periods !== undefined) {
-			setPeriods(imported.periods);
+		if (finalPeriods !== undefined) {
+			setPeriods(finalPeriods);
 		}
 		if (imported.geminiApiKey !== undefined) {
 			setGeminiApiKey(imported.geminiApiKey);

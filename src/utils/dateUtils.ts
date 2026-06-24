@@ -1,3 +1,5 @@
+import { Period, Transaction } from '../types';
+
 /**
  * Normaliza un mes a formato YYYY-MM. Si no se provee valor, retorna el mes actual.
  *
@@ -37,3 +39,53 @@ export const getValidDateForMonth = (monthStr: string, preferredDayStr: string):
 	const dayStr = String(clampedDay).padStart(2, '0');
 	return `${monthStr}-${dayStr}`;
 };
+
+/**
+ * Auto-genera los periodos faltantes y copia los movimientos recurrentes correspondientes.
+ * Devuelve los arrays actualizados de periodos y transacciones sin mutar los originales.
+ *
+ * @param periods Lista actual de periodos
+ * @param transactions Lista actual de transacciones
+ * @returns Un objeto con los periodos y transacciones actualizados
+ */
+export const autoGenerateMissingPeriods = (
+	periods: Period[],
+	transactions: Transaction[]
+): { periods: Period[]; transactions: Transaction[] } => {
+	if (periods.length === 0) {
+		return { periods, transactions };
+	}
+	const sorted = [...periods].sort((a, b) => a.month.localeCompare(b.month));
+	const latestMonth = sorted[sorted.length - 1].month;
+	const currentMonth = new Date().toISOString().substring(0, 7);
+
+	if (currentMonth > latestMonth) {
+		const updatedPeriods = [...periods];
+		let newTransactions = [...transactions];
+		let iter = latestMonth;
+		while (iter < currentMonth) {
+			const prevMonth = iter;
+			iter = addMonthsToMonth(iter, 1);
+			updatedPeriods.push({
+				month: iter,
+				openingBalance: 0
+			});
+
+			// Copiar movimientos recurrentes del mes previo al nuevo mes iterado
+			const recurringTxsInPrev = newTransactions.filter(
+				(t) => t.date.substring(0, 7) === prevMonth && t.recurrence === 'recurring'
+			);
+			const cloned = recurringTxsInPrev.map((t) => ({
+				...t,
+				id: `${t.id}-${iter}`,
+				date: getValidDateForMonth(iter, t.date.substring(8, 10)),
+				originId: t.originId || t.id
+			}));
+			newTransactions = [...cloned, ...newTransactions];
+		}
+		return { periods: updatedPeriods, transactions: newTransactions };
+	}
+
+	return { periods, transactions };
+};
+

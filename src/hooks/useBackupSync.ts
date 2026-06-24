@@ -5,6 +5,7 @@ import {
 	importFinanceBackupPayload,
 	type FinanceBackupSnapshot
 } from '../services/storageService';
+import { autoGenerateMissingPeriods } from '../utils/dateUtils';
 
 /** Setters del contexto que la importación de backup aplica al volcar los datos validados. */
 export interface BackupStateAppliers {
@@ -91,14 +92,22 @@ export const useBackupSync = ({ getSnapshot, appliers }: UseBackupSyncParams): U
 			if (imported.accounts !== undefined) {
 				appliers.setAccounts(imported.accounts);
 			}
-			if (imported.transactions !== undefined) {
-				appliers.setTransactions(imported.transactions);
+			let finalPeriods = imported.periods;
+			let finalTransactions = imported.transactions;
+			if (finalPeriods !== undefined && finalTransactions !== undefined) {
+				const generated = autoGenerateMissingPeriods(finalPeriods, finalTransactions);
+				finalPeriods = generated.periods;
+				finalTransactions = generated.transactions;
+			}
+
+			if (finalTransactions !== undefined) {
+				appliers.setTransactions(finalTransactions);
 			}
 			if (imported.debts !== undefined) {
 				appliers.setDebts(imported.debts);
 			}
-			if (imported.periods !== undefined) {
-				appliers.setPeriods(imported.periods);
+			if (finalPeriods !== undefined) {
+				appliers.setPeriods(finalPeriods);
 			}
 			if (imported.geminiApiKey !== undefined) {
 				appliers.setGeminiApiKey(imported.geminiApiKey);

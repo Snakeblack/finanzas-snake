@@ -1528,7 +1528,7 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 		expect(ctxRef.selectedMonth).toBe('2026-01');
 	});
 
-	it('debe propagar clones de transacciones recurrentes automáticamente en useEffect', () => {
+	it('debe propagar clones de transacciones recurrentes automáticamente al inicializar', async () => {
 		// Mes actual es 2026-05. Ponemos el último periodo en el pasado (2026-04)
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
 		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month: '2026-04', openingBalance: 0 }]));
@@ -1548,9 +1548,9 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 			])
 		);
 
-		renderCtx();
+		await renderCtxAndInit();
 
-		// El useEffect debe correr en el primer render/mount y propagar a 2026-05 (mes actual)
+		// El generador automático debe correr al inicializar y propagar a 2026-05 (mes actual)
 		const hasCloned = ctxRef.transactions.some(
 			(t) => t.date.startsWith('2026-05') && t.desc === 'Sueldo Recurrente'
 		);
