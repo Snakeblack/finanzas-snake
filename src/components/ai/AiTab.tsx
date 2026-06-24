@@ -3,6 +3,7 @@ import { useFinanzas } from '../../hooks/useFinanzas';
 import { Icons } from '../common/Icons';
 import { MarkdownRenderer } from '../common/MarkdownRenderer';
 import { Input } from '../ui/input';
+import { GEMINI_API_KEY_SETUP_URL, GEMINI_API_KEY_UNAVAILABLE_MESSAGE } from '../../services/geminiService';
 
 /**
  * Componente que renderiza la pestaña del Asesor de Inteligencia Artificial (Gemini AI).
@@ -110,12 +111,12 @@ export function AiTab() {
 						Introduce tu API Key de Google Gemini para habilitar el motor de análisis y recibir consejos
 						estructurados en tiempo real.{' '}
 						<a
-							href="https://aistudio.google.com/api-keys"
+							href={GEMINI_API_KEY_SETUP_URL}
 							target="_blank"
 							rel="noopener noreferrer"
 							className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors"
 						>
-							Obtener API Key →
+							Obtener API Key
 						</a>
 					</p>
 
@@ -129,11 +130,11 @@ export function AiTab() {
 						/>
 						{geminiApiKey ? (
 							<span className="text-[10px] text-emerald-400 font-semibold block">
-								✓ API Key configurada localmente.
+								API Key configurada localmente.
 							</span>
 						) : (
 							<span className="text-[10px] text-amber-500 font-semibold block">
-								⚠ Falta la API Key para procesar consultas.
+								{GEMINI_API_KEY_UNAVAILABLE_MESSAGE}
 							</span>
 						)}
 					</div>
@@ -281,6 +282,11 @@ export function AiTab() {
 							</p>
 						</div>
 						<div className="flex flex-wrap gap-2 justify-center max-w-md pt-2">
+							{!geminiApiKey && (
+								<p className="w-full text-[11px] text-amber-400 leading-relaxed">
+									{GEMINI_API_KEY_UNAVAILABLE_MESSAGE}
+								</p>
+							)}
 							{[
 								'¿Cómo está mi salud financiera este mes?',
 								'¿Tengo deudas con alto coste de intereses?',
@@ -290,10 +296,10 @@ export function AiTab() {
 								<button
 									key={q}
 									onClick={() => {
-										setCustomQuestion(q);
-										handleAskGemini(q);
-									}}
-									disabled={aiLoading}
+									setCustomQuestion(q);
+									handleAskGemini(q);
+								}}
+								disabled={aiLoading || !geminiApiKey}
 									className="px-3 py-1.5 glass-panel hover:border-indigo-500/30 text-slate-350 hover:text-white rounded-lg text-[11px] font-medium transition-all text-left shadow-sm active:scale-95"
 								>
 									{q}

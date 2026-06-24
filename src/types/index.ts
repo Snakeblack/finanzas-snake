@@ -249,4 +249,13 @@ export type ImportedTransaction = {
 	transferCorrelationId?: string;
 	fromAccountId?: string;
 	toAccountId?: string;
+	balance?: string;
+	possibleDuplicate?: ImportedTransactionPossibleDuplicate;
+};
+
+export type ImportedTransactionPossibleDuplicate = {
+	existingTransactionId: string;
+	existingDate: string;
+	dateDistanceDays: number;
+	reason: string;
 };

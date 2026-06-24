@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useFinanzas } from '../hooks/useFinanzas';
 import { FinanzasProvider } from '../context/FinanzasContext';
 import { Icons } from './common/Icons';
@@ -16,6 +16,7 @@ import { EditTransactionForm } from './transactions/EditTransactionForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { parseOpeningBalanceInput } from '../utils/openingBalance';
 
 /**
  * Contenido principal de la aplicación, consumiendo el contexto de finanzas.
@@ -23,6 +24,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 function MainAppContent() {
 	const currentMonthString = new Date().toISOString().substring(0, 7); // "YYYY-MM"
 	const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+	const [openStatementImportSignal, setOpenStatementImportSignal] = useState(0);
+
+	// La señal se resetea en cuanto TransactionsTab la consume: el subtree de pestañas se
+	// remonta con key={activeTab}, por lo que sin este reset el modal volvería a abrirse solo
+	// en cada visita posterior a la pestaña de Transacciones.
+	const handleImportModalConsumed = useCallback(() => setOpenStatementImportSignal(0), []);
 
 	const {
 		activeTab,
@@ -102,6 +109,23 @@ function MainAppContent() {
 			handleImportData(fakeEvent, jsonString);
 		};
 		reader.readAsText(file);
+	};
+
+	const handleOnboardingSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+		const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+		const nextAction = submitter?.value;
+
+		handleInitAccount(e);
+
+		if (nextAction === 'accounts') {
+			setActiveTab('accounts');
+			return;
+		}
+
+		if (nextAction === 'statement-import') {
+			setActiveTab('transactions');
+			setOpenStatementImportSignal((signal) => signal + 1);
+		}
 	};
 
 	if (isLocked) {
@@ -453,7 +477,7 @@ function MainAppContent() {
 							</p>
 						</div>
 
-						<form onSubmit={handleInitAccount} className="space-y-6">
+						<form onSubmit={handleOnboardingSubmit} className="space-y-6">
 							<div>
 								<label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">
 									Flujo de Inicio
@@ -560,12 +584,12 @@ function MainAppContent() {
 												id={`init-balance-welcome-${acc.id}`}
 												type="number"
 												step="0.01"
-												required
 												min="0"
 												placeholder="0.00"
 												value={acc.initialBalance || ''}
 												onChange={(e) => {
-													const val = parseFloat(e.target.value) || 0;
+													const val = parseOpeningBalanceInput(e.target.value);
+													if (Number.isNaN(val)) return;
 													setAccounts((prev) => prev.map((a, i) => (i === index ? { ...a, initialBalance: val } : a)));
 												}}
 												className="px-3 py-2.5 text-xs"
@@ -586,10 +610,31 @@ function MainAppContent() {
 
 							<button
 								type="submit"
+								name="onboarding-action"
+								value="overview"
 								className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-3 rounded-xl text-sm transition-all shadow-lg active:scale-95"
 							>
 								Inicializar Planificación
 							</button>
+
+							<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+								<button
+									type="submit"
+									name="onboarding-action"
+									value="accounts"
+									className="w-full border border-slate-800 bg-slate-950 hover:border-indigo-500/30 text-slate-200 hover:text-white font-bold py-3 rounded-xl text-xs transition-all active:scale-95"
+								>
+									Configurar cuentas
+								</button>
+								<button
+									type="submit"
+									name="onboarding-action"
+									value="statement-import"
+									className="w-full border border-indigo-500/30 bg-indigo-600/15 hover:bg-indigo-600/25 text-indigo-300 hover:text-indigo-200 font-bold py-3 rounded-xl text-xs transition-all active:scale-95"
+								>
+									Importar PDF/CSV por cuenta
+								</button>
+							</div>
 						</form>
 
 						<div className="relative flex py-4 items-center">
@@ -901,7 +946,12 @@ function MainAppContent() {
 						{/* CONTENIDOS DE PESTAÑAS */}
 						<div key={activeTab} className="tab-transition flex-1 flex flex-col min-h-0">
 							{activeTab === 'overview' && <OverviewTab />}
-							{activeTab === 'transactions' && <TransactionsTab />}
+							{activeTab === 'transactions' && (
+							<TransactionsTab
+								openImportModalSignal={openStatementImportSignal}
+								onImportModalConsumed={handleImportModalConsumed}
+							/>
+						)}
 							{activeTab === 'debts' && <DebtsTab />}
 							{activeTab === 'accounts' && <AccountsTab />}
 							{activeTab === 'consolidation' && <ConsolidationTab />}
@@ -1157,11 +1207,11 @@ function MainAppContent() {
 											id={`init-balance-modal-${acc.id}`}
 											type="number"
 											step="0.01"
-											required
 											min="0"
 											value={acc.initialBalance}
 											onChange={(e) => {
-												const val = parseFloat(e.target.value) || 0;
+												const val = parseOpeningBalanceInput(e.target.value);
+												if (Number.isNaN(val)) return;
 												setReconfigAccounts((prev) =>
 													prev.map((a, i) => (i === index ? { ...a, initialBalance: val } : a))
 												);

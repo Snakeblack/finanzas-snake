@@ -8,6 +8,24 @@ import {
 } from './financeService';
 import { toNumber } from '../utils/formatters';
 
+export const GEMINI_API_KEY_SETUP_URL = 'https://aistudio.google.com/api-keys';
+export const GEMINI_API_KEY_UNAVAILABLE_MESSAGE = `Gemini no está disponible: configura una API Key activa. Obtén tu clave en ${GEMINI_API_KEY_SETUP_URL}.`;
+
+// Solo 401/403 implican credenciales inválidas. Un 400 (INVALID_ARGUMENT: payload/PDF
+// demasiado grande o request malformado) NO es un problema de API Key y debe propagarse
+// como error de comunicación para no desviar al usuario a regenerar su clave.
+const GEMINI_AUTH_STATUS_CODES = new Set([401, 403]);
+
+export const isGeminiApiKeyError = (error: unknown): boolean => {
+	if (!(error instanceof Error)) {
+		return false;
+	}
+
+	return /Gemini no está disponible|Código HTTP (401|403)|API_KEY_INVALID|API key not valid|invalid api key|permission denied/i.test(error.message);
+};
+
+export const createGeminiApiKeyUnavailableError = (): Error => new Error(GEMINI_API_KEY_UNAVAILABLE_MESSAGE);
+
 /**
  * Parámetros requeridos para construir el prompt de contexto financiero.
  */
@@ -159,6 +177,10 @@ export const askGemini = async (
 	chatMessages: ChatMessage[],
 	financePrompt: string
 ): Promise<string> => {
+	if (!apiKey.trim()) {
+		throw createGeminiApiKeyUnavailableError();
+	}
+
 	const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
 
 	const payload = {
@@ -185,13 +207,21 @@ export const askGemini = async (
 				body: JSON.stringify(payload)
 			});
 			if (!response.ok) {
+				if (GEMINI_AUTH_STATUS_CODES.has(response.status)) {
+					throw createGeminiApiKeyUnavailableError();
+				}
 				throw new Error(`Error de comunicación con Gemini (Código HTTP ${response.status})`);
 			}
 			const data = await response.json();
 			return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No se ha obtenido respuesta de Gemini.';
-		} catch (error: any) {
+		} catch (error: unknown) {
+			if (isGeminiApiKeyError(error)) {
+				throw createGeminiApiKeyUnavailableError();
+			}
+
 			if (attempt === 5) {
-				throw new Error(`Error tras 5 intentos: ${error.message}`);
+				const message = error instanceof Error ? error.message : 'Error desconocido';
+				throw new Error(`Error tras 5 intentos: ${message}`);
 			}
 			await new Promise((resolve) => setTimeout(resolve, delay));
 			delay *= 2;

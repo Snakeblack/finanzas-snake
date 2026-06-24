@@ -42,6 +42,7 @@ import {
 import { deriveKeyFromPassword, encryptWithKey, decryptWithKey, generateSalt } from '../services/cryptoService';
 import { addMonthsToMonth, getValidDateForMonth, normalizeMonth } from '../utils/dateUtils';
 import { toNumber, decodeHtmlEntities } from '../utils/formatters';
+import { parseOpeningBalanceInput } from '../utils/openingBalance';
 import {
 	calculateDebtMonthlyPayment,
 	calculateClassicDebtInstallment,
@@ -56,7 +57,7 @@ import {
 	getEffectiveAmount,
 	getDebtRateLabel
 } from '../services/financeService';
-import { buildFinanceDataPrompt, askGemini } from '../services/geminiService';
+import { buildFinanceDataPrompt, askGemini, GEMINI_API_KEY_UNAVAILABLE_MESSAGE, isGeminiApiKeyError } from '../services/geminiService';
 
 /**
  * Interfaz que define el valor del contexto de finanzas globales.
@@ -723,14 +724,20 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	// === ACCIONES DE GESTIÓN (MANEJADORES) ===
 	const handleInitAccount = (e: SyntheticEvent<HTMLFormElement>) => {
 		e.preventDefault();
+		const sourceAccounts = isReconfiguring ? reconfigAccounts : accounts;
+		const normalizedAccounts = sourceAccounts.map((account) => {
+			const initialBalance = parseOpeningBalanceInput(account.initialBalance);
+			return {
+				...account,
+				initialBalance: Number.isNaN(initialBalance) ? 0 : initialBalance
+			};
+		});
+
 		if (isReconfiguring) {
-			setAccounts(reconfigAccounts);
+			setAccounts(normalizedAccounts);
 		}
 
-		const totalBalance = (isReconfiguring ? reconfigAccounts : accounts).reduce(
-			(sum, a) => sum + (a.initialBalance || 0),
-			0
-		);
+		const totalBalance = normalizedAccounts.reduce((sum, account) => sum + account.initialBalance, 0);
 
 		const targetMonth = initFlow === 'current' ? new Date().toISOString().substring(0, 7) : initMonth;
 		const newPeriod: Period = {
@@ -1333,7 +1340,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	// === LÓGICA DE GEMINI ===
 	const handleAskGemini = async (questionText: string) => {
 		if (!geminiApiKey) {
-			setAiError('Por favor, introduce tu API Key de Gemini en el apartado correspondiente.');
+			setAiError(GEMINI_API_KEY_UNAVAILABLE_MESSAGE);
 			return;
 		}
 		if (!questionText.trim()) return;
@@ -1394,8 +1401,13 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 				timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 			};
 			setChatMessages((prev) => [...prev, aiMsg]);
-		} catch (err: any) {
-			setAiError(err.message || 'Error de comunicación con Gemini.');
+		} catch (err: unknown) {
+			if (isGeminiApiKeyError(err)) {
+				setAiError(GEMINI_API_KEY_UNAVAILABLE_MESSAGE);
+				return;
+			}
+
+			setAiError(err instanceof Error ? err.message : 'Error de comunicación con Gemini.');
 		} finally {
 			setAiLoading(false);
 		}

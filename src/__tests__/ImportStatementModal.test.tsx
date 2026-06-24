@@ -5,6 +5,8 @@ import { ImportStatementModal } from '../components/transactions/ImportStatement
 import { useFinanzas } from '../hooks/useFinanzas';
 import { askGeminiToParseStatement, askGeminiToParsePdf } from '../services/statementImportService';
 import * as statementImportService from '../services/statementImportService';
+import { STORAGE_KEYS } from '../constants';
+import type { Transaction } from '../types';
 
 // Mock del servicio de importación
 vi.mock('../services/statementImportService', async (importOriginal) => {
@@ -121,6 +123,18 @@ describe('ImportStatementModal UI', () => {
 		expect(await screen.findByText('Por favor, pega el texto de tu extracto bancario.')).toBeInTheDocument();
 	});
 
+	it('debe bloquear el importador IA si falta una API Key activa', async () => {
+		render(<MockApp isOpen={true} onClose={onCloseMock} />);
+
+		fireEvent.click(screen.getByText('Copiar y Pegar (IA)'));
+		fireEvent.change(screen.getByLabelText('Texto del Extracto Copiado'), { target: { value: '05/06/2026 PAGO MERCADONA -45,20' } });
+		fireEvent.click(screen.getByText('Siguiente paso'));
+
+		expect(await screen.findByText(/Gemini no está disponible: configura una API Key activa/)).toBeInTheDocument();
+		expect(screen.getAllByText(/https:\/\/aistudio.google.com\/api-keys/).length).toBeGreaterThan(0);
+		expect(askGeminiToParseStatement).not.toHaveBeenCalled();
+	});
+
 	it('debe permitir configurar mapeo en personalizado e ir al Paso 2', async () => {
 		render(<MockApp isOpen={true} onClose={onCloseMock} />);
 		
@@ -163,6 +177,29 @@ describe('ImportStatementModal UI', () => {
 		
 		// Dado que no hay API key global en este test mockeado, debe mostrar el input para la clave API
 		expect(screen.getByText('Introduce tu Gemini API Key (Requerida para PDF)')).toBeInTheDocument();
+	});
+
+	it('debe mostrar el mensaje específico de Gemini si un PDF no tiene API Key activa', async () => {
+		render(<MockApp isOpen={true} onClose={onCloseMock} />);
+		const file = new File(['pdf-dummy-content'], 'extracto.pdf', { type: 'application/pdf' });
+		const input = document.querySelector('input[type="file"]')!;
+
+		await act(async () => {
+			fireEvent.change(input, { target: { files: [file] } });
+		});
+
+		await waitFor(() => {
+			expect(screen.getByLabelText('Cuenta para extracto.pdf')).toBeInTheDocument();
+			expect(screen.queryByText('Leyendo archivo')).toBeNull();
+		});
+		fireEvent.change(screen.getByLabelText('Cuenta para extracto.pdf'), { target: { value: 'default-a' } });
+
+		fireEvent.click(screen.getByText('Siguiente paso'));
+
+		expect(await screen.findByText(/Gemini no está disponible: configura una API Key activa/)).toBeInTheDocument();
+		expect(screen.getAllByText(/https:\/\/aistudio.google.com\/api-keys/).length).toBeGreaterThan(0);
+		expect(screen.queryByText('No se pudieron extraer movimientos de los adjuntos cargados.')).toBeNull();
+		expect(askGeminiToParsePdf).not.toHaveBeenCalled();
 	});
 
 	it('debe requerir una cuenta explícita para cada adjunto cargado', async () => {
@@ -238,6 +275,57 @@ describe('ImportStatementModal UI', () => {
 			expect(screen.getByDisplayValue('PAGO BBVA')).toBeInTheDocument();
 			expect(screen.getByDisplayValue('PAGO SANTANDER')).toBeInTheDocument();
 		});
+	});
+
+	it('debe mantener visible, seleccionado e importable un posible duplicado', async () => {
+		const formatterSpy = vi.spyOn(statementImportService, 'formatImportedTransactionsForPersistence');
+		seedExistingTransactions([
+			createExistingTransaction({
+				id: 'existing-possible-duplicate',
+				desc: 'Compra Mercadona Market',
+				date: '2026-06-05'
+			})
+		]);
+		render(<MockApp isOpen={true} onClose={onCloseMock} />);
+
+		await uploadSingleCsv('fecha,concepto,importe\n07/06/2026,Mercadona compra supermercado,-45.20', 'posible.csv');
+		fireEvent.click(screen.getByText('Siguiente paso'));
+
+		expect(await screen.findByText('Revisar posible duplicado')).toBeInTheDocument();
+		expect(screen.getByText('Importar seleccionados (1)')).toBeInTheDocument();
+
+		fireEvent.click(screen.getByText(/Importar seleccionados/));
+
+		await waitFor(() => {
+			expect(formatterSpy).toHaveBeenCalled();
+			expect(formatterSpy.mock.results[0].value).toHaveLength(1);
+		});
+	});
+
+	it('debe impedir seleccionar o importar duplicados exactos desde la vista previa', async () => {
+		const formatterSpy = vi.spyOn(statementImportService, 'formatImportedTransactionsForPersistence');
+		seedExistingTransactions([
+			createExistingTransaction({
+				id: 'existing-exact-duplicate',
+				desc: 'PAGO MERCADONA',
+				date: '2026-06-05'
+			})
+		]);
+		render(<MockApp isOpen={true} onClose={onCloseMock} />);
+
+		await uploadSingleCsv('fecha,concepto,importe\n05/06/2026,PAGO MERCADONA,-45.20', 'exacto.csv');
+		fireEvent.click(screen.getByText('Siguiente paso'));
+
+		expect(await screen.findByText('Duplicado exacto')).toBeInTheDocument();
+		expect(screen.getByText('Importar seleccionados (0)')).toBeInTheDocument();
+		const duplicateSelection = screen.getByLabelText('Duplicado exacto no importable: PAGO MERCADONA');
+		expect(duplicateSelection).toBeDisabled();
+
+		fireEvent.click(duplicateSelection);
+		fireEvent.click(screen.getByText(/Importar seleccionados/));
+
+		expect(await screen.findByText('Debes seleccionar al menos una transacción para importar.')).toBeInTheDocument();
+		expect(formatterSpy).not.toHaveBeenCalled();
 	});
 
 	it('debe confirmar una transferencia interna correlacionada como una sola transacción', async () => {
@@ -361,4 +449,41 @@ async function assignAttachmentAccounts(firstName = 'cuenta-corriente.csv', seco
 
 	fireEvent.change(screen.getByLabelText(`Cuenta para ${firstName}`), { target: { value: 'default-a' } });
 	fireEvent.change(screen.getByLabelText(`Cuenta para ${secondName}`), { target: { value: 'default-b' } });
+}
+
+async function uploadSingleCsv(content: string, fileName: string) {
+	const input = document.querySelector('input[type="file"]')!;
+
+	await act(async () => {
+		fireEvent.change(input, {
+			target: {
+				files: [new File([content], fileName, { type: 'text/csv' })]
+			}
+		});
+	});
+
+	await waitFor(() => {
+		expect(screen.getByLabelText(`Cuenta para ${fileName}`)).toBeInTheDocument();
+		expect(screen.queryByText('Leyendo archivo')).toBeNull();
+	});
+	fireEvent.change(screen.getByLabelText(`Cuenta para ${fileName}`), { target: { value: 'default-a' } });
+}
+
+function seedExistingTransactions(transactions: Transaction[]) {
+	localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify(transactions));
+}
+
+function createExistingTransaction(overrides: Partial<Transaction>): Transaction {
+	return {
+		id: 'existing-transaction',
+		desc: 'PAGO MERCADONA',
+		money: { amount: '45.20', currency: 'EUR' },
+		type: 'expense',
+		tag: 'Alimentación',
+		date: '2026-06-05',
+		owner: 'joint',
+		paidBy: 'shared',
+		accountId: 'default-a',
+		...overrides
+	};
 }

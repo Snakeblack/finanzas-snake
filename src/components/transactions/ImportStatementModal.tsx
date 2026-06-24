@@ -27,6 +27,7 @@ import {
 	askGeminiToParseStatement,
 	askGeminiToParsePdf
 } from '../../services/statementImportService';
+import { GEMINI_API_KEY_SETUP_URL, GEMINI_API_KEY_UNAVAILABLE_MESSAGE, isGeminiApiKeyError } from '../../services/geminiService';
 import { DEFAULT_TAGS } from '../../constants';
 import { ImportedTransaction, TransactionType } from '../../types';
 import {
@@ -67,6 +68,18 @@ interface ImportAttachment {
 	error?: string;
 }
 
+const getErrorMessage = (error: unknown): string => error instanceof Error ? error.message : '';
+
+const getGeminiApiKeyFailureMessage = (results: PromiseSettledResult<ImportedTransaction[]>[]): string => {
+	const geminiFailure = results.find((result) => result.status === 'rejected' && isGeminiApiKeyError(result.reason));
+
+	if (!geminiFailure || geminiFailure.status !== 'rejected') {
+		return '';
+	}
+
+	return getErrorMessage(geminiFailure.reason) || GEMINI_API_KEY_UNAVAILABLE_MESSAGE;
+};
+
 const detectTemplateKey = (fileName: string): keyof typeof BANK_TEMPLATES => {
 	const lowerName = fileName.toLowerCase();
 
@@ -105,6 +118,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 		dateCol: 0,
 		descCol: 1,
 		amountCol: 2,
+		balanceCol: -1,
 		hasHeader: true
 	});
 
@@ -123,6 +137,11 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 
 	// Vista Previa de Transacciones
 	const [importedTxs, setImportedTxs] = useState<ImportedTransaction[]>([]);
+	const hasBalance = importedTxs.some((tx) => tx.balance !== undefined && tx.balance !== null && tx.balance !== '');
+	const possibleDuplicateCount = importedTxs.filter((tx) => tx.possibleDuplicate && !tx.isDuplicate).length;
+	const selectedImportableTxs = importedTxs.filter((tx) => tx.selected && !tx.isDuplicate);
+	const importableTxs = importedTxs.filter((tx) => !tx.isDuplicate);
+	const allImportableTxsSelected = importableTxs.length > 0 && importableTxs.every((tx) => tx.selected);
 
 	// Referencias de archivos
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -257,7 +276,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 		if (attachment.type === 'pdf') {
 			const activeKey = localApiKey || geminiApiKey;
 			if (!activeKey) {
-				throw new Error('Se requiere una API Key de Gemini para procesar PDFs.');
+				throw new Error(GEMINI_API_KEY_UNAVAILABLE_MESSAGE);
 			}
 
 			const parsed = await askGeminiToParsePdf(activeKey, attachment.pdfBase64, { accountName: targetAccount.name });
@@ -310,7 +329,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 				.filter(Boolean);
 
 			if (successfulTxs.length === 0) {
-				setError('No se pudieron extraer movimientos de los adjuntos cargados.');
+				setError(getGeminiApiKeyFailureMessage(parsedGroups) || 'No se pudieron extraer movimientos de los adjuntos cargados.');
 				return true;
 			}
 
@@ -322,8 +341,8 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 			if (failedAttachments.length > 0) {
 				setError(`No se pudieron procesar estos adjuntos: ${failedAttachments.join(', ')}.`);
 			}
-		} catch (err: any) {
-			setError(err.message || 'Ocurrió un error inesperado al procesar los adjuntos.');
+		} catch (err: unknown) {
+			setError(getErrorMessage(err) || 'Ocurrió un error inesperado al procesar los adjuntos.');
 		} finally {
 			setIsLoading(false);
 		}
@@ -378,7 +397,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 				}
 				const activeKey = localApiKey || geminiApiKey;
 				if (!activeKey) {
-					setError('Se requiere una API Key de Gemini para utilizar el parseador inteligente de PDF.');
+					setError(GEMINI_API_KEY_UNAVAILABLE_MESSAGE);
 					return;
 				}
 
@@ -449,7 +468,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 			}
 			const activeKey = localApiKey || geminiApiKey;
 			if (!activeKey) {
-				setError('Se requiere una API Key de Gemini para utilizar el parseador inteligente.');
+				setError(GEMINI_API_KEY_UNAVAILABLE_MESSAGE);
 				return;
 			}
 
@@ -528,15 +547,14 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 	// Alternar selección de una transacción en vista previa
 	const toggleSelectTx = (id: string) => {
 		setImportedTxs(prev =>
-			prev.map(tx => (tx.id === id ? { ...tx, selected: !tx.selected } : tx))
+			prev.map(tx => (tx.id === id && !tx.isDuplicate ? { ...tx, selected: !tx.selected } : tx))
 		);
 	};
 
 	// Alternar selección de todas las transacciones
 	const toggleSelectAll = () => {
-		const allSelected = importedTxs.every(tx => tx.selected);
 		setImportedTxs(prev =>
-			prev.map(tx => ({ ...tx, selected: !allSelected }))
+			prev.map(tx => (tx.isDuplicate ? tx : { ...tx, selected: !allImportableTxsSelected }))
 		);
 	};
 
@@ -547,13 +565,12 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 
 	// Confirmar importación
 	const handleImportConfirm = () => {
-		const selectedTxs = importedTxs.filter(tx => tx.selected);
-		if (selectedTxs.length === 0) {
+		if (selectedImportableTxs.length === 0) {
 			setError('Debes seleccionar al menos una transacción para importar.');
 			return;
 		}
 
-		const formattedTxs = formatImportedTransactionsForPersistence(selectedTxs, accounts);
+		const formattedTxs = formatImportedTransactionsForPersistence(selectedImportableTxs, accounts);
 
 		// Mezclar y ordenar por fecha descendente
 		const newTransactionsList = [...formattedTxs, ...transactions].sort((a, b) =>
@@ -564,15 +581,22 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 		handleClose();
 	};
 
+	const getPossibleDuplicateLabel = (tx: ImportedTransaction): string => {
+		if (!tx.possibleDuplicate) {
+			return '';
+		}
+
+		return `Revisar posible duplicado: ${tx.possibleDuplicate.reason}. Movimiento existente del ${tx.possibleDuplicate.existingDate}.`;
+	};
+
 	const handleNextFromPreview = () => {
-		const selectedTxs = importedTxs.filter(tx => tx.selected);
-		if (selectedTxs.length === 0) {
+		if (selectedImportableTxs.length === 0) {
 			setError('Debes seleccionar al menos una transacción para importar.');
 			return;
 		}
 
 		// Check if any selected transaction is a transfer
-		const hasTransfers = selectedTxs.some(tx => tx.type === 'transfer' && !tx.transferCorrelationId);
+		const hasTransfers = selectedImportableTxs.some(tx => tx.type === 'transfer' && !tx.transferCorrelationId);
 		if (hasTransfers) {
 			// Initialize default from/to accounts for transfer transactions if they are not set yet
 			setImportedTxs(prev =>
@@ -757,7 +781,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 													className="bg-slate-950 border-slate-850 px-3 h-10 text-xs text-slate-100"
 												/>
 												<p className="text-[9px] text-slate-500 leading-normal">
-													Tus claves no se guardan en servidores, se cifran y almacenan únicamente en tu navegador.
+													Obtén tu clave en {GEMINI_API_KEY_SETUP_URL}. Tus claves se guardan localmente según la configuración de la app.
 												</p>
 											</div>
 										)}
@@ -878,7 +902,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 											className="bg-slate-950 border-slate-850 px-3 h-10 text-xs"
 										/>
 										<p className="text-[9px] text-slate-500 leading-normal">
-											Tus claves no se guardan en servidores, se cifran y almacenan únicamente en tu navegador.
+											Obtén tu clave en {GEMINI_API_KEY_SETUP_URL}. Tus claves se guardan localmente según la configuración de la app.
 										</p>
 									</div>
 								)}
@@ -1010,6 +1034,29 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 								</Select>
 							</div>
 
+							{/* Selector Saldo */}
+							<div className="space-y-2">
+								<label htmlFor="custom-map-balance" className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
+									Columna Saldo (Opcional)
+								</label>
+								<Select
+									value={String(customMapping.balanceCol)}
+									onValueChange={(val) => setCustomMapping(prev => ({ ...prev, balanceCol: parseInt(val) }))}
+								>
+									<SelectTrigger id="custom-map-balance" className="bg-slate-950 border-slate-850 h-10">
+										<SelectValue placeholder="Selecciona columna" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="-1">Ninguna (Omitir)</SelectItem>
+										{csvRows[0]?.map((_, idx) => (
+											<SelectItem key={idx} value={String(idx)}>
+												Columna {idx} (ej. "{csvRows[0][idx] || 'vacía'}")
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+
 							{/* Checkbox Header */}
 							<div className="flex items-center gap-3 pt-8 pl-2">
 								<button
@@ -1056,12 +1103,17 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 								<span className="text-slate-100 font-bold block">
 									{attachments.length > 0 ? `${attachments.length} adjunto(s)` : accounts.find(a => a.id === selectedAccountId)?.name}
 								</span>
+								{possibleDuplicateCount > 0 && (
+									<span className="block text-[11px] text-amber-400">
+										{possibleDuplicateCount} movimiento(s) requieren revisión por posible duplicado.
+									</span>
+								)}
 							</div>
 							<div className="flex gap-4">
 								<div className="text-center bg-slate-900 border border-slate-850 px-3 py-1.5 rounded-xl">
 									<span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">Importar</span>
 									<span className="text-sm font-black text-indigo-400">
-										{importedTxs.filter(t => t.selected).length}
+										{selectedImportableTxs.length}
 									</span>
 								</div>
 								<div className="text-center bg-slate-900 border border-slate-850 px-3 py-1.5 rounded-xl">
@@ -1081,19 +1133,19 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 
 						{/* Tabla */}
 						<div className="overflow-x-auto max-h-[45vh] pr-1 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
-							<table className="w-full text-left border-collapse min-w-[700px]">
+							<table className={`w-full text-left border-collapse ${hasBalance ? 'min-w-[800px]' : 'min-w-[700px]'}`}>
 								<thead>
 									<tr className="border-b border-slate-800/80 text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-950/40 sticky top-0 z-10 backdrop-blur-sm">
 										<th className="py-2.5 pl-3 w-10 text-center">
 											<button
 												type="button"
 												onClick={toggleSelectAll}
-												className="p-1 hover:bg-slate-800 rounded text-indigo-400 flex items-center justify-center mx-auto"
-												title="Seleccionar / Deseleccionar todos"
-											>
-												{importedTxs.every(tx => tx.selected) ? (
-													<CheckSquare className="w-4 h-4" />
-												) : (
+										className="p-1 hover:bg-slate-800 rounded text-indigo-400 flex items-center justify-center mx-auto"
+										title="Seleccionar / Deseleccionar todos"
+									>
+										{allImportableTxsSelected ? (
+											<CheckSquare className="w-4 h-4" />
+										) : (
 													<Square className="w-4 h-4 text-slate-500" />
 												)}
 											</button>
@@ -1102,6 +1154,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 										<th className="py-2.5 w-[170px]">Origen</th>
 										<th className="py-2.5">Concepto</th>
 										<th className="py-2.5 w-[90px] text-right">Importe (€)</th>
+										{hasBalance && <th className="py-2.5 w-[90px] text-right">Saldo (€)</th>}
 										<th className="py-2.5 w-[90px] text-center">Tipo</th>
 										<th className="py-2.5 w-[140px]">Etiqueta</th>
 										<th className="py-2.5 w-[130px]">Propietario</th>
@@ -1114,14 +1167,16 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 											key={tx.id}
 											className={`transition-all ${
 												tx.selected ? 'bg-slate-950/10 hover:bg-slate-900/40' : 'opacity-40 hover:opacity-70'
-											} ${tx.isDuplicate ? 'border-l-2 border-l-amber-500' : ''}`}
+										} ${tx.isDuplicate || tx.possibleDuplicate ? 'border-l-2 border-l-amber-500' : ''}`}
 										>
 											<td className="py-3 text-center align-middle">
-												<button
-													type="button"
-													onClick={() => toggleSelectTx(tx.id)}
-													className="p-1 hover:bg-slate-850 rounded flex items-center justify-center mx-auto text-indigo-400"
-												>
+											<button
+												type="button"
+												onClick={() => toggleSelectTx(tx.id)}
+												disabled={tx.isDuplicate}
+												aria-label={tx.isDuplicate ? `Duplicado exacto no importable: ${tx.desc}` : `Seleccionar movimiento: ${tx.desc}`}
+												className={`p-1 rounded flex items-center justify-center mx-auto text-indigo-400 ${tx.isDuplicate ? 'cursor-not-allowed opacity-50' : 'hover:bg-slate-850'}`}
+											>
 													{tx.selected ? (
 														<CheckSquare className="w-4 h-4" />
 													) : (
@@ -1154,7 +1209,12 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 												/>
 												{tx.isDuplicate && (
 													<span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 text-[9px] text-amber-500 rounded font-bold animate-pulse">
-														<AlertTriangle className="w-3 h-3" /> Posible duplicado
+														<AlertTriangle className="w-3 h-3" /> Duplicado exacto
+													</span>
+												)}
+												{tx.possibleDuplicate && !tx.isDuplicate && (
+													<span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 text-[9px] text-amber-400 rounded font-bold" title={getPossibleDuplicateLabel(tx)}>
+														<AlertTriangle className="w-3 h-3" /> Revisar posible duplicado
 													</span>
 												)}
 											</td>
@@ -1167,6 +1227,11 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 													className="h-8 text-[11px] text-right font-mono px-1.5 bg-slate-950 border-slate-850 text-slate-100"
 												/>
 											</td>
+											{hasBalance && (
+												<td className="py-3 pr-2 text-right font-mono text-slate-400 align-middle shrink-0">
+													{tx.balance ? `${parseFloat(tx.balance).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : '-'}
+												</td>
+											)}
 											<td className="py-3 pr-2 text-center align-middle">
 												<select
 													value={tx.type}
@@ -1250,7 +1315,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 								<span>
 									{importedTxs.some(t => t.selected && t.type === 'transfer' && !t.transferCorrelationId)
 										? 'Configurar traspasos' 
-										: `Importar seleccionados (${importedTxs.filter(t => t.selected).length})`}
+										: `Importar seleccionados (${selectedImportableTxs.length})`}
 								</span>
 							</button>
 						</div>

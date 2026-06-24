@@ -1,6 +1,11 @@
 import '@testing-library/jest-dom';
 import { vi, beforeEach } from 'vitest';
 
+declare global {
+	// Test-only hook used by suites that need explicit IndexedDB isolation.
+	var __resetMockIndexedDBForTests: (() => void) | undefined;
+}
+
 // Mock de window.print
 if (typeof window !== 'undefined') {
 	window.print = vi.fn();
@@ -18,6 +23,10 @@ if (typeof window !== 'undefined') {
 
 // Almacén de base de datos en memoria para pruebas de IndexedDB
 let mockDbStore: Record<string, any[]> = {};
+
+globalThis.__resetMockIndexedDBForTests = () => {
+	mockDbStore = {};
+};
 
 class MockIDBRequest {
 	result: any = null;
@@ -115,5 +124,5 @@ globalThis.indexedDB = mockIndexedDB as any;
 // Limpiar localStorage y base de datos antes de cada prueba para evitar interferencias
 beforeEach(() => {
 	localStorage.clear();
-	mockDbStore = {};
+	globalThis.__resetMockIndexedDBForTests();
 });

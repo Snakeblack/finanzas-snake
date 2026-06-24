@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useFinanzas } from '../../hooks/useFinanzas';
 import { deduceTagFromConcept } from '../../services/financeService';
 import { DEFAULT_TAGS } from '../../constants';
@@ -22,7 +22,12 @@ import { Transaction } from '../../types';
  * Permite dar de alta ingresos, gastos y traspasos, y muestra el
  * historial detallado del mes seleccionado.
  */
-export function TransactionsTab() {
+interface TransactionsTabProps {
+	openImportModalSignal?: number;
+	onImportModalConsumed?: () => void;
+}
+
+export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsumed }: TransactionsTabProps) {
 	const {
 		txForm,
 		setTxForm,
@@ -45,6 +50,13 @@ export function TransactionsTab() {
 	const [typeFilter, setTypeFilter] = useState<'all' | 'expense' | 'income' | 'both'>('all');
 	const [draggedTxId, setDraggedTxId] = useState<string | null>(null);
 	const [dragOverTxId, setDragOverTxId] = useState<string | null>(null);
+
+	useEffect(() => {
+		if (openImportModalSignal > 0) {
+			setIsImportModalOpen(true);
+			onImportModalConsumed?.();
+		}
+	}, [openImportModalSignal, onImportModalConsumed]);
 
 	const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		handleAddTransaction(e);
