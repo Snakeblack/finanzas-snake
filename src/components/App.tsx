@@ -167,26 +167,28 @@ function MainAppContent() {
 			className={`min-h-screen ${activeTab === 'ai' ? 'h-screen overflow-hidden' : activeTab === 'transactions' ? 'lg:h-screen lg:overflow-hidden' : ''} flex flex-col bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white relative overflow-hidden`}
 		>
 			{/* Ambient glows */}
-			<div
-				style={{
-					position: 'absolute',
-					top: 0,
-					left: '25%',
-					width: '300px',
-					height: '300px'
-				}}
-				className="bg-glow-indigo"
-			/>
-			<div
-				style={{
-					position: 'absolute',
-					top: '25%',
-					right: '25%',
-					width: '400px',
-					height: '400px'
-				}}
-				className="bg-glow-violet"
-			/>
+			<div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+				<div
+					style={{
+						position: 'absolute',
+						top: 0,
+						left: '25%',
+						width: '300px',
+						height: '300px'
+					}}
+					className="bg-glow-indigo"
+				/>
+				<div
+					style={{
+						position: 'absolute',
+						top: '25%',
+						right: '25%',
+						width: '400px',
+						height: '400px'
+					}}
+					className="bg-glow-violet"
+				/>
+			</div>
 
 			{/* HEADER DE LA APP */}
 			<header className="border-b border-slate-900/40 bg-slate-950/20 backdrop-blur-md sticky top-0 z-30">
@@ -875,6 +877,7 @@ function MainAppContent() {
 									<SelectTrigger
 										id="global-month-selector"
 										className="bg-slate-950/60 text-slate-100 border border-slate-800 rounded-lg px-2 py-1 lg:px-3 lg:py-1.5 text-xs font-mono font-bold outline-none focus:border-indigo-500 cursor-pointer w-auto h-auto min-w-[100px]"
+										aria-label="Seleccionar mes"
 									>
 										<SelectValue placeholder="Mes" />
 									</SelectTrigger>
