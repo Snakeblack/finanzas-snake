@@ -7,6 +7,21 @@
 
 - **Rama:** `feat/import-onboarding-gemini-stabilization` (creada desde `main`). **Nada pusheado todavía.**
 - **Gate verde:** `pnpm test` (323), `pnpm typecheck`, `pnpm lint` (0 errores / 55 warnings de backlog), `pnpm format:check`.
+
+### Paso 0 opcional — abrir PR antes de seguir
+
+Todo el trabajo está en commits locales sin pushear. Si quieres revisarlo en GitHub antes de
+continuar con D1:
+
+```bash
+git push -u origin feat/import-onboarding-gemini-stabilization
+gh pr create --base main --fill   # o redacta título/cuerpo a mano
+```
+
+Resumen sugerido para el PR: consolida import multicuenta + onboarding + gating Gemini (con 3 fixes
+de code-review), añade red de seguridad ESLint/Prettier, estabiliza warnings 80→55 y arranca el
+refactor D1 del god-context. No es bloqueante: se puede seguir acumulando en la rama y abrir el PR
+más tarde.
 - Últimos commits relevantes:
   - `f0f1728` feat: import multicuenta + onboarding + gating Gemini (incluye 3 fixes de code-review)
   - `1a5d21f` chore: red de seguridad ESLint + Prettier + scripts
