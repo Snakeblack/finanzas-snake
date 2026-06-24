@@ -84,7 +84,8 @@ Sin backend de datos: todo vive en el navegador.
 | D4 | **Precisión monetaria** | `ledgerEngine` usa `big.js`/string pero `calculateTimelineBalances` agrega en `number` (float) | Posibles descuadres de céntimos en la línea temporal |
 | D5 | **Multi-moneda** | `CurrencyCode` admite EUR/USD/GBP pero no hay tasas FX; tx de otra moneda se ignoran | Funcionalidad incompleta y silenciosa |
 | D6 | Duplicación | `normalizeAmount`/`normalizeBalance` casi idénticas; `getFallbackTag` inline duplicado; demote de transferencia en 2 sitios | Drift al cambiar reglas |
-| ~~D7~~ | Tooling | ✅ Resuelto: ESLint flat config + Prettier + scripts (`lint`, `format`). Quedan ~80 warnings como backlog a saldar (any, set-state-in-effect, preserve-caught-error) | — |
+| ~~D7~~ | Tooling | ✅ Resuelto: ESLint flat config + Prettier + scripts (`lint`, `format`). Backlog de lint reducido 80→55 warnings (ver D9) | — |
+| D9 | Backlog de lint | 55 warnings restantes (consciente): 46 `no-explicit-any` (migraciones/sync/backup — tipar es esfuerzo aparte), 7 `react-hooks/set-state-in-effect` (patrones de "sincronizar al abrir/por prop"; se revisarán al hacer D1), 2 `react-refresh/only-export-components` (solo afecta HMR) | Bajo; saldar gradualmente |
 | D8 | Importación | Heurística de "posible duplicado" laxa (1 token ≥4 chars) | Falsos positivos de aviso |
 
 ## 6. Ideas de mejora funcional (hacia "app top")

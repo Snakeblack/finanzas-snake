@@ -9,8 +9,6 @@ import { DebtsTab } from './debts/DebtsTab';
 import { AccountsTab } from './accounts/AccountsTab';
 import { ConsolidationTab } from './consolidation/ConsolidationTab';
 import { AiTab } from './ai/AiTab';
-import { DEFAULT_TAGS } from '../constants';
-import { deduceTagFromConcept } from '../services/financeService';
 import { SyncModal } from './sync/SyncModal';
 import { EditTransactionForm } from './transactions/EditTransactionForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -54,8 +52,6 @@ function MainAppContent() {
 		recurringExpenses,
 		totalMonthlyDebtPayments,
 		currentClosingBalance,
-		netMonthlyBalance,
-		debts,
 		setSelectedDebtSchedule,
 		setTxForm,
 		setDebtForm,
@@ -78,7 +74,6 @@ function MainAppContent() {
 		editingTx,
 		setEditingTx,
 		editForm,
-		setEditForm,
 		editScope,
 		setEditScope,
 		handleSaveEditTransaction,

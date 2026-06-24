@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { FinanzasProvider } from '../context/FinanzasContext';
 import { ImportStatementModal } from '../components/transactions/ImportStatementModal';
-import { useFinanzas } from '../hooks/useFinanzas';
 import { askGeminiToParseStatement, askGeminiToParsePdf } from '../services/statementImportService';
 import * as statementImportService from '../services/statementImportService';
 import { STORAGE_KEYS } from '../constants';

@@ -8,7 +8,6 @@ import { Upload } from 'lucide-react';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { toNumber } from '../../utils/formatters';
-import { Transaction } from '../../types';
 
 /**
  * Componente que renderiza la pestaña de Transacciones.

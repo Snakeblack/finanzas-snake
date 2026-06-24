@@ -613,7 +613,7 @@ function formatInternalTransfer(tx: ImportedTransaction, accounts: Account[]): T
 	};
 }
 
-function formatRegularImportedTransaction(tx: ImportedTransaction, accounts: Account[]): Transaction {
+function formatRegularImportedTransaction(tx: ImportedTransaction, _accounts: Account[]): Transaction {
 	return {
 		id: tx.importFingerprint || tx.id,
 		desc: tx.desc,
@@ -832,7 +832,7 @@ Reglas estrictas:
 		}
 	];
 
-	let resultText = '';
+	let resultText: string;
 	try {
 		resultText = await askGemini(apiKey, chatMessages, systemInstruction);
 	} catch (error: unknown) {
@@ -866,7 +866,8 @@ Reglas estrictas:
 	} catch (err: unknown) {
 		console.error('Error al parsear el JSON de Gemini:', err, 'Texto recibido:', resultText);
 		throw new Error(
-			'No se pudo procesar el extracto con IA. Asegúrate de que el texto contiene movimientos válidos y que tu API Key es correcta.'
+			'No se pudo procesar el extracto con IA. Asegúrate de que el texto contiene movimientos válidos y que tu API Key es correcta.',
+			{ cause: err }
 		);
 	}
 }
@@ -973,7 +974,7 @@ Reglas estrictas:
 
 				if (attempt === 5) {
 					const message = error instanceof Error ? error.message : 'Error desconocido';
-					throw new Error(`Error tras 5 intentos al parsear PDF con IA: ${message}`);
+					throw new Error(`Error tras 5 intentos al parsear PDF con IA: ${message}`, { cause: error });
 				}
 				await new Promise((resolve) => setTimeout(resolve, delay));
 				delay *= 2;
@@ -1010,7 +1011,8 @@ Reglas estrictas:
 
 		console.error('Error al procesar extracto PDF con Gemini:', err);
 		throw new Error(
-			'No se pudo procesar el extracto PDF con IA. Asegúrate de que el documento es válido y tu API Key es correcta.'
+			'No se pudo procesar el extracto PDF con IA. Asegúrate de que el documento es válido y tu API Key es correcta.',
+			{ cause: err }
 		);
 	}
 }

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Transaction, Account, TxForm } from '../../types';
-import { Icons } from '../common/Icons';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { DEFAULT_TAGS } from '../../constants';

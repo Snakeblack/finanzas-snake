@@ -39,13 +39,15 @@ export default tseslint.config(
 		}
 	},
 	{
-		// Los tests usan globals de Vitest y mocks laxos.
+		// Los tests usan globals de Vitest, mocks laxos y reasignan refs/módulos a propósito.
 		files: ['**/*.test.{ts,tsx}', 'setupTests.ts'],
 		languageOptions: {
 			globals: { ...globals.node }
 		},
 		rules: {
-			'@typescript-eslint/no-explicit-any': 'off'
+			'@typescript-eslint/no-explicit-any': 'off',
+			'react-hooks/globals': 'off',
+			'react-hooks/set-state-in-effect': 'off'
 		}
 	},
 	prettier

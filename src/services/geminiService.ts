@@ -223,7 +223,7 @@ export const askGemini = async (
 
 			if (attempt === 5) {
 				const message = error instanceof Error ? error.message : 'Error desconocido';
-				throw new Error(`Error tras 5 intentos: ${message}`);
+				throw new Error(`Error tras 5 intentos: ${message}`, { cause: error });
 			}
 			await new Promise((resolve) => setTimeout(resolve, delay));
 			delay *= 2;

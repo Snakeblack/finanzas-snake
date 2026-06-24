@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { buildFinanceDataPrompt, askGemini } from '../services/geminiService';
 import type { PromptContextParams } from '../services/geminiService';
-import type { ChatMessage, ClassicDebt, PaymentPlanDebt, Transaction, TagBreakdown } from '../types';
+import type { ChatMessage, ClassicDebt, PaymentPlanDebt, Transaction } from '../types';
 
 // --- Fixtures ---
 

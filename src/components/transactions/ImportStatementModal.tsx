@@ -32,8 +32,6 @@ import {
 	ChevronRight,
 	Loader2,
 	Trash2,
-	RefreshCw,
-	Settings,
 	Sparkles
 } from 'lucide-react';
 

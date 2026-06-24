@@ -22,7 +22,7 @@ function calculateNiceTicks(min: number, max: number, maxTicks = 5): number[] {
 	const magnitude = 10 ** Math.floor(Math.log10(tempStep));
 	const residual = tempStep / magnitude;
 
-	let niceStep = magnitude;
+	let niceStep: number;
 	if (residual < 1.5) {
 		niceStep = magnitude * 1;
 	} else if (residual < 3) {

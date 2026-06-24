@@ -257,7 +257,7 @@ export function MarkdownRenderer({ text }: MarkdownRendererProps) {
 							continue;
 						}
 
-						const ulMatch = line.match(/^[\*\-\+]\s+(.*)$/);
+						const ulMatch = line.match(/^[-*+]\s+(.*)$/);
 						if (ulMatch) {
 							if (listType !== 'ul') {
 								flushList(i);

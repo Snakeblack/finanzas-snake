@@ -1753,7 +1753,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 									? `Futura (empieza en ${d.date})`
 									: 'Inactiva';
 
-							let details = '';
+							let details: string;
 							const chargeDayLabel = d.chargeDay ? `, Cobro día ${d.chargeDay}` : '';
 							if (isClassicDebt(d)) {
 								const openingLabel = d.openingCommission ? `, Apertura: ${d.openingCommission}€` : '';
@@ -2363,7 +2363,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 				setPasswordError('PIN incorrecto. Vuelve a intentarlo.');
 				return false;
 			}
-		} catch (err) {
+		} catch {
 			setPasswordError('PIN incorrecto o error al descifrar.');
 			return false;
 		}

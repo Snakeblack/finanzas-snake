@@ -1,5 +1,5 @@
 import type React from 'react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useFinanzas } from '../../hooks/useFinanzas';
 import { startSyncHost, connectToSyncHost, type SyncData } from '../../services/syncService';
 import { Input } from '../ui/input';
@@ -91,15 +91,15 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 	const clientSessionRef = useRef<{ destroy: () => void } | null>(null);
 	const handshakeTimeoutRef = useRef<any>(null);
 
-	const clearHandshakeTimeout = () => {
+	const clearHandshakeTimeout = useCallback(() => {
 		if (handshakeTimeoutRef.current) {
 			clearTimeout(handshakeTimeoutRef.current);
 			handshakeTimeoutRef.current = null;
 		}
-	};
+	}, []);
 
 	// Limpieza al cerrar o cambiar de modo
-	const cleanSessions = () => {
+	const cleanSessions = useCallback(() => {
 		clearHandshakeTimeout();
 		if (hostSessionRef.current) {
 			hostSessionRef.current.destroy();
@@ -109,7 +109,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 			clientSessionRef.current.destroy();
 			clientSessionRef.current = null;
 		}
-	};
+	}, [clearHandshakeTimeout]);
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -124,7 +124,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 		return () => {
 			cleanSessions();
 		};
-	}, [isOpen]);
+	}, [isOpen, cleanSessions]);
 
 	// Obtener credenciales TURN dinámicas desde la API serverless
 	const fetchIceServers = async (): Promise<any[] | undefined> => {
