@@ -78,6 +78,7 @@ function MainAppContent() {
 		setEditScope,
 		handleSaveEditTransaction,
 		isLocked,
+		isInitialized,
 		hasPasswordSet,
 		handleLockApp,
 		handleImportData,
@@ -129,13 +130,63 @@ function MainAppContent() {
 		return <LockScreen />;
 	}
 
+	if (!isInitialized) {
+		return (
+			<div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 p-4 font-sans selection:bg-indigo-500 selection:text-white">
+				<div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,#1e1b4b,transparent_45%)] z-0" />
+				<div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_70%,#0f172a,transparent_50%)] z-0" />
+
+				<div className="relative z-10 max-w-md w-full flex flex-col items-center text-center">
+					<div className="w-16 h-16 mb-6 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+						<svg
+							className="w-8 h-8 text-white animate-spin"
+							fill="none"
+							viewBox="0 0 24 24"
+						>
+							<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+							<path
+								className="opacity-75"
+								fill="currentColor"
+								d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+							/>
+						</svg>
+					</div>
+					<h3 className="text-xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+						Cargando Finanzas Snake
+					</h3>
+					<p className="text-xs text-slate-450 mt-2 leading-relaxed">
+						Cargando tus datos financieros locales...
+					</p>
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div
 			className={`min-h-screen ${activeTab === 'ai' ? 'h-screen overflow-hidden' : activeTab === 'transactions' ? 'lg:h-screen lg:overflow-hidden' : ''} flex flex-col bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white relative overflow-hidden`}
 		>
 			{/* Ambient glows */}
-			<div className="bg-glow-indigo top-0 left-1/4" />
-			<div className="bg-glow-violet top-1/4 right-1/4" />
+			<div
+				style={{
+					position: 'absolute',
+					top: 0,
+					left: '25%',
+					width: '300px',
+					height: '300px'
+				}}
+				className="bg-glow-indigo"
+			/>
+			<div
+				style={{
+					position: 'absolute',
+					top: '25%',
+					right: '25%',
+					width: '400px',
+					height: '400px'
+				}}
+				className="bg-glow-violet"
+			/>
 
 			{/* HEADER DE LA APP */}
 			<header className="border-b border-slate-900/40 bg-slate-950/20 backdrop-blur-md sticky top-0 z-30">
