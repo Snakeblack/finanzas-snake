@@ -59,6 +59,7 @@ import { useSecurity } from '../hooks/useSecurity';
 import { useBackupSync } from '../hooks/useBackupSync';
 import { useDebts } from '../hooks/useDebts';
 import { useTransactions } from '../hooks/useTransactions';
+import { useAccounts } from '../hooks/useAccounts';
 
 /**
  * Interfaz que define el valor del contexto de finanzas globales.
@@ -320,7 +321,22 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	// Estado local para evitar sobreescrituras accidentales durante el arranque
 	const [isInitialized, setIsInitialized] = useState(false);
 
-	const [accounts, setAccounts] = useState<Account[]>(() => getInitialData().accounts);
+	// === DOMINIO DE CUENTAS ===
+	// El estado de cuentas (accounts, editingAccount, accountForm) y sus handlers puros viven en
+	// useAccounts (D1). Es el primer hook de dominio: accounts/setAccounts los consumen
+	// useTransactions (lectura) y los appliers de useSecurity/useBackupSync. El borrado de cuenta
+	// (cross-domain con tx/deudas) y la persistencia siguen en el contexto.
+	const {
+		accounts,
+		setAccounts,
+		editingAccount,
+		setEditingAccount,
+		accountForm,
+		setAccountForm,
+		handleAddAccount,
+		handleSaveEditAccount,
+		handleStartEditAccount
+	} = useAccounts();
 
 	const [periods, setPeriods] = useState<Period[]>(() => getInitialData().periods);
 
@@ -336,14 +352,6 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	});
 
 	const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
-
-	// Estados de gestión de Cuentas
-	const [editingAccount, setEditingAccount] = useState<Account | null>(null);
-	const [accountForm, setAccountForm] = useState({
-		name: '',
-		owner: 'joint' as 'userA' | 'userB' | 'joint',
-		initialBalance: ''
-	});
 
 	// Formularios de inicialización/reconfiguración
 	const [initFlow, setInitFlow] = useState<'past' | 'current'>('current');
@@ -613,7 +621,16 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		return () => {
 			cancelled = true;
 		};
-	}, [isLocked, hasPasswordSet, setIsLocked, setDebts, setTransactions, setGeminiApiKey, setChatMessages]);
+	}, [
+		isLocked,
+		hasPasswordSet,
+		setIsLocked,
+		setDebts,
+		setTransactions,
+		setAccounts,
+		setGeminiApiKey,
+		setChatMessages
+	]);
 
 	useEffect(() => {
 		if (!isInitialized || isLocked) return;
@@ -895,53 +912,6 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			setTransactions((prev) => [...cloned, ...prev]);
 		}
 		setSelectedMonth(nextMonth);
-	};
-
-	const handleAddAccount = (e: SyntheticEvent<HTMLFormElement>) => {
-		e.preventDefault();
-		if (!accountForm.name) return;
-
-		const newAcc: Account = {
-			id: Date.now().toString(),
-			name: accountForm.name,
-			owner: accountForm.owner,
-			initialBalance: Math.abs(parseFloat(accountForm.initialBalance) || 0)
-		};
-
-		setAccounts([...accounts, newAcc]);
-		setAccountForm({ name: '', owner: 'joint', initialBalance: '' });
-	};
-
-	const handleSaveEditAccount = (e: SyntheticEvent<HTMLFormElement>) => {
-		e.preventDefault();
-		if (!editingAccount || !accountForm.name) return;
-
-		const updatedBalance = Math.abs(parseFloat(accountForm.initialBalance) || 0);
-		setAccounts(
-			accounts.map((acc) => {
-				if (acc.id === editingAccount.id) {
-					return {
-						...acc,
-						name: accountForm.name,
-						owner: accountForm.owner,
-						initialBalance: updatedBalance
-					};
-				}
-				return acc;
-			})
-		);
-
-		setEditingAccount(null);
-		setAccountForm({ name: '', owner: 'joint', initialBalance: '' });
-	};
-
-	const handleStartEditAccount = (acc: Account) => {
-		setEditingAccount(acc);
-		setAccountForm({
-			name: acc.name,
-			owner: acc.owner,
-			initialBalance: String(acc.initialBalance)
-		});
 	};
 
 	const handleDeleteAccount = (id: string) => {
