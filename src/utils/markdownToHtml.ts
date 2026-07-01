@@ -75,7 +75,7 @@ export const convertMarkdownToHtml = (text: string): string => {
 
 				const headers = splitRow(tableLines[0]);
 				const sepLine = tableLines[1].trim();
-				const isSeparator = /^\|?(\s*:?-+\s*:?\s*\|)+\s*:?-+\s*:?\|?$/.test(sepLine);
+				const isSeparator = /^\|?(\s*:?-+:?\s*\|)+\s*:?-+:?\s*\|?$/.test(sepLine);
 
 				let rowsStartIndex = 1;
 				let alignStyles: string[] = [];

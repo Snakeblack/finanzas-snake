@@ -36,9 +36,11 @@ describe('convertMarkdownToHtml', () => {
 		expect(html).toContain('>1</td>');
 	});
 
-	// NOTA (comportamiento pre-existente): el regex de detección de separador no acepta
-	// una fila separadora con pipe de cierre y alineación (p.ej. "| :-- | --: |"); en ese
-	// caso la fila separadora se trata como datos. Bug latente a corregir fuera de esta extracción.
+	it('aplica alineación cuando el separador lleva pipe de cierre y alineación', () => {
+		const html = convertMarkdownToHtml('| A | B |\n| :-- | --: |\n| 1 | 2 |');
+		expect(html).toContain('text-align: right;');
+	});
+
 	it('aplica alineación cuando el separador NO lleva pipe de cierre', () => {
 		const html = convertMarkdownToHtml('| A | B |\n| :-- | --:\n| 1 | 2 |');
 		expect(html).toContain('text-align: right;');
