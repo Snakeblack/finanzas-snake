@@ -64,6 +64,7 @@ import { useDebts } from '../hooks/useDebts';
 import { useTransactions } from '../hooks/useTransactions';
 import { useAccounts } from '../hooks/useAccounts';
 import { useConsolidation } from '../hooks/useConsolidation';
+import { usePeriods } from '../hooks/usePeriods';
 
 /**
  * Interfaz que define el valor del contexto de finanzas globales.
@@ -346,18 +347,14 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		handleStartEditAccount
 	} = useAccounts(profileCount);
 
-	const [periods, setPeriods] = useState<Period[]>(() => getInitialData().periods);
-
-	const [selectedMonth, setSelectedMonth] = useState(() => {
-		const currentMonth = new Date().toISOString().substring(0, 7);
-		const storedPeriods = getInitialData().periods;
-		if (storedPeriods.length > 0) {
-			const exists = storedPeriods.some((p) => p.month === currentMonth);
-			if (exists) return currentMonth;
-			return storedPeriods[storedPeriods.length - 1].month;
-		}
-		return currentMonth;
-	});
+	// === DOMINIO DE PERIODOS ===
+	const {
+		periods,
+		setPeriods,
+		selectedMonth,
+		setSelectedMonth,
+		handleCreateNextMonth: rawHandleCreateNextMonth
+	} = usePeriods();
 
 	const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
 
@@ -924,37 +921,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	};
 
 	const handleCreateNextMonth = () => {
-		if (periods.length === 0) return;
-		const sorted = [...periods].sort((a, b) => a.month.localeCompare(b.month));
-		const latestMonth = sorted[sorted.length - 1].month;
-		const nextMonth = addMonthsToMonth(latestMonth, 1);
-
-		if (periods.some((p) => p.month === nextMonth)) {
-			setSelectedMonth(nextMonth);
-			return;
-		}
-
-		const newPeriod: Period = {
-			month: nextMonth,
-			openingBalance: 0
-		};
-
-		// Copiar movimientos recurrentes del último mes al nuevo
-		const recurringTxsInLatest = transactions.filter(
-			(t) => t.date.substring(0, 7) === latestMonth && t.recurrence === 'recurring'
-		);
-		const cloned = recurringTxsInLatest.map((t) => ({
-			...t,
-			id: `${t.id}-${nextMonth}`,
-			date: getValidDateForMonth(nextMonth, t.date.substring(8, 10)),
-			originId: t.originId || t.id
-		}));
-
-		setPeriods([...periods, newPeriod]);
-		if (cloned.length > 0) {
-			setTransactions((prev) => [...cloned, ...prev]);
-		}
-		setSelectedMonth(nextMonth);
+		rawHandleCreateNextMonth(transactions, setTransactions);
 	};
 
 	const handleDeleteAccount = (id: string) => {
