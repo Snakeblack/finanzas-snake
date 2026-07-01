@@ -71,6 +71,9 @@ export interface ImportedFinanceBackupData {
 
 export type FinanceBackupPayload = Record<string, string | null>;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type UnsafeRecord = Record<string, any>;
+
 type ConfigEntity = {
 	key: string;
 	value?: string;
@@ -97,7 +100,7 @@ export const hasActiveCryptoKey = (): boolean => {
 /**
  * Cifra un objeto y retorna su texto cifrado en formato hex.
  */
-const encryptData = async (data: any): Promise<string> => {
+const encryptData = async (data: unknown): Promise<string> => {
 	if (!activeCryptoKey) {
 		throw new Error('La base de datos está bloqueada. No hay clave criptográfica activa.');
 	}
@@ -108,12 +111,12 @@ const encryptData = async (data: any): Promise<string> => {
 /**
  * Descifra una cadena cifrada y retorna el objeto parsed correspondiente.
  */
-const decryptData = async (ciphertext: string): Promise<any> => {
+const decryptData = async <T = unknown>(ciphertext: string): Promise<T> => {
 	if (!activeCryptoKey) {
 		throw new Error('La base de datos está bloqueada. No hay clave criptográfica activa.');
 	}
 	const decryptedText = await decryptWithKey(ciphertext, activeCryptoKey);
-	return JSON.parse(decryptedText);
+	return JSON.parse(decryptedText) as T;
 };
 
 const isConfigEntity = (entity: unknown): entity is ConfigEntity => {
@@ -321,7 +324,7 @@ const readStoredArray = async (primaryKey: string, fallbackKey?: string): Promis
 /**
  * Migra una estructura de transacción sin tipar a un objeto Transaction válido de la v3.
  */
-export const migrateTransaction = (rawTransaction: any, index: number): Transaction => {
+export const migrateTransaction = (rawTransaction: UnsafeRecord, index: number): Transaction => {
 	const type: TransactionType =
 		rawTransaction?.type === 'income' ? 'income' : rawTransaction?.type === 'transfer' ? 'transfer' : 'expense';
 
@@ -370,7 +373,7 @@ export const migrateTransaction = (rawTransaction: any, index: number): Transact
 /**
  * Migra una estructura de deuda sin tipar a un objeto de tipo Debt (clásica o plan de pagos) válido de la v3.
  */
-export const migrateDebt = (rawDebt: any): Debt => {
+export const migrateDebt = (rawDebt: UnsafeRecord): Debt => {
 	const id = String(rawDebt?.id ?? Date.now());
 	const desc = String(rawDebt?.desc ?? 'Deuda sin nombre');
 	const tag = String(rawDebt?.tag ?? DEFAULT_TAGS.debt[0]);
@@ -392,7 +395,7 @@ export const migrateDebt = (rawDebt: any): Debt => {
 
 	if (rawDebt?.kind === 'paymentPlan') {
 		const installments: PaymentPlanInstallment[] = Array.isArray(rawDebt.installments)
-			? rawDebt.installments.map((installment: any, index: number) => ({
+			? rawDebt.installments.map((installment: UnsafeRecord, index: number) => ({
 					id: String(installment?.id ?? `${id}-installment-${index + 1}`),
 					dueMonth: normalizeMonth(installment?.dueMonth),
 					amount: Math.abs(toNumber(installment?.amount)),
@@ -439,7 +442,11 @@ export const migrateDebt = (rawDebt: any): Debt => {
 /**
  * Guarda un array de entidades en lote en un almacén de IndexedDB, limpiándolo primero.
  */
-const saveEntitiesToIdbBulk = async (storeName: string, keyField: string, entities: any[]): Promise<void> => {
+const saveEntitiesToIdbBulk = async <T extends object>(
+	storeName: string,
+	keyField: keyof T & string,
+	entities: T[]
+): Promise<void> => {
 	if (activeCryptoKey) {
 		const encryptedEntities = await Promise.all(
 			entities.map(async (entity) => {
@@ -493,20 +500,20 @@ const saveAiChatStrict = async (chat: ChatMessage[]): Promise<void> => {
 /**
  * Lee todas las entidades de un almacén de IndexedDB y las descifra si están cifradas.
  */
-const readEntitiesFromIdb = async (storeName: string): Promise<any[]> => {
-	const raw = await idb.getAllEntities(storeName);
+const readEntitiesFromIdb = async (storeName: string): Promise<UnsafeRecord[]> => {
+	const raw = await idb.getAllEntities<{ ciphertext?: string }>(storeName);
 	const decrypted = await Promise.all(
 		raw.map(async (item) => {
-			if (item && typeof item === 'object' && 'ciphertext' in item) {
+			if (item && typeof item === 'object' && 'ciphertext' in item && typeof item.ciphertext === 'string') {
 				if (activeCryptoKey) {
-					return await decryptData(item.ciphertext);
+					return await decryptData<UnsafeRecord>(item.ciphertext);
 				}
 				return null;
 			}
-			return item;
+			return item as UnsafeRecord;
 		})
 	);
-	return decrypted.filter((item) => item !== null);
+	return decrypted.filter((item): item is UnsafeRecord => item !== null);
 };
 
 /**
@@ -685,7 +692,7 @@ export const readStoredPeriods = async (existingTx: Transaction[], existingDebts
 	try {
 		const periods = await readEntitiesFromIdb('periods');
 		if (periods.length > 0) {
-			return periods.map((rawPeriod: any) => {
+			return periods.map((rawPeriod: UnsafeRecord) => {
 				const openingBalance = toNumber(rawPeriod?.openingBalance);
 				return {
 					month: normalizeMonth(rawPeriod?.month),
@@ -804,7 +811,7 @@ export const getInitialData = (): {
 			if (stored) {
 				const parsed = JSON.parse(stored);
 				if (Array.isArray(parsed) && parsed.length > 0) {
-					return parsed.map((rawPeriod: any) => {
+					return parsed.map((rawPeriod: UnsafeRecord) => {
 						const openingBalance = toNumber(rawPeriod?.openingBalance);
 						return {
 							month: normalizeMonth(rawPeriod?.month),
@@ -916,9 +923,9 @@ export const saveStoredAccounts = async (accounts: Account[]): Promise<void> => 
  */
 export const readGeminiApiKey = async (): Promise<string> => {
 	try {
-		const entity = await idb.getSingleEntity('config', 'geminiKey');
+		const entity = await idb.getSingleEntity<{ ciphertext?: string; value?: string }>('config', 'geminiKey');
 		if (!entity) return '';
-		if ('ciphertext' in entity) {
+		if ('ciphertext' in entity && typeof entity.ciphertext === 'string') {
 			if (activeCryptoKey) {
 				return await decryptWithKey(entity.ciphertext, activeCryptoKey);
 			}
@@ -961,16 +968,16 @@ export const saveGeminiApiKey = async (key: string): Promise<void> => {
  */
 export const readAiChat = async (): Promise<ChatMessage[]> => {
 	try {
-		const entity = await idb.getSingleEntity('chat', 'history');
+		const entity = await idb.getSingleEntity<{ ciphertext?: string; messages?: ChatMessage[] }>('chat', 'history');
 		if (!entity) return [];
 
 		let messages: ChatMessage[] = [];
-		if ('ciphertext' in entity) {
+		if (entity && 'ciphertext' in entity && typeof entity.ciphertext === 'string') {
 			if (activeCryptoKey) {
-				const decrypted = await decryptData(entity.ciphertext);
+				const decrypted = await decryptData<{ messages?: ChatMessage[] }>(entity.ciphertext);
 				messages = decrypted.messages || [];
 			}
-		} else {
+		} else if (entity) {
 			messages = entity.messages || [];
 		}
 
@@ -1000,7 +1007,7 @@ export const readAiChatSync = (): ChatMessage[] => {
 	try {
 		const parsed = JSON.parse(stored);
 		return Array.isArray(parsed)
-			? parsed.map((msg: any) => ({
+			? parsed.map((msg: ChatMessage) => ({
 					...msg,
 					content: decodeHtmlEntities(msg.content || '')
 				}))
@@ -1097,7 +1104,7 @@ export const readFinanceBackupPayload = async (): Promise<FinanceBackupPayload> 
 export const importFinanceBackupPayload = async (
 	payload: Record<string, unknown>
 ): Promise<ImportedFinanceBackupData> => {
-	const validated = validateAndSanitizeBackup(filterBackupPayload(payload));
+	const validated = validateAndSanitizeBackup(filterBackupPayload(payload)) as ImportedFinanceBackupData;
 	const imported: ImportedFinanceBackupData = {};
 	const importedUserNames: Partial<UserNames> = {};
 

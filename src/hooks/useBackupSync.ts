@@ -64,8 +64,8 @@ export const useBackupSync = ({ getSnapshot, appliers }: UseBackupSyncParams): U
 			document.body.appendChild(downloadAnchor);
 			downloadAnchor.click();
 			document.body.removeChild(downloadAnchor);
-		} catch (err: any) {
-			window.alert(`Error al exportar datos: ${err.message}`);
+		} catch (err) {
+			window.alert(`Error al exportar datos: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	};
 
@@ -120,8 +120,8 @@ export const useBackupSync = ({ getSnapshot, appliers }: UseBackupSyncParams): U
 			}
 
 			setImportSuccess('Datos importados y validados con éxito.');
-		} catch (err: any) {
-			setImportError(`Error al procesar el backup: ${err.message}`);
+		} catch (err) {
+			setImportError(`Error al procesar el backup: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	};
 

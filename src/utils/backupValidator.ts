@@ -406,7 +406,7 @@ const validateAiChat = (chat: unknown): ChatMessage[] => {
 	});
 };
 
-const tryParseJSONField = (fieldValue: any, fieldName: string): any => {
+const tryParseJSONField = (fieldValue: unknown, fieldName: string): unknown => {
 	if (typeof fieldValue === 'string') {
 		try {
 			return JSON.parse(fieldValue);
@@ -421,38 +421,39 @@ const tryParseJSONField = (fieldValue: any, fieldName: string): any => {
  * Valida de forma estricta todo el contenido de una copia de seguridad JSON.
  * Si es válido, devuelve el objeto sanitizado listo para ser guardado.
  */
-export const validateAndSanitizeBackup = (parsedJson: any): Record<string, any> => {
+export const validateAndSanitizeBackup = (parsedJson: unknown): Record<string, unknown> => {
 	if (typeof parsedJson !== 'object' || parsedJson === null) {
 		throw new Error('La estructura de la copia de seguridad no es un objeto JSON válido.');
 	}
 
-	const validatedBackup: Record<string, any> = {};
+	const rawRecord = parsedJson as Record<string, unknown>;
+	const validatedBackup: Record<string, unknown> = {};
 
 	// 1. Nombres de usuarios (Opcionales, pero validados si existen)
-	if (STORAGE_KEYS.userAName in parsedJson && parsedJson[STORAGE_KEYS.userAName] !== null) {
+	if (STORAGE_KEYS.userAName in rawRecord && rawRecord[STORAGE_KEYS.userAName] !== null) {
 		validatedBackup[STORAGE_KEYS.userAName] = validateAndSanitizeText(
-			parsedJson[STORAGE_KEYS.userAName],
+			rawRecord[STORAGE_KEYS.userAName],
 			'userAName',
 			50
 		);
 	}
-	if (STORAGE_KEYS.userBName in parsedJson && parsedJson[STORAGE_KEYS.userBName] !== null) {
+	if (STORAGE_KEYS.userBName in rawRecord && rawRecord[STORAGE_KEYS.userBName] !== null) {
 		validatedBackup[STORAGE_KEYS.userBName] = validateAndSanitizeText(
-			parsedJson[STORAGE_KEYS.userBName],
+			rawRecord[STORAGE_KEYS.userBName],
 			'userBName',
 			50
 		);
 	}
 
 	// 1b. Número de perfiles (Opcional, pero validado si existe)
-	if (STORAGE_KEYS.profileCount in parsedJson && parsedJson[STORAGE_KEYS.profileCount] !== null) {
-		const count = parseInt(String(parsedJson[STORAGE_KEYS.profileCount]), 10);
+	if (STORAGE_KEYS.profileCount in rawRecord && rawRecord[STORAGE_KEYS.profileCount] !== null) {
+		const count = parseInt(String(rawRecord[STORAGE_KEYS.profileCount]), 10);
 		validatedBackup[STORAGE_KEYS.profileCount] = count === 1 || count === 2 ? count : 2;
 	}
 
 	// 2. Gemini API Key (Opcional, pero validada si existe)
-	if (STORAGE_KEYS.geminiKey in parsedJson && parsedJson[STORAGE_KEYS.geminiKey] !== null) {
-		const rawKey = parsedJson[STORAGE_KEYS.geminiKey];
+	if (STORAGE_KEYS.geminiKey in rawRecord && rawRecord[STORAGE_KEYS.geminiKey] !== null) {
+		const rawKey = rawRecord[STORAGE_KEYS.geminiKey];
 		if (rawKey && typeof rawKey === 'string' && rawKey.trim()) {
 			validatedBackup[STORAGE_KEYS.geminiKey] = validateAndSanitizeText(rawKey, 'geminiKey', 150, false);
 		} else {
@@ -461,32 +462,32 @@ export const validateAndSanitizeBackup = (parsedJson: any): Record<string, any> 
 	}
 
 	// 3. Cuentas (Obligatorias o opcionales. Validamos si la clave está presente)
-	if (STORAGE_KEYS.accounts in parsedJson) {
-		const rawAccounts = tryParseJSONField(parsedJson[STORAGE_KEYS.accounts], 'cuentas');
+	if (STORAGE_KEYS.accounts in rawRecord) {
+		const rawAccounts = tryParseJSONField(rawRecord[STORAGE_KEYS.accounts], 'cuentas');
 		validatedBackup[STORAGE_KEYS.accounts] = validateAccounts(rawAccounts);
 	}
 
 	// 4. Transacciones
-	if (STORAGE_KEYS.transactions in parsedJson) {
-		const rawTx = tryParseJSONField(parsedJson[STORAGE_KEYS.transactions], 'transacciones');
+	if (STORAGE_KEYS.transactions in rawRecord) {
+		const rawTx = tryParseJSONField(rawRecord[STORAGE_KEYS.transactions], 'transacciones');
 		validatedBackup[STORAGE_KEYS.transactions] = validateTransactions(rawTx);
 	}
 
 	// 5. Deudas
-	if (STORAGE_KEYS.debts in parsedJson) {
-		const rawDebts = tryParseJSONField(parsedJson[STORAGE_KEYS.debts], 'deudas');
+	if (STORAGE_KEYS.debts in rawRecord) {
+		const rawDebts = tryParseJSONField(rawRecord[STORAGE_KEYS.debts], 'deudas');
 		validatedBackup[STORAGE_KEYS.debts] = validateDebts(rawDebts);
 	}
 
 	// 6. Periodos
-	if (STORAGE_KEYS.periods in parsedJson) {
-		const rawPeriods = tryParseJSONField(parsedJson[STORAGE_KEYS.periods], 'periodos');
+	if (STORAGE_KEYS.periods in rawRecord) {
+		const rawPeriods = tryParseJSONField(rawRecord[STORAGE_KEYS.periods], 'periodos');
 		validatedBackup[STORAGE_KEYS.periods] = validatePeriods(rawPeriods);
 	}
 
 	// 7. Chat IA
-	if (STORAGE_KEYS.aiChat in parsedJson) {
-		const rawChat = tryParseJSONField(parsedJson[STORAGE_KEYS.aiChat], 'chat');
+	if (STORAGE_KEYS.aiChat in rawRecord) {
+		const rawChat = tryParseJSONField(rawRecord[STORAGE_KEYS.aiChat], 'chat');
 		validatedBackup[STORAGE_KEYS.aiChat] = validateAiChat(rawChat);
 	}
 

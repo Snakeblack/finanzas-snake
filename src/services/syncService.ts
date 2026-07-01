@@ -1,4 +1,4 @@
-import { Peer } from 'peerjs';
+import { Peer, type DataConnection } from 'peerjs';
 
 const PEER_PREFIX = 'finpro-';
 
@@ -34,7 +34,7 @@ const getDefaultIceServers = () => {
 	];
 };
 
-export const getPeerConfig = (customIceServers?: any[]) => {
+export const getPeerConfig = (customIceServers?: RTCIceServer[]) => {
 	return {
 		config: {
 			iceServers: customIceServers && customIceServers.length > 0 ? customIceServers : getDefaultIceServers()
@@ -59,14 +59,14 @@ export const generateShortCode = (): string => {
 };
 
 export interface ISyncDataProvider {
-	exportPayload(): Promise<Record<string, any>>;
+	exportPayload(): Promise<Record<string, unknown>>;
 }
 
 export interface HostCallbacks {
 	onCodeGenerated: (code: string) => void;
 	onConnectionEstablished: () => void;
 	onDataSent: () => void;
-	onError: (err: any) => void;
+	onError: (err: unknown) => void;
 }
 
 /**
@@ -76,7 +76,7 @@ export interface HostCallbacks {
 export const startSyncHost = (
 	callbacks: HostCallbacks,
 	dataProvider: ISyncDataProvider,
-	customIceServers?: any[]
+	customIceServers?: RTCIceServer[]
 ): { destroy: () => void } => {
 	let peer: Peer | null = null;
 	let code = generateShortCode();
@@ -127,11 +127,12 @@ export const startSyncHost = (
 			});
 		});
 
-		peer.on('error', (err: any) => {
+		peer.on('error', (err) => {
 			if (isDestroyed) return;
 
+			const peerErr = err as Error & { type?: string };
 			// Si el ID ya existe y no hemos superado el límite de intentos, generamos otro
-			if (err.type === 'unavailable-id' && retryCount < 5) {
+			if (peerErr.type === 'unavailable-id' && retryCount < 5) {
 				retryCount++;
 				code = generateShortCode();
 				if (peer) {
@@ -159,7 +160,7 @@ export const startSyncHost = (
 export interface ClientCallbacks {
 	onConnected: () => void;
 	onDataReceived: (data: SyncData) => void;
-	onError: (err: any) => void;
+	onError: (err: unknown) => void;
 }
 
 /**
@@ -168,10 +169,10 @@ export interface ClientCallbacks {
 export const connectToSyncHost = (
 	code: string,
 	callbacks: ClientCallbacks,
-	customIceServers?: any[]
+	customIceServers?: RTCIceServer[]
 ): { destroy: () => void } => {
 	const peer: Peer | null = new Peer(undefined, getPeerConfig(customIceServers));
-	let conn: any = null;
+	let conn: DataConnection | null = null;
 	let isDestroyed = false;
 
 	peer.on('open', () => {
@@ -184,22 +185,23 @@ export const connectToSyncHost = (
 			callbacks.onConnected();
 		});
 
-		conn.on('data', (data: any) => {
+		conn.on('data', (data: unknown) => {
 			if (isDestroyed) return;
-			if (data && data.type === 'FINANZAS_PRO_SYNC') {
-				callbacks.onDataReceived(data.payload);
+			const packet = data as { type?: string; payload?: SyncData };
+			if (packet && packet.type === 'FINANZAS_PRO_SYNC' && packet.payload) {
+				callbacks.onDataReceived(packet.payload);
 			} else {
 				callbacks.onError(new Error('Formato de datos recibido no válido.'));
 			}
 		});
 
-		conn.on('error', (err: any) => {
+		conn.on('error', (err) => {
 			if (isDestroyed) return;
 			callbacks.onError(err);
 		});
 	});
 
-	peer.on('error', (err: any) => {
+	peer.on('error', (err) => {
 		if (isDestroyed) return;
 		callbacks.onError(err);
 	});

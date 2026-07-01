@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useFinanzas } from '../../hooks/useFinanzas';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Input } from '../ui/input';
@@ -87,7 +87,14 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 	// Estados principales
 	const [step, setStep] = useState<Step>('config');
 	const [method, setMethod] = useState<ImportMethod>('csv');
-	const [selectedAccountId, setSelectedAccountId] = useState<string>('');
+	const [selectedAccountId, setSelectedAccountId] = useState<string>(() => accounts[0]?.id || '');
+	const [prevAccounts, setPrevAccounts] = useState(accounts);
+	if (accounts !== prevAccounts) {
+		setPrevAccounts(accounts);
+		if (accounts.length > 0 && !selectedAccountId) {
+			setSelectedAccountId(accounts[0].id);
+		}
+	}
 	const [templateKey, setTemplateKey] = useState<string>('generic');
 
 	// CSV States
@@ -107,7 +114,12 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 
 	// AI States
 	const [aiText, setAiText] = useState<string>('');
-	const [localApiKey, setLocalApiKey] = useState<string>('');
+	const [localApiKey, setLocalApiKey] = useState<string>(geminiApiKey);
+	const [prevGeminiApiKey, setPrevGeminiApiKey] = useState<string>(geminiApiKey);
+	if (geminiApiKey !== prevGeminiApiKey) {
+		setPrevGeminiApiKey(geminiApiKey);
+		setLocalApiKey(geminiApiKey);
+	}
 
 	// PDF States
 	const [isPdf, setIsPdf] = useState<boolean>(false);
@@ -129,19 +141,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 	// Referencias de archivos
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
-	// Inicializar cuenta seleccionada
-	useEffect(() => {
-		if (accounts.length > 0 && !selectedAccountId) {
-			setSelectedAccountId(accounts[0].id);
-		}
-	}, [accounts, selectedAccountId]);
 
-	// Inicializar API Key local con la global
-	useEffect(() => {
-		if (geminiApiKey) {
-			setLocalApiKey(geminiApiKey);
-		}
-	}, [geminiApiKey]);
 
 	// Resetear estados al cerrar
 	const handleClose = () => {
@@ -423,8 +423,8 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 					const checkedTxs = detectDuplicates(finalTxs, transactions);
 					setImportedTxs(checkedTxs);
 					setStep('preview');
-				} catch (err: any) {
-					setError(err.message || 'Ocurrió un error inesperado al procesar el PDF con IA.');
+				} catch (err) {
+					setError(err instanceof Error ? err.message : 'Ocurrió un error inesperado al procesar el PDF con IA.');
 				} finally {
 					setIsLoading(false);
 				}
@@ -498,8 +498,8 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 				const checkedTxs = detectDuplicates(finalTxs, transactions);
 				setImportedTxs(checkedTxs);
 				setStep('preview');
-			} catch (err: any) {
-				setError(err.message || 'Ocurrió un error inesperado al procesar con IA.');
+			} catch (err) {
+				setError(err instanceof Error ? err.message : 'Ocurrió un error inesperado al procesar con IA.');
 			} finally {
 				setIsLoading(false);
 			}

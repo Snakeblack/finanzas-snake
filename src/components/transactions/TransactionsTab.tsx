@@ -46,8 +46,11 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 
 	useEffect(() => {
 		if (openImportModalSignal > 0) {
-			setIsImportModalOpen(true);
-			onImportModalConsumed?.();
+			const timer = setTimeout(() => {
+				setIsImportModalOpen(true);
+				onImportModalConsumed?.();
+			}, 0);
+			return () => clearTimeout(timer);
 		}
 	}, [openImportModalSignal, onImportModalConsumed]);
 

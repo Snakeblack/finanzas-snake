@@ -35,7 +35,7 @@ export class IndexedDBProvider {
 		});
 	}
 
-	async saveEntitiesBulk(storeName: string, entities: any[]): Promise<void> {
+	async saveEntitiesBulk<T>(storeName: string, entities: T[]): Promise<void> {
 		const db = await this.initDB();
 		return new Promise((resolve, reject) => {
 			const transaction = db.transaction(storeName, 'readwrite');
@@ -48,13 +48,13 @@ export class IndexedDBProvider {
 		});
 	}
 
-	async getAllEntities(storeName: string): Promise<any[]> {
+	async getAllEntities<T = unknown>(storeName: string): Promise<T[]> {
 		const db = await this.initDB();
 		return new Promise((resolve, reject) => {
 			const transaction = db.transaction(storeName, 'readonly');
 			const request = transaction.objectStore(storeName).getAll();
 
-			request.onsuccess = () => resolve(request.result);
+			request.onsuccess = () => resolve(request.result as T[]);
 			request.onerror = () => reject(request.error);
 		});
 	}
@@ -71,7 +71,7 @@ export class IndexedDBProvider {
 		});
 	}
 
-	async saveSingleEntity(storeName: string, entity: any): Promise<void> {
+	async saveSingleEntity<T>(storeName: string, entity: T): Promise<void> {
 		const db = await this.initDB();
 		return new Promise((resolve, reject) => {
 			const transaction = db.transaction(storeName, 'readwrite');
@@ -83,14 +83,14 @@ export class IndexedDBProvider {
 		});
 	}
 
-	async getSingleEntity(storeName: string, key: string): Promise<any | null> {
+	async getSingleEntity<T = unknown>(storeName: string, key: string): Promise<T | null> {
 		const db = await this.initDB();
 		return new Promise((resolve, reject) => {
 			const transaction = db.transaction(storeName, 'readonly');
 			const store = transaction.objectStore(storeName);
 			const request = store.get(key);
 
-			request.onsuccess = () => resolve(request.result || null);
+			request.onsuccess = () => resolve((request.result as T) || null);
 			request.onerror = () => reject(request.error);
 		});
 	}
@@ -100,7 +100,7 @@ export class IndexedDBProvider {
 	}
 
 	async getAllTransactions(): Promise<Transaction[]> {
-		return this.getAllEntities('transactions');
+		return this.getAllEntities<Transaction>('transactions');
 	}
 
 	async clearTransactions(): Promise<void> {

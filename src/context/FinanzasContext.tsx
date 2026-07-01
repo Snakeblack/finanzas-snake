@@ -53,7 +53,8 @@ import {
 	getTagBreakdown,
 	isPaymentPlanDebt,
 	isClassicDebt,
-	getEffectiveAmount
+	getEffectiveAmount,
+	type MonthBalanceData
 } from '../services/financeService';
 import type { PromptContextParams } from '../services/geminiService';
 import { useAiAdvisor } from '../hooks/useAiAdvisor';
@@ -187,7 +188,7 @@ export interface FinanzasContextType {
 	toggleTheme: () => void;
 
 	// Valores calculados
-	activePeriodData: any;
+	activePeriodData: MonthBalanceData;
 	totalIncomes: number;
 	totalExpenses: number;
 	totalMonthlyDebtPayments: number;
@@ -205,7 +206,7 @@ export interface FinanzasContextType {
 	netOwed: number;
 	tagData: TagBreakdown[];
 	maxTagAmount: number;
-	timelineBalances: Record<string, any>;
+	timelineBalances: Record<string, MonthBalanceData>;
 
 	// Consolidación calculada
 	consolidatedDebtsObjects: Debt[];
@@ -250,6 +251,7 @@ export interface FinanzasContextType {
 	handleImportData: (e: SyntheticEvent<HTMLFormElement>, jsonString: string) => void;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const FinanzasContext = createContext<FinanzasContextType | undefined>(undefined);
 
 export const FinanzasProvider = ({ children }: { children: ReactNode }) => {

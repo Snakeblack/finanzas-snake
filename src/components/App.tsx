@@ -686,7 +686,7 @@ function MainAppContent() {
 								<div className="space-y-3">
 									{accounts
 										.filter((acc) => profileCount === 2 || acc.owner === 'userA')
-										.map((acc, index) => (
+										.map((acc) => (
 											<div key={acc.id} className="flex flex-col">
 												<label
 													htmlFor={`init-balance-welcome-${acc.id}`}
@@ -1442,7 +1442,7 @@ function MainAppContent() {
 							<div className="space-y-3">
 								{reconfigAccounts
 									.filter((acc) => profileCount === 2 || acc.owner === 'userA')
-									.map((acc, index) => (
+									.map((acc) => (
 										<div key={acc.id} className="flex flex-col">
 											<label
 												htmlFor={`init-balance-modal-${acc.id}`}

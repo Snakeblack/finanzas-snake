@@ -75,14 +75,14 @@ export const convertMarkdownToHtml = (text: string): string => {
 
 				const headers = splitRow(tableLines[0]);
 				const sepLine = tableLines[1].trim();
-				const isSeparator = /^\|?(\s*:?-+:?\s*\|)+\s*:?-+:?\s*\|?$/.test(sepLine);
+				const sepCells = splitRow(sepLine);
+				const isSeparator = sepCells.length > 0 && sepCells.every((cell) => /^\s*:?-+:?\s*$/.test(cell));
 
 				let rowsStartIndex = 1;
 				let alignStyles: string[] = [];
 
 				if (isSeparator) {
 					rowsStartIndex = 2;
-					const sepCells = splitRow(tableLines[1]);
 					alignStyles = sepCells.map((cell) => {
 						const trimmed = cell.trim();
 						const left = trimmed.startsWith(':');

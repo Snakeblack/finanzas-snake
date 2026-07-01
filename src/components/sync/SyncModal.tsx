@@ -83,14 +83,14 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 			localStorage.setItem('finanzas_v3_custom_ice_servers', value);
 			setAdvancedSuccess(true);
 			setTimeout(() => setAdvancedSuccess(false), 2000);
-		} catch (err: any) {
-			setAdvancedError(err.message || 'El formato JSON introducido no es válido.');
+		} catch (err) {
+			setAdvancedError(err instanceof Error ? err.message : 'El formato JSON introducido no es válido.');
 		}
 	};
 
 	const hostSessionRef = useRef<{ destroy: () => void } | null>(null);
 	const clientSessionRef = useRef<{ destroy: () => void } | null>(null);
-	const handshakeTimeoutRef = useRef<any>(null);
+	const handshakeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const clearHandshakeTimeout = useCallback(() => {
 		if (handshakeTimeoutRef.current) {
@@ -115,12 +115,18 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 	useEffect(() => {
 		if (!isOpen) {
 			cleanSessions();
-			setMode('select');
-			setStatus('idle');
-			setStatusText('');
-			setCode('');
-			setInputCode('');
-			setErrorMsg('');
+			const timer = setTimeout(() => {
+				setMode('select');
+				setStatus('idle');
+				setStatusText('');
+				setCode('');
+				setInputCode('');
+				setErrorMsg('');
+			}, 0);
+			return () => {
+				clearTimeout(timer);
+				cleanSessions();
+			};
 		}
 		return () => {
 			cleanSessions();
@@ -128,7 +134,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 	}, [isOpen, cleanSessions]);
 
 	// Obtener credenciales TURN dinámicas desde la API serverless
-	const fetchIceServers = async (): Promise<any[] | undefined> => {
+	const fetchIceServers = async (): Promise<RTCIceServer[] | undefined> => {
 		try {
 			const res = await fetch(`/api/get-turn-credentials?t=${Date.now()}`, {
 				signal: AbortSignal.timeout(3000) // Timeout de 3 segundos para no bloquear
@@ -153,7 +159,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 		setStatusText('Obteniendo credenciales de red seguras...');
 		setErrorMsg('');
 
-		let resolvedIceServers: any[] | undefined;
+		let resolvedIceServers: RTCIceServer[] | undefined;
 		try {
 			resolvedIceServers = await fetchIceServers();
 		} catch (e) {
@@ -207,15 +213,15 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 						console.error('Host error:', err);
 						clearHandshakeTimeout();
 						setStatus('error');
-						setErrorMsg(err.message || 'Error al conectar con el servidor de señalización de PeerJS.');
+						setErrorMsg(err instanceof Error ? err.message : 'Error al conectar con el servidor de señalización de PeerJS.');
 					}
 				},
 				dataProvider,
 				resolvedIceServers
 			);
-		} catch (err: any) {
+		} catch (err) {
 			setStatus('error');
-			setErrorMsg(err.message || 'Error inesperado al inicializar la conexión.');
+			setErrorMsg(err instanceof Error ? err.message : 'Error inesperado al inicializar la conexión.');
 		}
 	};
 
@@ -233,7 +239,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 		setStatusText('Obteniendo credenciales de red seguras...');
 		setErrorMsg('');
 
-		let resolvedIceServers: any[] | undefined;
+		let resolvedIceServers: RTCIceServer[] | undefined;
 		try {
 			resolvedIceServers = await fetchIceServers();
 		} catch (e) {
@@ -269,9 +275,9 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 							setTimeout(() => {
 								window.location.reload();
 							}, 1500);
-						} catch (err: any) {
+						} catch (err) {
 							setStatus('error');
-							setErrorMsg(err.message || 'Error al validar y guardar la base de datos recibida.');
+							setErrorMsg(err instanceof Error ? err.message : 'Error al validar y guardar la base de datos recibida.');
 						}
 					},
 					onError: (err) => {
@@ -279,17 +285,16 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 						clearHandshakeTimeout();
 						setStatus('error');
 						setErrorMsg(
-							err.message ||
-								'No se pudo conectar. Verifica que el código es correcto y el PC emisor sigue activo.'
+							err instanceof Error ? err.message : 'No se pudo conectar. Verifica que el código es correcto y el PC emisor sigue activo.'
 						);
 					}
 				},
 				resolvedIceServers
 			);
-		} catch (err: any) {
+		} catch (err) {
 			clearHandshakeTimeout();
 			setStatus('error');
-			setErrorMsg(err.message || 'Error inesperado al intentar conectar.');
+			setErrorMsg(err instanceof Error ? err.message : 'Error inesperado al intentar conectar.');
 		}
 	};
 

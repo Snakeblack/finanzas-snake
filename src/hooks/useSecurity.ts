@@ -130,8 +130,8 @@ export const useSecurity = ({ getSnapshot, appliers }: UseSecurityParams): UseSe
 			setIsLocked(false);
 			appliers.setIsInitialized(true);
 			return true;
-		} catch (err: any) {
-			setPasswordError(`Error al configurar PIN: ${err.message}`);
+		} catch (err) {
+			setPasswordError(`Error al configurar PIN: ${err instanceof Error ? err.message : String(err)}`);
 			return false;
 		}
 	};

@@ -49,7 +49,7 @@ export const deriveKeyFromPassword = async (password: string, salt: Uint8Array):
 	return window.crypto.subtle.deriveKey(
 		{
 			name: 'PBKDF2',
-			salt: salt as any,
+			salt: salt as BufferSource,
 			iterations: 100000,
 			hash: 'SHA-256'
 		},
@@ -92,9 +92,9 @@ export const decryptWithKey = async (encryptedStr: string, key: CryptoKey): Prom
 	const ciphertext = hexToBuf(parts[1]);
 
 	const decryptedBuffer = await window.crypto.subtle.decrypt(
-		{ name: 'AES-GCM', iv: iv as any },
+		{ name: 'AES-GCM', iv: iv as BufferSource },
 		key,
-		ciphertext as any
+		ciphertext as BufferSource
 	);
 
 	return DECODER.decode(decryptedBuffer);

@@ -45,4 +45,11 @@ describe('convertMarkdownToHtml', () => {
 		const html = convertMarkdownToHtml('| A | B |\n| :-- | --:\n| 1 | 2 |');
 		expect(html).toContain('text-align: right;');
 	});
+
+	it('renderiza tablas de una sola columna', () => {
+		const html = convertMarkdownToHtml('| A |\n| :-- |\n| 1 |');
+		expect(html).toContain('<table');
+		expect(html).toContain('text-align: left;');
+		expect(html).toContain('>1</td>');
+	});
 });

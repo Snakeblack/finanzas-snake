@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Transaction, Account, TxForm } from '../../types';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -28,12 +28,13 @@ export function EditTransactionForm({
 	onSave,
 	onCancel
 }: EditTransactionFormProps) {
+	const [prevInitial, setPrevInitial] = useState<TxForm>(initialEditForm);
 	const [editForm, setEditForm] = useState<TxForm>(initialEditForm);
 
-	// Sincronizar con el formulario inicial si cambia desde fuera
-	useEffect(() => {
+	if (initialEditForm !== prevInitial) {
+		setPrevInitial(initialEditForm);
 		setEditForm(initialEditForm);
-	}, [initialEditForm]);
+	}
 
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		onSave(e, editForm);
