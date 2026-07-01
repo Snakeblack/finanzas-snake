@@ -63,6 +63,7 @@ import { useBackupSync } from '../hooks/useBackupSync';
 import { useDebts } from '../hooks/useDebts';
 import { useTransactions } from '../hooks/useTransactions';
 import { useAccounts } from '../hooks/useAccounts';
+import { useConsolidation } from '../hooks/useConsolidation';
 
 /**
  * Interfaz que define el valor del contexto de finanzas globales.
@@ -376,14 +377,6 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		showChat: true
 	});
 
-	// === SIMULADOR DE REUNIFICACIÓN ===
-	const [selectedDebtsForConsolidation, setSelectedDebtsForConsolidation] = useState<string[]>([]);
-	const [consolidationForm, setConsolidationForm] = useState<ConsolidationForm>({
-		tae: '5.5',
-		termMonths: '36',
-		extraCapital: ''
-	});
-
 	// === DOMINIO DE DEUDAS ===
 	// El estado de deudas (debts, debtForm, debtFormError, selectedDebtSchedule) y sus handlers
 	// viven en useDebts (D1). Se llama antes que useSecurity/useBackupSync porque sus appliers
@@ -407,9 +400,18 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	} = useDebts({
 		initialDebtFormDate: selectedMonth,
 		onDebtDeleted: (id) =>
-			setSelectedDebtsForConsolidation(selectedDebtsForConsolidation.filter((itemId) => itemId !== id)),
+			setSelectedDebtsForConsolidation((prev) => prev.filter((itemId) => itemId !== id)),
 		profileCount
 	});
+
+	// === SIMULADOR DE REUNIFICACIÓN ===
+	const {
+		selectedDebtsForConsolidation,
+		setSelectedDebtsForConsolidation,
+		consolidationForm,
+		setConsolidationForm,
+		toggleDebtSelection
+	} = useConsolidation(debts);
 
 	// === DOMINIO DE TRANSACCIONES ===
 	// El estado de transacciones (transactions, txForm, editingTx, editForm, editScope) y sus
@@ -988,16 +990,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		}
 	};
 
-	const toggleDebtSelection = (id: string) => {
-		const debt = debts.find((item) => item.id === id);
-		if (!debt || isPaymentPlanDebt(debt)) return;
 
-		if (selectedDebtsForConsolidation.includes(id)) {
-			setSelectedDebtsForConsolidation(selectedDebtsForConsolidation.filter((itemId) => itemId !== id));
-		} else {
-			setSelectedDebtsForConsolidation([...selectedDebtsForConsolidation, id]);
-		}
-	};
 
 	const handleDownloadChatPDF = (options: ChatPdfOptions) => {
 		const iframe = document.createElement('iframe');
