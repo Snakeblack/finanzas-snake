@@ -19,6 +19,11 @@ const resetIndexedDB = () => {
 	(globalThis as typeof globalThis & { __resetMockIndexedDBForTests?: () => void }).__resetMockIndexedDBForTests?.();
 };
 
+beforeEach(() => {
+	vi.useFakeTimers({ toFake: ['Date'] });
+	vi.setSystemTime(new Date('2026-05-15T12:00:00.000Z'));
+});
+
 afterEach(() => {
 	cleanup();
 	vi.useRealTimers();
