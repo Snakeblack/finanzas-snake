@@ -937,6 +937,34 @@ describe('financeService - Edge Cases de Cobertura', () => {
 		const resInv = calculateTimelineBalances(periods, [], [debtA, debtB], accounts, 'invalid' as any);
 		expect(resInv['2026-05'].debtPayments).toBe(0);
 	});
+
+	it('calculateTimelineBalances debe evitar descuadres de céntimos usando big.js para cálculos acumulativos', () => {
+		const accounts: Account[] = [{ id: 'a1', name: 'A', owner: 'userA', initialBalance: 0 }];
+		const periods: Period[] = [{ month: '2026-05', openingBalance: 0 }];
+		const txs: Transaction[] = [
+			{
+				id: 't1',
+				desc: 'Cent A',
+				money: { amount: '0.10', currency: 'EUR' },
+				type: 'income',
+				tag: 'Ocio',
+				date: '2026-05-01',
+				accountId: 'a1'
+			},
+			{
+				id: 't2',
+				desc: 'Cent B',
+				money: { amount: '0.20', currency: 'EUR' },
+				type: 'income',
+				tag: 'Ocio',
+				date: '2026-05-02',
+				accountId: 'a1'
+			}
+		];
+		const result = calculateTimelineBalances(periods, txs, [], accounts, 'all');
+		expect(result['2026-05'].closingBalance).toBe(0.3);
+		expect(result['2026-05'].accountBalances['a1']).toBe(0.3);
+	});
 });
 
 describe('sumMoney', () => {

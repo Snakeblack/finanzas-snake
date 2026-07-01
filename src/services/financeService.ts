@@ -464,6 +464,37 @@ export type MonthBalanceData = {
  * Ejecuta el motor contable acumulativo sobre la línea temporal.
  * Propaga los saldos acumulados de las cuentas mes a mes, aplicando los ingresos, gastos y cuotas de deudas.
  */
+/**
+ * Calcula el importe ponderado de una transacción de acuerdo a la vista activa del usuario retornando un Big.
+ */
+export const getEffectiveAmountBig = (
+	t: Transaction,
+	viewMode: 'all' | 'userA' | 'userB',
+	accounts: Account[],
+	profileCount: number = 2
+): Big => {
+	if (!t.money) return new Big(0);
+	const amt = new Big(t.money.amount);
+	if (profileCount === 1) return amt;
+	const owner = getTransactionOwner(t, accounts);
+	if (viewMode === 'all') return amt;
+	if (viewMode === 'userA') {
+		if (owner === 'userA') return amt;
+		if (owner === 'joint') return amt.times(0.5);
+		return new Big(0);
+	}
+	if (viewMode === 'userB') {
+		if (owner === 'userB') return amt;
+		if (owner === 'joint') return amt.times(0.5);
+		return new Big(0);
+	}
+	return new Big(0);
+};
+
+/**
+ * Ejecuta el motor contable acumulativo sobre la línea temporal.
+ * Propaga los saldos acumulados de las cuentas mes a mes, aplicando los ingresos, gastos y cuotas de deudas.
+ */
 export const calculateTimelineBalances = (
 	periods: Period[],
 	transactions: Transaction[],
@@ -476,16 +507,16 @@ export const calculateTimelineBalances = (
 	const sortedPeriods = [...periods].sort((a, b) => a.month.localeCompare(b.month));
 
 	// Saldos de cuentas que se arrastran y propagan acumulativamente periodo a periodo
-	const runningAccountBalances: Record<string, number> = {};
+	const runningAccountBalances: Record<string, Big> = {};
 	accounts.forEach((acc) => {
-		runningAccountBalances[acc.id] = acc.initialBalance;
+		runningAccountBalances[acc.id] = new Big(acc.initialBalance.toString());
 	});
 
 	// Saldos contables sin cuenta asignada (efectivo libre o transacciones sin id de cuenta)
-	const runningUnassignedBalances: Record<'userA' | 'userB' | 'joint', number> = {
-		userA: 0,
-		userB: 0,
-		joint: 0
+	const runningUnassignedBalances: Record<'userA' | 'userB' | 'joint', Big> = {
+		userA: new Big(0),
+		userB: new Big(0),
+		joint: new Big(0)
 	};
 
 	sortedPeriods.forEach((period) => {
@@ -500,25 +531,27 @@ export const calculateTimelineBalances = (
 
 		// Aplicar movimientos del mes sobre saldos correspondientes
 		mTx.forEach((t) => {
-			const amount = toNumber(t.money?.amount ?? '0');
+			const amount = new Big(t.money?.amount ?? '0');
 			if (t.type === 'income') {
 				if (t.accountId && runningAccountBalances[t.accountId] !== undefined) {
-					runningAccountBalances[t.accountId] += amount;
+					runningAccountBalances[t.accountId] = runningAccountBalances[t.accountId].plus(amount);
 				} else {
-					runningUnassignedBalances[t.owner || 'joint'] += amount;
+					const owner = t.owner || 'joint';
+					runningUnassignedBalances[owner] = runningUnassignedBalances[owner].plus(amount);
 				}
 			} else if (t.type === 'expense') {
 				if (t.accountId && runningAccountBalances[t.accountId] !== undefined) {
-					runningAccountBalances[t.accountId] -= amount;
+					runningAccountBalances[t.accountId] = runningAccountBalances[t.accountId].minus(amount);
 				} else {
-					runningUnassignedBalances[t.owner || 'joint'] -= amount;
+					const owner = t.owner || 'joint';
+					runningUnassignedBalances[owner] = runningUnassignedBalances[owner].minus(amount);
 				}
 			} else if (t.type === 'transfer') {
 				if (t.fromAccountId && runningAccountBalances[t.fromAccountId] !== undefined) {
-					runningAccountBalances[t.fromAccountId] -= amount;
+					runningAccountBalances[t.fromAccountId] = runningAccountBalances[t.fromAccountId].minus(amount);
 				}
 				if (t.toAccountId && runningAccountBalances[t.toAccountId] !== undefined) {
-					runningAccountBalances[t.toAccountId] += amount;
+					runningAccountBalances[t.toAccountId] = runningAccountBalances[t.toAccountId].plus(amount);
 				}
 			}
 		});
@@ -526,28 +559,31 @@ export const calculateTimelineBalances = (
 		// Aplicar pagos de deudas (cuotas del mes) sobre saldos correspondientes
 		debts.forEach((d) => {
 			const dStart = normalizeMonth(d.date);
-			let rawPayment = 0;
+			let rawPayment = new Big(0);
 			if (isPaymentPlanDebt(d)) {
 				if (dStart <= m) {
-					rawPayment = calculateDebtCashflowForMonth(d, m);
+					rawPayment = new Big(calculateDebtCashflowForMonth(d, m).toString());
 				}
 			} else {
 				const dEnd = addMonthsToMonth(dStart, d.termMonths - 1);
 				if (m >= dStart && m <= dEnd) {
-					rawPayment = calculateDebtCashflowForMonth(d, m);
+					rawPayment = new Big(calculateDebtCashflowForMonth(d, m).toString());
 				}
 			}
 
-			if (rawPayment > 0) {
+			if (rawPayment.gt(0)) {
 				if (d.paymentAccountId && runningAccountBalances[d.paymentAccountId] !== undefined) {
-					runningAccountBalances[d.paymentAccountId] -= rawPayment;
+					runningAccountBalances[d.paymentAccountId] =
+						runningAccountBalances[d.paymentAccountId].minus(rawPayment);
 				} else {
 					// Caída a cuenta del propietario correspondiente, o no asignado libre
 					const fallbackAcc = accounts.find((a) => a.owner === d.owner);
 					if (fallbackAcc) {
-						runningAccountBalances[fallbackAcc.id] -= rawPayment;
+						runningAccountBalances[fallbackAcc.id] =
+							runningAccountBalances[fallbackAcc.id].minus(rawPayment);
 					} else {
-						runningUnassignedBalances[d.owner || 'joint'] -= rawPayment;
+						const owner = d.owner || 'joint';
+						runningUnassignedBalances[owner] = runningUnassignedBalances[owner].minus(rawPayment);
 					}
 				}
 			}
@@ -555,37 +591,37 @@ export const calculateTimelineBalances = (
 
 		// Función interna auxiliar para ponderar la vista activa
 		const getModeBalance = (
-			accBals: Record<string, number>,
-			unassignedBals: Record<'userA' | 'userB' | 'joint', number>
-		) => {
+			accBals: Record<string, Big>,
+			unassignedBals: Record<'userA' | 'userB' | 'joint', Big>
+		): Big => {
 			if (profileCount === 1) {
-				let total = 0;
+				let total = new Big(0);
 				accounts.forEach((acc) => {
-					total += accBals[acc.id] ?? 0;
+					total = total.plus(accBals[acc.id] ?? new Big(0));
 				});
-				total += unassignedBals.userA + unassignedBals.userB + unassignedBals.joint;
+				total = total.plus(unassignedBals.userA).plus(unassignedBals.userB).plus(unassignedBals.joint);
 				return total;
 			}
-			let total = 0;
+			let total = new Big(0);
 			accounts.forEach((acc) => {
-				const bal = accBals[acc.id] ?? 0;
+				const bal = accBals[acc.id] ?? new Big(0);
 				if (viewMode === 'all') {
-					total += bal;
+					total = total.plus(bal);
 				} else if (viewMode === 'userA') {
-					if (acc.owner === 'userA') total += bal;
-					else if (acc.owner === 'joint') total += bal * 0.5;
+					if (acc.owner === 'userA') total = total.plus(bal);
+					else if (acc.owner === 'joint') total = total.plus(bal.times(0.5));
 				} else if (viewMode === 'userB') {
-					if (acc.owner === 'userB') total += bal;
-					else if (acc.owner === 'joint') total += bal * 0.5;
+					if (acc.owner === 'userB') total = total.plus(bal);
+					else if (acc.owner === 'joint') total = total.plus(bal.times(0.5));
 				}
 			});
 
 			if (viewMode === 'all') {
-				total += unassignedBals.userA + unassignedBals.userB + unassignedBals.joint;
+				total = total.plus(unassignedBals.userA).plus(unassignedBals.userB).plus(unassignedBals.joint);
 			} else if (viewMode === 'userA') {
-				total += unassignedBals.userA + unassignedBals.joint * 0.5;
+				total = total.plus(unassignedBals.userA).plus(unassignedBals.joint.times(0.5));
 			} else if (viewMode === 'userB') {
-				total += unassignedBals.userB + unassignedBals.joint * 0.5;
+				total = total.plus(unassignedBals.userB).plus(unassignedBals.joint.times(0.5));
 			}
 			return total;
 		};
@@ -597,58 +633,63 @@ export const calculateTimelineBalances = (
 		// Calcular ingresos y gastos ponderados según la vista activa
 		const incomes = mTx
 			.filter((t) => t.type === 'income')
-			.reduce((sum, t) => sum + getEffectiveAmount(t, viewMode, accounts, profileCount), 0);
+			.reduce((sum, t) => sum.plus(getEffectiveAmountBig(t, viewMode, accounts, profileCount)), new Big(0));
 		const expenses = mTx
 			.filter((t) => t.type === 'expense')
-			.reduce((sum, t) => sum + getEffectiveAmount(t, viewMode, accounts, profileCount), 0);
+			.reduce((sum, t) => sum.plus(getEffectiveAmountBig(t, viewMode, accounts, profileCount)), new Big(0));
 
 		// Ponderar el pago de deudas según la vista
-		const getEffectiveDebtPayment = (d: Debt, rawPay: number) => {
+		const getEffectiveDebtPaymentBig = (d: Debt, rawPay: Big): Big => {
 			if (profileCount === 1) return rawPay;
 			const owner = d.owner ?? 'joint';
 			if (viewMode === 'all') return rawPay;
 			if (viewMode === 'userA') {
 				if (owner === 'userA') return rawPay;
-				if (owner === 'joint') return rawPay * 0.5;
-				return 0;
+				if (owner === 'joint') return rawPay.times(0.5);
+				return new Big(0);
 			}
 			if (viewMode === 'userB') {
 				if (owner === 'userB') return rawPay;
-				if (owner === 'joint') return rawPay * 0.5;
-				return 0;
+				if (owner === 'joint') return rawPay.times(0.5);
+				return new Big(0);
 			}
-			return 0;
+			return new Big(0);
 		};
 
 		const debtPayments = debts.reduce((sum, d) => {
 			const dStart = normalizeMonth(d.date);
-			let rawPay = 0;
+			let rawPay = new Big(0);
 			if (isPaymentPlanDebt(d)) {
 				if (dStart <= m) {
-					rawPay = calculateDebtCashflowForMonth(d, m);
+					rawPay = new Big(calculateDebtCashflowForMonth(d, m).toString());
 				}
 			} else {
 				const dEnd = addMonthsToMonth(dStart, d.termMonths - 1);
 				if (m >= dStart && m <= dEnd) {
-					rawPay = calculateDebtCashflowForMonth(d, m);
+					rawPay = new Big(calculateDebtCashflowForMonth(d, m).toString());
 				}
 			}
-			return sum + getEffectiveDebtPayment(d, rawPay);
-		}, 0);
+			return sum.plus(getEffectiveDebtPaymentBig(d, rawPay));
+		}, new Big(0));
 
 		// Balance neto contable del mes activo
-		const netBalance = closingBalance - openingBalance;
+		const netBalance = closingBalance.minus(openingBalance);
+
+		const closingAccBalancesNum: Record<string, number> = {};
+		Object.keys(runningAccountBalances).forEach((key) => {
+			closingAccBalancesNum[key] = parseFloat(runningAccountBalances[key].toFixed(2));
+		});
 
 		// Registrar balance del mes
 		timelineBalances[m] = {
 			month: m,
-			openingBalance,
-			incomes,
-			expenses,
-			debtPayments,
-			netBalance,
-			closingBalance,
-			accountBalances: { ...runningAccountBalances }
+			openingBalance: parseFloat(openingBalance.toFixed(2)),
+			incomes: parseFloat(incomes.toFixed(2)),
+			expenses: parseFloat(expenses.toFixed(2)),
+			debtPayments: parseFloat(debtPayments.toFixed(2)),
+			netBalance: parseFloat(netBalance.toFixed(2)),
+			closingBalance: parseFloat(closingBalance.toFixed(2)),
+			accountBalances: closingAccBalancesNum
 		};
 	});
 

@@ -88,4 +88,3 @@ export const autoGenerateMissingPeriods = (
 
 	return { periods, transactions };
 };
-
