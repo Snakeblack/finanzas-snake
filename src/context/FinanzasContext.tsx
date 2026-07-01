@@ -690,8 +690,6 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		saveStoredAccounts(accounts);
 	}, [accounts, isInitialized, isLocked]);
 
-
-
 	// === PROPAGAR CÁLCULOS AL MOTOR FINANCIERO ===
 	const timelineBalances = calculateTimelineBalances(periods, transactions, debts, accounts, viewMode, profileCount);
 

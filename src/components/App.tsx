@@ -138,12 +138,15 @@ function MainAppContent() {
 
 				<div className="relative z-10 max-w-md w-full flex flex-col items-center text-center">
 					<div className="w-16 h-16 mb-6 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-						<svg
-							className="w-8 h-8 text-white animate-spin"
-							fill="none"
-							viewBox="0 0 24 24"
-						>
-							<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+						<svg className="w-8 h-8 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+							<circle
+								className="opacity-25"
+								cx="12"
+								cy="12"
+								r="10"
+								stroke="currentColor"
+								strokeWidth="3"
+							/>
 							<path
 								className="opacity-75"
 								fill="currentColor"
