@@ -127,10 +127,9 @@ El contexto ya es mucho más delgado. Lo que sigue dentro, por si se quiere segu
 
 - **D9 (lint, 55 warnings):** 46 `no-explicit-any` (tipar `storageService`/`syncService`/`backupValidator`),
   7 `react-hooks/set-state-in-effect` (revisar al tocar cada efecto en D1), 2 `react-refresh`.
-- **D10 (bug latente):** regex de separador de tablas en `utils/markdownToHtml.ts` no acepta fila
-  separadora con pipe de cierre + alineación (`| :-- | --: |`).
-- **D4 (precisión):** unificar cálculo en `big.js` (hoy `calculateTimelineBalances` agrega en float).
-- **D5 (multi-moneda):** tx de divisa ≠ target se ignoran en silencio en `ledgerEngine`.
+- ~~**D10 (bug latente):**~~ ✅ Resuelto: regex de separador de tablas en `utils/markdownToHtml.ts` acepta fila separadora con pipe de cierre + alineación.
+- ~~**D4 (precisión):**~~ ✅ Resuelto: unificado el cálculo en `big.js` en `calculateTimelineBalances`.
+- ~~**D5 (multi-moneda):**~~ ✅ Resuelto: tx de divisa ≠ target se convierten usando tasas FX en `ledgerEngine`.
 
 ## Mejoras funcionales candidatas (después del refactor)
 

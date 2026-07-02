@@ -79,11 +79,11 @@ Sin backend de datos: todo vive en el navegador.
 | # | Área | Problema | Impacto |
 |---|------|----------|---------|
 | D1 | `FinanzasContext` | God-object: dominio + UI + crypto + PDF + IA + sync mezclados. **En progreso**: extraído `convertMarkdownToHtml`→`utils/`, `buildChatPdfHtml`→`services/chatPdfExport.ts`, asesor IA → `hooks/useAiAdvisor.ts` (+ `utils/chatPlaintext.ts`) y seguridad/PIN → `hooks/useSecurity.ts` (+ `utils/hexEncoding.ts`; ⚠️ dependencia circular con useAiAdvisor resuelta vía orden + `aiBridgeRef`), backup → `hooks/useBackupSync.ts`, y los tres dominios → `hooks/useDebts.ts` / `hooks/useTransactions.ts` / `hooks/useAccounts.ts` → 2572→1174 líneas. Pendiente (opcional): periodos, simulador de consolidación, selectores financieros derivados y orquestadores cross-domain (init/reset/createNextMonth/deleteAccount) siguen en el contexto como capa de composición | Altísimo coste de cambio |
-| D10 | `utils/markdownToHtml` | Bug latente pre-existente: el regex de separador de tablas no acepta fila separadora con pipe de cierre + alineación (`\| :-- \| --: \|`); se trata como datos | Tablas con alineación mal renderizadas en PDF |
+| ~~D10~~ | Duplicación | ✅ Resuelto: el regex de separador de tablas se corrigió para aceptar filas con pipe de cierre y alineaciones | — |
 | D2 | `ImportStatementModal`, `App` | Componentes de ~1.4k líneas | Difíciles de mantener/revisar |
 | D3 | `storageService` | Persistencia + migraciones + backup + dominio en un solo archivo (1.1k); usa `any` | Acoplamiento, riesgo en migraciones |
-| D4 | **Precisión monetaria** | `ledgerEngine` usa `big.js`/string pero `calculateTimelineBalances` agrega en `number` (float) | Posibles descuadres de céntimos en la línea temporal |
-| D5 | **Multi-moneda** | `CurrencyCode` admite EUR/USD/GBP pero no hay tasas FX; tx de otra moneda se ignoran | Funcionalidad incompleta y silenciosa |
+| ~~D4~~ | **Precisión monetaria** | ✅ Resuelto: se unificó el cálculo en `big.js` dentro de `calculateTimelineBalances` para asegurar precisión exacta | — |
+| ~~D5~~ | **Multi-moneda** | ✅ Resuelto: se maneja la conversión de divisas usando tasas FX estáticas en el motor contable | — |
 | ~~D6~~ | Duplicación | ✅ Resuelto: se unificó la lógica en `parseCleanNumericString` y se crearon helpers compartidos para el demote de transferencias y tags fallback | Drift al cambiar reglas |
 | ~~D7~~ | Tooling | ✅ Resuelto: ESLint flat config + Prettier + scripts (`lint`, `format`). Backlog de lint reducido 80→55 warnings (ver D9) | — |
 | D9 | Backlog de lint | 55 warnings restantes (consciente): 46 `no-explicit-any` (migraciones/sync/backup — tipar es esfuerzo aparte), 7 `react-hooks/set-state-in-effect` (patrones de "sincronizar al abrir/por prop"; se revisarán al hacer D1), 2 `react-refresh/only-export-components` (solo afecta HMR) | Bajo; saldar gradualmente |
