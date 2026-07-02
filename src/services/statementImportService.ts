@@ -77,6 +77,31 @@ const createImportFingerprint = (tx: ImportedTransaction, accountId: string): st
 	return `import-${createStableHash(fingerprintParts.join('|'))}`;
 };
 
+const STATEMENT_CONCEPT_STOP_WORDS = new Set([
+	'pago',
+	'compra',
+	'transferencia',
+	'transfer',
+	'traspaso',
+	'recibo',
+	'cargo',
+	'abono',
+	'adeudo',
+	'tarjeta',
+	'visa',
+	'mastercard',
+	'online',
+	'efectivo',
+	'cajero',
+	'gastos',
+	'comisiones',
+	'intereses',
+	'liquidacion',
+	'cobro',
+	'devolucion',
+	'factura'
+]);
+
 const hasAnyToken = (value: string, tokens: string[]): boolean => tokens.some((token) => value.includes(token));
 
 const getConceptTokens = (value: string): string[] =>
@@ -91,7 +116,18 @@ const hasSimilarConcept = (firstConcept: string, secondConcept: string): boolean
 		return false;
 	}
 
-	return secondTokens.filter((token) => firstTokens.has(token)).length >= 1;
+	const commonTokens = secondTokens.filter((token) => firstTokens.has(token));
+	if (commonTokens.length === 0) {
+		return false;
+	}
+
+	const hasSpecificToken = commonTokens.some((token) => !STATEMENT_CONCEPT_STOP_WORDS.has(token));
+	if (hasSpecificToken) {
+		return true;
+	}
+
+	const uniqueCommonStopWords = new Set(commonTokens);
+	return uniqueCommonStopWords.size >= 2;
 };
 
 const getDateDistanceDays = (firstDate: string, secondDate: string): number | undefined => {

@@ -426,6 +426,41 @@ describe('statementImportService', () => {
 			expect(result[0].selected).toBe(true);
 			expect(result[0].possibleDuplicate).toBeUndefined();
 		});
+
+		it('no debe avisar posible duplicado si solo comparten stop words comunes independientes sin tokens específicos', () => {
+			const imported = prepareImportedTransactions({
+				transactions: [
+					createImportedFixture({
+						id: 'csv-row-stop-words',
+						desc: 'Pago recibo online',
+						amount: '12.50',
+						type: 'expense',
+						date: '2026-06-07'
+					})
+				],
+				accountId: 'checking',
+				sourceName: 'checking.csv',
+				accountOwner: 'joint'
+			});
+			const existing: Transaction[] = [
+				{
+					id: 'existing-stop-words',
+					desc: 'Adeudo recibo tarjeta',
+					money: { amount: '12.50', currency: 'EUR' },
+					type: 'expense',
+					tag: 'Varios',
+					date: '2026-06-06',
+					owner: 'joint',
+					accountId: 'checking'
+				}
+			];
+
+			const result = detectDuplicates(imported, existing);
+
+			expect(result[0].isDuplicate).toBe(false);
+			expect(result[0].selected).toBe(true);
+			expect(result[0].possibleDuplicate).toBeUndefined();
+		});
 	});
 
 	describe('correlateInternalTransfers', () => {
