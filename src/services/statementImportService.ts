@@ -172,15 +172,27 @@ const getFallbackTag = (type: TransactionType): string => {
 	return 'Otros Gastos';
 };
 
+const demoteUnconfirmedTransfer = (
+	desc: string,
+	originalType: TransactionType
+): { type: TransactionType; tag: string } => {
+	return {
+		type: classifyUnconfirmedTransfer(desc, originalType),
+		tag: EXTERNAL_TRANSFER_TAG
+	};
+};
+
 const normalizeUnconfirmedTransfer = (tx: ImportedTransaction): ImportedTransaction => {
 	if (tx.type !== 'transfer' || hasConfirmedInternalTransferEndpoints(tx)) {
 		return tx;
 	}
 
+	const demoted = demoteUnconfirmedTransfer(tx.desc, tx.originalType || tx.type);
+
 	return {
 		...tx,
-		type: classifyUnconfirmedTransfer(tx.desc, tx.originalType || tx.type),
-		tag: EXTERNAL_TRANSFER_TAG,
+		type: demoted.type,
+		tag: demoted.tag,
 		transferCorrelationId: undefined,
 		fromAccountId: undefined,
 		toAccountId: undefined
@@ -197,18 +209,19 @@ const createImportedTransactionFromGemini = (
 	const fromAccountId = asString(payload.fromAccountId) || undefined;
 	const toAccountId = asString(payload.toAccountId) || undefined;
 	const parsedType = parseGeminiTransactionType(asString(payload.type), normalizedAmount.type);
-	const normalizedType =
-		parsedType === 'transfer' && !(fromAccountId && toAccountId)
-			? classifyUnconfirmedTransfer(desc, normalizedAmount.type)
-			: parsedType;
-	const isExternalTransfer = parsedType === 'transfer' && normalizedType !== 'transfer';
-	const allowedTags = DEFAULT_TAGS[normalizedType] as readonly string[];
-	const rawTag = asString(payload.tag);
-	const tag = isExternalTransfer
-		? EXTERNAL_TRANSFER_TAG
-		: allowedTags.includes(rawTag)
-			? rawTag
-			: getFallbackTag(normalizedType);
+
+	let normalizedType = parsedType;
+	let tag = asString(payload.tag);
+
+	if (parsedType === 'transfer' && !(fromAccountId && toAccountId)) {
+		const demoted = demoteUnconfirmedTransfer(desc, normalizedAmount.type);
+		normalizedType = demoted.type;
+		tag = demoted.tag;
+	} else {
+		const allowedTags = DEFAULT_TAGS[normalizedType] as readonly string[];
+		tag = allowedTags.includes(tag) ? tag : getFallbackTag(normalizedType);
+	}
+
 	const balance = normalizeBalance(asNumericString(payload.balance));
 
 	return {
@@ -241,11 +254,8 @@ const getTransferCorrelationId = (expense: ImportedTransaction, income: Imported
 	return `transfer-${createStableHash(parts.join('|'))}`;
 };
 
-/**
- * Normaliza un importe en formato string a un valor numérico decimal absoluto (string)
- * y deduce su tipo (expense/income) según si es negativo o positivo.
- */
-export function normalizeAmount(val: string): { amount: string; type: TransactionType } {
+function parseCleanNumericString(val: string): { num: number; isNegative: boolean } | null {
+	if (!val) return null;
 	let clean = val.replace(/[€$\s]/g, '').trim();
 	const isNegative = clean.startsWith('-');
 	clean = clean.replace(/-|\+/g, '');
@@ -267,12 +277,23 @@ export function normalizeAmount(val: string): { amount: string; type: Transactio
 
 	const num = parseFloat(clean);
 	if (isNaN(num)) {
+		return null;
+	}
+	return { num, isNegative };
+}
+
+/**
+ * Normaliza un importe en formato string a un valor numérico decimal absoluto (string)
+ * y deduce su tipo (expense/income) según si es negativo o positivo.
+ */
+export function normalizeAmount(val: string): { amount: string; type: TransactionType } {
+	const parsed = parseCleanNumericString(val);
+	if (!parsed) {
 		return { amount: '0.00', type: 'expense' };
 	}
-
 	return {
-		amount: num.toFixed(2),
-		type: isNegative ? 'expense' : 'income'
+		amount: parsed.num.toFixed(2),
+		type: parsed.isNegative ? 'expense' : 'income'
 	};
 }
 
@@ -281,29 +302,11 @@ export function normalizeAmount(val: string): { amount: string; type: Transactio
  * preservando el signo negativo en caso de saldos deudores (sobregiros).
  */
 export function normalizeBalance(val: string): string | undefined {
-	if (!val) return undefined;
-	let clean = val.replace(/[€$\s]/g, '').trim();
-	const isNegative = clean.startsWith('-');
-	clean = clean.replace(/-|\+/g, '');
-
-	if (clean.includes(',') && clean.includes('.')) {
-		const commaIndex = clean.indexOf(',');
-		const dotIndex = clean.indexOf('.');
-		if (commaIndex > dotIndex) {
-			clean = clean.replace(/\./g, '').replace(',', '.');
-		} else {
-			clean = clean.replace(/,/g, '');
-		}
-	} else if (clean.includes(',')) {
-		clean = clean.replace(',', '.');
-	}
-
-	const num = parseFloat(clean);
-	if (isNaN(num)) {
+	const parsed = parseCleanNumericString(val);
+	if (!parsed) {
 		return undefined;
 	}
-
-	return (isNegative ? -num : num).toFixed(2);
+	return (parsed.isNegative ? -parsed.num : parsed.num).toFixed(2);
 }
 
 /**
@@ -449,8 +452,7 @@ export function processParsedRows(
 		const date = normalizeDate(dateRaw);
 		const { amount, type } = normalizeAmount(amountRaw);
 		const desc = descRaw.trim();
-		const fallbackTag =
-			type === 'income' ? 'Otros Ingresos' : type === 'transfer' ? 'Otros Traspasos' : 'Otros Gastos';
+		const fallbackTag = getFallbackTag(type);
 		const tag = deduceTagFromConcept(desc, type) || fallbackTag;
 		const balance = normalizeBalance(balanceRaw || '');
 
