@@ -22,7 +22,6 @@ import type {
 	TagBreakdown
 } from '../types';
 import {
-	getInitialData,
 	readStoredDebts,
 	saveStoredTransactions,
 	saveStoredDebts,
@@ -39,7 +38,7 @@ import {
 	saveProfileCount,
 	executeSilentMigrationIfRequired
 } from '../services/storageService';
-import { addMonthsToMonth, getValidDateForMonth, normalizeMonth, autoGenerateMissingPeriods } from '../utils/dateUtils';
+import { addMonthsToMonth, normalizeMonth, autoGenerateMissingPeriods } from '../utils/dateUtils';
 import { toNumber } from '../utils/formatters';
 import { parseOpeningBalanceInput } from '../utils/openingBalance';
 import { buildChatPdfHtml, type ChatPdfOptions } from '../services/chatPdfExport';
@@ -51,7 +50,6 @@ import {
 	getPaymentPlanOverdueAmount,
 	calculateTimelineBalances,
 	getTagBreakdown,
-	isPaymentPlanDebt,
 	isClassicDebt,
 	getEffectiveAmount,
 	type MonthBalanceData
@@ -396,8 +394,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		togglePaymentPlanInstallmentStatus
 	} = useDebts({
 		initialDebtFormDate: selectedMonth,
-		onDebtDeleted: (id) =>
-			setSelectedDebtsForConsolidation((prev) => prev.filter((itemId) => itemId !== id)),
+		onDebtDeleted: (id) => setSelectedDebtsForConsolidation((prev) => prev.filter((itemId) => itemId !== id)),
 		profileCount
 	});
 
@@ -653,7 +650,12 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		setTransactions,
 		setAccounts,
 		setGeminiApiKey,
-		setChatMessages
+		setChatMessages,
+		setPeriods,
+		setSelectedMonth,
+		setUserAName,
+		setUserBName,
+		setProfileCount
 	]);
 
 	useEffect(() => {
@@ -956,8 +958,6 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			);
 		}
 	};
-
-
 
 	const handleDownloadChatPDF = (options: ChatPdfOptions) => {
 		const iframe = document.createElement('iframe');

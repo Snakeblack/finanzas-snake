@@ -141,8 +141,6 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 	// Referencias de archivos
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
-
-
 	// Resetear estados al cerrar
 	const handleClose = () => {
 		setStep('config');
@@ -424,7 +422,9 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 					setImportedTxs(checkedTxs);
 					setStep('preview');
 				} catch (err) {
-					setError(err instanceof Error ? err.message : 'Ocurrió un error inesperado al procesar el PDF con IA.');
+					setError(
+						err instanceof Error ? err.message : 'Ocurrió un error inesperado al procesar el PDF con IA.'
+					);
 				} finally {
 					setIsLoading(false);
 				}

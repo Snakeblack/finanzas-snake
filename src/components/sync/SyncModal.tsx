@@ -213,7 +213,11 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 						console.error('Host error:', err);
 						clearHandshakeTimeout();
 						setStatus('error');
-						setErrorMsg(err instanceof Error ? err.message : 'Error al conectar con el servidor de señalización de PeerJS.');
+						setErrorMsg(
+							err instanceof Error
+								? err.message
+								: 'Error al conectar con el servidor de señalización de PeerJS.'
+						);
 					}
 				},
 				dataProvider,
@@ -277,7 +281,11 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 							}, 1500);
 						} catch (err) {
 							setStatus('error');
-							setErrorMsg(err instanceof Error ? err.message : 'Error al validar y guardar la base de datos recibida.');
+							setErrorMsg(
+								err instanceof Error
+									? err.message
+									: 'Error al validar y guardar la base de datos recibida.'
+							);
 						}
 					},
 					onError: (err) => {
@@ -285,7 +293,9 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 						clearHandshakeTimeout();
 						setStatus('error');
 						setErrorMsg(
-							err instanceof Error ? err.message : 'No se pudo conectar. Verifica que el código es correcto y el PC emisor sigue activo.'
+							err instanceof Error
+								? err.message
+								: 'No se pudo conectar. Verifica que el código es correcto y el PC emisor sigue activo.'
 						);
 					}
 				},

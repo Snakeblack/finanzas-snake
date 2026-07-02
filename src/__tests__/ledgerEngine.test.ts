@@ -3,9 +3,7 @@ import { computeCurrentBalances } from '../services/ledgerEngine';
 import type { Account, Transaction } from '../types';
 
 describe('ledgerEngine - computeCurrentBalances', () => {
-	const mockAccounts: Account[] = [
-		{ id: 'acc1', name: 'Cuenta EUR', owner: 'userA', initialBalance: 1000.0 }
-	];
+	const mockAccounts: Account[] = [{ id: 'acc1', name: 'Cuenta EUR', owner: 'userA', initialBalance: 1000.0 }];
 
 	it('debe acumular correctamente transacciones en la divisa objetivo', () => {
 		const transactions: Transaction[] = [
