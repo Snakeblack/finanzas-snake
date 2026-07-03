@@ -1,4 +1,5 @@
 import { Peer, type DataConnection } from 'peerjs';
+import { bytesToHex, hexToBytes } from '../utils/hexEncoding';
 
 const PEER_PREFIX = 'finpro-';
 
@@ -69,6 +70,58 @@ export interface HostCallbacks {
 	onError: (err: unknown) => void;
 }
 
+// === ENCRYPTION HELPERS ===
+export const hashCode = async (code: string): Promise<string> => {
+	const encoder = new TextEncoder();
+	const data = encoder.encode(code.trim().toUpperCase());
+	const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+	const hashArray = Array.from(new Uint8Array(hashBuffer));
+	return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+};
+
+export const deriveKeyFromCode = async (code: string): Promise<CryptoKey> => {
+	const encoder = new TextEncoder();
+	const data = encoder.encode(code.trim().toUpperCase());
+	const hash = await crypto.subtle.digest('SHA-256', data);
+	return crypto.subtle.importKey(
+		'raw',
+		hash,
+		{ name: 'AES-GCM' },
+		false,
+		['encrypt', 'decrypt']
+	);
+};
+
+export const encryptPayload = async (payload: string, key: CryptoKey): Promise<string> => {
+	const encoder = new TextEncoder();
+	const data = encoder.encode(payload);
+	const iv = crypto.getRandomValues(new Uint8Array(12));
+	const encrypted = await crypto.subtle.encrypt(
+		{ name: 'AES-GCM', iv },
+		key,
+		data
+	);
+	const ivHex = bytesToHex(iv);
+	const encryptedHex = bytesToHex(new Uint8Array(encrypted));
+	return `${ivHex}:${encryptedHex}`;
+};
+
+export const decryptPayload = async (encryptedStr: string, key: CryptoKey): Promise<string> => {
+	const parts = encryptedStr.split(':');
+	if (parts.length !== 2) {
+		throw new Error('Formato de datos cifrados no válido.');
+	}
+	const iv = hexToBytes(parts[0]);
+	const encryptedData = hexToBytes(parts[1]);
+	const decrypted = await crypto.subtle.decrypt(
+		{ name: 'AES-GCM', iv },
+		key,
+		encryptedData
+	);
+	const decoder = new TextDecoder();
+	return decoder.decode(decrypted);
+};
+
 /**
  * Inicia una sesión de envío de datos (Host).
  * Genera un código y espera a que el móvil/receptor se conecte para enviarle los datos.
@@ -83,66 +136,79 @@ export const startSyncHost = (
 	let retryCount = 0;
 	let isDestroyed = false;
 
-	const initPeer = () => {
+	const initPeer = async () => {
 		if (isDestroyed) return;
 
-		const peerId = `${PEER_PREFIX}${code}`;
-		peer = new Peer(peerId, getPeerConfig(customIceServers));
+		try {
+			// Derivar clave de cifrado a partir del código y calcular hash de PeerJS ID
+			const cryptoKey = await deriveKeyFromCode(code);
+			const peerHash = await hashCode(code);
+			const peerId = `${PEER_PREFIX}${peerHash}`;
 
-		peer.on('open', () => {
-			if (isDestroyed) return;
-			callbacks.onCodeGenerated(code);
-		});
+			peer = new Peer(peerId, getPeerConfig(customIceServers));
 
-		peer.on('connection', (conn) => {
-			if (isDestroyed) return;
-			callbacks.onConnectionEstablished();
+			peer.on('open', () => {
+				if (isDestroyed) return;
+				// Le notificamos el código de 6 caracteres legible para el usuario
+				callbacks.onCodeGenerated(code);
+			});
 
-			conn.on('open', async () => {
+			peer.on('connection', (conn) => {
+				if (isDestroyed) return;
+				callbacks.onConnectionEstablished();
+
+				conn.on('open', async () => {
+					if (isDestroyed) return;
+
+					try {
+						// Recopilar todos los datos locales usando el proveedor inyectado (DIP)
+						const backupData = await dataProvider.exportPayload();
+						const payloadStr = JSON.stringify(backupData);
+
+						// Cifrar el payload con la clave derivada del código
+						const encryptedPayload = await encryptPayload(payloadStr, cryptoKey);
+
+						// Enviar los datos cifrados
+						conn.send({
+							type: 'FINANZAS_PRO_SYNC_ENC',
+							payload: encryptedPayload
+						});
+
+						setTimeout(() => {
+							if (!isDestroyed) {
+								callbacks.onDataSent();
+							}
+						}, 600);
+					} catch (err) {
+						callbacks.onError(err);
+					}
+				});
+
+				conn.on('error', (err) => {
+					if (isDestroyed) return;
+					callbacks.onError(err);
+				});
+			});
+
+			peer.on('error', (err) => {
 				if (isDestroyed) return;
 
-				try {
-					// Recopilar todos los datos locales usando el proveedor inyectado (DIP)
-					const backupData = await dataProvider.exportPayload();
-
-					// Enviar los datos
-					conn.send({
-						type: 'FINANZAS_PRO_SYNC',
-						payload: backupData
-					});
-
-					setTimeout(() => {
-						if (!isDestroyed) {
-							callbacks.onDataSent();
-						}
-					}, 600);
-				} catch (err) {
+				const peerErr = err as Error & { type?: string };
+				// Si el ID ya existe y no hemos superado el límite de intentos, generamos otro
+				if (peerErr.type === 'unavailable-id' && retryCount < 5) {
+					retryCount++;
+					code = generateShortCode();
+					if (peer) {
+						peer.destroy();
+					}
+					setTimeout(initPeer, 500);
+				} else {
 					callbacks.onError(err);
 				}
 			});
-
-			conn.on('error', (err) => {
-				if (isDestroyed) return;
-				callbacks.onError(err);
-			});
-		});
-
-		peer.on('error', (err) => {
-			if (isDestroyed) return;
-
-			const peerErr = err as Error & { type?: string };
-			// Si el ID ya existe y no hemos superado el límite de intentos, generamos otro
-			if (peerErr.type === 'unavailable-id' && retryCount < 5) {
-				retryCount++;
-				code = generateShortCode();
-				if (peer) {
-					peer.destroy();
-				}
-				setTimeout(initPeer, 500);
-			} else {
-				callbacks.onError(err);
-			}
-		});
+		} catch (err) {
+			callbacks.onError(err);
+		}
 	};
 
 	initPeer();
@@ -171,40 +237,61 @@ export const connectToSyncHost = (
 	callbacks: ClientCallbacks,
 	customIceServers?: RTCIceServer[]
 ): { destroy: () => void } => {
-	const peer: Peer | null = new Peer(undefined, getPeerConfig(customIceServers));
+	let peer: Peer | null = null;
 	let conn: DataConnection | null = null;
 	let isDestroyed = false;
 
-	peer.on('open', () => {
-		if (isDestroyed || !peer) return;
-		const targetPeerId = `${PEER_PREFIX}${code.trim().toUpperCase()}`;
-		conn = peer.connect(targetPeerId);
-
-		conn.on('open', () => {
-			if (isDestroyed) return;
-			callbacks.onConnected();
-		});
-
-		conn.on('data', (data: unknown) => {
-			if (isDestroyed) return;
-			const packet = data as { type?: string; payload?: SyncData };
-			if (packet && packet.type === 'FINANZAS_PRO_SYNC' && packet.payload) {
-				callbacks.onDataReceived(packet.payload);
-			} else {
-				callbacks.onError(new Error('Formato de datos recibido no válido.'));
-			}
-		});
-
-		conn.on('error', (err) => {
-			if (isDestroyed) return;
-			callbacks.onError(err);
-		});
-	});
-
-	peer.on('error', (err) => {
+	const initClient = async () => {
 		if (isDestroyed) return;
-		callbacks.onError(err);
-	});
+
+		try {
+			const cryptoKey = await deriveKeyFromCode(code);
+			const peerHash = await hashCode(code);
+			const targetPeerId = `${PEER_PREFIX}${peerHash}`;
+
+			peer = new Peer(undefined, getPeerConfig(customIceServers));
+
+			peer.on('open', () => {
+				if (isDestroyed || !peer) return;
+				conn = peer.connect(targetPeerId);
+
+				conn.on('open', () => {
+					if (isDestroyed) return;
+					callbacks.onConnected();
+				});
+
+				conn.on('data', async (data: unknown) => {
+					if (isDestroyed) return;
+					const packet = data as { type?: string; payload?: string };
+					if (packet && packet.type === 'FINANZAS_PRO_SYNC_ENC' && typeof packet.payload === 'string') {
+						try {
+							const decryptedJson = await decryptPayload(packet.payload, cryptoKey);
+							const decryptedPayload = JSON.parse(decryptedJson) as SyncData;
+							callbacks.onDataReceived(decryptedPayload);
+						} catch (err) {
+							callbacks.onError(new Error('No se pudo descifrar el paquete de datos. Código inválido o datos corruptos.'));
+						}
+					} else {
+						callbacks.onError(new Error('Formato de datos recibido no válido o no cifrado.'));
+					}
+				});
+
+				conn.on('error', (err) => {
+					if (isDestroyed) return;
+					callbacks.onError(err);
+				});
+			});
+
+			peer.on('error', (err) => {
+				if (isDestroyed) return;
+				callbacks.onError(err);
+			});
+		} catch (err) {
+			callbacks.onError(err);
+		}
+	};
+
+	initClient();
 
 	return {
 		destroy: () => {

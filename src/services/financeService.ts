@@ -18,6 +18,7 @@ import type {
 } from '../types';
 import { toNumber } from '../utils/formatters';
 import { normalizeMonth, addMonthsToMonth } from '../utils/dateUtils';
+import { STATIC_EXCHANGE_RATES } from './ledgerEngine';
 
 /**
  * Agrega una colección de objetos Money asegurando consistencia de divisa.
@@ -475,17 +476,24 @@ export const getEffectiveAmountBig = (
 ): Big => {
 	if (!t.money) return new Big(0);
 	const amt = new Big(t.money.amount);
-	if (profileCount === 1) return amt;
+	let amtInEur = amt;
+	if (t.money.currency !== 'EUR') {
+		const rate = STATIC_EXCHANGE_RATES[t.money.currency]?.['EUR'];
+		if (rate !== undefined) {
+			amtInEur = amt.times(rate);
+		}
+	}
+	if (profileCount === 1) return amtInEur;
 	const owner = getTransactionOwner(t, accounts);
-	if (viewMode === 'all') return amt;
+	if (viewMode === 'all') return amtInEur;
 	if (viewMode === 'userA') {
-		if (owner === 'userA') return amt;
-		if (owner === 'joint') return amt.times(0.5);
+		if (owner === 'userA') return amtInEur;
+		if (owner === 'joint') return amtInEur.times(0.5);
 		return new Big(0);
 	}
 	if (viewMode === 'userB') {
-		if (owner === 'userB') return amt;
-		if (owner === 'joint') return amt.times(0.5);
+		if (owner === 'userB') return amtInEur;
+		if (owner === 'joint') return amtInEur.times(0.5);
 		return new Big(0);
 	}
 	return new Big(0);
@@ -532,26 +540,33 @@ export const calculateTimelineBalances = (
 		// Aplicar movimientos del mes sobre saldos correspondientes
 		mTx.forEach((t) => {
 			const amount = new Big(t.money?.amount ?? '0');
+			let amtInEur = amount;
+			if (t.money?.currency && t.money.currency !== 'EUR') {
+				const rate = STATIC_EXCHANGE_RATES[t.money.currency]?.['EUR'];
+				if (rate !== undefined) {
+					amtInEur = amount.times(rate);
+				}
+			}
 			if (t.type === 'income') {
 				if (t.accountId && runningAccountBalances[t.accountId] !== undefined) {
-					runningAccountBalances[t.accountId] = runningAccountBalances[t.accountId].plus(amount);
+					runningAccountBalances[t.accountId] = runningAccountBalances[t.accountId].plus(amtInEur);
 				} else {
 					const owner = t.owner || 'joint';
-					runningUnassignedBalances[owner] = runningUnassignedBalances[owner].plus(amount);
+					runningUnassignedBalances[owner] = runningUnassignedBalances[owner].plus(amtInEur);
 				}
 			} else if (t.type === 'expense') {
 				if (t.accountId && runningAccountBalances[t.accountId] !== undefined) {
-					runningAccountBalances[t.accountId] = runningAccountBalances[t.accountId].minus(amount);
+					runningAccountBalances[t.accountId] = runningAccountBalances[t.accountId].minus(amtInEur);
 				} else {
 					const owner = t.owner || 'joint';
-					runningUnassignedBalances[owner] = runningUnassignedBalances[owner].minus(amount);
+					runningUnassignedBalances[owner] = runningUnassignedBalances[owner].minus(amtInEur);
 				}
 			} else if (t.type === 'transfer') {
 				if (t.fromAccountId && runningAccountBalances[t.fromAccountId] !== undefined) {
-					runningAccountBalances[t.fromAccountId] = runningAccountBalances[t.fromAccountId].minus(amount);
+					runningAccountBalances[t.fromAccountId] = runningAccountBalances[t.fromAccountId].minus(amtInEur);
 				}
 				if (t.toAccountId && runningAccountBalances[t.toAccountId] !== undefined) {
-					runningAccountBalances[t.toAccountId] = runningAccountBalances[t.toAccountId].plus(amount);
+					runningAccountBalances[t.toAccountId] = runningAccountBalances[t.toAccountId].plus(amtInEur);
 				}
 			}
 		});

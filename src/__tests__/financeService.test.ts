@@ -594,6 +594,42 @@ describe('calculateTimelineBalances', () => {
 		expect(result['2026-05'].closingBalance).toBe(2900);
 	});
 
+	it('debe convertir transacciones multi-moneda a EUR usando STATIC_EXCHANGE_RATES', () => {
+		const accounts: Account[] = [
+			{ id: 'a1', name: 'Cuenta USD', owner: 'userA', initialBalance: 1000 }
+		];
+		const periods: Period[] = [{ month: '2026-05', openingBalance: 1000 }];
+		const txs: Transaction[] = [
+			{
+				id: 't1',
+				desc: 'Ingreso USD',
+				money: { amount: '100.00', currency: 'USD' }, // 100 USD * 0.92 = 92 EUR
+				type: 'income',
+				tag: 'Otros Ingresos',
+				date: '2026-05-01',
+				owner: 'userA',
+				accountId: 'a1'
+			},
+			{
+				id: 't2',
+				desc: 'Gasto GBP',
+				money: { amount: '50.00', currency: 'GBP' }, // 50 GBP * 1.16 = 58 EUR
+				type: 'expense',
+				tag: 'Otros Gastos',
+				date: '2026-05-05',
+				owner: 'userA',
+				accountId: 'a1'
+			}
+		];
+
+		const result = calculateTimelineBalances(periods, txs, [], accounts, 'all');
+		expect(result['2026-05']).toBeDefined();
+		expect(result['2026-05'].incomes).toBe(92);
+		expect(result['2026-05'].expenses).toBe(58);
+		expect(result['2026-05'].openingBalance).toBe(1000);
+		expect(result['2026-05'].closingBalance).toBe(1034); // 1000 + 92 - 58 = 1034
+	});
+
 	it('debe acumular saldos entre periodos', () => {
 		const accounts: Account[] = [{ id: 'a1', name: 'A', owner: 'userA', initialBalance: 500 }];
 		const periods: Period[] = [
