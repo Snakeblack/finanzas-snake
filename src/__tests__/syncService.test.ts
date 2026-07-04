@@ -8,9 +8,9 @@ import {
 } from '../services/syncService';
 
 describe('syncService - Criptografía y Seguridad', () => {
-	it('debe generar códigos de 6 caracteres con caracteres no ambiguos', () => {
+	it('debe generar códigos de 10 caracteres con caracteres no ambiguos', () => {
 		const code = generateShortCode();
-		expect(code).toHaveLength(6);
+		expect(code).toHaveLength(10);
 		expect(code).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ2-9]+$/);
 	});
 

@@ -232,8 +232,8 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 	// Conectar al host y recibir datos (Client)
 	const handleConnectToHost = async (e: React.FormEvent) => {
 		e.preventDefault();
-		if (!inputCode.trim() || inputCode.length < 6) {
-			setErrorMsg('El código de conexión debe tener 6 caracteres.');
+		if (!inputCode.trim() || inputCode.length < 10) {
+			setErrorMsg('El código de conexión debe tener 10 caracteres.');
 			return;
 		}
 
@@ -608,14 +608,14 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 										htmlFor="sync-code-input"
 										className="block text-xs font-medium text-slate-400"
 									>
-										Código de Conexión (6 letras/números)
+										Código de Conexión (10 letras/números)
 									</label>
 									<Input
 										id="sync-code-input"
 										type="text"
-										maxLength={6}
+										maxLength={10}
 										required
-										placeholder="EJ: XZYQWE"
+										placeholder="EJ: XZYQWEABCD"
 										value={inputCode}
 										onChange={(e) => setInputCode(e.target.value.toUpperCase().trim())}
 										className="py-3 text-lg font-mono font-black text-center text-indigo-300 tracking-widest uppercase"

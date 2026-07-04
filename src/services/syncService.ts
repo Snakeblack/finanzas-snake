@@ -48,14 +48,14 @@ export interface SyncData {
 }
 
 /**
- * Genera un código alfanumérico corto de 6 caracteres excluyendo caracteres ambiguos.
+ * Genera un código alfanumérico de 10 caracteres excluyendo caracteres ambiguos.
  */
 export const generateShortCode = (): string => {
 	const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-	const bytes = new Uint8Array(6);
+	const bytes = new Uint8Array(10);
 	window.crypto.getRandomValues(bytes);
 	let code = '';
-	for (let i = 0; i < 6; i++) {
+	for (let i = 0; i < 10; i++) {
 		code += chars.charAt(bytes[i] % chars.length);
 	}
 	return code;
@@ -152,7 +152,7 @@ export const startSyncHost = (
 
 			peer.on('open', () => {
 				if (isDestroyed) return;
-				// Le notificamos el código de 6 caracteres legible para el usuario
+				// Le notificamos el código de 10 caracteres legible para el usuario
 				callbacks.onCodeGenerated(code);
 			});
 
