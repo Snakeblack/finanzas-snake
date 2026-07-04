@@ -1586,6 +1586,41 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 		expect(ctxRef.filteredDebts.some((d) => d.id === 'd-futura')).toBe(false);
 	});
 
+	it('debe mantener deudas paymentPlan terminadas pero activas históricamente en filteredDebts', () => {
+		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
+		localStorage.setItem(
+			STORAGE_KEYS.periods,
+			JSON.stringify([
+				{ month: '2026-02', openingBalance: 0 }
+			])
+		);
+		localStorage.setItem(
+			STORAGE_KEYS.debts,
+			JSON.stringify([
+				{
+					id: 'd-plan-pagos',
+					kind: 'paymentPlan',
+					desc: 'Plan de Pagos Histórico',
+					tag: 'T',
+					date: '2026-01',
+					financedAmount: 300,
+					fees: 0,
+					totalToPay: 300,
+					installments: [
+						{ id: 'inst-1', dueMonth: '2026-01', amount: 100, status: 'paid', label: 'Cuota 1' },
+						{ id: 'inst-2', dueMonth: '2026-02', amount: 100, status: 'paid', label: 'Cuota 2' },
+						{ id: 'inst-3', dueMonth: '2026-03', amount: 100, status: 'paid', label: 'Cuota 3' }
+					],
+					owner: 'joint'
+				}
+			])
+		);
+
+		renderCtx();
+		expect(ctxRef.selectedMonth).toBe('2026-02');
+		expect(ctxRef.filteredDebts.some((d) => d.id === 'd-plan-pagos')).toBe(true);
+	});
+
 	it('handleCreateNextMonth debe cambiar selectedMonth si el mes siguiente ya existe', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
 		localStorage.setItem(

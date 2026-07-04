@@ -97,9 +97,9 @@ export const encryptPayload = async (payload: string, key: CryptoKey): Promise<s
 	const data = encoder.encode(payload);
 	const iv = crypto.getRandomValues(new Uint8Array(12));
 	const encrypted = await crypto.subtle.encrypt(
-		{ name: 'AES-GCM', iv },
+		{ name: 'AES-GCM', iv: iv as BufferSource },
 		key,
-		data
+		data as BufferSource
 	);
 	const ivHex = bytesToHex(iv);
 	const encryptedHex = bytesToHex(new Uint8Array(encrypted));
@@ -114,9 +114,9 @@ export const decryptPayload = async (encryptedStr: string, key: CryptoKey): Prom
 	const iv = hexToBytes(parts[0]);
 	const encryptedData = hexToBytes(parts[1]);
 	const decrypted = await crypto.subtle.decrypt(
-		{ name: 'AES-GCM', iv },
+		{ name: 'AES-GCM', iv: iv as BufferSource },
 		key,
-		encryptedData
+		encryptedData as BufferSource
 	);
 	const decoder = new TextDecoder();
 	return decoder.decode(decrypted);
@@ -268,7 +268,7 @@ export const connectToSyncHost = (
 							const decryptedJson = await decryptPayload(packet.payload, cryptoKey);
 							const decryptedPayload = JSON.parse(decryptedJson) as SyncData;
 							callbacks.onDataReceived(decryptedPayload);
-						} catch (err) {
+						} catch {
 							callbacks.onError(new Error('No se pudo descifrar el paquete de datos. Código inválido o datos corruptos.'));
 						}
 					} else {

@@ -47,7 +47,6 @@ import {
 	calculateClassicDebtInstallment,
 	calculateMonthlyPayment,
 	getPaymentPlanRemainingAmount,
-	getPaymentPlanOverdueAmount,
 	calculateTimelineBalances,
 	getTagBreakdown,
 	isClassicDebt,
@@ -748,7 +747,9 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			const end = addMonthsToMonth(start, d.termMonths - 1);
 			return selectedMonth <= end;
 		}
-		return getPaymentPlanRemainingAmount(d) > 0 || getPaymentPlanOverdueAmount(d, selectedMonth) > 0;
+		const dueMonths = d.installments.map((i) => normalizeMonth(i.dueMonth));
+		const maxDueMonth = dueMonths.length > 0 ? dueMonths.reduce((max, m) => (m > max ? m : max), start) : start;
+		return selectedMonth <= maxDueMonth || getPaymentPlanRemainingAmount(d) > 0;
 	});
 
 	// Gastos conjuntos pagados por cada uno (en el mes activo)
