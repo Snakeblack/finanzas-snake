@@ -409,6 +409,58 @@ export const generateAmortizationSchedule = (debt: ClassicDebt): AmortizationRow
 };
 
 /**
+ * Calcula el principal pendiente de una deuda clásica en un mes de evaluación determinado.
+ * Si el mes de evaluación es anterior al inicio de la deuda, se devuelve el principal completo.
+ * Si es posterior a la finalización de los plazos, se devuelve 0.
+ */
+export const calculateClassicDebtRemainingPrincipal = (debt: ClassicDebt, evaluationMonth: string): number => {
+	const startMonth = normalizeMonth(debt.date);
+	const evalMonth = normalizeMonth(evaluationMonth);
+	if (evalMonth <= startMonth) {
+		return debt.principal;
+	}
+
+	const schedule = generateAmortizationSchedule(debt);
+	const previousRows = schedule.filter((row) => normalizeMonth(row.dueMonth) < evalMonth);
+	if (previousRows.length > 0) {
+		return previousRows[previousRows.length - 1].remainingPrincipal;
+	}
+
+	return 0;
+};
+
+/**
+ * Calcula el principal pendiente de cualquier tipo de deudas en un mes determinado.
+ */
+export const calculateDebtRemainingPrincipal = (debt: Debt, month: string): number => {
+	if (isPaymentPlanDebt(debt)) {
+		return getPaymentPlanRemainingAmount(debt);
+	}
+	return calculateClassicDebtRemainingPrincipal(debt, month);
+};
+
+/**
+ * Calcula los intereses restantes por pagar de una deudá clásica a partir de un mes contable determinado.
+ */
+export const calculateClassicDebtRemainingInterests = (debt: ClassicDebt, evaluationMonth: string): number => {
+	const evalMonth = normalizeMonth(evaluationMonth);
+	const schedule = generateAmortizationSchedule(debt);
+	return schedule
+		.filter((row) => normalizeMonth(row.dueMonth) >= evalMonth)
+		.reduce((sum, row) => sum + row.interestPayment, 0);
+};
+
+/**
+ * Calcula los intereses restantes por pagar de cualquier deuda a partir de un mes determinado.
+ */
+export const calculateDebtRemainingInterests = (debt: Debt, month: string): number => {
+	if (isPaymentPlanDebt(debt)) {
+		return 0;
+	}
+	return calculateClassicDebtRemainingInterests(debt, month);
+};
+
+/**
  * Obtiene el propietario efectivo de una transacción resolviéndolo a partir del id de cuenta.
  */
 export const getTransactionOwner = (t: Transaction, accounts: Account[]): 'userA' | 'userB' | 'joint' => {

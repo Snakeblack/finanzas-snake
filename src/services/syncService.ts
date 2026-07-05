@@ -61,7 +61,6 @@ export const generateShortCode = (): string => {
 	return code;
 };
 
-
 export interface ISyncDataProvider {
 	exportPayload(): Promise<Record<string, unknown>>;
 }
@@ -86,13 +85,7 @@ export const deriveKeyFromCode = async (code: string): Promise<CryptoKey> => {
 	const encoder = new TextEncoder();
 	const data = encoder.encode(code.trim().toUpperCase());
 	const hash = await crypto.subtle.digest('SHA-256', data);
-	return crypto.subtle.importKey(
-		'raw',
-		hash,
-		{ name: 'AES-GCM' },
-		false,
-		['encrypt', 'decrypt']
-	);
+	return crypto.subtle.importKey('raw', hash, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
 };
 
 export const encryptPayload = async (payload: string, key: CryptoKey): Promise<string> => {
@@ -272,7 +265,11 @@ export const connectToSyncHost = (
 							const decryptedPayload = JSON.parse(decryptedJson) as SyncData;
 							callbacks.onDataReceived(decryptedPayload);
 						} catch {
-							callbacks.onError(new Error('No se pudo descifrar el paquete de datos. Código inválido o datos corruptos.'));
+							callbacks.onError(
+								new Error(
+									'No se pudo descifrar el paquete de datos. Código inválido o datos corruptos.'
+								)
+							);
 						}
 					} else {
 						callbacks.onError(new Error('Formato de datos recibido no válido o no cifrado.'));

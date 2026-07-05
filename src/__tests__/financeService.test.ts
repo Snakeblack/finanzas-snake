@@ -23,7 +23,11 @@ import {
 	getEffectiveAmount,
 	calculateTimelineBalances,
 	getTagBreakdown,
-	sumMoney
+	sumMoney,
+	calculateDebtRemainingPrincipal,
+	calculateDebtRemainingInterests,
+	calculateClassicDebtRemainingPrincipal,
+	calculateClassicDebtRemainingInterests
 } from '../services/financeService';
 import type { Account, Period, Transaction, ClassicDebt, PaymentPlanDebt } from '../types';
 
@@ -595,9 +599,7 @@ describe('calculateTimelineBalances', () => {
 	});
 
 	it('debe convertir transacciones multi-moneda a EUR usando STATIC_EXCHANGE_RATES', () => {
-		const accounts: Account[] = [
-			{ id: 'a1', name: 'Cuenta USD', owner: 'userA', initialBalance: 1000 }
-		];
+		const accounts: Account[] = [{ id: 'a1', name: 'Cuenta USD', owner: 'userA', initialBalance: 1000 }];
 		const periods: Period[] = [{ month: '2026-05', openingBalance: 1000 }];
 		const txs: Transaction[] = [
 			{
@@ -1025,5 +1027,86 @@ describe('sumMoney', () => {
 				'EUR'
 			)
 		).toThrow(/Operación multi-divisa no soportada/);
+	});
+});
+
+describe('calculateClassicDebtRemainingPrincipal & calculateClassicDebtRemainingInterests', () => {
+	const testDebt: ClassicDebt = {
+		id: 'test-debt-rem',
+		kind: 'classic',
+		desc: 'Test Loan',
+		tag: 'Préstamo',
+		date: '2026-01',
+		principal: 12000,
+		tae: 12,
+		termMonths: 12,
+		owner: 'joint'
+	};
+
+	it('debe devolver el principal completo si el mes es anterior o igual al de inicio', () => {
+		expect(calculateClassicDebtRemainingPrincipal(testDebt, '2025-12')).toBe(12000);
+		expect(calculateClassicDebtRemainingPrincipal(testDebt, '2026-01')).toBe(12000);
+	});
+
+	it('debe reducir el principal mes a mes según el cuadro de amortización', () => {
+		const remainingFeb = calculateClassicDebtRemainingPrincipal(testDebt, '2026-02');
+		expect(remainingFeb).toBeLessThan(12000);
+		expect(remainingFeb).toBeGreaterThan(10000);
+
+		expect(calculateClassicDebtRemainingPrincipal(testDebt, '2027-01')).toBe(0);
+		expect(calculateClassicDebtRemainingPrincipal(testDebt, '2027-06')).toBe(0);
+	});
+
+	it('debe calcular los intereses restantes correctamente', () => {
+		const totalInterests = calculateClassicDebtRemainingInterests(testDebt, '2026-01');
+		expect(totalInterests).toBeGreaterThan(0);
+
+		const interestsFeb = calculateClassicDebtRemainingInterests(testDebt, '2026-02');
+		expect(interestsFeb).toBeLessThan(totalInterests);
+
+		expect(calculateClassicDebtRemainingInterests(testDebt, '2027-01')).toBe(0);
+	});
+
+	it('debe calcular correctamente a través de la función genérica calculateDebtRemainingPrincipal', () => {
+		expect(calculateDebtRemainingPrincipal(testDebt, '2026-01')).toBe(12000);
+
+		const ppDebt: PaymentPlanDebt = {
+			id: 'debt-pp-test',
+			kind: 'paymentPlan',
+			desc: 'Plan',
+			tag: 'Préstamo',
+			date: '2026-01',
+			financedAmount: 1000,
+			fees: 0,
+			totalToPay: 1000,
+			owner: 'joint',
+			installments: [
+				{ id: 'p1', dueMonth: '2026-01', amount: 500, status: 'paid', label: '1' },
+				{ id: 'p2', dueMonth: '2026-02', amount: 500, status: 'pending', label: '2' }
+			]
+		};
+		expect(calculateDebtRemainingPrincipal(ppDebt, '2026-02')).toBe(500);
+	});
+
+	it('debe calcular correctamente a través de la función genérica calculateDebtRemainingInterests', () => {
+		const totalInterests = calculateDebtRemainingInterests(testDebt, '2026-01');
+		expect(totalInterests).toBeGreaterThan(0);
+
+		const ppDebt: PaymentPlanDebt = {
+			id: 'debt-pp-test',
+			kind: 'paymentPlan',
+			desc: 'Plan',
+			tag: 'Préstamo',
+			date: '2026-01',
+			financedAmount: 1000,
+			fees: 0,
+			totalToPay: 1000,
+			owner: 'joint',
+			installments: [
+				{ id: 'p1', dueMonth: '2026-01', amount: 500, status: 'paid', label: '1' },
+				{ id: 'p2', dueMonth: '2026-02', amount: 500, status: 'pending', label: '2' }
+			]
+		};
+		expect(calculateDebtRemainingInterests(ppDebt, '2026-02')).toBe(0);
 	});
 });

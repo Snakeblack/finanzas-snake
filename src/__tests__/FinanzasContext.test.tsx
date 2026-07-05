@@ -1588,12 +1588,7 @@ describe('FinanzasContext - Cobertura de Líneas Restantes', () => {
 
 	it('debe mantener deudas paymentPlan terminadas pero activas históricamente en filteredDebts', () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
-		localStorage.setItem(
-			STORAGE_KEYS.periods,
-			JSON.stringify([
-				{ month: '2026-02', openingBalance: 0 }
-			])
-		);
+		localStorage.setItem(STORAGE_KEYS.periods, JSON.stringify([{ month: '2026-02', openingBalance: 0 }]));
 		localStorage.setItem(
 			STORAGE_KEYS.debts,
 			JSON.stringify([

@@ -44,13 +44,14 @@ import { parseOpeningBalanceInput } from '../utils/openingBalance';
 import { buildChatPdfHtml, type ChatPdfOptions } from '../services/chatPdfExport';
 import {
 	calculateDebtMonthlyPayment,
-	calculateClassicDebtInstallment,
 	calculateMonthlyPayment,
 	getPaymentPlanRemainingAmount,
 	calculateTimelineBalances,
 	getTagBreakdown,
 	isClassicDebt,
 	getEffectiveAmount,
+	calculateDebtRemainingPrincipal,
+	calculateDebtRemainingInterests,
 	type MonthBalanceData
 } from '../services/financeService';
 import type { PromptContextParams } from '../services/geminiService';
@@ -771,7 +772,9 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	const consolidatedDebtsObjects = debts.filter(
 		(d): d is ClassicDebt => isClassicDebt(d) && selectedDebtsForConsolidation.includes(d.id)
 	);
-	const consolidatedPrincipal = consolidatedDebtsObjects.reduce((sum, d) => sum + d.principal, 0);
+	const consolidatedPrincipal = consolidatedDebtsObjects.reduce((sum, d) => {
+		return sum + calculateDebtRemainingPrincipal(d, selectedMonth);
+	}, 0);
 
 	const additionalCapital = toNumber(consolidationForm.extraCapital);
 	const totalNewPrincipal = consolidatedPrincipal + additionalCapital;
@@ -781,8 +784,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	}, 0);
 
 	const currentTotalInterests = consolidatedDebtsObjects.reduce((sum, d) => {
-		const cuota = calculateClassicDebtInstallment(d);
-		return sum + (cuota * d.termMonths - d.principal);
+		return sum + calculateDebtRemainingInterests(d, selectedMonth);
 	}, 0);
 
 	const newConsolidatedCuota = calculateMonthlyPayment(
