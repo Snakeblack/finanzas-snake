@@ -284,14 +284,26 @@ export const calculateMonthlyPayment = (
 	months: NumericInput,
 	mode: RateMode = 'tae'
 ): number => {
-	const p = toNumber(principal);
-	const m = Math.trunc(toNumber(months));
-	const monthlyRate = getMonthlyRate(annualRate, mode);
+	const pNum = toNumber(principal);
+	const mNum = Math.trunc(toNumber(months));
+	if (!pNum || !mNum || mNum <= 0) return 0;
 
-	if (!p || !m || m <= 0) return 0;
-	if (monthlyRate === 0) return p / m;
-	const payment = p * (monthlyRate / (1 - (1 + monthlyRate) ** -m));
-	return Number.isNaN(payment) ? 0 : payment;
+	const monthlyRateNum = getMonthlyRate(annualRate, mode);
+	if (monthlyRateNum === 0) return pNum / mNum;
+
+	const p = new Big(pNum);
+	const r = new Big(monthlyRateNum);
+
+	try {
+		const onePlusR = new Big(1).plus(r);
+		const powResult = onePlusR.pow(mNum);
+		const denominator = new Big(1).minus(new Big(1).div(powResult));
+		const payment = p.times(r.div(denominator));
+		return payment.toNumber();
+	} catch (e) {
+		const paymentNum = pNum * (monthlyRateNum / (1 - (1 + monthlyRateNum) ** -mNum));
+		return Number.isNaN(paymentNum) ? 0 : paymentNum;
+	}
 };
 
 export const getDebtRateMode = (debt: ClassicDebt): RateMode => (hasTin(debt) ? 'tin' : 'tae');
@@ -380,29 +392,45 @@ export const calculateDebtCashflowForMonth = (debt: Debt, month: string): number
  * Genera el cuadro de amortización completo de un préstamo francés.
  */
 export const generateAmortizationSchedule = (debt: ClassicDebt): AmortizationRow[] => {
-	const p = toNumber(debt.principal);
+	const p = new Big(toNumber(debt.principal));
 	const m = Math.trunc(toNumber(debt.termMonths));
-	const monthlyRate = getMonthlyRate(hasTin(debt) ? toNumber(debt.tin) : debt.tae, getDebtRateMode(debt));
-	const cuota = calculateClassicDebtInstallment(debt); // El cálculo de cuota base es constante para un mes de inicio
-	const recurringCosts = getDebtRecurringMonthlyCosts(debt);
+	const monthlyRate = new Big(getMonthlyRate(hasTin(debt) ? toNumber(debt.tin) : debt.tae, getDebtRateMode(debt)));
+	const cuotaBase = new Big(calculateClassicDebtInstallment(debt));
+	const recurringCosts = new Big(getDebtRecurringMonthlyCosts(debt));
 
 	let remainingPrincipal = p;
 	const schedule: AmortizationRow[] = [];
 
 	for (let i = 1; i <= m; i++) {
-		const interestPayment = remainingPrincipal * monthlyRate;
-		const principalPaid = cuota - interestPayment;
-		remainingPrincipal = Math.max(0, remainingPrincipal - principalPaid);
+		const interestPayment = remainingPrincipal.times(monthlyRate);
+		let principalPaid: Big;
+		let cuota: Big;
+
+		if (i === m) {
+			principalPaid = remainingPrincipal;
+			cuota = principalPaid.plus(interestPayment);
+			remainingPrincipal = new Big(0);
+		} else {
+			principalPaid = cuotaBase.minus(interestPayment);
+			if (principalPaid.gte(remainingPrincipal)) {
+				principalPaid = remainingPrincipal;
+				cuota = principalPaid.plus(interestPayment);
+				remainingPrincipal = new Big(0);
+			} else {
+				cuota = cuotaBase;
+				remainingPrincipal = remainingPrincipal.minus(principalPaid);
+			}
+		}
 
 		schedule.push({
 			month: i,
 			dueMonth: addMonthsToMonth(debt.date, i - 1),
-			cuota,
-			recurringCosts,
-			totalPayment: cuota + recurringCosts,
-			principalPaid,
-			interestPayment,
-			remainingPrincipal
+			cuota: cuota.toNumber(),
+			recurringCosts: recurringCosts.toNumber(),
+			totalPayment: cuota.plus(recurringCosts).toNumber(),
+			principalPaid: principalPaid.toNumber(),
+			interestPayment: interestPayment.toNumber(),
+			remainingPrincipal: remainingPrincipal.toNumber()
 		});
 	}
 	return schedule;
