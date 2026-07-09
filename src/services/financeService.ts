@@ -509,22 +509,7 @@ export const getEffectiveAmount = (
 	accounts: Account[],
 	profileCount: number = 2
 ): number => {
-	if (!t.money) return 0;
-	const amt = new Big(t.money.amount);
-	if (profileCount === 1) return toNumber(amt.toString());
-	const owner = getTransactionOwner(t, accounts);
-	if (viewMode === 'all') return toNumber(amt.toString());
-	if (viewMode === 'userA') {
-		if (owner === 'userA') return toNumber(amt.toString());
-		if (owner === 'joint') return toNumber(amt.times(0.5).toString());
-		return 0;
-	}
-	if (viewMode === 'userB') {
-		if (owner === 'userB') return toNumber(amt.toString());
-		if (owner === 'joint') return toNumber(amt.times(0.5).toString());
-		return 0;
-	}
-	return 0;
+	return getEffectiveAmountBig(t, viewMode, accounts, profileCount).toNumber();
 };
 
 /**
@@ -797,20 +782,50 @@ export const calculateTimelineBalances = (
 export const getTagBreakdown = (
 	filteredTransactions: Transaction[],
 	filteredDebts: Debt[],
-	month: string
+	month: string,
+	viewMode: 'all' | 'userA' | 'userB' = 'all',
+	accounts: Account[] = [],
+	profileCount: number = 2
 ): TagBreakdown[] => {
-	const breakdown: Record<string, number> = {};
+	const breakdown: Record<string, Big> = {};
 
 	filteredTransactions.forEach((t) => {
 		if (t.type === 'expense') {
-			breakdown[t.tag] = (breakdown[t.tag] || 0) + toNumber(t.money?.amount ?? '0');
+			const effectiveAmount = getEffectiveAmountBig(t, viewMode, accounts, profileCount);
+			if (effectiveAmount.gt(0)) {
+				breakdown[t.tag] = (breakdown[t.tag] || new Big(0)).plus(effectiveAmount);
+			}
 		}
 	});
 
 	filteredDebts.forEach((d) => {
-		const cuota = calculateDebtMonthlyPayment(d, month);
-		breakdown[d.tag] = (breakdown[d.tag] || 0) + cuota;
+		const rawCuota = new Big(calculateDebtMonthlyPayment(d, month));
+		const getEffectiveDebtPaymentBig = (debt: Debt, rawPay: Big): Big => {
+			if (profileCount === 1) return rawPay;
+			const owner = debt.owner ?? 'joint';
+			if (viewMode === 'all') return rawPay;
+			if (viewMode === 'userA') {
+				if (owner === 'userA') return rawPay;
+				if (owner === 'joint') return rawPay.times(0.5);
+				return new Big(0);
+			}
+			if (viewMode === 'userB') {
+				if (owner === 'userB') return rawPay;
+				if (owner === 'joint') return rawPay.times(0.5);
+				return new Big(0);
+			}
+			return new Big(0);
+		};
+		const effectiveCuota = getEffectiveDebtPaymentBig(d, rawCuota);
+		if (effectiveCuota.gt(0)) {
+			breakdown[d.tag] = (breakdown[d.tag] || new Big(0)).plus(effectiveCuota);
+		}
 	});
 
-	return Object.entries(breakdown).map(([tag, amount]) => ({ tag, amount }));
+	return Object.entries(breakdown)
+		.map(([tag, amount]) => ({
+			tag,
+			amount: parseFloat(amount.toFixed(2))
+		}))
+		.filter((item) => item.amount > 0);
 };

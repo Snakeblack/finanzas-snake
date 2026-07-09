@@ -899,6 +899,91 @@ describe('getTagBreakdown', () => {
 	it('debe retornar vacío si no hay gastos ni deudas', () => {
 		expect(getTagBreakdown([], [], '2026-05')).toHaveLength(0);
 	});
+
+	it('debe convertir divisa en getEffectiveAmount', () => {
+		const txUsd: Transaction = {
+			id: 't-usd',
+			desc: 'USD transaction',
+			money: { amount: '100.00', currency: 'USD' }, // 100 USD * 0.92 = 92 EUR
+			type: 'expense',
+			tag: 'Travel',
+			date: '2026-05-01',
+			owner: 'userA'
+		};
+		const txGbp: Transaction = {
+			id: 't-gbp',
+			desc: 'GBP transaction',
+			money: { amount: '100.00', currency: 'GBP' }, // 100 GBP * 1.16 = 116 EUR
+			type: 'expense',
+			tag: 'Travel',
+			date: '2026-05-01',
+			owner: 'joint'
+		};
+		expect(getEffectiveAmount(txUsd, 'all', [])).toBeCloseTo(92, 2);
+		expect(getEffectiveAmount(txGbp, 'all', [])).toBeCloseTo(116, 2);
+		expect(getEffectiveAmount(txGbp, 'userA', [])).toBeCloseTo(58, 2);
+	});
+
+	it('debe agrupar gastos en getTagBreakdown aplicando viewMode, deudas y conversión de divisas', () => {
+		const txs: Transaction[] = [
+			{
+				id: 't1',
+				desc: 'Compra USD',
+				money: { amount: '100.00', currency: 'USD' }, // 100 USD * 0.92 = 92 EUR (owner userA)
+				type: 'expense',
+				tag: 'Comida',
+				date: '2026-05-01',
+				owner: 'userA'
+			},
+			{
+				id: 't2',
+				desc: 'Compra Joint',
+				money: { amount: '50.00', currency: 'EUR' }, // 50 EUR (owner joint)
+				type: 'expense',
+				tag: 'Comida',
+				date: '2026-05-02',
+				owner: 'joint'
+			},
+			{
+				id: 't3',
+				desc: 'Compra UserB',
+				money: { amount: '40.00', currency: 'EUR' }, // 40 EUR (owner userB)
+				type: 'expense',
+				tag: 'Ocio',
+				date: '2026-05-03',
+				owner: 'userB'
+			}
+		];
+
+		const debt: ClassicDebt = {
+			id: 'd1',
+			kind: 'classic',
+			desc: 'Hipoteca Joint',
+			tag: 'Vivienda',
+			date: '2026-05',
+			principal: 1200,
+			tae: 0,
+			termMonths: 12,
+			owner: 'joint'
+		};
+
+		const resAll = getTagBreakdown(txs, [debt], '2026-05', 'all', [], 2);
+		expect(resAll).toHaveLength(3);
+		expect(resAll.find(r => r.tag === 'Comida')?.amount).toBeCloseTo(142, 2);
+		expect(resAll.find(r => r.tag === 'Ocio')?.amount).toBeCloseTo(40, 2);
+		expect(resAll.find(r => r.tag === 'Vivienda')?.amount).toBeCloseTo(100, 2);
+
+		const resUserA = getTagBreakdown(txs, [debt], '2026-05', 'userA', [], 2);
+		expect(resUserA).toHaveLength(2);
+		expect(resUserA.find(r => r.tag === 'Comida')?.amount).toBeCloseTo(117, 2);
+		expect(resUserA.find(r => r.tag === 'Vivienda')?.amount).toBeCloseTo(50, 2);
+
+		const resUserB = getTagBreakdown(txs, [debt], '2026-05', 'userB', [], 2);
+		expect(resUserB).toHaveLength(3);
+		expect(resUserB.find(r => r.tag === 'Comida')?.amount).toBeCloseTo(25, 2);
+		expect(resUserB.find(r => r.tag === 'Ocio')?.amount).toBeCloseTo(40, 2);
+		expect(resUserB.find(r => r.tag === 'Vivienda')?.amount).toBeCloseTo(50, 2);
+	});
 });
 
 describe('financeService - Edge Cases de Cobertura', () => {
