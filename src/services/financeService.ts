@@ -300,7 +300,7 @@ export const calculateMonthlyPayment = (
 		const denominator = new Big(1).minus(new Big(1).div(powResult));
 		const payment = p.times(r.div(denominator));
 		return payment.toNumber();
-	} catch (e) {
+	} catch {
 		const paymentNum = pNum * (monthlyRateNum / (1 - (1 + monthlyRateNum) ** -mNum));
 		return Number.isNaN(paymentNum) ? 0 : paymentNum;
 	}

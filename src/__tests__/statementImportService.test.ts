@@ -107,6 +107,13 @@ describe('statementImportService', () => {
 			expect(normalizeDate('2026-06-05')).toBe('2026-06-05');
 		});
 
+		it('debe normalizar fechas con puntos y años de 2 dígitos', () => {
+			expect(normalizeDate('05.06.2026')).toBe('2026-06-05');
+			expect(normalizeDate('05/06/26')).toBe('2026-06-05');
+			expect(normalizeDate('05.06.26')).toBe('2026-06-05');
+			expect(normalizeDate('05-06-99')).toBe('1999-06-05');
+		});
+
 		it('debe retornar la fecha actual para valores inválidos', () => {
 			const today = new Date().toISOString().substring(0, 10);
 			expect(normalizeDate('fecha-invalida')).toBe(today);

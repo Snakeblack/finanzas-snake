@@ -346,16 +346,17 @@ export function normalizeBalance(val: string): string | undefined {
 }
 
 /**
- * Normaliza fechas en formatos DD/MM/YYYY o YYYY-MM-DD al estándar YYYY-MM-DD.
+ * Normaliza fechas en formatos DD/MM/YYYY, YYYY-MM-DD, DD.MM.YYYY, y con años de 2 dígitos al estándar YYYY-MM-DD.
  */
 export function normalizeDate(val: string): string {
 	const clean = val.trim();
-	const dmyMatch = clean.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+	const dmyMatch = clean.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2}|\d{4})$/);
 	if (dmyMatch) {
 		const [_, d, m, y] = dmyMatch;
-		return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+		const fullYear = y.length === 2 ? (parseInt(y, 10) < 80 ? '20' : '19') + y : y;
+		return `${fullYear}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
 	}
-	const ymdMatch = clean.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+	const ymdMatch = clean.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/);
 	if (ymdMatch) {
 		const [_, y, m, d] = ymdMatch;
 		return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
