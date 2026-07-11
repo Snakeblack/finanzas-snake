@@ -462,7 +462,10 @@ export const calculateClassicDebtRemainingPrincipal = (debt: ClassicDebt, evalua
  */
 export const calculateDebtRemainingPrincipal = (debt: Debt, month: string): number => {
 	if (isPaymentPlanDebt(debt)) {
-		return getPaymentPlanRemainingAmount(debt);
+		const evalMonth = normalizeMonth(month);
+		return debt.installments
+			.filter((inst) => inst.status === 'pending' && normalizeMonth(inst.dueMonth) >= evalMonth)
+			.reduce((sum, inst) => sum + inst.amount, 0);
 	}
 	return calculateClassicDebtRemainingPrincipal(debt, month);
 };
@@ -828,4 +831,182 @@ export const getTagBreakdown = (
 			amount: parseFloat(amount.toFixed(2))
 		}))
 		.filter((item) => item.amount > 0);
+};
+
+export type ProjectedMonthData = {
+	month: string;
+	netWorth: number;
+	assets: number;
+	liabilities: number;
+	isProjected: boolean;
+	incomes: number;
+	expenses: number;
+	debtPayments: number;
+	netBalance: number;
+};
+
+/**
+ * Calcula la deuda pendiente efectiva de acuerdo con la vista y propietario.
+ */
+export const getEffectiveDebtRemaining = (
+	d: Debt,
+	m: string,
+	viewMode: 'all' | 'userA' | 'userB',
+	profileCount: number
+): number => {
+	const rawPrincipal = calculateDebtRemainingPrincipal(d, m);
+	if (profileCount === 1) return rawPrincipal;
+	const owner = d.owner ?? 'joint';
+	if (viewMode === 'all') return rawPrincipal;
+	if (viewMode === 'userA') {
+		if (owner === 'userA') return rawPrincipal;
+		if (owner === 'joint') return rawPrincipal * 0.5;
+		return 0;
+	}
+	if (viewMode === 'userB') {
+		if (owner === 'userB') return rawPrincipal;
+		if (owner === 'joint') return rawPrincipal * 0.5;
+		return 0;
+	}
+	return 0;
+};
+
+/**
+ * Calcula las proyecciones de patrimonio neto y balance de activos/pasivos.
+ */
+export const calculateProjections = (
+	periods: Period[],
+	transactions: Transaction[],
+	debts: Debt[],
+	accounts: Account[],
+	viewMode: 'all' | 'userA' | 'userB',
+	profileCount: number,
+	timelineBalances: Record<string, MonthBalanceData>,
+	projectionMonthsCount: number
+): ProjectedMonthData[] => {
+	const result: ProjectedMonthData[] = [];
+	const sortedPeriods = [...periods].sort((a, b) => a.month.localeCompare(b.month));
+
+	sortedPeriods.forEach((period) => {
+		const m = period.month;
+		const balData = timelineBalances[m];
+		if (!balData) return;
+
+		const nextMonthStr = addMonthsToMonth(m, 1);
+		let totalLiabilities = 0;
+		debts.forEach((d) => {
+			const start = normalizeMonth(d.date);
+			if (start <= m) {
+				totalLiabilities += getEffectiveDebtRemaining(d, nextMonthStr, viewMode, profileCount);
+			}
+		});
+
+		const assets = balData.closingBalance;
+		const netWorth = assets - totalLiabilities;
+
+		result.push({
+			month: m,
+			netWorth: parseFloat(netWorth.toFixed(2)),
+			assets: parseFloat(assets.toFixed(2)),
+			liabilities: parseFloat(totalLiabilities.toFixed(2)),
+			isProjected: false,
+			incomes: balData.incomes,
+			expenses: balData.expenses,
+			debtPayments: balData.debtPayments,
+			netBalance: balData.netBalance
+		});
+	});
+
+	if (result.length === 0 || projectionMonthsCount <= 0) {
+		return result;
+	}
+
+	const latestMonth = sortedPeriods[sortedPeriods.length - 1].month;
+	const latestBalData = timelineBalances[latestMonth];
+	if (!latestBalData) return result;
+
+	let runningBalance = new Big(latestBalData.closingBalance.toString());
+	let runningMonth = latestMonth;
+
+	const recurringTxs = transactions.filter((t) => t.recurrence === 'recurring');
+
+	const recurringInflow = recurringTxs
+		.filter((t) => t.type === 'income')
+		.reduce((sum, t) => sum.plus(getEffectiveAmountBig(t, viewMode, accounts, profileCount)), new Big(0));
+
+	const recurringOutflow = recurringTxs
+		.filter((t) => t.type === 'expense')
+		.reduce((sum, t) => sum.plus(getEffectiveAmountBig(t, viewMode, accounts, profileCount)), new Big(0));
+
+	const projectedNetRecurringFlow = recurringInflow.minus(recurringOutflow);
+
+	for (let i = 1; i <= projectionMonthsCount; i++) {
+		const projectedMonth = addMonthsToMonth(runningMonth, 1);
+
+		let projectedDebtPayments = new Big(0);
+		debts.forEach((d) => {
+			const start = normalizeMonth(d.date);
+			let rawPay = new Big(0);
+			if (isPaymentPlanDebt(d)) {
+				if (start <= projectedMonth) {
+					rawPay = new Big(calculateDebtCashflowForMonth(d, projectedMonth).toString());
+				}
+			} else {
+				const end = addMonthsToMonth(start, d.termMonths - 1);
+				if (projectedMonth >= start && projectedMonth <= end) {
+					rawPay = new Big(calculateDebtCashflowForMonth(d, projectedMonth).toString());
+				}
+			}
+
+			const getEffectiveDebtPaymentBig = (debt: Debt, rPay: Big): Big => {
+				if (profileCount === 1) return rPay;
+				const owner = debt.owner ?? 'joint';
+				if (viewMode === 'all') return rPay;
+				if (viewMode === 'userA') {
+					if (owner === 'userA') return rPay;
+					if (owner === 'joint') return rPay.times(0.5);
+					return new Big(0);
+				}
+				if (viewMode === 'userB') {
+					if (owner === 'userB') return rPay;
+					if (owner === 'joint') return rPay.times(0.5);
+					return new Big(0);
+				}
+				return new Big(0);
+			};
+
+			projectedDebtPayments = projectedDebtPayments.plus(getEffectiveDebtPaymentBig(d, rawPay));
+		});
+
+		const nextBalance = runningBalance.plus(projectedNetRecurringFlow).minus(projectedDebtPayments);
+		runningBalance = nextBalance;
+
+		const nextMonthStr = addMonthsToMonth(projectedMonth, 1);
+		let totalLiabilities = 0;
+		debts.forEach((d) => {
+			const start = normalizeMonth(d.date);
+			if (start <= projectedMonth) {
+				totalLiabilities += getEffectiveDebtRemaining(d, nextMonthStr, viewMode, profileCount);
+			}
+		});
+
+		const assets = runningBalance.toNumber();
+		const netWorth = assets - totalLiabilities;
+
+		result.push({
+			month: projectedMonth,
+			netWorth: parseFloat(netWorth.toFixed(2)),
+			assets: parseFloat(assets.toFixed(2)),
+			liabilities: parseFloat(totalLiabilities.toFixed(2)),
+			isProjected: true,
+			incomes: recurringInflow.toNumber(),
+			expenses: recurringOutflow.toNumber(),
+			debtPayments: projectedDebtPayments.toNumber(),
+			netBalance: parseFloat(projectedNetRecurringFlow.minus(projectedDebtPayments).toFixed(2))
+		});
+
+		runningMonth = projectedMonth;
+	}
+
+	return result;
 };

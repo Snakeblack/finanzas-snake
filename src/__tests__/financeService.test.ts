@@ -27,7 +27,8 @@ import {
 	calculateDebtRemainingPrincipal,
 	calculateDebtRemainingInterests,
 	calculateClassicDebtRemainingPrincipal,
-	calculateClassicDebtRemainingInterests
+	calculateClassicDebtRemainingInterests,
+	calculateProjections
 } from '../services/financeService';
 import type { Account, Period, Transaction, ClassicDebt, PaymentPlanDebt } from '../types';
 
@@ -1193,5 +1194,172 @@ describe('calculateClassicDebtRemainingPrincipal & calculateClassicDebtRemaining
 			]
 		};
 		expect(calculateDebtRemainingInterests(ppDebt, '2026-02')).toBe(0);
+	});
+});
+
+describe('calculateProjections', () => {
+	const accounts: Account[] = [
+		{ id: 'acc1', name: 'Cuenta A', owner: 'userA', initialBalance: 1000 },
+		{ id: 'acc2', name: 'Cuenta Joint', owner: 'joint', initialBalance: 2000 }
+	];
+
+	const periods: Period[] = [{ month: '2026-05', openingBalance: 3000 }];
+
+	const timelineBalances: Record<string, any> = {
+		'2026-05': {
+			month: '2026-05',
+			openingBalance: 3000,
+			incomes: 1000,
+			expenses: 500,
+			debtPayments: 200,
+			netBalance: 300,
+			closingBalance: 3300,
+			accountBalances: { acc1: 1100, acc2: 2200 }
+		}
+	};
+
+	const transactions: Transaction[] = [
+		{
+			id: 't1',
+			desc: 'Ingreso recurrente A',
+			money: { amount: '1000', currency: 'EUR' },
+			type: 'income',
+			tag: 'Salario',
+			date: '2026-05-01',
+			recurrence: 'recurring',
+			owner: 'userA',
+			accountId: 'acc1'
+		},
+		{
+			id: 't2',
+			desc: 'Gasto recurrente Joint',
+			money: { amount: '200', currency: 'EUR' },
+			type: 'expense',
+			tag: 'Comida',
+			date: '2026-05-02',
+			recurrence: 'recurring',
+			owner: 'joint',
+			accountId: 'acc2'
+		}
+	];
+
+	const debts: Debt[] = [
+		{
+			id: 'd1',
+			kind: 'classic',
+			desc: 'Préstamo',
+			tag: 'Préstamos',
+			date: '2026-05',
+			principal: 2000,
+			tae: 0,
+			termMonths: 10,
+			owner: 'joint',
+			paymentAccountId: 'acc2'
+		}
+	];
+
+	it('debe devolver un array vacío si no hay periodos', () => {
+		const res = calculateProjections([], [], [], [], 'all', 2, {}, 12);
+		expect(res).toEqual([]);
+	});
+
+	it('debe devolver solo datos históricos si projectionMonthsCount es 0', () => {
+		const res = calculateProjections(periods, transactions, debts, accounts, 'all', 2, timelineBalances, 0);
+		expect(res).toHaveLength(1);
+		expect(res[0].month).toBe('2026-05');
+		expect(res[0].isProjected).toBe(false);
+		expect(res[0].assets).toBe(3300);
+	});
+
+	it('debe calcular proyecciones correctamente para la vista "all"', () => {
+		const res = calculateProjections(periods, transactions, debts, accounts, 'all', 2, timelineBalances, 2);
+		expect(res).toHaveLength(3);
+
+		// Historico 2026-05
+		expect(res[0].month).toBe('2026-05');
+		expect(res[0].isProjected).toBe(false);
+		expect(res[0].assets).toBe(3300);
+		expect(res[0].liabilities).toBe(1800);
+		expect(res[0].netWorth).toBe(1500);
+
+		// Proyectado 1: 2026-06
+		expect(res[1].month).toBe('2026-06');
+		expect(res[1].isProjected).toBe(true);
+		expect(res[1].assets).toBe(3900);
+		expect(res[1].liabilities).toBe(1600);
+		expect(res[1].netWorth).toBe(2300);
+		expect(res[1].incomes).toBe(1000);
+		expect(res[1].expenses).toBe(200);
+		expect(res[1].debtPayments).toBe(200);
+		expect(res[1].netBalance).toBe(600);
+
+		// Proyectado 2: 2026-07
+		expect(res[2].month).toBe('2026-07');
+		expect(res[2].assets).toBe(4500);
+		expect(res[2].liabilities).toBe(1400);
+		expect(res[2].netWorth).toBe(3100);
+	});
+
+	it('debe ponderar correctamente en perfil dual según viewMode', () => {
+		const resA = calculateProjections(periods, transactions, debts, accounts, 'userA', 2, timelineBalances, 1);
+		expect(resA[0].liabilities).toBe(900);
+		expect(resA[0].netWorth).toBe(2400);
+
+		expect(resA[1].month).toBe('2026-06');
+		expect(resA[1].incomes).toBe(1000);
+		expect(resA[1].expenses).toBe(100);
+		expect(resA[1].debtPayments).toBe(100);
+		expect(resA[1].assets).toBe(4100);
+		expect(resA[1].liabilities).toBe(800);
+		expect(resA[1].netWorth).toBe(3300);
+
+		const resB = calculateProjections(periods, transactions, debts, accounts, 'userB', 2, timelineBalances, 1);
+		expect(resB[0].liabilities).toBe(900);
+		expect(resB[1].incomes).toBe(0);
+		expect(resB[1].expenses).toBe(100);
+		expect(resB[1].debtPayments).toBe(100);
+		expect(resB[1].assets).toBe(3100);
+		expect(resB[1].liabilities).toBe(800);
+		expect(resB[1].netWorth).toBe(2300);
+	});
+
+	it('no debe ponderar si profileCount es 1', () => {
+		const resSingle = calculateProjections(periods, transactions, debts, accounts, 'userA', 1, timelineBalances, 1);
+		expect(resSingle[0].liabilities).toBe(1800);
+		expect(resSingle[1].incomes).toBe(1000);
+		expect(resSingle[1].expenses).toBe(200);
+		expect(resSingle[1].debtPayments).toBe(200);
+		expect(resSingle[1].assets).toBe(3900);
+		expect(resSingle[1].liabilities).toBe(1600);
+	});
+
+	it('debe manejar PaymentPlanDebt correctamente', () => {
+		const ppDebt: PaymentPlanDebt = {
+			id: 'd-pp',
+			kind: 'paymentPlan',
+			desc: 'Fraccionamiento',
+			tag: 'Compras',
+			date: '2026-05',
+			financedAmount: 600,
+			fees: 0,
+			totalToPay: 600,
+			owner: 'userA',
+			installments: [
+				{ id: 'i1', dueMonth: '2026-05', amount: 200, status: 'paid', label: '1' },
+				{ id: 'i2', dueMonth: '2026-06', amount: 200, status: 'pending', label: '2' },
+				{ id: 'i3', dueMonth: '2026-07', amount: 200, status: 'pending', label: '3' }
+			]
+		};
+
+		const res = calculateProjections(periods, [], [ppDebt], accounts, 'all', 2, timelineBalances, 2);
+		expect(res[0].liabilities).toBe(400);
+
+		expect(res[1].assets).toBe(3100);
+		expect(res[1].debtPayments).toBe(200);
+		expect(res[1].liabilities).toBe(200);
+
+		expect(res[2].assets).toBe(2900);
+		expect(res[2].debtPayments).toBe(200);
+		expect(res[2].liabilities).toBe(0);
 	});
 });
