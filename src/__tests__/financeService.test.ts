@@ -969,20 +969,20 @@ describe('getTagBreakdown', () => {
 
 		const resAll = getTagBreakdown(txs, [debt], '2026-05', 'all', [], 2);
 		expect(resAll).toHaveLength(3);
-		expect(resAll.find(r => r.tag === 'Comida')?.amount).toBeCloseTo(142, 2);
-		expect(resAll.find(r => r.tag === 'Ocio')?.amount).toBeCloseTo(40, 2);
-		expect(resAll.find(r => r.tag === 'Vivienda')?.amount).toBeCloseTo(100, 2);
+		expect(resAll.find((r) => r.tag === 'Comida')?.amount).toBeCloseTo(142, 2);
+		expect(resAll.find((r) => r.tag === 'Ocio')?.amount).toBeCloseTo(40, 2);
+		expect(resAll.find((r) => r.tag === 'Vivienda')?.amount).toBeCloseTo(100, 2);
 
 		const resUserA = getTagBreakdown(txs, [debt], '2026-05', 'userA', [], 2);
 		expect(resUserA).toHaveLength(2);
-		expect(resUserA.find(r => r.tag === 'Comida')?.amount).toBeCloseTo(117, 2);
-		expect(resUserA.find(r => r.tag === 'Vivienda')?.amount).toBeCloseTo(50, 2);
+		expect(resUserA.find((r) => r.tag === 'Comida')?.amount).toBeCloseTo(117, 2);
+		expect(resUserA.find((r) => r.tag === 'Vivienda')?.amount).toBeCloseTo(50, 2);
 
 		const resUserB = getTagBreakdown(txs, [debt], '2026-05', 'userB', [], 2);
 		expect(resUserB).toHaveLength(3);
-		expect(resUserB.find(r => r.tag === 'Comida')?.amount).toBeCloseTo(25, 2);
-		expect(resUserB.find(r => r.tag === 'Ocio')?.amount).toBeCloseTo(40, 2);
-		expect(resUserB.find(r => r.tag === 'Vivienda')?.amount).toBeCloseTo(50, 2);
+		expect(resUserB.find((r) => r.tag === 'Comida')?.amount).toBeCloseTo(25, 2);
+		expect(resUserB.find((r) => r.tag === 'Ocio')?.amount).toBeCloseTo(40, 2);
+		expect(resUserB.find((r) => r.tag === 'Vivienda')?.amount).toBeCloseTo(50, 2);
 	});
 });
 

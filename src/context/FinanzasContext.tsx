@@ -765,7 +765,14 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	const netOwed = (jointPaidByA - jointPaidByB) / 2;
 
 	// Desglose de etiquetas para este mes
-	const tagData = getTagBreakdown(filteredTransactions, filteredDebts, selectedMonth, viewMode, accounts, profileCount);
+	const tagData = getTagBreakdown(
+		filteredTransactions,
+		filteredDebts,
+		selectedMonth,
+		viewMode,
+		accounts,
+		profileCount
+	);
 	const maxTagAmount = tagData.length > 0 ? Math.max(...tagData.map((d) => d.amount)) : 1;
 
 	// === SIMULACIÓN DE CONSOLIDACIÓN (RESULTADOS) ===
