@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { STORAGE_KEYS } from '../constants';
 import type { Account, Transaction, Debt, Period, ChatMessage } from '../types';
 
@@ -14,58 +15,106 @@ export const sanitizeString = (str: string): string => {
 };
 
 /**
- * Valida un campo de texto simple y lo sanitiza.
+ * Helper para validar y sanitizar cadenas de texto utilizando Zod.
  */
-const validateAndSanitizeText = (
-	val: unknown,
-	fieldName: string,
-	maxLength = 200,
-	required = true,
-	escapeHtml = true
-): string => {
-	if (val === undefined || val === null) {
-		if (required) {
-			throw new Error(`El campo '${fieldName}' es requerido.`);
+const zString = (fieldName: string, maxLength = 200, required = true, escapeHtml = true) => {
+	return z.unknown().superRefine((val, ctx) => {
+		if (val === undefined || val === null) {
+			if (required) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: `El campo '${fieldName}' es requerido.`
+				});
+			}
+			return;
 		}
-		return '';
-	}
-	if (typeof val !== 'string') {
-		throw new Error(`El campo '${fieldName}' debe ser una cadena de texto.`);
-	}
-	const trimmed = val.trim();
-	if (required && trimmed.length === 0) {
-		throw new Error(`El campo '${fieldName}' no puede estar vacío.`);
-	}
-	if (trimmed.length > maxLength) {
-		throw new Error(`El campo '${fieldName}' supera la longitud máxima permitida de ${maxLength} caracteres.`);
-	}
-	return escapeHtml ? sanitizeString(trimmed) : trimmed;
+		if (typeof val !== 'string') {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: `El campo '${fieldName}' debe ser una cadena de texto.`
+			});
+			return;
+		}
+		const trimmed = val.trim();
+		if (required && trimmed.length === 0) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: `El campo '${fieldName}' no puede estar vacío.`
+			});
+			return;
+		}
+		if (trimmed.length > maxLength) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: `El campo '${fieldName}' supera la longitud máxima permitida de ${maxLength} caracteres.`
+			});
+		}
+	}).transform((val) => {
+		if (val === undefined || val === null) {
+			return '';
+		}
+		const trimmed = (val as string).trim();
+		return escapeHtml ? sanitizeString(trimmed) : trimmed;
+	});
 };
 
 /**
- * Valida un número.
+ * Helper para validar números utilizando Zod.
  */
-const validateNumber = (val: unknown, fieldName: string, positive = false, integer = false): number => {
-	if (val === undefined || val === null || typeof val !== 'number' || Number.isNaN(val)) {
-		throw new Error(`El campo '${fieldName}' debe ser un número válido.`);
-	}
-	if (positive && val < 0) {
-		throw new Error(`El campo '${fieldName}' debe ser mayor o igual a 0.`);
-	}
-	if (integer && !Number.isInteger(val)) {
-		throw new Error(`El campo '${fieldName}' debe ser un número entero.`);
-	}
-	return val;
+const zNumber = (fieldName: string, positive = false, integer = false) => {
+	return z.unknown().superRefine((val, ctx) => {
+		if (val === undefined || val === null || typeof val !== 'number' || Number.isNaN(val)) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: `El campo '${fieldName}' debe ser un número válido.`
+			});
+			return;
+		}
+		if (!Number.isFinite(val)) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: `El campo '${fieldName}' debe ser un número válido.`
+			});
+			return;
+		}
+		if (positive && val < 0) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: `El campo '${fieldName}' debe ser mayor o igual a 0.`
+			});
+		}
+		if (integer && !Number.isInteger(val)) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: `El campo '${fieldName}' debe ser un número entero.`
+			});
+		}
+	}).transform(val => val as number);
 };
 
 /**
- * Valida un valor booleano.
+ * Helper para validar valores booleanos utilizando Zod.
  */
-const validateBoolean = (val: unknown, fieldName: string): boolean => {
-	if (typeof val !== 'boolean') {
-		throw new Error(`El campo '${fieldName}' debe ser un valor booleano.`);
+const zBoolean = (fieldName: string) => {
+	return z.unknown().superRefine((val, ctx) => {
+		if (typeof val !== 'boolean') {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: `El campo '${fieldName}' debe ser un valor booleano.`
+			});
+		}
+	}).transform(val => val as boolean);
+};
+
+/**
+ * Helper para parsear un esquema Zod y lanzar un error estándar con el mensaje de la primera incidencia.
+ */
+const parseWithZod = <T>(schema: z.Schema<T>, data: unknown): T => {
+	const result = schema.safeParse(data);
+	if (!result.success) {
+		throw new Error(result.error.issues[0].message);
 	}
-	return val;
+	return result.data;
 };
 
 /**
@@ -82,18 +131,21 @@ const validateAccounts = (accounts: unknown): Account[] => {
 			throw new Error(`La cuenta en la posición ${index} es inválida.`);
 		}
 
-		const rawAcc = acc as Record<string, unknown>;
-		const id = validateAndSanitizeText(rawAcc.id, `${prefix}.id`, 50);
-		const name = validateAndSanitizeText(rawAcc.name, `${prefix}.name`, 100);
+		const AccountItemSchema = z.object({
+			id: zString(`${prefix}.id`, 50),
+			name: zString(`${prefix}.name`, 100),
+			owner: z.string().superRefine((val, ctx) => {
+				if (val !== 'userA' && val !== 'userB' && val !== 'joint') {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						message: `El propietario de la cuenta en ${prefix}.owner debe ser 'userA', 'userB' o 'joint'.`
+					});
+				}
+			}).transform(val => val as 'userA' | 'userB' | 'joint'),
+			initialBalance: zNumber(`${prefix}.initialBalance`)
+		});
 
-		const owner = rawAcc.owner;
-		if (owner !== 'userA' && owner !== 'userB' && owner !== 'joint') {
-			throw new Error(`El propietario de la cuenta en ${prefix}.owner debe ser 'userA', 'userB' o 'joint'.`);
-		}
-
-		const initialBalance = validateNumber(rawAcc.initialBalance, `${prefix}.initialBalance`);
-
-		return { id, name, owner, initialBalance };
+		return parseWithZod(AccountItemSchema, acc);
 	});
 };
 
@@ -111,9 +163,7 @@ const validateTransactions = (transactions: unknown): Transaction[] => {
 			throw new Error(`La transacción en la posición ${index} es inválida.`);
 		}
 
-		const rawTx = tx as Record<string, unknown>;
-		const id = validateAndSanitizeText(rawTx.id, `${prefix}.id`, 50);
-		const desc = validateAndSanitizeText(rawTx.desc, `${prefix}.desc`, 150);
+		const rawTx = tx as Record<string, any>;
 
 		const moneyObj = rawTx.money as Record<string, unknown> | undefined;
 		let moneyAmountStr: string;
@@ -126,7 +176,10 @@ const validateTransactions = (transactions: unknown): Transaction[] => {
 		}
 
 		const parsedAmount = parseFloat(moneyAmountStr);
-		const amountVal = validateNumber(Number.isFinite(parsedAmount) ? parsedAmount : 0, `${prefix}.amount`, true);
+		const amountVal = parseWithZod(
+			zNumber(`${prefix}.amount`, true),
+			Number.isFinite(parsedAmount) ? parsedAmount : 0
+		);
 
 		if (moneyCurrencyStr !== 'EUR' && moneyCurrencyStr !== 'USD' && moneyCurrencyStr !== 'GBP') {
 			throw new Error(`La divisa en ${prefix}.currency debe ser 'EUR', 'USD' o 'GBP'.`);
@@ -137,59 +190,63 @@ const validateTransactions = (transactions: unknown): Transaction[] => {
 			currency: moneyCurrencyStr as 'EUR' | 'USD' | 'GBP'
 		};
 
-		const type = rawTx.type;
-		if (type !== 'income' && type !== 'expense' && type !== 'transfer') {
-			throw new Error(`El tipo de transacción en ${prefix}.type debe ser 'income', 'expense' o 'transfer'.`);
-		}
+		const TransactionItemSchema = z.object({
+			id: zString(`${prefix}.id`, 50),
+			desc: zString(`${prefix}.desc`, 150),
+			type: z.string().superRefine((val, ctx) => {
+				if (val !== 'income' && val !== 'expense' && val !== 'transfer') {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						message: `El tipo de transacción en ${prefix}.type debe ser 'income', 'expense' o 'transfer'.`
+					});
+				}
+			}).transform(val => val as 'income' | 'expense' | 'transfer'),
+			tag: zString(`${prefix}.tag`, 50),
+			date: zString(`${prefix}.date`, 10).superRefine((val, ctx) => {
+				if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						message: `El formato de fecha en ${prefix}.date debe ser YYYY-MM-DD.`
+					});
+				}
+			}),
+			recurrence: z.string().superRefine((val, ctx) => {
+				if (val !== 'recurring' && val !== 'one-off') {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						message: `La frecuencia de transacción en ${prefix}.recurrence debe ser 'recurring' o 'one-off'.`
+					});
+				}
+			}).transform(val => val as 'recurring' | 'one-off'),
+			owner: z.string().superRefine((val, ctx) => {
+				if (val !== 'userA' && val !== 'userB' && val !== 'joint') {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						message: `El propietario en ${prefix}.owner debe ser 'userA', 'userB' o 'joint'.`
+					});
+				}
+			}).transform(val => val as 'userA' | 'userB' | 'joint'),
+			paidBy: z.string().superRefine((val, ctx) => {
+				if (val !== 'userA' && val !== 'userB' && val !== 'shared') {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						message: `El campo de pago en ${prefix}.paidBy debe ser 'userA', 'userB' o 'shared'.`
+					});
+				}
+			}).transform(val => val as 'userA' | 'userB' | 'shared'),
+			accountId: zString(`${prefix}.accountId`, 50, false).optional(),
+			fromAccountId: zString(`${prefix}.fromAccountId`, 50, false).optional(),
+			toAccountId: zString(`${prefix}.toAccountId`, 50, false).optional()
+		});
 
-		const tag = validateAndSanitizeText(rawTx.tag, `${prefix}.tag`, 50);
-
-		const date = validateAndSanitizeText(rawTx.date, `${prefix}.date`, 10);
-		if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-			throw new Error(`El formato de fecha en ${prefix}.date debe ser YYYY-MM-DD.`);
-		}
-
-		const recurrence = rawTx.recurrence;
-		if (recurrence !== 'recurring' && recurrence !== 'one-off') {
-			throw new Error(`La frecuencia de transacción en ${prefix}.recurrence debe ser 'recurring' o 'one-off'.`);
-		}
-
-		const owner = rawTx.owner;
-		if (owner !== 'userA' && owner !== 'userB' && owner !== 'joint') {
-			throw new Error(`El propietario en ${prefix}.owner debe ser 'userA', 'userB' o 'joint'.`);
-		}
-
-		const paidBy = rawTx.paidBy;
-		if (paidBy !== 'userA' && paidBy !== 'userB' && paidBy !== 'shared') {
-			throw new Error(`El campo de pago en ${prefix}.paidBy debe ser 'userA', 'userB' o 'shared'.`);
-		}
-
-		const accountId =
-			rawTx.accountId !== undefined
-				? validateAndSanitizeText(rawTx.accountId, `${prefix}.accountId`, 50, false)
-				: undefined;
-		const fromAccountId =
-			rawTx.fromAccountId !== undefined
-				? validateAndSanitizeText(rawTx.fromAccountId, `${prefix}.fromAccountId`, 50, false)
-				: undefined;
-		const toAccountId =
-			rawTx.toAccountId !== undefined
-				? validateAndSanitizeText(rawTx.toAccountId, `${prefix}.toAccountId`, 50, false)
-				: undefined;
+		const parsedFields = parseWithZod(TransactionItemSchema, rawTx);
 
 		return {
-			id,
-			desc,
+			...parsedFields,
 			money,
-			type,
-			tag,
-			date,
-			recurrence,
-			owner,
-			paidBy,
-			accountId: accountId || undefined,
-			fromAccountId: fromAccountId || undefined,
-			toAccountId: toAccountId || undefined
+			accountId: parsedFields.accountId || undefined,
+			fromAccountId: parsedFields.fromAccountId || undefined,
+			toAccountId: parsedFields.toAccountId || undefined
 		};
 	});
 };
@@ -208,42 +265,60 @@ const validateDebts = (debts: unknown): Debt[] => {
 			throw new Error(`La deuda en la posición ${index} es inválida.`);
 		}
 
-		const rawDebt = d as Record<string, unknown>;
-		const id = validateAndSanitizeText(rawDebt.id, `${prefix}.id`, 50);
+		const rawDebt = d as Record<string, any>;
+		const id = parseWithZod(zString(`${prefix}.id`, 50), rawDebt.id);
 
 		const kind = rawDebt.kind;
 		if (kind !== 'classic' && kind !== 'paymentPlan') {
 			throw new Error(`El tipo de deuda en ${prefix}.kind debe ser 'classic' o 'paymentPlan'.`);
 		}
 
-		const desc = validateAndSanitizeText(rawDebt.desc, `${prefix}.desc`, 150);
-		const tag = validateAndSanitizeText(rawDebt.tag, `${prefix}.tag`, 50);
+		const desc = parseWithZod(zString(`${prefix}.desc`, 150), rawDebt.desc);
+		const tag = parseWithZod(zString(`${prefix}.tag`, 50), rawDebt.tag);
 
-		const date = validateAndSanitizeText(rawDebt.date, `${prefix}.date`, 7);
-		if (!/^\d{4}-\d{2}$/.test(date)) {
-			throw new Error(`El formato de fecha en ${prefix}.date debe ser YYYY-MM.`);
-		}
+		const date = parseWithZod(
+			zString(`${prefix}.date`, 7).superRefine((val, ctx) => {
+				if (!/^\d{4}-\d{2}$/.test(val)) {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						message: `El formato de fecha en ${prefix}.date debe ser YYYY-MM.`
+					});
+				}
+			}),
+			rawDebt.date
+		);
 
-		const owner = rawDebt.owner;
-		if (owner !== 'userA' && owner !== 'userB' && owner !== 'joint') {
-			throw new Error(`El propietario de la deuda en ${prefix}.owner debe ser 'userA', 'userB' o 'joint'.`);
-		}
+		const owner = parseWithZod(
+			z.string().superRefine((val, ctx) => {
+				if (val !== 'userA' && val !== 'userB' && val !== 'joint') {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						message: `El propietario de la deuda en ${prefix}.owner debe ser 'userA', 'userB' o 'joint'.`
+					});
+				}
+			}).transform(val => val as 'userA' | 'userB' | 'joint'),
+			rawDebt.owner
+		);
 
 		const paymentAccountId =
 			rawDebt.paymentAccountId !== undefined
-				? validateAndSanitizeText(rawDebt.paymentAccountId, `${prefix}.paymentAccountId`, 50, false)
+				? parseWithZod(zString(`${prefix}.paymentAccountId`, 50, false), rawDebt.paymentAccountId)
 				: undefined;
+
 		const chargeDay =
 			rawDebt.chargeDay !== undefined
-				? validateNumber(rawDebt.chargeDay, `${prefix}.chargeDay`, true, true)
+				? parseWithZod(zNumber(`${prefix}.chargeDay`, true, true), rawDebt.chargeDay)
 				: undefined;
+
 		if (chargeDay !== undefined && (chargeDay < 1 || chargeDay > 31)) {
 			throw new Error(`El día de cobro en ${prefix}.chargeDay debe estar entre 1 y 31.`);
 		}
+
 		const recurringMonthlyCosts =
 			rawDebt.recurringMonthlyCosts !== undefined
-				? validateNumber(rawDebt.recurringMonthlyCosts, `${prefix}.recurringMonthlyCosts`, true)
+				? parseWithZod(zNumber(`${prefix}.recurringMonthlyCosts`, true), rawDebt.recurringMonthlyCosts)
 				: undefined;
+
 		const optionalDebtBase = {
 			...(paymentAccountId ? { paymentAccountId } : {}),
 			...(chargeDay !== undefined ? { chargeDay } : {}),
@@ -251,14 +326,17 @@ const validateDebts = (debts: unknown): Debt[] => {
 		};
 
 		if (kind === 'classic') {
-			const principal = validateNumber(rawDebt.principal, `${prefix}.principal`, true);
+			const principal = parseWithZod(zNumber(`${prefix}.principal`, true), rawDebt.principal);
 			const openingCommission =
 				rawDebt.openingCommission !== undefined
-					? validateNumber(rawDebt.openingCommission, `${prefix}.openingCommission`, true)
+					? parseWithZod(zNumber(`${prefix}.openingCommission`, true), rawDebt.openingCommission)
 					: undefined;
-			const tin = rawDebt.tin !== undefined ? validateNumber(rawDebt.tin, `${prefix}.tin`, true) : undefined;
-			const tae = validateNumber(rawDebt.tae, `${prefix}.tae`, true);
-			const termMonths = validateNumber(rawDebt.termMonths, `${prefix}.termMonths`, true, true);
+			const tin =
+				rawDebt.tin !== undefined
+					? parseWithZod(zNumber(`${prefix}.tin`, true), rawDebt.tin)
+					: undefined;
+			const tae = parseWithZod(zNumber(`${prefix}.tae`, true), rawDebt.tae);
+			const termMonths = parseWithZod(zNumber(`${prefix}.termMonths`, true, true), rawDebt.termMonths);
 
 			return {
 				id,
@@ -275,9 +353,9 @@ const validateDebts = (debts: unknown): Debt[] => {
 				termMonths
 			};
 		} else {
-			const financedAmount = validateNumber(rawDebt.financedAmount, `${prefix}.financedAmount`, true);
-			const fees = validateNumber(rawDebt.fees, `${prefix}.fees`, true);
-			const totalToPay = validateNumber(rawDebt.totalToPay, `${prefix}.totalToPay`, true);
+			const financedAmount = parseWithZod(zNumber(`${prefix}.financedAmount`, true), rawDebt.financedAmount);
+			const fees = parseWithZod(zNumber(`${prefix}.fees`, true), rawDebt.fees);
+			const totalToPay = parseWithZod(zNumber(`${prefix}.totalToPay`, true), rawDebt.totalToPay);
 
 			if (!Array.isArray(rawDebt.installments)) {
 				throw new Error(
@@ -292,29 +370,30 @@ const validateDebts = (debts: unknown): Debt[] => {
 				}
 
 				const rawInst = inst as Record<string, unknown>;
-				const instId = validateAndSanitizeText(rawInst.id, `${instPrefix}.id`, 80);
 
-				const dueMonth = validateAndSanitizeText(rawInst.dueMonth, `${instPrefix}.dueMonth`, 7);
-				if (!/^\d{4}-\d{2}$/.test(dueMonth)) {
-					throw new Error(`El formato de cuota en ${instPrefix}.dueMonth debe ser YYYY-MM.`);
-				}
+				const InstallmentSchema = z.object({
+					id: zString(`${instPrefix}.id`, 80),
+					dueMonth: zString(`${instPrefix}.dueMonth`, 7).superRefine((val, ctx) => {
+						if (!/^\d{4}-\d{2}$/.test(val)) {
+							ctx.addIssue({
+								code: z.ZodIssueCode.custom,
+								message: `El formato de cuota en ${instPrefix}.dueMonth debe ser YYYY-MM.`
+							});
+						}
+					}),
+					amount: zNumber(`${instPrefix}.amount`, true),
+					status: z.string().superRefine((val, ctx) => {
+						if (val !== 'paid' && val !== 'pending') {
+							ctx.addIssue({
+								code: z.ZodIssueCode.custom,
+								message: `El estado de cuota en ${instPrefix}.status debe ser 'paid' o 'pending'.`
+							});
+						}
+					}).transform(val => val as 'paid' | 'pending'),
+					label: zString(`${instPrefix}.label`, 100)
+				});
 
-				const amount = validateNumber(rawInst.amount, `${instPrefix}.amount`, true);
-
-				const status = rawInst.status;
-				if (status !== 'paid' && status !== 'pending') {
-					throw new Error(`El estado de cuota en ${instPrefix}.status debe ser 'paid' o 'pending'.`);
-				}
-
-				const label = validateAndSanitizeText(rawInst.label, `${instPrefix}.label`, 100);
-
-				return {
-					id: instId,
-					dueMonth,
-					amount,
-					status: status as 'paid' | 'pending',
-					label
-				};
+				return parseWithZod(InstallmentSchema, rawInst);
 			});
 
 			return {
@@ -350,25 +429,32 @@ const validatePeriods = (periods: unknown): Period[] => {
 
 		const rawPeriod = p as Record<string, unknown>;
 
-		const month = validateAndSanitizeText(rawPeriod.month, `${prefix}.month`, 7);
-		if (!/^\d{4}-\d{2}$/.test(month)) {
-			throw new Error(`El formato de mes en ${prefix}.month debe ser YYYY-MM.`);
-		}
+		const PeriodItemSchema = z.object({
+			month: zString(`${prefix}.month`, 7).superRefine((val, ctx) => {
+				if (!/^\d{4}-\d{2}$/.test(val)) {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						message: `El formato de mes en ${prefix}.month debe ser YYYY-MM.`
+					});
+				}
+			}),
+			openingBalance: zNumber(`${prefix}.openingBalance`),
+			openingBalanceA: zNumber(`${prefix}.openingBalanceA`),
+			openingBalanceB: zNumber(`${prefix}.openingBalanceB`),
+			isManualInit: z.preprocess(
+				(val) => (val === undefined ? undefined : val),
+				zBoolean(`${prefix}.isManualInit`).optional()
+			)
+		});
 
-		const openingBalance = validateNumber(rawPeriod.openingBalance, `${prefix}.openingBalance`);
-		const openingBalanceA = validateNumber(rawPeriod.openingBalanceA, `${prefix}.openingBalanceA`);
-		const openingBalanceB = validateNumber(rawPeriod.openingBalanceB, `${prefix}.openingBalanceB`);
-		const isManualInit =
-			rawPeriod.isManualInit !== undefined
-				? validateBoolean(rawPeriod.isManualInit, `${prefix}.isManualInit`)
-				: undefined;
+		const parsed = parseWithZod(PeriodItemSchema, rawPeriod);
 
 		return {
-			month,
-			openingBalance,
-			openingBalanceA,
-			openingBalanceB,
-			isManualInit
+			month: parsed.month,
+			openingBalance: parsed.openingBalance,
+			openingBalanceA: parsed.openingBalanceA,
+			openingBalanceB: parsed.openingBalanceB,
+			isManualInit: parsed.isManualInit
 		};
 	});
 };
@@ -390,19 +476,20 @@ const validateAiChat = (chat: unknown): ChatMessage[] => {
 
 		const rawMsg = msg as Record<string, unknown>;
 
-		const role = rawMsg.role;
-		if (role !== 'user' && role !== 'model') {
-			throw new Error(`El rol del mensaje en ${prefix}.role debe ser 'user' o 'model'.`);
-		}
+		const ChatMessageItemSchema = z.object({
+			role: z.string().superRefine((val, ctx) => {
+				if (val !== 'user' && val !== 'model') {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						message: `El rol del mensaje en ${prefix}.role debe ser 'user' o 'model'.`
+					});
+				}
+			}).transform(val => val as 'user' | 'model'),
+			content: zString(`${prefix}.content`, 10000, true, false),
+			timestamp: zString(`${prefix}.timestamp`, 30)
+		});
 
-		const content = validateAndSanitizeText(rawMsg.content, `${prefix}.content`, 10000, true, false); // Permitimos un texto de chat más largo y no escapamos HTML
-		const timestamp = validateAndSanitizeText(rawMsg.timestamp, `${prefix}.timestamp`, 30);
-
-		return {
-			role,
-			content,
-			timestamp
-		};
+		return parseWithZod(ChatMessageItemSchema, rawMsg);
 	});
 };
 
@@ -431,17 +518,15 @@ export const validateAndSanitizeBackup = (parsedJson: unknown): Record<string, u
 
 	// 1. Nombres de usuarios (Opcionales, pero validados si existen)
 	if (STORAGE_KEYS.userAName in rawRecord && rawRecord[STORAGE_KEYS.userAName] !== null) {
-		validatedBackup[STORAGE_KEYS.userAName] = validateAndSanitizeText(
-			rawRecord[STORAGE_KEYS.userAName],
-			'userAName',
-			50
+		validatedBackup[STORAGE_KEYS.userAName] = parseWithZod(
+			zString('userAName', 50),
+			rawRecord[STORAGE_KEYS.userAName]
 		);
 	}
 	if (STORAGE_KEYS.userBName in rawRecord && rawRecord[STORAGE_KEYS.userBName] !== null) {
-		validatedBackup[STORAGE_KEYS.userBName] = validateAndSanitizeText(
-			rawRecord[STORAGE_KEYS.userBName],
-			'userBName',
-			50
+		validatedBackup[STORAGE_KEYS.userBName] = parseWithZod(
+			zString('userBName', 50),
+			rawRecord[STORAGE_KEYS.userBName]
 		);
 	}
 
@@ -455,7 +540,10 @@ export const validateAndSanitizeBackup = (parsedJson: unknown): Record<string, u
 	if (STORAGE_KEYS.geminiKey in rawRecord && rawRecord[STORAGE_KEYS.geminiKey] !== null) {
 		const rawKey = rawRecord[STORAGE_KEYS.geminiKey];
 		if (rawKey && typeof rawKey === 'string' && rawKey.trim()) {
-			validatedBackup[STORAGE_KEYS.geminiKey] = validateAndSanitizeText(rawKey, 'geminiKey', 150, false);
+			validatedBackup[STORAGE_KEYS.geminiKey] = parseWithZod(
+				zString('geminiKey', 150, false),
+				rawKey
+			);
 		} else {
 			validatedBackup[STORAGE_KEYS.geminiKey] = '';
 		}
