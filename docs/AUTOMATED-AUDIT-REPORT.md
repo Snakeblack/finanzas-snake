@@ -1,7 +1,7 @@
 # Reporte de Auditoría Estática Automatizada de Código Financiero
 
 Generado de forma automática por el Auditor Principal de Antigravity.
-Fecha: 2026-07-12T17:03:00.000Z
+Fecha: 2026-07-13T00:03:00.000Z
 
 ---
 
@@ -38,7 +38,7 @@ Se agregaron aserciones y comprobaciones explícitas antes de persistir o proces
 La totalidad de las pruebas unitarias e integración se han ejecutado con éxito:
 - **Resultado:** **391 de 391 pruebas pasadas (100% de éxito)**.
 - **Audit de Dependencias (`pnpm audit`):** **0 vulnerabilidades detectadas**.
-- **Linting (`pnpm lint`):** **0 errores / 0 warnings detectados** (el backlog de 55 warnings de tipo `any` ha sido completamente solventado).
+- **Linting (`pnpm eslint`):** **0 errores / 0 warnings detectados** (se resolvieron los últimos 16 warnings relacionados con importaciones sin usar, variables de mock sin prefijar y casts explícitos no anotados en el validador de backups).
 
 ---
 
