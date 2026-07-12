@@ -127,6 +127,9 @@ export const useTransactions = ({
 		const formToUse = customForm || txForm;
 		if (!formToUse.desc || !formToUse.amount) return;
 
+		const amountVal = parseFloat(formToUse.amount);
+		if (isNaN(amountVal) || amountVal <= 0) return;
+
 		const getTransferOwner = (fromId?: string, toId?: string) => {
 			const fromAcc = accounts.find((a) => a.id === fromId);
 			const toAcc = accounts.find((a) => a.id === toId);
@@ -237,6 +240,7 @@ export const useTransactions = ({
 		if (!editingTx || !formToUse.desc || !formToUse.amount) return;
 
 		const updatedAmount = Math.abs(parseFloat(formToUse.amount));
+		if (isNaN(updatedAmount) || updatedAmount <= 0) return;
 		const rootId = editingTx.originId || editingTx.id;
 		const currentMonth = editingTx.date.substring(0, 7);
 

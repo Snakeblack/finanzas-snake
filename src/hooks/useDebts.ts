@@ -104,17 +104,34 @@ export const useDebts = ({ initialDebtFormDate, onDebtDeleted, profileCount = 2 
 		if (debtForm.kind === 'classic') {
 			if (!debtForm.principal || !debtForm.tae || !debtForm.termMonths) return;
 
-			const tin = debtForm.tin ? Math.abs(parseFloat(debtForm.tin)) : undefined;
+			const principalVal = parseFloat(debtForm.principal);
+			const taeVal = parseFloat(debtForm.tae);
+			const termMonthsVal = parseInt(debtForm.termMonths, 10);
+
+			if (isNaN(principalVal) || principalVal <= 0) {
+				setDebtFormError('El capital inicial debe ser un número positivo.');
+				return;
+			}
+			if (isNaN(taeVal) || taeVal < 0) {
+				setDebtFormError('La tasa de interés (TAE) debe ser un número no negativo.');
+				return;
+			}
+			if (isNaN(termMonthsVal) || termMonthsVal <= 0) {
+				setDebtFormError('El plazo en meses debe ser un número entero positivo.');
+				return;
+			}
+
+			const tin = debtForm.tin && !isNaN(parseFloat(debtForm.tin)) ? Math.abs(parseFloat(debtForm.tin)) : undefined;
 			const newDebt: Debt = {
 				id: Date.now().toString(),
 				kind: 'classic',
 				desc: debtForm.desc,
-				principal: Math.abs(parseFloat(debtForm.principal)),
+				principal: Math.abs(principalVal),
 				openingCommission: Math.abs(toNumber(debtForm.openingCommission)),
 				recurringMonthlyCosts,
 				tin,
-				tae: Math.abs(parseFloat(debtForm.tae)),
-				termMonths: Math.abs(parseInt(debtForm.termMonths)),
+				tae: Math.abs(taeVal),
+				termMonths: Math.abs(termMonthsVal),
 				tag: debtForm.tag,
 				date: normalizeMonth(debtForm.date),
 				chargeDay,

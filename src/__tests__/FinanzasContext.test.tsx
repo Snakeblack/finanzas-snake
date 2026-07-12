@@ -645,6 +645,66 @@ describe('Gestión de Deudas', () => {
 		expect(screen.getByTestId('debt-form-error').textContent).toContain('al menos un tramo');
 	});
 
+	it('debe mostrar error si el principal es inválido', async () => {
+		renderCtx();
+
+		await act(async () => {
+			ctxRef.setDebtForm((prev) => ({
+				...prev,
+				kind: 'classic',
+				desc: 'Test Principal Inválido',
+				principal: 'abc',
+				tae: '5',
+				termMonths: '12'
+			}));
+		});
+
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('debt-form'));
+		});
+		expect(screen.getByTestId('debt-form-error').textContent).toContain('El capital inicial debe ser un número positivo');
+	});
+
+	it('debe mostrar error si el TAE es inválido', async () => {
+		renderCtx();
+
+		await act(async () => {
+			ctxRef.setDebtForm((prev) => ({
+				...prev,
+				kind: 'classic',
+				desc: 'Test TAE Inválido',
+				principal: '1000',
+				tae: 'abc',
+				termMonths: '12'
+			}));
+		});
+
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('debt-form'));
+		});
+		expect(screen.getByTestId('debt-form-error').textContent).toContain('La tasa de interés (TAE) debe ser un número no negativo');
+	});
+
+	it('debe mostrar error si el plazo en meses es inválido', async () => {
+		renderCtx();
+
+		await act(async () => {
+			ctxRef.setDebtForm((prev) => ({
+				...prev,
+				kind: 'classic',
+				desc: 'Test Plazo Inválido',
+				principal: '1000',
+				tae: '5',
+				termMonths: 'abc'
+			}));
+		});
+
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('debt-form'));
+		});
+		expect(screen.getByTestId('debt-form-error').textContent).toContain('El plazo en meses debe ser un número entero positivo');
+	});
+
 	it('debe eliminar una deuda', async () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
 		localStorage.setItem(
