@@ -13,6 +13,13 @@ import { normalizeMonth, addMonthsToMonth } from '../utils/dateUtils';
 import { validateAndSanitizeBackup } from '../utils/backupValidator';
 import { encryptWithKey, decryptWithKey } from './cryptoService';
 import { IndexedDBProvider } from './db/idbProvider';
+import {
+	TransactionSchema,
+	DebtSchema,
+	PeriodSchema,
+	AccountSchema,
+	ChatMessageSchema
+} from './schema';
 
 const idb = new IndexedDBProvider();
 
@@ -71,8 +78,7 @@ export interface ImportedFinanceBackupData {
 
 export type FinanceBackupPayload = Record<string, string | null>;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type UnsafeRecord = Record<string, any>;
+type UnsafeRecord = Record<string, unknown>;
 
 type ConfigEntity = {
 	key: string;
@@ -325,48 +331,52 @@ const readStoredArray = async (primaryKey: string, fallbackKey?: string): Promis
  * Migra una estructura de transacción sin tipar a un objeto Transaction válido de la v3.
  */
 export const migrateTransaction = (rawTransaction: UnsafeRecord, index: number): Transaction => {
+	const tx = rawTransaction || {};
 	const type: TransactionType =
-		rawTransaction?.type === 'income' ? 'income' : rawTransaction?.type === 'transfer' ? 'transfer' : 'expense';
+		tx['type'] === 'income' ? 'income' : tx['type'] === 'transfer' ? 'transfer' : 'expense';
 
+	const rawMoney = tx['money'] && typeof tx['money'] === 'object' ? (tx['money'] as Record<string, unknown>) : null;
 	const moneyAmount =
-		rawTransaction?.money?.amount !== undefined
-			? String(rawTransaction.money.amount)
-			: String(rawTransaction?.amount ?? '0');
-	const moneyCurrency = rawTransaction?.money?.currency ?? 'EUR';
+		rawMoney && rawMoney['amount'] !== undefined
+			? String(rawMoney['amount'])
+			: String(tx['amount'] ?? '0');
+	const moneyCurrency = rawMoney && typeof rawMoney['currency'] === 'string' ? rawMoney['currency'] : 'EUR';
 	const money = {
 		amount: Math.abs(toNumber(moneyAmount)).toFixed(2),
-		currency: moneyCurrency === 'EUR' || moneyCurrency === 'USD' || moneyCurrency === 'GBP' ? moneyCurrency : 'EUR'
+		currency: (moneyCurrency === 'EUR' || moneyCurrency === 'USD' || moneyCurrency === 'GBP'
+			? moneyCurrency
+			: 'EUR') as 'EUR' | 'USD' | 'GBP'
 	};
 
 	return {
-		id: String(rawTransaction?.id ?? `tx-${index + 1}`),
-		desc: String(rawTransaction?.desc ?? 'Movimiento sin nombre'),
+		id: String(tx['id'] ?? `tx-${index + 1}`),
+		desc: String(tx['desc'] ?? 'Movimiento sin nombre'),
 		money,
 		type,
 		tag: String(
-			rawTransaction?.tag ??
+			tx['tag'] ??
 				(type === 'transfer'
 					? DEFAULT_TAGS.transfer[0]
 					: type === 'income'
 						? DEFAULT_TAGS.income[0]
 						: DEFAULT_TAGS.expense[0])
 		),
-		date: String(rawTransaction?.date ?? new Date().toISOString().substring(0, 10)).substring(0, 10),
-		recurrence: rawTransaction?.recurrence === 'recurring' ? 'recurring' : 'one-off',
-		originId: rawTransaction?.originId ? String(rawTransaction.originId) : undefined,
+		date: String(tx['date'] ?? new Date().toISOString().substring(0, 10)).substring(0, 10),
+		recurrence: tx['recurrence'] === 'recurring' ? 'recurring' : 'one-off',
+		originId: tx['originId'] ? String(tx['originId']) : undefined,
 		owner:
-			rawTransaction?.owner === 'userA' || rawTransaction?.owner === 'userB' || rawTransaction?.owner === 'joint'
-				? rawTransaction.owner
+			tx['owner'] === 'userA' || tx['owner'] === 'userB' || tx['owner'] === 'joint'
+				? (tx['owner'] as 'userA' | 'userB' | 'joint')
 				: 'joint',
 		paidBy:
-			rawTransaction?.paidBy === 'userA' ||
-			rawTransaction?.paidBy === 'userB' ||
-			rawTransaction?.paidBy === 'shared'
-				? rawTransaction.paidBy
+			tx['paidBy'] === 'userA' ||
+			tx['paidBy'] === 'userB' ||
+			tx['paidBy'] === 'shared'
+				? (tx['paidBy'] as 'userA' | 'userB' | 'shared')
 				: 'shared',
-		accountId: rawTransaction?.accountId ? String(rawTransaction.accountId) : undefined,
-		fromAccountId: rawTransaction?.fromAccountId ? String(rawTransaction.fromAccountId) : undefined,
-		toAccountId: rawTransaction?.toAccountId ? String(rawTransaction.toAccountId) : undefined
+		accountId: tx['accountId'] ? String(tx['accountId']) : undefined,
+		fromAccountId: tx['fromAccountId'] ? String(tx['fromAccountId']) : undefined,
+		toAccountId: tx['toAccountId'] ? String(tx['toAccountId']) : undefined
 	};
 };
 
@@ -374,38 +384,43 @@ export const migrateTransaction = (rawTransaction: UnsafeRecord, index: number):
  * Migra una estructura de deuda sin tipar a un objeto de tipo Debt (clásica o plan de pagos) válido de la v3.
  */
 export const migrateDebt = (rawDebt: UnsafeRecord): Debt => {
-	const id = String(rawDebt?.id ?? Date.now());
-	const desc = String(rawDebt?.desc ?? 'Deuda sin nombre');
-	const tag = String(rawDebt?.tag ?? DEFAULT_TAGS.debt[0]);
-	const date = normalizeMonth(rawDebt?.date);
+	const debt = rawDebt || {};
+	const id = String(debt['id'] ?? Date.now());
+	const desc = String(debt['desc'] ?? 'Deuda sin nombre');
+	const tag = String(debt['tag'] ?? DEFAULT_TAGS.debt[0]);
+	const date = normalizeMonth(debt['date'] as string);
 	const owner =
-		rawDebt?.owner === 'userA' || rawDebt?.owner === 'userB' || rawDebt?.owner === 'joint'
-			? rawDebt.owner
+		debt['owner'] === 'userA' || debt['owner'] === 'userB' || debt['owner'] === 'joint'
+			? (debt['owner'] as 'userA' | 'userB' | 'joint')
 			: 'joint';
-	const paymentAccountId = rawDebt?.paymentAccountId ? String(rawDebt.paymentAccountId) : undefined;
-	const rawChargeDay = Math.trunc(toNumber(rawDebt?.chargeDay));
+	const paymentAccountId = debt['paymentAccountId'] ? String(debt['paymentAccountId']) : undefined;
+	const rawChargeDay = Math.trunc(toNumber(debt['chargeDay']));
 	const chargeDay = rawChargeDay >= 1 && rawChargeDay <= 31 ? rawChargeDay : undefined;
 	const recurringMonthlyCosts =
-		rawDebt?.recurringMonthlyCosts !== undefined ? Math.abs(toNumber(rawDebt.recurringMonthlyCosts)) : undefined;
+		debt['recurringMonthlyCosts'] !== undefined ? Math.abs(toNumber(debt['recurringMonthlyCosts'])) : undefined;
 	const optionalDebtBase = {
 		...(paymentAccountId ? { paymentAccountId } : {}),
 		...(chargeDay !== undefined ? { chargeDay } : {}),
 		...(recurringMonthlyCosts !== undefined ? { recurringMonthlyCosts } : {})
 	};
 
-	if (rawDebt?.kind === 'paymentPlan') {
-		const installments: PaymentPlanInstallment[] = Array.isArray(rawDebt.installments)
-			? rawDebt.installments.map((installment: UnsafeRecord, index: number) => ({
-					id: String(installment?.id ?? `${id}-installment-${index + 1}`),
-					dueMonth: normalizeMonth(installment?.dueMonth),
-					amount: Math.abs(toNumber(installment?.amount)),
-					status: installment?.status === 'paid' ? 'paid' : 'pending',
-					label: String(installment?.label ?? `Cuota ${index + 1}`)
-				}))
+	if (debt['kind'] === 'paymentPlan') {
+		const rawInstallments = debt['installments'];
+		const installments: PaymentPlanInstallment[] = Array.isArray(rawInstallments)
+			? rawInstallments.map((inst: unknown, index: number) => {
+					const installment = inst as Record<string, unknown>;
+					return {
+						id: String(installment['id'] ?? `${id}-installment-${index + 1}`),
+						dueMonth: normalizeMonth(installment['dueMonth'] as string),
+						amount: Math.abs(toNumber(installment['amount'])),
+						status: installment['status'] === 'paid' ? 'paid' : 'pending',
+						label: String(installment['label'] ?? `Cuota ${index + 1}`)
+					};
+				})
 			: [];
-		const financedAmount = Math.abs(toNumber(rawDebt.financedAmount));
-		const fees = Math.abs(toNumber(rawDebt.fees));
-		const totalToPay = Math.abs(toNumber(rawDebt.totalToPay)) || financedAmount + fees;
+		const financedAmount = Math.abs(toNumber(debt['financedAmount']));
+		const fees = Math.abs(toNumber(debt['fees']));
+		const totalToPay = Math.abs(toNumber(debt['totalToPay'])) || financedAmount + fees;
 		return {
 			id,
 			kind: 'paymentPlan',
@@ -429,13 +444,13 @@ export const migrateDebt = (rawDebt: UnsafeRecord): Debt => {
 		date,
 		owner,
 		...optionalDebtBase,
-		principal: Math.abs(toNumber(rawDebt?.principal)),
-		...(rawDebt?.openingCommission !== undefined
-			? { openingCommission: Math.abs(toNumber(rawDebt.openingCommission)) }
+		principal: Math.abs(toNumber(debt['principal'])),
+		...(debt['openingCommission'] !== undefined
+			? { openingCommission: Math.abs(toNumber(debt['openingCommission'])) }
 			: {}),
-		...(rawDebt?.tin !== undefined ? { tin: Math.abs(toNumber(rawDebt.tin)) } : {}),
-		tae: Math.abs(toNumber(rawDebt?.tae)),
-		termMonths: Math.max(1, Math.trunc(toNumber(rawDebt?.termMonths)))
+		...(debt['tin'] !== undefined ? { tin: Math.abs(toNumber(debt['tin'])) } : {}),
+		tae: Math.abs(toNumber(debt['tae'])),
+		termMonths: Math.max(1, Math.trunc(toNumber(debt['termMonths'])))
 	};
 };
 
@@ -500,20 +515,20 @@ const saveAiChatStrict = async (chat: ChatMessage[]): Promise<void> => {
 /**
  * Lee todas las entidades de un almacén de IndexedDB y las descifra si están cifradas.
  */
-const readEntitiesFromIdb = async (storeName: string): Promise<UnsafeRecord[]> => {
+const readEntitiesFromIdb = async (storeName: string): Promise<unknown[]> => {
 	const raw = await idb.getAllEntities<{ ciphertext?: string }>(storeName);
 	const decrypted = await Promise.all(
 		raw.map(async (item) => {
 			if (item && typeof item === 'object' && 'ciphertext' in item && typeof item.ciphertext === 'string') {
 				if (activeCryptoKey) {
-					return await decryptData<UnsafeRecord>(item.ciphertext);
+					return await decryptData<unknown>(item.ciphertext);
 				}
 				return null;
 			}
-			return item as UnsafeRecord;
+			return item as unknown;
 		})
 	);
-	return decrypted.filter((item): item is UnsafeRecord => item !== null);
+	return decrypted.filter((item): item is unknown => item !== null);
 };
 
 /**
@@ -544,7 +559,7 @@ export const executeSilentMigrationIfRequired = async (decryptedTransactions?: T
 			decryptedTransactions && decryptedTransactions.length > 0
 				? decryptedTransactions
 				: ((await readStoredArray(STORAGE_KEYS.transactions, 'finanzas_v2_transactions')) as Transaction[]);
-		let migratedTx = Array.isArray(rawTx) ? rawTx.map(migrateTransaction) : [];
+		let migratedTx = Array.isArray(rawTx) ? rawTx.map((tx) => migrateTransaction(tx as UnsafeRecord, 0)) : [];
 		const rawDebts = (await readStoredArray(STORAGE_KEYS.debts, 'finanzas_v2_debts')) as Debt[];
 		const migratedDebts = Array.isArray(rawDebts) ? rawDebts.map(migrateDebt) : [];
 		const rawPeriods = (await readStoredArray(STORAGE_KEYS.periods)) as Period[];
@@ -621,8 +636,15 @@ export const executeSilentMigrationIfRequired = async (decryptedTransactions?: T
  */
 export const readStoredTransactions = async (): Promise<Transaction[]> => {
 	try {
-		const txs = await readEntitiesFromIdb('transactions');
-		return txs.map(migrateTransaction);
+		const rawTxs = await readEntitiesFromIdb('transactions');
+		return rawTxs.map((item, index) => {
+			const parsed = TransactionSchema.safeParse(item);
+			if (parsed.success) {
+				return parsed.data;
+			}
+			const migrated = migrateTransaction(item as UnsafeRecord, index);
+			return TransactionSchema.parse(migrated);
+		});
 	} catch (error) {
 		console.error('Error reading transactions from IndexedDB:', error);
 		return [];
@@ -645,8 +667,15 @@ export const saveStoredTransactions = async (transactions: Transaction[]): Promi
  */
 export const readStoredDebts = async (): Promise<Debt[]> => {
 	try {
-		const debts = await readEntitiesFromIdb('debts');
-		return debts.map(migrateDebt);
+		const rawDebts = await readEntitiesFromIdb('debts');
+		return rawDebts.map((item) => {
+			const parsed = DebtSchema.safeParse(item);
+			if (parsed.success) {
+				return parsed.data;
+			}
+			const migrated = migrateDebt(item as UnsafeRecord);
+			return DebtSchema.parse(migrated);
+		});
 	} catch (error) {
 		console.error('Error reading debts from IndexedDB:', error);
 		return [];
@@ -668,7 +697,11 @@ export const readStoredDebtsSync = (): Debt[] => {
 	if (!stored) return [];
 	try {
 		const parsed = JSON.parse(stored);
-		return Array.isArray(parsed) ? parsed.map(migrateDebt) : [];
+		return Array.isArray(parsed) ? parsed.map((item) => {
+			const validated = DebtSchema.safeParse(item);
+			if (validated.success) return validated.data;
+			return migrateDebt(item as UnsafeRecord);
+		}) : [];
 	} catch {
 		return [];
 	}
@@ -692,21 +725,27 @@ export const readStoredPeriods = async (existingTx: Transaction[], existingDebts
 	try {
 		const periods = await readEntitiesFromIdb('periods');
 		if (periods.length > 0) {
-			return periods.map((rawPeriod: UnsafeRecord) => {
-				const openingBalance = toNumber(rawPeriod?.openingBalance);
-				return {
-					month: normalizeMonth(rawPeriod?.month),
+			return periods.map((rawPeriod: unknown) => {
+				const parsed = PeriodSchema.safeParse(rawPeriod);
+				if (parsed.success) {
+					return parsed.data;
+				}
+				const raw = rawPeriod as Record<string, unknown>;
+				const openingBalance = toNumber(raw['openingBalance']);
+				const periodData = {
+					month: normalizeMonth(raw['month'] as string),
 					openingBalance,
 					openingBalanceA:
-						rawPeriod?.openingBalanceA !== undefined
-							? toNumber(rawPeriod.openingBalanceA)
+						raw['openingBalanceA'] !== undefined
+							? toNumber(raw['openingBalanceA'])
 							: openingBalance / 2,
 					openingBalanceB:
-						rawPeriod?.openingBalanceB !== undefined
-							? toNumber(rawPeriod.openingBalanceB)
+						raw['openingBalanceB'] !== undefined
+							? toNumber(raw['openingBalanceB'])
 							: openingBalance / 2,
-					isManualInit: !!rawPeriod?.isManualInit
+					isManualInit: !!raw['isManualInit']
 				};
+				return PeriodSchema.parse(periodData);
 			});
 		}
 	} catch (error) {
@@ -811,20 +850,21 @@ export const getInitialData = (): {
 			if (stored) {
 				const parsed = JSON.parse(stored);
 				if (Array.isArray(parsed) && parsed.length > 0) {
-					return parsed.map((rawPeriod: UnsafeRecord) => {
-						const openingBalance = toNumber(rawPeriod?.openingBalance);
+					return parsed.map((item: unknown) => {
+						const rawPeriod = item as Record<string, unknown>;
+						const openingBalance = toNumber(rawPeriod['openingBalance']);
 						return {
-							month: normalizeMonth(rawPeriod?.month),
+							month: normalizeMonth(rawPeriod['month'] as string),
 							openingBalance,
 							openingBalanceA:
-								rawPeriod?.openingBalanceA !== undefined
-									? toNumber(rawPeriod.openingBalanceA)
+								rawPeriod['openingBalanceA'] !== undefined
+									? toNumber(rawPeriod['openingBalanceA'])
 									: openingBalance / 2,
 							openingBalanceB:
-								rawPeriod?.openingBalanceB !== undefined
-									? toNumber(rawPeriod.openingBalanceB)
+								rawPeriod['openingBalanceB'] !== undefined
+									? toNumber(rawPeriod['openingBalanceB'])
 									: openingBalance / 2,
-							isManualInit: !!rawPeriod?.isManualInit
+							isManualInit: !!rawPeriod['isManualInit']
 						};
 					});
 				}
@@ -899,8 +939,21 @@ export const getInitialData = (): {
  */
 export const readStoredAccounts = async (): Promise<Account[]> => {
 	try {
-		const accounts = await readEntitiesFromIdb('accounts');
-		return accounts as Account[];
+		const rawAccounts = await readEntitiesFromIdb('accounts');
+		return rawAccounts.map((item) => {
+			const parsed = AccountSchema.safeParse(item);
+			if (parsed.success) {
+				return parsed.data;
+			}
+			const rawAcc = item as Record<string, unknown>;
+			const accData = {
+				id: String(rawAcc['id'] || ''),
+				name: String(rawAcc['name'] || ''),
+				owner: (rawAcc['owner'] === 'userA' || rawAcc['owner'] === 'userB' || rawAcc['owner'] === 'joint' ? rawAcc['owner'] : 'joint') as 'userA' | 'userB' | 'joint',
+				initialBalance: toNumber(rawAcc['initialBalance'])
+			};
+			return AccountSchema.parse(accData);
+		});
 	} catch (error) {
 		console.error('Error reading accounts from IndexedDB:', error);
 		return [];
@@ -968,23 +1021,34 @@ export const saveGeminiApiKey = async (key: string): Promise<void> => {
  */
 export const readAiChat = async (): Promise<ChatMessage[]> => {
 	try {
-		const entity = await idb.getSingleEntity<{ ciphertext?: string; messages?: ChatMessage[] }>('chat', 'history');
+		const entity = await idb.getSingleEntity<{ ciphertext?: string; messages?: unknown }>('chat', 'history');
 		if (!entity) return [];
 
-		let messages: ChatMessage[] = [];
+		let rawMessages: unknown = [];
 		if (entity && 'ciphertext' in entity && typeof entity.ciphertext === 'string') {
 			if (activeCryptoKey) {
-				const decrypted = await decryptData<{ messages?: ChatMessage[] }>(entity.ciphertext);
-				messages = decrypted.messages || [];
+				const decrypted = await decryptData<{ messages?: unknown }>(entity.ciphertext);
+				rawMessages = decrypted.messages || [];
 			}
 		} else if (entity) {
-			messages = entity.messages || [];
+			rawMessages = entity.messages || [];
 		}
 
-		return messages.map((msg) => ({
-			...msg,
-			content: decodeHtmlEntities(msg.content || '')
-		}));
+		if (!Array.isArray(rawMessages)) return [];
+
+		return rawMessages.map((msg) => {
+			const parsed = ChatMessageSchema.safeParse(msg);
+			const rawMsg = msg as Record<string, unknown>;
+			const validMsg = parsed.success ? parsed.data : {
+				role: (typeof msg === 'object' && msg !== null && 'role' in msg && msg.role === 'model' ? 'model' : 'user') as 'user' | 'model',
+				content: String(rawMsg['content'] || ''),
+				timestamp: String(rawMsg['timestamp'] || new Date().toISOString())
+			};
+			return {
+				...validMsg,
+				content: decodeHtmlEntities(validMsg.content || '')
+			};
+		});
 	} catch (error) {
 		console.error('Error reading AI chat from IndexedDB:', error);
 		return [];

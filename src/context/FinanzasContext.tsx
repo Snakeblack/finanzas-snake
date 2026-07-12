@@ -52,7 +52,9 @@ import {
 	getEffectiveAmount,
 	calculateDebtRemainingPrincipal,
 	calculateDebtRemainingInterests,
-	type MonthBalanceData
+	calculateProjections,
+	type MonthBalanceData,
+	type ProjectedMonthData
 } from '../services/financeService';
 import type { PromptContextParams } from '../services/geminiService';
 import { useAiAdvisor } from '../hooks/useAiAdvisor';
@@ -207,6 +209,7 @@ export interface FinanzasContextType {
 	tagData: TagBreakdown[];
 	maxTagAmount: number;
 	timelineBalances: Record<string, MonthBalanceData>;
+	projections: ProjectedMonthData[];
 
 	// Consolidación calculada
 	consolidatedDebtsObjects: Debt[];
@@ -696,6 +699,17 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	// === PROPAGAR CÁLCULOS AL MOTOR FINANCIERO ===
 	const timelineBalances = calculateTimelineBalances(periods, transactions, debts, accounts, viewMode, profileCount);
 
+	const projections = calculateProjections(
+		periods,
+		transactions,
+		debts,
+		accounts,
+		viewMode,
+		profileCount,
+		timelineBalances,
+		12
+	);
+
 	const activePeriodData = timelineBalances[selectedMonth] ?? {
 		month: selectedMonth,
 		openingBalance: 0,
@@ -1144,6 +1158,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 				tagData,
 				maxTagAmount,
 				timelineBalances,
+				projections,
 				consolidatedDebtsObjects,
 				consolidatedPrincipal,
 				additionalCapital,
