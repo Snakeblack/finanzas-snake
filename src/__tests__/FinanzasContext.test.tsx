@@ -662,7 +662,9 @@ describe('Gestión de Deudas', () => {
 		await act(async () => {
 			fireEvent.submit(screen.getByTestId('debt-form'));
 		});
-		expect(screen.getByTestId('debt-form-error').textContent).toContain('El capital inicial debe ser un número positivo');
+		expect(screen.getByTestId('debt-form-error').textContent).toContain(
+			'El capital inicial debe ser un número positivo'
+		);
 	});
 
 	it('debe mostrar error si el TAE es inválido', async () => {
@@ -682,7 +684,9 @@ describe('Gestión de Deudas', () => {
 		await act(async () => {
 			fireEvent.submit(screen.getByTestId('debt-form'));
 		});
-		expect(screen.getByTestId('debt-form-error').textContent).toContain('La tasa de interés (TAE) debe ser un número no negativo');
+		expect(screen.getByTestId('debt-form-error').textContent).toContain(
+			'La tasa de interés (TAE) debe ser un número no negativo'
+		);
 	});
 
 	it('debe mostrar error si el plazo en meses es inválido', async () => {
@@ -702,7 +706,9 @@ describe('Gestión de Deudas', () => {
 		await act(async () => {
 			fireEvent.submit(screen.getByTestId('debt-form'));
 		});
-		expect(screen.getByTestId('debt-form-error').textContent).toContain('El plazo en meses debe ser un número entero positivo');
+		expect(screen.getByTestId('debt-form-error').textContent).toContain(
+			'El plazo en meses debe ser un número entero positivo'
+		);
 	});
 
 	it('debe eliminar una deuda', async () => {

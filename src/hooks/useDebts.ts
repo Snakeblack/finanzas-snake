@@ -121,7 +121,8 @@ export const useDebts = ({ initialDebtFormDate, onDebtDeleted, profileCount = 2 
 				return;
 			}
 
-			const tin = debtForm.tin && !isNaN(parseFloat(debtForm.tin)) ? Math.abs(parseFloat(debtForm.tin)) : undefined;
+			const tin =
+				debtForm.tin && !isNaN(parseFloat(debtForm.tin)) ? Math.abs(parseFloat(debtForm.tin)) : undefined;
 			const newDebt: Debt = {
 				id: Date.now().toString(),
 				kind: 'classic',
