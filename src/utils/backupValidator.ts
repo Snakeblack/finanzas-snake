@@ -163,6 +163,7 @@ const validateTransactions = (transactions: unknown): Transaction[] => {
 			throw new Error(`La transacción en la posición ${index} es inválida.`);
 		}
 
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const rawTx = tx as Record<string, any>;
 
 		const moneyObj = rawTx.money as Record<string, unknown> | undefined;
@@ -265,6 +266,7 @@ const validateDebts = (debts: unknown): Debt[] => {
 			throw new Error(`La deuda en la posición ${index} es inválida.`);
 		}
 
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const rawDebt = d as Record<string, any>;
 		const id = parseWithZod(zString(`${prefix}.id`, 50), rawDebt.id);
 

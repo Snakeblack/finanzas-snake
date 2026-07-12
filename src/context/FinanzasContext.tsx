@@ -18,7 +18,6 @@ import type {
 	ConsolidationForm,
 	ChatMessage,
 	ActiveTab,
-	ClassicDebt,
 	TagBreakdown
 } from '../types';
 import {
@@ -39,7 +38,6 @@ import {
 	executeSilentMigrationIfRequired
 } from '../services/storageService';
 import { autoGenerateMissingPeriods } from '../utils/dateUtils';
-import { toNumber } from '../utils/formatters';
 import { parseOpeningBalanceInput } from '../utils/openingBalance';
 import { buildChatPdfHtml, type ChatPdfOptions } from '../services/chatPdfExport';
 import type { MonthBalanceData, ProjectedMonthData } from '../services/financeService';

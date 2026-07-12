@@ -104,13 +104,13 @@ class MockIDBTransaction {
 }
 
 const mockIndexedDB = {
-	open: (name: string, version: number) => {
+	open: (_name: string, _version: number) => {
 		const req = new MockIDBRequest();
 		const db = {
 			objectStoreNames: {
-				contains: (n: string) => true
+				contains: (_n: string) => true
 			},
-			transaction: (storeNames: any, mode: any) => {
+			transaction: (_storeNames: any, _mode: any) => {
 				return new MockIDBTransaction();
 			}
 		};

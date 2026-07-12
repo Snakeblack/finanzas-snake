@@ -5,8 +5,7 @@ import type {
 	Period,
 	Debt,
 	ConsolidationForm,
-	ClassicDebt,
-	TagBreakdown
+	ClassicDebt
 } from '../types';
 import {
 	calculateDebtMonthlyPayment,
@@ -18,9 +17,7 @@ import {
 	getEffectiveAmount,
 	calculateDebtRemainingPrincipal,
 	calculateDebtRemainingInterests,
-	calculateProjections,
-	type MonthBalanceData,
-	type ProjectedMonthData
+	calculateProjections
 } from '../services/financeService';
 import { addMonthsToMonth, normalizeMonth } from '../utils/dateUtils';
 import { toNumber } from '../utils/formatters';
@@ -95,30 +92,28 @@ export const useFinancialSelectors = ({
 			});
 	}, [transactions, selectedMonth]);
 
-	const getEffectiveAmountWrapper = (t: Transaction) => getEffectiveAmount(t, viewMode, accounts, profileCount);
-
 	const recurringIncomes = useMemo(() => {
 		return filteredTransactions
 			.filter((t) => t.type === 'income' && t.recurrence === 'recurring')
-			.reduce((sum, t) => sum + getEffectiveAmountWrapper(t), 0);
+			.reduce((sum, t) => sum + getEffectiveAmount(t, viewMode, accounts, profileCount), 0);
 	}, [filteredTransactions, viewMode, accounts, profileCount]);
 
 	const oneOffIncomes = useMemo(() => {
 		return filteredTransactions
 			.filter((t) => t.type === 'income' && t.recurrence !== 'recurring')
-			.reduce((sum, t) => sum + getEffectiveAmountWrapper(t), 0);
+			.reduce((sum, t) => sum + getEffectiveAmount(t, viewMode, accounts, profileCount), 0);
 	}, [filteredTransactions, viewMode, accounts, profileCount]);
 
 	const recurringExpenses = useMemo(() => {
 		return filteredTransactions
 			.filter((t) => t.type === 'expense' && t.recurrence === 'recurring')
-			.reduce((sum, t) => sum + getEffectiveAmountWrapper(t), 0);
+			.reduce((sum, t) => sum + getEffectiveAmount(t, viewMode, accounts, profileCount), 0);
 	}, [filteredTransactions, viewMode, accounts, profileCount]);
 
 	const oneOffExpenses = useMemo(() => {
 		return filteredTransactions
 			.filter((t) => t.type === 'expense' && t.recurrence !== 'recurring')
-			.reduce((sum, t) => sum + getEffectiveAmountWrapper(t), 0);
+			.reduce((sum, t) => sum + getEffectiveAmount(t, viewMode, accounts, profileCount), 0);
 	}, [filteredTransactions, viewMode, accounts, profileCount]);
 
 	// Deudas activas en el mes seleccionado (excluyendo expiradas y futuras)
