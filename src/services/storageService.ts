@@ -13,13 +13,7 @@ import { normalizeMonth, addMonthsToMonth } from '../utils/dateUtils';
 import { validateAndSanitizeBackup } from '../utils/backupValidator';
 import { encryptWithKey, decryptWithKey } from './cryptoService';
 import { IndexedDBProvider } from './db/idbProvider';
-import {
-	TransactionSchema,
-	DebtSchema,
-	PeriodSchema,
-	AccountSchema,
-	ChatMessageSchema
-} from './schema';
+import { TransactionSchema, DebtSchema, PeriodSchema, AccountSchema, ChatMessageSchema } from './schema';
 
 const idb = new IndexedDBProvider();
 
@@ -337,9 +331,7 @@ export const migrateTransaction = (rawTransaction: UnsafeRecord, index: number):
 
 	const rawMoney = tx['money'] && typeof tx['money'] === 'object' ? (tx['money'] as Record<string, unknown>) : null;
 	const moneyAmount =
-		rawMoney && rawMoney['amount'] !== undefined
-			? String(rawMoney['amount'])
-			: String(tx['amount'] ?? '0');
+		rawMoney && rawMoney['amount'] !== undefined ? String(rawMoney['amount']) : String(tx['amount'] ?? '0');
 	const moneyCurrency = rawMoney && typeof rawMoney['currency'] === 'string' ? rawMoney['currency'] : 'EUR';
 	const money = {
 		amount: Math.abs(toNumber(moneyAmount)).toFixed(2),
@@ -369,9 +361,7 @@ export const migrateTransaction = (rawTransaction: UnsafeRecord, index: number):
 				? (tx['owner'] as 'userA' | 'userB' | 'joint')
 				: 'joint',
 		paidBy:
-			tx['paidBy'] === 'userA' ||
-			tx['paidBy'] === 'userB' ||
-			tx['paidBy'] === 'shared'
+			tx['paidBy'] === 'userA' || tx['paidBy'] === 'userB' || tx['paidBy'] === 'shared'
 				? (tx['paidBy'] as 'userA' | 'userB' | 'shared')
 				: 'shared',
 		accountId: tx['accountId'] ? String(tx['accountId']) : undefined,
@@ -697,11 +687,13 @@ export const readStoredDebtsSync = (): Debt[] => {
 	if (!stored) return [];
 	try {
 		const parsed = JSON.parse(stored);
-		return Array.isArray(parsed) ? parsed.map((item) => {
-			const validated = DebtSchema.safeParse(item);
-			if (validated.success) return validated.data;
-			return migrateDebt(item as UnsafeRecord);
-		}) : [];
+		return Array.isArray(parsed)
+			? parsed.map((item) => {
+					const validated = DebtSchema.safeParse(item);
+					if (validated.success) return validated.data;
+					return migrateDebt(item as UnsafeRecord);
+				})
+			: [];
 	} catch {
 		return [];
 	}
@@ -736,13 +728,9 @@ export const readStoredPeriods = async (existingTx: Transaction[], existingDebts
 					month: normalizeMonth(raw['month'] as string),
 					openingBalance,
 					openingBalanceA:
-						raw['openingBalanceA'] !== undefined
-							? toNumber(raw['openingBalanceA'])
-							: openingBalance / 2,
+						raw['openingBalanceA'] !== undefined ? toNumber(raw['openingBalanceA']) : openingBalance / 2,
 					openingBalanceB:
-						raw['openingBalanceB'] !== undefined
-							? toNumber(raw['openingBalanceB'])
-							: openingBalance / 2,
+						raw['openingBalanceB'] !== undefined ? toNumber(raw['openingBalanceB']) : openingBalance / 2,
 					isManualInit: !!raw['isManualInit']
 				};
 				return PeriodSchema.parse(periodData);
@@ -949,7 +937,9 @@ export const readStoredAccounts = async (): Promise<Account[]> => {
 			const accData = {
 				id: String(rawAcc['id'] || ''),
 				name: String(rawAcc['name'] || ''),
-				owner: (rawAcc['owner'] === 'userA' || rawAcc['owner'] === 'userB' || rawAcc['owner'] === 'joint' ? rawAcc['owner'] : 'joint') as 'userA' | 'userB' | 'joint',
+				owner: (rawAcc['owner'] === 'userA' || rawAcc['owner'] === 'userB' || rawAcc['owner'] === 'joint'
+					? rawAcc['owner']
+					: 'joint') as 'userA' | 'userB' | 'joint',
 				initialBalance: toNumber(rawAcc['initialBalance'])
 			};
 			return AccountSchema.parse(accData);
@@ -1039,11 +1029,15 @@ export const readAiChat = async (): Promise<ChatMessage[]> => {
 		return rawMessages.map((msg) => {
 			const parsed = ChatMessageSchema.safeParse(msg);
 			const rawMsg = msg as Record<string, unknown>;
-			const validMsg = parsed.success ? parsed.data : {
-				role: (typeof msg === 'object' && msg !== null && 'role' in msg && msg.role === 'model' ? 'model' : 'user') as 'user' | 'model',
-				content: String(rawMsg['content'] || ''),
-				timestamp: String(rawMsg['timestamp'] || new Date().toISOString())
-			};
+			const validMsg = parsed.success
+				? parsed.data
+				: {
+						role: (typeof msg === 'object' && msg !== null && 'role' in msg && msg.role === 'model'
+							? 'model'
+							: 'user') as 'user' | 'model',
+						content: String(rawMsg['content'] || ''),
+						timestamp: String(rawMsg['timestamp'] || new Date().toISOString())
+					};
 			return {
 				...validMsg,
 				content: decodeHtmlEntities(validMsg.content || '')

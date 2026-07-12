@@ -1,4 +1,3 @@
-
 /**
  * Convierte una entrada numérica (número o string) a un número flotante de JavaScript válido.
  * Si no es válido o es indefinido, retorna 0.

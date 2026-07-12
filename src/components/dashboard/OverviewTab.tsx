@@ -749,40 +749,63 @@ export function OverviewTab() {
 
 			{/* Tarjeta: Proyección y Evolución de Patrimonio Neto */}
 			{projections && projections.length > 0 && (
-				<div className="lg:col-span-12 premium-card rounded-2xl p-6 relative overflow-visible" id="projections-card">
+				<div
+					className="lg:col-span-12 premium-card rounded-2xl p-6 relative overflow-visible"
+					id="projections-card"
+				>
 					<div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
 						<div>
 							<h3 className="font-heading text-lg font-bold text-slate-100 flex items-center gap-2">
-								<svg className="w-5 h-5 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-									<path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+								<svg
+									className="w-5 h-5 text-violet-400"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+									strokeWidth={2}
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+									/>
 								</svg>
 								Patrimonio Neto y Tendencia a Futuro
 							</h3>
 							<p className="text-xs text-slate-400 mt-1">
-								Histórico de balance contable y proyección predictiva a 12 meses basada en flujos recurrentes y amortizaciones.
+								Histórico de balance contable y proyección predictiva a 12 meses basada en flujos
+								recurrentes y amortizaciones.
 							</p>
 						</div>
-						
+
 						{/* Tarjetas KPI en miniatura */}
 						<div className="flex flex-wrap gap-3">
 							{(() => {
-								const currentProj = projections.find(p => p.month === selectedMonth) || projections[0];
+								const currentProj =
+									projections.find((p) => p.month === selectedMonth) || projections[0];
 								return (
 									<>
 										<div className="bg-slate-900/60 border border-slate-800/80 px-3 py-1.5 rounded-lg text-right">
-											<span className="text-[10px] text-slate-500 block font-medium">PATRIMONIO NETO ({currentProj.month})</span>
-											<span className={`text-sm font-bold font-mono ${currentProj.netWorth >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+											<span className="text-[10px] text-slate-500 block font-medium">
+												PATRIMONIO NETO ({currentProj.month})
+											</span>
+											<span
+												className={`text-sm font-bold font-mono ${currentProj.netWorth >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+											>
 												{formatAmount(currentProj.netWorth, { forceShow: true })}
 											</span>
 										</div>
 										<div className="bg-slate-900/60 border border-slate-800/80 px-3 py-1.5 rounded-lg text-right">
-											<span className="text-[10px] text-slate-500 block font-medium">ACTIVOS TOTALES</span>
+											<span className="text-[10px] text-slate-500 block font-medium">
+												ACTIVOS TOTALES
+											</span>
 											<span className="text-sm font-bold font-mono text-slate-300">
 												{formatAmount(currentProj.assets, { forceShow: true })}
 											</span>
 										</div>
 										<div className="bg-slate-900/60 border border-slate-800/80 px-3 py-1.5 rounded-lg text-right">
-											<span className="text-[10px] text-slate-500 block font-medium">PASIVOS (DEUDAS)</span>
+											<span className="text-[10px] text-slate-500 block font-medium">
+												PASIVOS (DEUDAS)
+											</span>
 											<span className="text-sm font-bold font-mono text-rose-400">
 												{formatAmount(currentProj.liabilities, { forceShow: true })}
 											</span>
@@ -802,12 +825,12 @@ export function OverviewTab() {
 						const pMarginBottom = 40;
 						const pMarginLeft = 75;
 						const pMarginRight = 20;
-						
+
 						const pChartHeight = pHeight - pMarginTop - pMarginBottom;
 						const pChartWidth = pWidth - pMarginLeft - pMarginRight;
 
 						// Extraer valores máximos y mínimos para el eje Y
-						const allVals = projections.flatMap(p => [p.assets, p.liabilities, p.netWorth]);
+						const allVals = projections.flatMap((p) => [p.assets, p.liabilities, p.netWorth]);
 						const maxValProj = Math.max(...allVals, 100);
 						const minValProj = Math.min(...allVals, 0);
 
@@ -831,17 +854,32 @@ export function OverviewTab() {
 						// Formateador de meses corto (ej: 2026-07 -> Jul 26)
 						const formatShortMonth = (monthStr: string) => {
 							const [year, month] = monthStr.split('-');
-							const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+							const monthNames = [
+								'Ene',
+								'Feb',
+								'Mar',
+								'Abr',
+								'May',
+								'Jun',
+								'Jul',
+								'Ago',
+								'Sep',
+								'Oct',
+								'Nov',
+								'Dic'
+							];
 							const monthIdx = parseInt(month, 10) - 1;
 							return `${monthNames[monthIdx]} ${year.substring(2)}`;
 						};
 
 						// Generar la cadena de puntos para el trazado de la línea de Patrimonio Neto
-						const linePoints = projections.map((p, idx) => {
-							const x = getProjScaleX(idx) + projBarWidth; // centro de las dos barras
-							const y = getProjScaleY(p.netWorth);
-							return `${x},${y}`;
-						}).join(' ');
+						const linePoints = projections
+							.map((p, idx) => {
+								const x = getProjScaleX(idx) + projBarWidth; // centro de las dos barras
+								const y = getProjScaleY(p.netWorth);
+								return `${x},${y}`;
+							})
+							.join(' ');
 
 						const handleProjMouseMove = (e: React.MouseEvent, idx: number) => {
 							setHoveredProjIndex(idx);
@@ -942,9 +980,10 @@ export function OverviewTab() {
 
 										{/* Línea divisoria entre Histórico y Proyección */}
 										{(() => {
-											const firstProjIdx = projections.findIndex(p => p.isProjected);
+											const firstProjIdx = projections.findIndex((p) => p.isProjected);
 											if (firstProjIdx === -1) return null;
-											const x = getProjScaleX(firstProjIdx) - (projColWidth - projBarWidth * 2) / 2;
+											const x =
+												getProjScaleX(firstProjIdx) - (projColWidth - projBarWidth * 2) / 2;
 											return (
 												<g>
 													<line
@@ -982,7 +1021,7 @@ export function OverviewTab() {
 										{/* Barras de Activos y Pasivos */}
 										{projections.map((p, idx) => {
 											const xBase = getProjScaleX(idx);
-											
+
 											// Activos (verde)
 											const yAssets0 = getProjScaleY(0);
 											const yAssets = getProjScaleY(p.assets);
@@ -1027,7 +1066,11 @@ export function OverviewTab() {
 														width={projBarWidth - 2}
 														height={hAct}
 														rx={2}
-														fill={p.isProjected ? 'url(#gradient-assets-proj)' : 'url(#gradient-assets-real)'}
+														fill={
+															p.isProjected
+																? 'url(#gradient-assets-proj)'
+																: 'url(#gradient-assets-real)'
+														}
 														className="transition-all duration-300"
 														style={{ opacity }}
 													/>
@@ -1039,7 +1082,11 @@ export function OverviewTab() {
 														width={projBarWidth - 2}
 														height={hPas}
 														rx={2}
-														fill={p.isProjected ? 'url(#gradient-liabilities-proj)' : 'url(#gradient-liabilities-real)'}
+														fill={
+															p.isProjected
+																? 'url(#gradient-liabilities-proj)'
+																: 'url(#gradient-liabilities-real)'
+														}
 														className="transition-all duration-300"
 														style={{ opacity }}
 													/>
@@ -1097,7 +1144,8 @@ export function OverviewTab() {
 								</div>
 
 								{/* Tooltip Interactivo */}
-								{hoveredProjIndex !== null && projTooltipPos && (
+								{hoveredProjIndex !== null &&
+									projTooltipPos &&
 									(() => {
 										const pItem = projections[hoveredProjIndex];
 										let transX = '-50%';
@@ -1117,14 +1165,17 @@ export function OverviewTab() {
 											>
 												<div className="font-bold flex justify-between items-center text-slate-200 border-b border-slate-800/60 pb-1 mb-1">
 													<span>{formatShortMonth(pItem.month)}</span>
-													<span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${pItem.isProjected ? 'bg-indigo-500/20 text-indigo-300' : 'bg-emerald-500/20 text-emerald-300'}`}>
+													<span
+														className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${pItem.isProjected ? 'bg-indigo-500/20 text-indigo-300' : 'bg-emerald-500/20 text-emerald-300'}`}
+													>
 														{pItem.isProjected ? 'PROYECCIÓN' : 'REAL'}
 													</span>
 												</div>
-												
+
 												<div className="flex justify-between items-center text-[11px] mt-0.5">
 													<span className="text-slate-400 flex items-center gap-1.5">
-														<span className="w-2 h-2 rounded-full bg-emerald-500"></span> Activos:
+														<span className="w-2 h-2 rounded-full bg-emerald-500"></span>{' '}
+														Activos:
 													</span>
 													<span className="font-mono font-semibold text-slate-200">
 														{formatAmount(pItem.assets, { forceShow: true })}
@@ -1133,7 +1184,8 @@ export function OverviewTab() {
 
 												<div className="flex justify-between items-center text-[11px]">
 													<span className="text-slate-400 flex items-center gap-1.5">
-														<span className="w-2 h-2 rounded-full bg-rose-500"></span> Pasivos:
+														<span className="w-2 h-2 rounded-full bg-rose-500"></span>{' '}
+														Pasivos:
 													</span>
 													<span className="font-mono font-semibold text-slate-200 text-rose-300">
 														{formatAmount(pItem.liabilities, { forceShow: true })}
@@ -1142,9 +1194,12 @@ export function OverviewTab() {
 
 												<div className="flex justify-between items-center text-[11px] font-bold border-t border-slate-800/60 pt-1 mt-1">
 													<span className="text-violet-300 flex items-center gap-1.5">
-														<span className="w-2 h-2 rounded-full bg-violet-400"></span> Patrimonio:
+														<span className="w-2 h-2 rounded-full bg-violet-400"></span>{' '}
+														Patrimonio:
 													</span>
-													<span className={`font-mono ${pItem.netWorth >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+													<span
+														className={`font-mono ${pItem.netWorth >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+													>
 														{formatAmount(pItem.netWorth, { forceShow: true })}
 													</span>
 												</div>
@@ -1157,8 +1212,11 @@ export function OverviewTab() {
 															const prevNet = projections[hoveredProjIndex - 1].netWorth;
 															const diff = pItem.netWorth - prevNet;
 															return (
-																<span className={`font-mono font-medium ${diff >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-																	{diff >= 0 ? '+' : ''}{formatAmount(diff, { forceShow: true })}
+																<span
+																	className={`font-mono font-medium ${diff >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}
+																>
+																	{diff >= 0 ? '+' : ''}
+																	{formatAmount(diff, { forceShow: true })}
 																</span>
 															);
 														})()}
@@ -1166,15 +1224,17 @@ export function OverviewTab() {
 												)}
 											</div>
 										);
-									})()
-								)}
+									})()}
 							</div>
 						);
 					})()}
-					
+
 					{/* Leyenda */}
 					<div className="flex flex-wrap justify-between items-center mt-4 text-xs text-slate-500 gap-4 border-t border-slate-900 pt-4">
-						<p>* Los activos representan los saldos en cuenta acumulados. Los pasivos son el principal de deudas pendientes.</p>
+						<p>
+							* Los activos representan los saldos en cuenta acumulados. Los pasivos son el principal de
+							deudas pendientes.
+						</p>
 						<div className="flex gap-x-4 gap-y-2">
 							<span className="flex items-center">
 								<span className="w-3 h-3 rounded bg-emerald-500/70 mr-1.5 border border-emerald-500/30"></span>

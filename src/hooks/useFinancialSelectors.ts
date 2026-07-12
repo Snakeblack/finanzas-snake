@@ -1,12 +1,5 @@
 import { useMemo } from 'react';
-import type {
-	Account,
-	Transaction,
-	Period,
-	Debt,
-	ConsolidationForm,
-	ClassicDebt
-} from '../types';
+import type { Account, Transaction, Period, Debt, ConsolidationForm, ClassicDebt } from '../types';
 import {
 	calculateDebtMonthlyPayment,
 	calculateMonthlyPayment,
@@ -63,16 +56,18 @@ export const useFinancialSelectors = ({
 	}, [periods, transactions, debts, accounts, viewMode, profileCount, timelineBalances]);
 
 	const activePeriodData = useMemo(() => {
-		return timelineBalances[selectedMonth] ?? {
-			month: selectedMonth,
-			openingBalance: 0,
-			incomes: 0,
-			expenses: 0,
-			debtPayments: 0,
-			netBalance: 0,
-			closingBalance: 0,
-			accountBalances: {}
-		};
+		return (
+			timelineBalances[selectedMonth] ?? {
+				month: selectedMonth,
+				openingBalance: 0,
+				incomes: 0,
+				expenses: 0,
+				debtPayments: 0,
+				netBalance: 0,
+				closingBalance: 0,
+				accountBalances: {}
+			}
+		);
 	}, [timelineBalances, selectedMonth]);
 
 	const totalIncomes = activePeriodData.incomes;
@@ -150,14 +145,7 @@ export const useFinancialSelectors = ({
 
 	// Desglose de etiquetas para este mes
 	const tagData = useMemo(() => {
-		return getTagBreakdown(
-			filteredTransactions,
-			filteredDebts,
-			selectedMonth,
-			viewMode,
-			accounts,
-			profileCount
-		);
+		return getTagBreakdown(filteredTransactions, filteredDebts, selectedMonth, viewMode, accounts, profileCount);
 	}, [filteredTransactions, filteredDebts, selectedMonth, viewMode, accounts, profileCount]);
 
 	const maxTagAmount = useMemo(() => {
@@ -166,9 +154,7 @@ export const useFinancialSelectors = ({
 
 	// === SIMULACIÓN DE CONSOLIDACIÓN (RESULTADOS) ===
 	const consolidatedDebtsObjects = useMemo(() => {
-		return debts.filter(
-			(d): d is ClassicDebt => isClassicDebt(d) && selectedDebtsForConsolidation.includes(d.id)
-		);
+		return debts.filter((d): d is ClassicDebt => isClassicDebt(d) && selectedDebtsForConsolidation.includes(d.id));
 	}, [debts, selectedDebtsForConsolidation]);
 
 	const consolidatedPrincipal = useMemo(() => {

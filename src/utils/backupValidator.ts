@@ -18,92 +18,101 @@ export const sanitizeString = (str: string): string => {
  * Helper para validar y sanitizar cadenas de texto utilizando Zod.
  */
 const zString = (fieldName: string, maxLength = 200, required = true, escapeHtml = true) => {
-	return z.unknown().superRefine((val, ctx) => {
-		if (val === undefined || val === null) {
-			if (required) {
+	return z
+		.unknown()
+		.superRefine((val, ctx) => {
+			if (val === undefined || val === null) {
+				if (required) {
+					ctx.addIssue({
+						code: z.ZodIssueCode.custom,
+						message: `El campo '${fieldName}' es requerido.`
+					});
+				}
+				return;
+			}
+			if (typeof val !== 'string') {
 				ctx.addIssue({
 					code: z.ZodIssueCode.custom,
-					message: `El campo '${fieldName}' es requerido.`
+					message: `El campo '${fieldName}' debe ser una cadena de texto.`
+				});
+				return;
+			}
+			const trimmed = val.trim();
+			if (required && trimmed.length === 0) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: `El campo '${fieldName}' no puede estar vacío.`
+				});
+				return;
+			}
+			if (trimmed.length > maxLength) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: `El campo '${fieldName}' supera la longitud máxima permitida de ${maxLength} caracteres.`
 				});
 			}
-			return;
-		}
-		if (typeof val !== 'string') {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				message: `El campo '${fieldName}' debe ser una cadena de texto.`
-			});
-			return;
-		}
-		const trimmed = val.trim();
-		if (required && trimmed.length === 0) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				message: `El campo '${fieldName}' no puede estar vacío.`
-			});
-			return;
-		}
-		if (trimmed.length > maxLength) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				message: `El campo '${fieldName}' supera la longitud máxima permitida de ${maxLength} caracteres.`
-			});
-		}
-	}).transform((val) => {
-		if (val === undefined || val === null) {
-			return '';
-		}
-		const trimmed = (val as string).trim();
-		return escapeHtml ? sanitizeString(trimmed) : trimmed;
-	});
+		})
+		.transform((val) => {
+			if (val === undefined || val === null) {
+				return '';
+			}
+			const trimmed = (val as string).trim();
+			return escapeHtml ? sanitizeString(trimmed) : trimmed;
+		});
 };
 
 /**
  * Helper para validar números utilizando Zod.
  */
 const zNumber = (fieldName: string, positive = false, integer = false) => {
-	return z.unknown().superRefine((val, ctx) => {
-		if (val === undefined || val === null || typeof val !== 'number' || Number.isNaN(val)) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				message: `El campo '${fieldName}' debe ser un número válido.`
-			});
-			return;
-		}
-		if (!Number.isFinite(val)) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				message: `El campo '${fieldName}' debe ser un número válido.`
-			});
-			return;
-		}
-		if (positive && val < 0) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				message: `El campo '${fieldName}' debe ser mayor o igual a 0.`
-			});
-		}
-		if (integer && !Number.isInteger(val)) {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				message: `El campo '${fieldName}' debe ser un número entero.`
-			});
-		}
-	}).transform(val => val as number);
+	return z
+		.unknown()
+		.superRefine((val, ctx) => {
+			if (val === undefined || val === null || typeof val !== 'number' || Number.isNaN(val)) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: `El campo '${fieldName}' debe ser un número válido.`
+				});
+				return;
+			}
+			if (!Number.isFinite(val)) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: `El campo '${fieldName}' debe ser un número válido.`
+				});
+				return;
+			}
+			if (positive && val < 0) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: `El campo '${fieldName}' debe ser mayor o igual a 0.`
+				});
+			}
+			if (integer && !Number.isInteger(val)) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: `El campo '${fieldName}' debe ser un número entero.`
+				});
+			}
+		})
+		.transform((val) => val as number);
 };
 
 /**
  * Helper para validar valores booleanos utilizando Zod.
  */
 const zBoolean = (fieldName: string) => {
-	return z.unknown().superRefine((val, ctx) => {
-		if (typeof val !== 'boolean') {
-			ctx.addIssue({
-				code: z.ZodIssueCode.custom,
-				message: `El campo '${fieldName}' debe ser un valor booleano.`
-			});
-		}
-	}).transform(val => val as boolean);
+	return z
+		.unknown()
+		.superRefine((val, ctx) => {
+			if (typeof val !== 'boolean') {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: `El campo '${fieldName}' debe ser un valor booleano.`
+				});
+			}
+		})
+		.transform((val) => val as boolean);
 };
 
 /**
@@ -134,14 +143,17 @@ const validateAccounts = (accounts: unknown): Account[] => {
 		const AccountItemSchema = z.object({
 			id: zString(`${prefix}.id`, 50),
 			name: zString(`${prefix}.name`, 100),
-			owner: z.string().superRefine((val, ctx) => {
-				if (val !== 'userA' && val !== 'userB' && val !== 'joint') {
-					ctx.addIssue({
-						code: z.ZodIssueCode.custom,
-						message: `El propietario de la cuenta en ${prefix}.owner debe ser 'userA', 'userB' o 'joint'.`
-					});
-				}
-			}).transform(val => val as 'userA' | 'userB' | 'joint'),
+			owner: z
+				.string()
+				.superRefine((val, ctx) => {
+					if (val !== 'userA' && val !== 'userB' && val !== 'joint') {
+						ctx.addIssue({
+							code: z.ZodIssueCode.custom,
+							message: `El propietario de la cuenta en ${prefix}.owner debe ser 'userA', 'userB' o 'joint'.`
+						});
+					}
+				})
+				.transform((val) => val as 'userA' | 'userB' | 'joint'),
 			initialBalance: zNumber(`${prefix}.initialBalance`)
 		});
 
@@ -194,14 +206,17 @@ const validateTransactions = (transactions: unknown): Transaction[] => {
 		const TransactionItemSchema = z.object({
 			id: zString(`${prefix}.id`, 50),
 			desc: zString(`${prefix}.desc`, 150),
-			type: z.string().superRefine((val, ctx) => {
-				if (val !== 'income' && val !== 'expense' && val !== 'transfer') {
-					ctx.addIssue({
-						code: z.ZodIssueCode.custom,
-						message: `El tipo de transacción en ${prefix}.type debe ser 'income', 'expense' o 'transfer'.`
-					});
-				}
-			}).transform(val => val as 'income' | 'expense' | 'transfer'),
+			type: z
+				.string()
+				.superRefine((val, ctx) => {
+					if (val !== 'income' && val !== 'expense' && val !== 'transfer') {
+						ctx.addIssue({
+							code: z.ZodIssueCode.custom,
+							message: `El tipo de transacción en ${prefix}.type debe ser 'income', 'expense' o 'transfer'.`
+						});
+					}
+				})
+				.transform((val) => val as 'income' | 'expense' | 'transfer'),
 			tag: zString(`${prefix}.tag`, 50),
 			date: zString(`${prefix}.date`, 10).superRefine((val, ctx) => {
 				if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) {
@@ -211,30 +226,39 @@ const validateTransactions = (transactions: unknown): Transaction[] => {
 					});
 				}
 			}),
-			recurrence: z.string().superRefine((val, ctx) => {
-				if (val !== 'recurring' && val !== 'one-off') {
-					ctx.addIssue({
-						code: z.ZodIssueCode.custom,
-						message: `La frecuencia de transacción en ${prefix}.recurrence debe ser 'recurring' o 'one-off'.`
-					});
-				}
-			}).transform(val => val as 'recurring' | 'one-off'),
-			owner: z.string().superRefine((val, ctx) => {
-				if (val !== 'userA' && val !== 'userB' && val !== 'joint') {
-					ctx.addIssue({
-						code: z.ZodIssueCode.custom,
-						message: `El propietario en ${prefix}.owner debe ser 'userA', 'userB' o 'joint'.`
-					});
-				}
-			}).transform(val => val as 'userA' | 'userB' | 'joint'),
-			paidBy: z.string().superRefine((val, ctx) => {
-				if (val !== 'userA' && val !== 'userB' && val !== 'shared') {
-					ctx.addIssue({
-						code: z.ZodIssueCode.custom,
-						message: `El campo de pago en ${prefix}.paidBy debe ser 'userA', 'userB' o 'shared'.`
-					});
-				}
-			}).transform(val => val as 'userA' | 'userB' | 'shared'),
+			recurrence: z
+				.string()
+				.superRefine((val, ctx) => {
+					if (val !== 'recurring' && val !== 'one-off') {
+						ctx.addIssue({
+							code: z.ZodIssueCode.custom,
+							message: `La frecuencia de transacción en ${prefix}.recurrence debe ser 'recurring' o 'one-off'.`
+						});
+					}
+				})
+				.transform((val) => val as 'recurring' | 'one-off'),
+			owner: z
+				.string()
+				.superRefine((val, ctx) => {
+					if (val !== 'userA' && val !== 'userB' && val !== 'joint') {
+						ctx.addIssue({
+							code: z.ZodIssueCode.custom,
+							message: `El propietario en ${prefix}.owner debe ser 'userA', 'userB' o 'joint'.`
+						});
+					}
+				})
+				.transform((val) => val as 'userA' | 'userB' | 'joint'),
+			paidBy: z
+				.string()
+				.superRefine((val, ctx) => {
+					if (val !== 'userA' && val !== 'userB' && val !== 'shared') {
+						ctx.addIssue({
+							code: z.ZodIssueCode.custom,
+							message: `El campo de pago en ${prefix}.paidBy debe ser 'userA', 'userB' o 'shared'.`
+						});
+					}
+				})
+				.transform((val) => val as 'userA' | 'userB' | 'shared'),
 			accountId: zString(`${prefix}.accountId`, 50, false).optional(),
 			fromAccountId: zString(`${prefix}.fromAccountId`, 50, false).optional(),
 			toAccountId: zString(`${prefix}.toAccountId`, 50, false).optional()
@@ -291,14 +315,17 @@ const validateDebts = (debts: unknown): Debt[] => {
 		);
 
 		const owner = parseWithZod(
-			z.string().superRefine((val, ctx) => {
-				if (val !== 'userA' && val !== 'userB' && val !== 'joint') {
-					ctx.addIssue({
-						code: z.ZodIssueCode.custom,
-						message: `El propietario de la deuda en ${prefix}.owner debe ser 'userA', 'userB' o 'joint'.`
-					});
-				}
-			}).transform(val => val as 'userA' | 'userB' | 'joint'),
+			z
+				.string()
+				.superRefine((val, ctx) => {
+					if (val !== 'userA' && val !== 'userB' && val !== 'joint') {
+						ctx.addIssue({
+							code: z.ZodIssueCode.custom,
+							message: `El propietario de la deuda en ${prefix}.owner debe ser 'userA', 'userB' o 'joint'.`
+						});
+					}
+				})
+				.transform((val) => val as 'userA' | 'userB' | 'joint'),
 			rawDebt.owner
 		);
 
@@ -334,9 +361,7 @@ const validateDebts = (debts: unknown): Debt[] => {
 					? parseWithZod(zNumber(`${prefix}.openingCommission`, true), rawDebt.openingCommission)
 					: undefined;
 			const tin =
-				rawDebt.tin !== undefined
-					? parseWithZod(zNumber(`${prefix}.tin`, true), rawDebt.tin)
-					: undefined;
+				rawDebt.tin !== undefined ? parseWithZod(zNumber(`${prefix}.tin`, true), rawDebt.tin) : undefined;
 			const tae = parseWithZod(zNumber(`${prefix}.tae`, true), rawDebt.tae);
 			const termMonths = parseWithZod(zNumber(`${prefix}.termMonths`, true, true), rawDebt.termMonths);
 
@@ -384,14 +409,17 @@ const validateDebts = (debts: unknown): Debt[] => {
 						}
 					}),
 					amount: zNumber(`${instPrefix}.amount`, true),
-					status: z.string().superRefine((val, ctx) => {
-						if (val !== 'paid' && val !== 'pending') {
-							ctx.addIssue({
-								code: z.ZodIssueCode.custom,
-								message: `El estado de cuota en ${instPrefix}.status debe ser 'paid' o 'pending'.`
-							});
-						}
-					}).transform(val => val as 'paid' | 'pending'),
+					status: z
+						.string()
+						.superRefine((val, ctx) => {
+							if (val !== 'paid' && val !== 'pending') {
+								ctx.addIssue({
+									code: z.ZodIssueCode.custom,
+									message: `El estado de cuota en ${instPrefix}.status debe ser 'paid' o 'pending'.`
+								});
+							}
+						})
+						.transform((val) => val as 'paid' | 'pending'),
 					label: zString(`${instPrefix}.label`, 100)
 				});
 
@@ -479,14 +507,17 @@ const validateAiChat = (chat: unknown): ChatMessage[] => {
 		const rawMsg = msg as Record<string, unknown>;
 
 		const ChatMessageItemSchema = z.object({
-			role: z.string().superRefine((val, ctx) => {
-				if (val !== 'user' && val !== 'model') {
-					ctx.addIssue({
-						code: z.ZodIssueCode.custom,
-						message: `El rol del mensaje en ${prefix}.role debe ser 'user' o 'model'.`
-					});
-				}
-			}).transform(val => val as 'user' | 'model'),
+			role: z
+				.string()
+				.superRefine((val, ctx) => {
+					if (val !== 'user' && val !== 'model') {
+						ctx.addIssue({
+							code: z.ZodIssueCode.custom,
+							message: `El rol del mensaje en ${prefix}.role debe ser 'user' o 'model'.`
+						});
+					}
+				})
+				.transform((val) => val as 'user' | 'model'),
 			content: zString(`${prefix}.content`, 10000, true, false),
 			timestamp: zString(`${prefix}.timestamp`, 30)
 		});
@@ -542,10 +573,7 @@ export const validateAndSanitizeBackup = (parsedJson: unknown): Record<string, u
 	if (STORAGE_KEYS.geminiKey in rawRecord && rawRecord[STORAGE_KEYS.geminiKey] !== null) {
 		const rawKey = rawRecord[STORAGE_KEYS.geminiKey];
 		if (rawKey && typeof rawKey === 'string' && rawKey.trim()) {
-			validatedBackup[STORAGE_KEYS.geminiKey] = parseWithZod(
-				zString('geminiKey', 150, false),
-				rawKey
-			);
+			validatedBackup[STORAGE_KEYS.geminiKey] = parseWithZod(zString('geminiKey', 150, false), rawKey);
 		} else {
 			validatedBackup[STORAGE_KEYS.geminiKey] = '';
 		}
