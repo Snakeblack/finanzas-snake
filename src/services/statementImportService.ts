@@ -8,6 +8,7 @@ import {
 import { deduceTagFromConcept } from './financeService';
 import { askGemini, createGeminiApiKeyUnavailableError, isGeminiApiKeyError } from './geminiService';
 import { DEFAULT_TAGS } from '../constants';
+import { toNumber } from '../utils/formatters';
 
 interface PrepareImportedTransactionsOptions {
 	transactions: ImportedTransaction[];
@@ -700,8 +701,8 @@ export function detectDuplicates(
 
 		let possibleDuplicate: ImportedTransactionPossibleDuplicate | undefined;
 		const isDuplicate = existingTxs.some((existing) => {
-			const existingAmount = existing.money?.amount ? parseFloat(existing.money.amount) : 0;
-			const importedAmount = parseFloat(imported.amount);
+			const existingAmount = existing.money?.amount ? toNumber(existing.money.amount) : 0;
+			const importedAmount = toNumber(imported.amount);
 
 			const sameAmount = Math.abs(existingAmount - importedAmount) < 0.001;
 			const sameType = existing.type === imported.type;

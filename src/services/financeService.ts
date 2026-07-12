@@ -760,18 +760,18 @@ export const calculateTimelineBalances = (
 
 		const closingAccBalancesNum: Record<string, number> = {};
 		Object.keys(runningAccountBalances).forEach((key) => {
-			closingAccBalancesNum[key] = parseFloat(runningAccountBalances[key].toFixed(2));
+			closingAccBalancesNum[key] = toNumber(runningAccountBalances[key].toFixed(2));
 		});
 
 		// Registrar balance del mes
 		timelineBalances[m] = {
 			month: m,
-			openingBalance: parseFloat(openingBalance.toFixed(2)),
-			incomes: parseFloat(incomes.toFixed(2)),
-			expenses: parseFloat(expenses.toFixed(2)),
-			debtPayments: parseFloat(debtPayments.toFixed(2)),
-			netBalance: parseFloat(netBalance.toFixed(2)),
-			closingBalance: parseFloat(closingBalance.toFixed(2)),
+			openingBalance: toNumber(openingBalance.toFixed(2)),
+			incomes: toNumber(incomes.toFixed(2)),
+			expenses: toNumber(expenses.toFixed(2)),
+			debtPayments: toNumber(debtPayments.toFixed(2)),
+			netBalance: toNumber(netBalance.toFixed(2)),
+			closingBalance: toNumber(closingBalance.toFixed(2)),
 			accountBalances: closingAccBalancesNum
 		};
 	});
@@ -828,7 +828,7 @@ export const getTagBreakdown = (
 	return Object.entries(breakdown)
 		.map(([tag, amount]) => ({
 			tag,
-			amount: parseFloat(amount.toFixed(2))
+			amount: toNumber(amount.toFixed(2))
 		}))
 		.filter((item) => item.amount > 0);
 };
@@ -906,9 +906,9 @@ export const calculateProjections = (
 
 		result.push({
 			month: m,
-			netWorth: parseFloat(netWorth.toFixed(2)),
-			assets: parseFloat(assets.toFixed(2)),
-			liabilities: parseFloat(totalLiabilities.toFixed(2)),
+			netWorth: toNumber(netWorth.toFixed(2)),
+			assets: toNumber(assets.toFixed(2)),
+			liabilities: toNumber(totalLiabilities.toFixed(2)),
 			isProjected: false,
 			incomes: balData.incomes,
 			expenses: balData.expenses,
@@ -995,14 +995,14 @@ export const calculateProjections = (
 
 		result.push({
 			month: projectedMonth,
-			netWorth: parseFloat(netWorth.toFixed(2)),
-			assets: parseFloat(assets.toFixed(2)),
-			liabilities: parseFloat(totalLiabilities.toFixed(2)),
+			netWorth: toNumber(netWorth.toFixed(2)),
+			assets: toNumber(assets.toFixed(2)),
+			liabilities: toNumber(totalLiabilities.toFixed(2)),
 			isProjected: true,
 			incomes: recurringInflow.toNumber(),
 			expenses: recurringOutflow.toNumber(),
 			debtPayments: projectedDebtPayments.toNumber(),
-			netBalance: parseFloat(projectedNetRecurringFlow.minus(projectedDebtPayments).toFixed(2))
+			netBalance: toNumber(projectedNetRecurringFlow.minus(projectedDebtPayments).toFixed(2))
 		});
 
 		runningMonth = projectedMonth;

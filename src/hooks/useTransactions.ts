@@ -3,6 +3,7 @@ import type { Account, Period, Transaction, TxForm, TransactionRecurrence } from
 import { DEFAULT_TAGS } from '../constants';
 import { getInitialData } from '../services/storageService';
 import { getValidDateForMonth } from '../utils/dateUtils';
+import { toNumber } from '../utils/formatters';
 
 interface UseTransactionsParams {
 	/** Valor inicial de `editForm.date` (mes actual al montar, `YYYY-MM`). */
@@ -127,8 +128,8 @@ export const useTransactions = ({
 		const formToUse = customForm || txForm;
 		if (!formToUse.desc || !formToUse.amount) return;
 
-		const amountVal = parseFloat(formToUse.amount);
-		if (isNaN(amountVal) || amountVal <= 0) return;
+		const amountVal = toNumber(formToUse.amount);
+		if (amountVal <= 0) return;
 
 		const getTransferOwner = (fromId?: string, toId?: string) => {
 			const fromAcc = accounts.find((a) => a.id === fromId);
@@ -168,7 +169,7 @@ export const useTransactions = ({
 			id: newTxId,
 			desc: formToUse.desc,
 			money: {
-				amount: Math.abs(parseFloat(formToUse.amount)).toFixed(2),
+				amount: Math.abs(toNumber(formToUse.amount)).toFixed(2),
 				currency: formToUse.currency || 'EUR'
 			},
 			type: formToUse.type,
@@ -239,8 +240,8 @@ export const useTransactions = ({
 		const formToUse = customForm || editForm;
 		if (!editingTx || !formToUse.desc || !formToUse.amount) return;
 
-		const updatedAmount = Math.abs(parseFloat(formToUse.amount));
-		if (isNaN(updatedAmount) || updatedAmount <= 0) return;
+		const updatedAmount = Math.abs(toNumber(formToUse.amount));
+		if (updatedAmount <= 0) return;
 		const rootId = editingTx.originId || editingTx.id;
 		const currentMonth = editingTx.date.substring(0, 7);
 

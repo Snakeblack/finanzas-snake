@@ -1,6 +1,7 @@
 import { useState, type Dispatch, type SetStateAction, type SyntheticEvent } from 'react';
 import type { Account } from '../types';
 import { getInitialData } from '../services/storageService';
+import { toNumber } from '../utils/formatters';
 
 type AccountForm = { name: string; owner: 'userA' | 'userB' | 'joint'; initialBalance: string };
 
@@ -55,7 +56,7 @@ export const useAccounts = (profileCount: 1 | 2 = 2): UseAccountsResult => {
 			id: Date.now().toString(),
 			name: accountForm.name,
 			owner: accountForm.owner,
-			initialBalance: Math.abs(parseFloat(accountForm.initialBalance) || 0)
+			initialBalance: Math.abs(toNumber(accountForm.initialBalance))
 		};
 
 		setAccounts([...accounts, newAcc]);
@@ -66,7 +67,7 @@ export const useAccounts = (profileCount: 1 | 2 = 2): UseAccountsResult => {
 		e.preventDefault();
 		if (!editingAccount || !accountForm.name) return;
 
-		const updatedBalance = Math.abs(parseFloat(accountForm.initialBalance) || 0);
+		const updatedBalance = Math.abs(toNumber(accountForm.initialBalance));
 		setAccounts(
 			accounts.map((acc) => {
 				if (acc.id === editingAccount.id) {

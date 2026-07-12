@@ -22,6 +22,7 @@ import {
 } from '../../services/geminiService';
 import { DEFAULT_TAGS } from '../../constants';
 import { ImportedTransaction, TransactionType } from '../../types';
+import { toNumber } from '../../utils/formatters';
 import {
 	Upload,
 	FileText,
@@ -1378,7 +1379,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 											{hasBalance && (
 												<td className="py-3 pr-2 text-right font-mono text-slate-400 align-middle shrink-0">
 													{tx.balance
-														? `${parseFloat(tx.balance).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+														? `${toNumber(tx.balance).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
 														: '-'}
 												</td>
 											)}
@@ -1510,7 +1511,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 													{tx.desc}
 												</span>
 												<span className="text-xs font-black text-indigo-400 block">
-													{parseFloat(tx.amount).toFixed(2)} €
+													{toNumber(tx.amount).toFixed(2)} €
 												</span>
 											</div>
 
