@@ -38,24 +38,11 @@ import {
 	saveProfileCount,
 	executeSilentMigrationIfRequired
 } from '../services/storageService';
-import { addMonthsToMonth, normalizeMonth, autoGenerateMissingPeriods } from '../utils/dateUtils';
+import { autoGenerateMissingPeriods } from '../utils/dateUtils';
 import { toNumber } from '../utils/formatters';
 import { parseOpeningBalanceInput } from '../utils/openingBalance';
 import { buildChatPdfHtml, type ChatPdfOptions } from '../services/chatPdfExport';
-import {
-	calculateDebtMonthlyPayment,
-	calculateMonthlyPayment,
-	getPaymentPlanRemainingAmount,
-	calculateTimelineBalances,
-	getTagBreakdown,
-	isClassicDebt,
-	getEffectiveAmount,
-	calculateDebtRemainingPrincipal,
-	calculateDebtRemainingInterests,
-	calculateProjections,
-	type MonthBalanceData,
-	type ProjectedMonthData
-} from '../services/financeService';
+import type { MonthBalanceData, ProjectedMonthData } from '../services/financeService';
 import type { PromptContextParams } from '../services/geminiService';
 import { useAiAdvisor } from '../hooks/useAiAdvisor';
 import { useSecurity } from '../hooks/useSecurity';
@@ -65,6 +52,7 @@ import { useTransactions } from '../hooks/useTransactions';
 import { useAccounts } from '../hooks/useAccounts';
 import { useConsolidation } from '../hooks/useConsolidation';
 import { usePeriods } from '../hooks/usePeriods';
+import { useFinancialSelectors } from '../hooks/useFinancialSelectors';
 
 /**
  * Interfaz que define el valor del contexto de finanzas globales.
@@ -697,126 +685,47 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 	}, [accounts, isInitialized, isLocked]);
 
 	// === PROPAGAR CÁLCULOS AL MOTOR FINANCIERO ===
-	const timelineBalances = calculateTimelineBalances(periods, transactions, debts, accounts, viewMode, profileCount);
-
-	const projections = calculateProjections(
+	const {
+		timelineBalances,
+		projections,
+		activePeriodData,
+		totalIncomes,
+		totalExpenses,
+		totalMonthlyDebtPayments,
+		netMonthlyBalance,
+		currentOpeningBalance,
+		currentClosingBalance,
+		filteredTransactions,
+		recurringIncomes,
+		oneOffIncomes,
+		recurringExpenses,
+		oneOffExpenses,
+		filteredDebts,
+		jointPaidByA,
+		jointPaidByB,
+		netOwed,
+		tagData,
+		maxTagAmount,
+		consolidatedDebtsObjects,
+		consolidatedPrincipal,
+		additionalCapital,
+		totalNewPrincipal,
+		currentConsolidatedMonthlySum,
+		currentTotalInterests,
+		newConsolidatedCuota,
+		newTotalConsolidatedPayment,
+		newConsolidatedInterests
+	} = useFinancialSelectors({
 		periods,
 		transactions,
 		debts,
 		accounts,
 		viewMode,
 		profileCount,
-		timelineBalances,
-		12
-	);
-
-	const activePeriodData = timelineBalances[selectedMonth] ?? {
-		month: selectedMonth,
-		openingBalance: 0,
-		incomes: 0,
-		expenses: 0,
-		debtPayments: 0,
-		netBalance: 0,
-		closingBalance: 0,
-		accountBalances: {}
-	};
-
-	const totalIncomes = activePeriodData.incomes;
-	const totalExpenses = activePeriodData.expenses;
-	const totalMonthlyDebtPayments = activePeriodData.debtPayments;
-	const netMonthlyBalance = activePeriodData.netBalance;
-	const currentOpeningBalance = activePeriodData.openingBalance;
-	const currentClosingBalance = activePeriodData.closingBalance;
-
-	const filteredTransactions = transactions
-		.filter((t) => t.date.substring(0, 7) === selectedMonth)
-		.sort((a, b) => {
-			const dateCompare = b.date.localeCompare(a.date);
-			if (dateCompare !== 0) return dateCompare;
-			return transactions.indexOf(a) - transactions.indexOf(b);
-		});
-
-	const getEffectiveAmountWrapper = (t: Transaction) => getEffectiveAmount(t, viewMode, accounts, profileCount);
-
-	const recurringIncomes = filteredTransactions
-		.filter((t) => t.type === 'income' && t.recurrence === 'recurring')
-		.reduce((sum, t) => sum + getEffectiveAmountWrapper(t), 0);
-
-	const oneOffIncomes = filteredTransactions
-		.filter((t) => t.type === 'income' && t.recurrence !== 'recurring')
-		.reduce((sum, t) => sum + getEffectiveAmountWrapper(t), 0);
-
-	const recurringExpenses = filteredTransactions
-		.filter((t) => t.type === 'expense' && t.recurrence === 'recurring')
-		.reduce((sum, t) => sum + getEffectiveAmountWrapper(t), 0);
-
-	const oneOffExpenses = filteredTransactions
-		.filter((t) => t.type === 'expense' && t.recurrence !== 'recurring')
-		.reduce((sum, t) => sum + getEffectiveAmountWrapper(t), 0);
-
-	// Deudas activas en el mes seleccionado (excluyendo expiradas y futuras)
-	const filteredDebts = debts.filter((d) => {
-		const start = normalizeMonth(d.date);
-		if (start > selectedMonth) return false;
-		if (isClassicDebt(d)) {
-			const end = addMonthsToMonth(start, d.termMonths - 1);
-			return selectedMonth <= end;
-		}
-		const dueMonths = d.installments.map((i) => normalizeMonth(i.dueMonth));
-		const maxDueMonth = dueMonths.length > 0 ? dueMonths.reduce((max, m) => (m > max ? m : max), start) : start;
-		return selectedMonth <= maxDueMonth || getPaymentPlanRemainingAmount(d) > 0;
-	});
-
-	// Gastos conjuntos pagados por cada uno (en el mes activo)
-	const jointPaidByA = filteredTransactions
-		.filter((t) => t.type === 'expense' && t.owner === 'joint' && t.paidBy === 'userA')
-		.reduce((sum, t) => sum + toNumber(t.money?.amount ?? '0'), 0);
-
-	const jointPaidByB = filteredTransactions
-		.filter((t) => t.type === 'expense' && t.owner === 'joint' && t.paidBy === 'userB')
-		.reduce((sum, t) => sum + toNumber(t.money?.amount ?? '0'), 0);
-
-	const netOwed = (jointPaidByA - jointPaidByB) / 2;
-
-	// Desglose de etiquetas para este mes
-	const tagData = getTagBreakdown(
-		filteredTransactions,
-		filteredDebts,
 		selectedMonth,
-		viewMode,
-		accounts,
-		profileCount
-	);
-	const maxTagAmount = tagData.length > 0 ? Math.max(...tagData.map((d) => d.amount)) : 1;
-
-	// === SIMULACIÓN DE CONSOLIDACIÓN (RESULTADOS) ===
-	const consolidatedDebtsObjects = debts.filter(
-		(d): d is ClassicDebt => isClassicDebt(d) && selectedDebtsForConsolidation.includes(d.id)
-	);
-	const consolidatedPrincipal = consolidatedDebtsObjects.reduce((sum, d) => {
-		return sum + calculateDebtRemainingPrincipal(d, selectedMonth);
-	}, 0);
-
-	const additionalCapital = toNumber(consolidationForm.extraCapital);
-	const totalNewPrincipal = consolidatedPrincipal + additionalCapital;
-
-	const currentConsolidatedMonthlySum = consolidatedDebtsObjects.reduce((sum, d) => {
-		return sum + calculateDebtMonthlyPayment(d, selectedMonth);
-	}, 0);
-
-	const currentTotalInterests = consolidatedDebtsObjects.reduce((sum, d) => {
-		return sum + calculateDebtRemainingInterests(d, selectedMonth);
-	}, 0);
-
-	const newConsolidatedCuota = calculateMonthlyPayment(
-		totalNewPrincipal,
-		toNumber(consolidationForm.tae),
-		Math.trunc(toNumber(consolidationForm.termMonths || '1'))
-	);
-
-	const newTotalConsolidatedPayment =
-		newConsolidatedCuota * Math.trunc(toNumber(consolidationForm.termMonths || '1'));
-	const newConsolidatedInterests = Math.max(0, newTotalConsolidatedPayment - totalNewPrincipal);
+		selectedDebtsForConsolidation,
+		consolidationForm
+	});
 
 	// Snapshot financiero para el prompt del asesor IA (consumido por useAiAdvisor al preguntar).
 	// Se actualiza tras cada commit para que la pregunta use siempre los derivados más recientes.

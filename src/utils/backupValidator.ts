@@ -145,7 +145,7 @@ const validateAccounts = (accounts: unknown): Account[] => {
 			initialBalance: zNumber(`${prefix}.initialBalance`)
 		});
 
-		return parseWithZod(AccountItemSchema, acc);
+		return parseWithZod(AccountItemSchema, acc) as Account;
 	});
 };
 
@@ -247,7 +247,7 @@ const validateTransactions = (transactions: unknown): Transaction[] => {
 			accountId: parsedFields.accountId || undefined,
 			fromAccountId: parsedFields.fromAccountId || undefined,
 			toAccountId: parsedFields.toAccountId || undefined
-		};
+		} as Transaction;
 	});
 };
 
@@ -351,7 +351,7 @@ const validateDebts = (debts: unknown): Debt[] => {
 				...(tin !== undefined ? { tin } : {}),
 				tae,
 				termMonths
-			};
+			} as Debt;
 		} else {
 			const financedAmount = parseWithZod(zNumber(`${prefix}.financedAmount`, true), rawDebt.financedAmount);
 			const fees = parseWithZod(zNumber(`${prefix}.fees`, true), rawDebt.fees);
@@ -408,7 +408,7 @@ const validateDebts = (debts: unknown): Debt[] => {
 				fees,
 				totalToPay,
 				installments
-			};
+			} as Debt;
 		}
 	});
 };
@@ -455,7 +455,7 @@ const validatePeriods = (periods: unknown): Period[] => {
 			openingBalanceA: parsed.openingBalanceA,
 			openingBalanceB: parsed.openingBalanceB,
 			isManualInit: parsed.isManualInit
-		};
+		} as Period;
 	});
 };
 
@@ -489,7 +489,7 @@ const validateAiChat = (chat: unknown): ChatMessage[] => {
 			timestamp: zString(`${prefix}.timestamp`, 30)
 		});
 
-		return parseWithZod(ChatMessageItemSchema, rawMsg);
+		return parseWithZod(ChatMessageItemSchema, rawMsg) as ChatMessage;
 	});
 };
 
