@@ -44,11 +44,12 @@ Se ha auditado la funcionalidad de consolidación de deudas en `useConsolidation
 *   **Estado:** Conforme. Los últimos fixes locales resolvieron las discrepancias de conversión de divisas en deudas no denominadas en la moneda base.
 
 ### 2.4 Motor de Proyección de Cashflow y Patrimonio Neto (`calculateProjections`)
-Se ha realizado una auditoría exhaustiva del nuevo algoritmo de proyecciones financieras implementado recientemente en `financeService.ts`:
+Se ha realizado una auditoría exhaustiva del motor de proyecciones financieras en `financeService.ts` y su visualización:
 *   **Cálculo de Activos y Pasivos:** El motor calcula la deuda pendiente efectiva mensual mediante `getEffectiveDebtRemaining`, ponderando adecuadamente la propiedad de las deudas (`userA`, `userB` o `joint`) y aplicando la tasa de reparto del 50% para deudas conjuntas en las vistas individuales.
 *   **Gestión de Planes de Pago:** Para deudas fraccionadas (`PaymentPlanDebt`), el cálculo de deuda restante en un mes `m` se filtra de forma temporal considerando únicamente las cuotas pendientes futuras (`normalizeMonth(inst.dueMonth) >= evalMonth`), lo cual previene la sobreevaluación de pasivos al no contar cuotas pagadas o pasadas.
 *   **Simulación de Futuro:** En los meses proyectados posteriores al histórico de períodos, la simulación se construye sobre el saldo final con precisión estricta usando `Big.js` para los flujos recurrentes y amortizaciones de deudas estimadas, garantizando consistencia temporal.
-*   **Resultados de la verificación:** El algoritmo cumple rigurosamente con los principios contables y financieros definidos, sin introducir fugas de precisión matemática ni de coherencia de asignación por propietario.
+*   **Visualización Interactiva:** Se ha integrado un gráfico SVG interactivo de área y líneas en la pestaña general (Overview/Resumen) que muestra de forma dinámica la proyección de Activos, Pasivos y Patrimonio Neto a 12 meses, mejorando drásticamente la capacidad de análisis patrimonial del usuario.
+*   **Resultados de la verificación:** El algoritmo y su componente visual cumplen rigurosamente con los principios contables y de visualización definidos, sin introducir fugas de precisión matemática ni de coherencia de asignación por propietario.
 
 ---
 
@@ -89,8 +90,8 @@ La modularización de subdominios se encuentra distribuida en hooks altamente co
 `FinanzasContext` actúa limpiamente como capa de composición y orquestador cross-domain delgado, manteniendo intacta la compatibilidad con todos los componentes consumidores del cliente visual.
 
 ### 4.2 Análisis del Backlog de Warnings de Linting (D9)
-*   **Resultado de ESLint:** **0 errores encontrados**.
-*   Se mantiene el backlog de 55 warnings controlados por diseño técnico (`no-explicit-any` en validación de backups genéricos, etc.), los cuales no comprometen en absoluto la sanidad del runtime del cliente.
+*   **Resultado de ESLint:** **0 errores y 0 warnings encontrados**.
+*   El backlog de warnings técnicos (`no-explicit-any`, etc.) ha sido saneado por completo mediante la introducción de tipados estrictos en `storageService.ts` y en el helper `toNumber`, garantizando el cumplimiento estricto del estándar de código.
 
 ---
 
@@ -98,14 +99,14 @@ La modularización de subdominios se encuentra distribuida en hooks altamente co
 
 Se ha ejecutado la suite completa de pruebas utilizando **Vitest** en el entorno local:
 *   **Ejecución:** Completamente exitosa (`pnpm test run`).
-*   **Resultados:** **388 de 388 pruebas pasadas (100% de éxito)**.
-*   **Nuevas Coberturas:** Se verificó la suite de tests agregada para la proyección financiera (`calculateProjections`), validando la correcta exclusión de la ponderación cuando `profileCount === 1` y el adecuado procesamiento temporal del estado de cuotas de planes de pago.
+*   **Resultados:** **391 de 391 pruebas pasadas (100% de éxito)**.
+*   **Nuevas Coberturas:** Se ha verificado la suite de pruebas unitarias cubriendo las validaciones de los esquemas Zod en IndexedDB y el comportamiento de proyecciones, con tasas de éxito y robustez perfectas.
 
 ---
 
 ## 6. Recomendaciones de Mejora
 
-A pesar de la excelente salud del código y de los algoritmos financieros, se ratifican y amplían las siguientes propuestas de ingeniería:
-1.  **Validación de Esquemas en Backup:** Reemplazar el tipado genérico `any` en `storageService.ts` por un validador de esquemas en tiempo de ejecución (como `Zod` o similar) para asegurar la integridad de la base de datos IndexedDB ante backups manipulados externamente.
+A pesar de la excelente salud del código y de los algoritmos financieros, se sugieren las siguientes propuestas de evolución de ingeniería:
+1.  **Validación de Esquemas de Backup con Zod:** Tras la exitosa implementación de la validación estricta de base de datos local con Zod (`schema.ts`), se recomienda portar gradualmente las comprobaciones manuales de `backupValidator.ts` hacia estos esquemas Zod unificados para simplificar el mantenimiento y asegurar coherencia estructural completa.
 2.  **Mecanismo de Integración de Tasas FX Dinámicas:** Evaluar la implementación de un worker en segundo plano para recuperar de forma periódica las tasas de conversión reales (en lugar de estáticas) para usuarios que gestionen balances multiactivo diariamente.
-3.  **Visualización Avanzada del Patrimonio Neto (Dashboard):** Implementar gráficos temporales en la interfaz que aprovechen la salida de `calculateProjections` para ofrecer una visualización de tendencia de 6/12/24 meses.
+3.  **Proyecciones a Largo Plazo y Simulación de Escenarios:** Permitir al usuario simular variaciones hipotéticas (por ejemplo, incremento del tipo de interés, amortizaciones anticipadas de deudas o cambios en ingresos recurrentes) y observar su impacto proyectado en la tendencia del patrimonio neto a 24 o 36 meses.

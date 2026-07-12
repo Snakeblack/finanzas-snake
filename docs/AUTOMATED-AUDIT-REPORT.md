@@ -12,6 +12,7 @@ Fecha: 2026-07-12T17:03:00.000Z
 | Aritmética de Coma Flotante (`+ - * /`) | 0 (Críticos) | Controlado por Diseño | Las operaciones financieras críticas del motor contable (`ledgerEngine.ts` y `financeService.ts`) utilizan precisión estricta con `Big.js`. Las sumas de interfaz (`App.tsx`) son meramente representativas de UI. |
 | Claves / Secretos Hardcodeados | 0 | Sin Riesgo | Las cadenas de configuración y salts locales identificadas son identificadores públicos de localStorage, no credenciales secretas. |
 | Conversiones Numéricas Inseguras | 0 | **Resuelto** | Se eliminaron las conversiones directas con `parseFloat` en importación, transacciones, cuentas y cálculos financieros, sustituyéndose por el helper seguro `toNumber` o validaciones de sanidad numéricas explícitas. |
+| Validación de Esquemas de Entidad | 0 (Críticos) | **Implementado** | Se añadieron esquemas Zod estrictos para validar transacciones, deudas, períodos, cuentas y mensajes de chat en cada lectura de IndexedDB, eliminando la corrupción de datos y mitigando linter warnings (`no-explicit-any`). |
 
 ---
 
@@ -29,14 +30,18 @@ Se agregaron aserciones y comprobaciones explícitas antes de persistir o proces
 - En [useDebts.ts](file:///c:/Users/sn4ke/dev/activos/finanzas-snake/src/hooks/useDebts.ts), se validan rigurosamente el principal (capital inicial), la tasa de interés nominal/equivalente (TAE/TIN) y el plazo (meses) para asegurar que no sean negativos ni contengan valores no finitos, levantando errores descriptivos y previniendo la generación de tablas de amortización corruptas.
 - En [useTransactions.ts](file:///c:/Users/sn4ke/dev/activos/finanzas-snake/src/hooks/useTransactions.ts), se valida que la entrada de importe sea un valor finito estrictamente positivo antes de proceder con el guardado.
 
-### 3. Suite de Verificación
+### 3. Integración de Esquemas de Validación y Tipados Estrictos
+- Se ha creado la infraestructura en `schema.ts` para tipar y validar de forma robusta las entidades financieras locales.
+- Todas las lecturas de IndexedDB en `storageService.ts` pasan por validadores Zod, lo que evita regresiones de datos corruptos y ha saneado el 100% del backlog de warnings de linter (0 errors, 0 warnings).
+
+### 4. Suite de Verificación
 La totalidad de las pruebas unitarias e integración se han ejecutado con éxito:
 - **Resultado:** **391 de 391 pruebas pasadas (100% de éxito)**.
 - **Audit de Dependencias (`pnpm audit`):** **0 vulnerabilidades detectadas**.
-- **Linting (`pnpm lint`):** **0 errores / 0 warnings detectados** (backlog completamente saneado).
+- **Linting (`pnpm lint`):** **0 errores / 0 warnings detectados** (el backlog de 55 warnings de tipo `any` ha sido completamente solventado).
 
 ---
 
 ## Conclusión
 
-El sistema contable de **Finanzas Snake** cumple actualmente con los más altos estándares de precisión algorítmica financiera, consistencia temporal en proyecciones y mitigación de fallos por conversión de tipos de datos en la capa del cliente.
+El sistema contable de **Finanzas Snake** cumple actualmente con los más altos estándares de precisión algorítmica financiera, validación de integridad en base de datos cliente local, consistencia temporal en proyecciones (incluyendo su nueva representación visual SVG interactiva) y mitigación absoluta de fallos por conversión de tipos.

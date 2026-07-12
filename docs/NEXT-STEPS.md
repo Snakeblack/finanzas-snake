@@ -125,8 +125,7 @@ El contexto ya es mucho más delgado. Lo que sigue dentro, por si se quiere segu
 
 ## Backlog paralelo (no bloquea D1)
 
-- **D9 (lint, 55 warnings):** 46 `no-explicit-any` (tipar `storageService`/`syncService`/`backupValidator`),
-  7 `react-hooks/set-state-in-effect` (revisar al tocar cada efecto en D1), 2 `react-refresh`.
+- ~~**D9 (lint, 55 warnings):**~~ ✅ Resuelto: se eliminaron todos los warnings de `no-explicit-any` e imports/effects, limpiando el backlog del linter al 100%.
 - ~~**D10 (bug latente):**~~ ✅ Resuelto: regex de separador de tablas en `utils/markdownToHtml.ts` acepta fila separadora con pipe de cierre + alineación.
 - ~~**D4 (precisión):**~~ ✅ Resuelto: unificado el cálculo en `big.js` en `calculateTimelineBalances`.
 - ~~**D5 (multi-moneda):**~~ ✅ Resuelto: tx de divisa ≠ target se convierten usando tasas FX en `ledgerEngine`.
