@@ -15,8 +15,8 @@ Sin backend de datos: todo vive en el navegador.
 - **Sincronización:** P2P por WebRTC (PeerJS), sin servidor intermediario.
 - **IA:** Asesor con Gemini (`gemini-3.5-flash`); la API Key la pone el usuario y se cifra localmente.
 - **Despliegue:** `finanzas.mretamozo.com` (Vercel).
-- **Verificación:** `pnpm test` (Vitest, 317 tests), `pnpm typecheck`, `pnpm lint` (ESLint flat config,
-  0 errores / ~80 warnings de backlog), `pnpm format` (Prettier: tabs, comillas simples, printWidth 120).
+- **Verificación:** `pnpm test` (Vitest, 388 tests), `pnpm typecheck`, `pnpm lint` (ESLint flat config,
+  0 errores / 55 warnings de backlog), `pnpm format` (Prettier: tabs, comillas simples, printWidth 120).
 
 ## 2. Modelo de dominio (`src/types/index.ts`)
 

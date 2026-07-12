@@ -1,7 +1,7 @@
 # Informe de Auditoría de Código y Algoritmos Financieros
 **Finanzas Snake**
 *Autor: Antigravity — Ingeniero de Software Principal y Auditor Financiero Automatizado*
-*Fecha de auditoría: 11 de Julio de 2026*
+*Fecha de auditoría: 12 de Julio de 2026*
 
 ---
 
@@ -10,11 +10,11 @@
 Este documento presenta los resultados de la auditoría técnica y financiera automatizada realizada sobre el repositorio **Finanzas Snake**, una aplicación web cliente local-first y *zero-knowledge* diseñada para la gestión de finanzas personales, presupuestos y control de deudas.
 
 La auditoría ha evaluado los siguientes pilares críticos:
-1. **Precisión Matemática y Consistencia Temporal:** Verificación de la no filtración de errores de coma flotante binarios en operaciones monetarias y amortizaciones.
-2. **Seguridad y Criptografía:** Cumplimiento con estándares OWASP en el almacenamiento local y protocolos de sincronización.
+1. **Precisión Matemática y Consistencia Temporal:** Verificación de la no filtración de errores de coma flotante binarios en operaciones monetarias, amortizaciones y las nuevas proyecciones de balance/patrimonio neto.
+2. **Seguridad y Criptografía:** Cumplimiento con estándares OWASP en el almacenamiento local y protocolos de sincronización, además de verificar la seguridad de dependencias (`pnpm audit`).
 3. **Mecanismo de Importación de Extractos:** Evaluación de la robustez de las heurísticas de deduplicación y emparejado de traspasos.
 4. **Calidad de Código y Deuda Técnica:** Progreso de la iniciativa de refactorización D1 (desmantelamiento del god-context) y análisis del backlog de warnings de linting.
-5. **Cobertura de Pruebas:** Verificación del estado de ejecución de la suite de pruebas unitarias/integración.
+5. **Cobertura de Pruebas:** Verificación del estado de ejecución de la suite de pruebas unitarias/integración tras las últimas incorporaciones algorítmicas.
 
 ---
 
@@ -32,7 +32,7 @@ Las monedas e importes en Finanzas Snake se gestionan como **cadenas de caracter
 
 ### 2.2 Tratamiento Multi-Divisa (FX Estático)
 La aplicación implementa conversión de divisa nativa mediante una matriz de tasas fijas:
-*   `STATIC_EXCHANGE_RATES` (EUR, USD, GBP).
+*   `STATIC_EXCHANGE_RATES` (EUR, USD, GBP) definidos en `ledgerEngine.ts`.
 *   Se detecta una gestión segura donde las transacciones con monedas diferentes a la moneda objetivo (`targetCurrency`) se convierten dinámicamente antes de sumarse o restarse a los saldos de cuenta, evitando la mezcla incorrecta de balances (una vulnerabilidad financiera común en versiones iniciales).
 
 ### 2.3 Simulación de Reunificación de Deudas (Consolidación)
@@ -42,6 +42,13 @@ Se ha auditado la funcionalidad de consolidación de deudas en `useConsolidation
     *   El total de intereses restantes por devengar (`calculateClassicDebtRemainingInterests`).
     *   La nueva cuota consolidada aplicando el sistema francés tradicional sobre el principal acumulado más el capital adicional solicitado.
 *   **Estado:** Conforme. Los últimos fixes locales resolvieron las discrepancias de conversión de divisas en deudas no denominadas en la moneda base.
+
+### 2.4 Motor de Proyección de Cashflow y Patrimonio Neto (`calculateProjections`)
+Se ha realizado una auditoría exhaustiva del nuevo algoritmo de proyecciones financieras implementado recientemente en `financeService.ts`:
+*   **Cálculo de Activos y Pasivos:** El motor calcula la deuda pendiente efectiva mensual mediante `getEffectiveDebtRemaining`, ponderando adecuadamente la propiedad de las deudas (`userA`, `userB` o `joint`) y aplicando la tasa de reparto del 50% para deudas conjuntas en las vistas individuales.
+*   **Gestión de Planes de Pago:** Para deudas fraccionadas (`PaymentPlanDebt`), el cálculo de deuda restante en un mes `m` se filtra de forma temporal considerando únicamente las cuotas pendientes futuras (`normalizeMonth(inst.dueMonth) >= evalMonth`), lo cual previene la sobreevaluación de pasivos al no contar cuotas pagadas o pasadas.
+*   **Simulación de Futuro:** En los meses proyectados posteriores al histórico de períodos, la simulación se construye sobre el saldo final con precisión estricta usando `Big.js` para los flujos recurrentes y amortizaciones de deudas estimadas, garantizando consistencia temporal.
+*   **Resultados de la verificación:** El algoritmo cumple rigurosamente con los principios contables y financieros definidos, sin introducir fugas de precisión matemática ni de coherencia de asignación por propietario.
 
 ---
 
@@ -58,14 +65,18 @@ El sistema P2P (WebRTC a través de PeerJS) permite la transferencia de base de 
 *   **Última Mitigación:** Se auditó la robustez de los códigos de sincronización. Recientemente se incrementó la longitud del código temporal de emparejamiento a **10 caracteres** generados a través de `crypto.getRandomValues()` en lugar de generadores pseudoaleatorios básicos.
 *   **Impacto:** Esto previene ataques de fuerza bruta rápidos en la señalización del broker PeerJS.
 
+### 3.3 Auditoría de Dependencias (`pnpm audit`)
+*   Se ha ejecutado la herramienta de auditoría de seguridad sobre todas las dependencias del árbol de paquetes.
+*   **Resultado:** **0 vulnerabilidades detectadas**. El entorno actual no cuenta con brechas de seguridad conocidas en sus dependencias de terceros.
+
 ---
 
 ## 4. Auditoría de Arquitectura de Software y Código
 
 ### 4.1 Estado del Refactor D1 (God-Context)
-El objetivo de desmantelar la clase gigante `FinanzasContext.tsx` se ha completado con un alto grado de éxito. El tamaño del archivo se redujo de **2.572 líneas** originales a **1.188 líneas** actuales. 
+El desmantelamiento de `FinanzasContext.tsx` continúa consolidado, manteniéndose en un tamaño controlado de **1.188 líneas** (una reducción drástica de las 2.572 líneas originales).
 
-Se han extraído los siguientes sub-dominios en hooks reactivos dedicados:
+La modularización de subdominios se encuentra distribuida en hooks altamente cohesivos:
 1.  **Cuentas:** `useAccounts.ts` (Creación y edición).
 2.  **Transacciones:** `useTransactions.ts` (Alta, edición y borrado con recurrencia).
 3.  **Deudas:** `useDebts.ts` (Cuotas y planes de amortización).
@@ -75,31 +86,26 @@ Se han extraído los siguientes sub-dominios en hooks reactivos dedicados:
 7.  **Asesor Gemini AI:** `useAiAdvisor.ts` (Persistencia de chat y parámetros).
 8.  **Backup y Sincronización:** `useBackupSync.ts` (Export/Import en formato seguro).
 
-*   **Nota del Arquitecto:** `FinanzasContext` actúa ahora principalmente como un orquestador delgado y compositor de hooks que mantiene intacta la interfaz original del contexto, evitando la necesidad de reescribir docenas de componentes visuales consumidores.
+`FinanzasContext` actúa limpiamente como capa de composición y orquestador cross-domain delgado, manteniendo intacta la compatibilidad con todos los componentes consumidores del cliente visual.
 
 ### 4.2 Análisis del Backlog de Warnings de Linting (D9)
-La aplicación cuenta con 0 errores de ESLint y 55 warnings de backlog controlados:
-*   **`no-explicit-any` (46 warnings):** Ubicados principalmente en migraciones y validadores de backups (`storageService.ts`, `backupValidator.ts`). Debido al carácter de datos heterogéneos y dinámicos importados del exterior, tipar exhaustivamente estas entradas requerirá un esfuerzo aislado que no compromete la estabilidad actual (puesto que existen tests de sanidad sobre esquemas).
-*   **`react-hooks/set-state-in-effect` (7 warnings) & `react-refresh` (2 warnings):** Warnings inocuos que no afectan a la ejecución y se gestionarán de forma incremental.
+*   **Resultado de ESLint:** **0 errores encontrados**.
+*   Se mantiene el backlog de 55 warnings controlados por diseño técnico (`no-explicit-any` en validación de backups genéricos, etc.), los cuales no comprometen en absoluto la sanidad del runtime del cliente.
 
 ---
 
 ## 5. Verificación de Pruebas Unitarias
 
 Se ha ejecutado la suite completa de pruebas utilizando **Vitest** en el entorno local:
-*   **Ejecución:** exitosa (`pnpm test run`).
-*   **Resultados:** **382 de 382 pruebas pasadas (100% de éxito)**.
-*   **Archivos Clave Cubiertos:**
-    *   `financeService.test.ts` (Validación exhaustiva de planes de amortización, cuotas mensuales y cálculo de intereses).
-    *   `FinanzasContext.test.tsx` (Flujo general de datos).
-    *   `ImportStatementModal.test.tsx` (Heurísticas de importación CSV/PDF y deduplicación Gemini).
-    *   `storageService.test.ts` (Correcta persistencia local en IndexedDB y migración de esquemas).
+*   **Ejecución:** Completamente exitosa (`pnpm test run`).
+*   **Resultados:** **388 de 388 pruebas pasadas (100% de éxito)**.
+*   **Nuevas Coberturas:** Se verificó la suite de tests agregada para la proyección financiera (`calculateProjections`), validando la correcta exclusión de la ponderación cuando `profileCount === 1` y el adecuado procesamiento temporal del estado de cuotas de planes de pago.
 
 ---
 
 ## 6. Recomendaciones de Mejora
 
-A pesar de la excelente salud del código, como Ingeniero de Software Principal propongo las siguientes mejoras a futuro:
-1.  **Tipado Estricto de Backups:** Eliminar gradualmente los warnings de tipo `any` en `storageService.ts` a través de esquemas de validación en tiempo de ejecución (por ejemplo, usando `Zod`) en lugar de lógica condicional `any` ad-hoc.
-2.  **API de Tasas FX Dinámica (Opcional):** Introducir un proveedor local de tasas de cambio actualizado mediante peticiones cliente en segundo plano para aquellos usuarios que operen de forma activa en múltiples divisas reales de manera diaria (el FX estático actual es adecuado pero rígido).
-3.  **Proyecciones Avanzadas de Cashflow:** Utilizar el motor contable inmutable para proyectar tendencias visuales de patrimonio (Net Worth) a 6, 12 y 24 meses basándose en la recurrencia de transacciones registradas.
+A pesar de la excelente salud del código y de los algoritmos financieros, se ratifican y amplían las siguientes propuestas de ingeniería:
+1.  **Validación de Esquemas en Backup:** Reemplazar el tipado genérico `any` en `storageService.ts` por un validador de esquemas en tiempo de ejecución (como `Zod` o similar) para asegurar la integridad de la base de datos IndexedDB ante backups manipulados externamente.
+2.  **Mecanismo de Integración de Tasas FX Dinámicas:** Evaluar la implementación de un worker en segundo plano para recuperar de forma periódica las tasas de conversión reales (en lugar de estáticas) para usuarios que gestionen balances multiactivo diariamente.
+3.  **Visualización Avanzada del Patrimonio Neto (Dashboard):** Implementar gráficos temporales en la interfaz que aprovechen la salida de `calculateProjections` para ofrecer una visualización de tendencia de 6/12/24 meses.

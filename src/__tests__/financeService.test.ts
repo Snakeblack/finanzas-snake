@@ -30,7 +30,7 @@ import {
 	calculateClassicDebtRemainingInterests,
 	calculateProjections
 } from '../services/financeService';
-import type { Account, Period, Transaction, ClassicDebt, PaymentPlanDebt } from '../types';
+import type { Account, Period, Transaction, ClassicDebt, PaymentPlanDebt, Debt } from '../types';
 
 // --- Fixtures reutilizables ---
 const classicDebt: ClassicDebt = {
