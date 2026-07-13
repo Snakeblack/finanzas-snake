@@ -943,7 +943,9 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			iframe.contentWindow?.print();
 			setTimeout(() => {
 				document.title = originalTitle;
-				document.body.removeChild(iframe);
+				if (iframe && (iframe.parentNode === document.body || !(iframe instanceof Node))) {
+					document.body.removeChild(iframe);
+				}
 			}, 1000);
 		}, 300);
 	};

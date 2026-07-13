@@ -1404,6 +1404,14 @@ describe('Import / Export', () => {
 });
 
 describe('PDF Export', () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
 	it('handleDownloadChatPDF no debe lanzar error al ejecutarse', async () => {
 		renderCtx();
 
@@ -1415,6 +1423,8 @@ describe('PDF Export', () => {
 				showChat: true
 			});
 		}).not.toThrow();
+
+		vi.advanceTimersByTime(1300);
 	});
 
 	it('handleDownloadChatPDF debe funcionar con todas las opciones desactivadas', async () => {
@@ -1428,6 +1438,8 @@ describe('PDF Export', () => {
 				showChat: false
 			});
 		}).not.toThrow();
+
+		vi.advanceTimersByTime(1300);
 	});
 });
 
