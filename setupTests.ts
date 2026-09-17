@@ -1,9 +1,36 @@
 import '@testing-library/jest-dom';
 import { vi, beforeEach } from 'vitest';
 
+if (typeof window === 'undefined') {
+	globalThis.window = {
+		crypto: globalThis.crypto
+	} as any;
+}
+
 declare global {
 	// Test-only hook used by suites that need explicit IndexedDB isolation.
 	var __resetMockIndexedDBForTests: (() => void) | undefined;
+}
+
+// Mock de localStorage para entorno Node.js sin JSDOM
+if (typeof globalThis.localStorage === 'undefined') {
+	let store: Record<string, string> = {};
+	globalThis.localStorage = {
+		getItem: (key: string) => store[key] || null,
+		setItem: (key: string, value: string) => {
+			store[key] = String(value);
+		},
+		removeItem: (key: string) => {
+			delete store[key];
+		},
+		clear: () => {
+			store = {};
+		},
+		get length() {
+			return Object.keys(store).length;
+		},
+		key: (index: number) => Object.keys(store)[index] || null
+	} as any;
 }
 
 // Mock de window.print
@@ -96,6 +123,15 @@ class MockIDBTransaction {
 			clear: () => {
 				const req = new MockIDBRequest();
 				mockDbStore[name] = [];
+				req.result = undefined;
+				return req;
+			},
+			delete: (key: any) => {
+				const req = new MockIDBRequest();
+				if (mockDbStore[name]) {
+					const keyPath = name === 'periods' ? 'month' : (name === 'config' ? 'key' : 'id');
+					mockDbStore[name] = mockDbStore[name].filter((x: any) => x[keyPath] !== key);
+				}
 				req.result = undefined;
 				return req;
 			}

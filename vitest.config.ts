@@ -13,6 +13,17 @@ export default defineConfig({
 		environment: 'jsdom',
 		globals: true,
 		setupFiles: './setupTests.ts',
+		exclude: [
+			'**/node_modules/**',
+			'**/dist/**',
+			'**/.git/**',
+			'**/.ospec/**',
+			'**/.pi/**',
+			'**/.pi-lens/**',
+			'**/.atl/**',
+			'**/.antigravitycli/**',
+			'**/openspec/**'
+		],
 		coverage: {
 			provider: 'v8',
 			reporter: ['text', 'json', 'html'],

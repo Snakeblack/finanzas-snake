@@ -70,14 +70,14 @@ export function AiTab() {
 	return (
 		<div className="flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-6 lg:gap-8 min-h-0 overflow-hidden tab-transition">
 			{/* Selector de Vista en Móvil (solo visible si lg:hidden) */}
-			<div className="lg:hidden flex bg-slate-950/60 p-1 rounded-xl border border-slate-800/80 mb-2 w-full shrink-0">
+			<div className="lg:hidden flex bg-muted/40 p-1 rounded-xl border border-border mb-2 w-full shrink-0">
 				<button
 					type="button"
 					onClick={() => setActiveMobileView('chat')}
-					className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+					className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
 						activeMobileView === 'chat'
-							? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md'
-							: 'text-slate-400 hover:text-slate-200'
+							? 'bg-background text-foreground shadow-sm font-semibold'
+							: 'text-muted-foreground hover:text-foreground'
 					}`}
 				>
 					<Icons.Sparkles className="w-3.5 h-3.5" />
@@ -86,10 +86,10 @@ export function AiTab() {
 				<button
 					type="button"
 					onClick={() => setActiveMobileView('config')}
-					className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+					className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
 						activeMobileView === 'config'
-							? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md'
-							: 'text-slate-400 hover:text-slate-200'
+							? 'bg-background text-foreground shadow-sm font-semibold'
+							: 'text-muted-foreground hover:text-foreground'
 					}`}
 				>
 					<Icons.Lock className="w-3.5 h-3.5" />
@@ -103,20 +103,20 @@ export function AiTab() {
 			>
 				{/* Configuración de API Key */}
 				<div className="premium-card rounded-2xl p-6">
-					<h3 className="text-base font-bold text-slate-200 mb-2 flex items-center">
-						<span className="p-1 bg-slate-800/60 rounded mr-2">
+					<h3 className="text-base font-bold text-foreground mb-2 flex items-center">
+						<span className="p-1 bg-muted rounded mr-2">
 							<Icons.Lock />
 						</span>
 						Credenciales de Gemini
 					</h3>
-					<p className="text-xs text-slate-400 mb-4 font-normal">
+					<p className="text-xs text-muted-foreground mb-4 font-normal">
 						Introduce tu API Key de Google Gemini para habilitar el motor de análisis y recibir consejos
 						estructurados en tiempo real.{' '}
 						<a
 							href={GEMINI_API_KEY_SETUP_URL}
 							target="_blank"
 							rel="noopener noreferrer"
-							className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2 transition-colors"
+							className="text-foreground hover:underline underline-offset-2 transition-colors font-medium"
 						>
 							Obtener API Key
 						</a>
@@ -125,13 +125,13 @@ export function AiTab() {
 					<div className="space-y-3">
 						<Input
 							type="password"
-							placeholder="Al pegar tu AI_KEY se guardará localmente"
+							placeholder="Pega tu GEMINI_API_KEY aquí"
 							value={geminiApiKey}
 							onChange={(e) => setGeminiApiKey(e.target.value)}
 							className="font-mono px-4 py-2"
 						/>
 						{geminiApiKey ? (
-							<span className="text-[10px] text-emerald-400 font-semibold block">
+							<span className="text-[10px] text-emerald-500 font-semibold block">
 								API Key configurada localmente.
 							</span>
 						) : (
@@ -144,9 +144,9 @@ export function AiTab() {
 
 				{/* Resumen del Contexto Financiero del Mes */}
 				<div className="premium-card rounded-2xl p-6 space-y-4">
-					<h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+					<h3 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
 						<svg
-							className="w-4 h-4 text-indigo-400"
+							className="w-4 h-4 text-muted-foreground"
 							fill="none"
 							viewBox="0 0 24 24"
 							stroke="currentColor"
@@ -160,42 +160,42 @@ export function AiTab() {
 						</svg>
 						Contexto del Mes ({selectedMonth})
 					</h3>
-					<p className="text-xs text-slate-400 leading-relaxed font-normal">
+					<p className="text-xs text-muted-foreground leading-relaxed font-normal">
 						Los siguientes datos son incluidos automáticamente en la consulta de fondo para contextualizar
 						la conversación:
 					</p>
-					<div className="space-y-2 text-xs border-t border-slate-800/40 pt-3">
+					<div className="space-y-2 text-xs border-t border-border pt-3">
 						<div className="flex justify-between">
-							<span className="text-slate-500">Ingresos Totales:</span>
-							<span className="font-semibold text-emerald-400 font-mono">
+							<span className="text-muted-foreground">Ingresos Totales:</span>
+							<span className="font-semibold text-emerald-500 font-mono">
 								{totalIncomes.toFixed(2)}€
 								{oneOffIncomes > 0 && ` (Puntual: ${oneOffIncomes.toFixed(2)}€)`}
 							</span>
 						</div>
 						<div className="flex justify-between">
-							<span className="text-slate-500">Gastos Totales:</span>
-							<span className="font-semibold text-rose-450 font-mono">
+							<span className="text-muted-foreground">Gastos Totales:</span>
+							<span className="font-semibold text-rose-500 font-mono">
 								-{totalExpenses.toFixed(2)}€
 								{oneOffExpenses > 0 && ` (Puntual: -${oneOffExpenses.toFixed(2)}€)`}
 							</span>
 						</div>
 						<div className="flex justify-between">
-							<span className="text-slate-500">Pagos de Deudas:</span>
+							<span className="text-muted-foreground">Pagos de Deudas:</span>
 							<span className="font-semibold text-amber-500 font-mono">
 								-{totalMonthlyDebtPayments.toFixed(2)}€
 							</span>
 						</div>
-						<div className="flex justify-between border-t border-slate-800/40 pt-2 font-semibold">
-							<span className="text-slate-400">Balance Neto:</span>
+						<div className="flex justify-between border-t border-border pt-2 font-semibold">
+							<span className="text-muted-foreground">Balance Neto:</span>
 							<span
-								className={`font-mono ${netMonthlyBalance >= 0 ? 'text-indigo-400' : 'text-rose-500'}`}
+								className={`font-mono ${netMonthlyBalance >= 0 ? 'text-foreground' : 'text-rose-500'}`}
 							>
 								{netMonthlyBalance.toFixed(2)}€
 							</span>
 						</div>
 						<div className="flex justify-between">
-							<span className="text-slate-500">Deudas Registradas:</span>
-							<span className="font-semibold text-slate-300">{debts.length}</span>
+							<span className="text-muted-foreground">Deudas Registradas:</span>
+							<span className="font-semibold text-foreground">{debts.length}</span>
 						</div>
 					</div>
 				</div>
@@ -257,7 +257,7 @@ export function AiTab() {
 								</button>
 								<button
 									onClick={() => setIsExportPdfModalOpen(true)}
-									className="px-2.5 py-1 text-[11px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg border border-indigo-500 transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+									className="px-2.5 py-1 text-[11px] font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-all flex items-center gap-1 active:scale-[0.98] cursor-pointer"
 									title="Descargar conversación como PDF"
 								>
 									<svg
@@ -277,62 +277,62 @@ export function AiTab() {
 								</button>
 							</>
 						)}
-						<span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/25">
+						<span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[9px] font-medium bg-muted text-muted-foreground border border-border">
 							Contexto Activo
 						</span>
 					</div>
 				</div>
 
 				{/* Barra rápida de Contexto en Móvil (solo visible en móvil/tablet si el chat está activo) */}
-				<div className="lg:hidden flex flex-wrap gap-2 px-4 py-2 bg-slate-950/20 border-b border-slate-800/30 shrink-0">
+				<div className="lg:hidden flex flex-wrap gap-2 px-4 py-2 bg-muted/40 border-b border-border shrink-0">
 					<button
 						type="button"
 						onClick={() => setActiveMobileView('config')}
-						className={`px-3 py-1 rounded-full text-[10px] font-semibold border flex items-center gap-1.5 transition-all ${
+						className={`px-3 py-1 rounded-full text-[10px] font-medium border flex items-center gap-1.5 transition-all ${
 							geminiApiKey
-								? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-								: 'bg-amber-500/10 border-amber-500/30 text-amber-400 animate-pulse'
+								? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'
+								: 'bg-amber-500/10 border-amber-500/30 text-amber-500 animate-pulse'
 						}`}
 						title="Ver configuración de API Key"
 					>
 						<span
-							className={`w-1.5 h-1.5 rounded-full ${geminiApiKey ? 'bg-emerald-400' : 'bg-amber-400'}`}
+							className={`w-1.5 h-1.5 rounded-full ${geminiApiKey ? 'bg-emerald-500' : 'bg-amber-500'}`}
 						/>
 						<span>API Key</span>
 					</button>
-					<div className="px-3 py-1 rounded-full text-[10px] font-semibold bg-slate-900/60 border border-slate-850 text-slate-300 flex items-center gap-1.5">
-						<span className="text-slate-500">Balance:</span>
+					<div className="px-3 py-1 rounded-full text-[10px] font-medium bg-card border border-border text-foreground flex items-center gap-1.5">
+						<span className="text-muted-foreground">Balance:</span>
 						<span
-							className={netMonthlyBalance >= 0 ? 'text-indigo-400 font-mono' : 'text-rose-450 font-mono'}
+							className={netMonthlyBalance >= 0 ? 'text-foreground font-mono' : 'text-rose-500 font-mono'}
 						>
 							{netMonthlyBalance.toFixed(2)}€
 						</span>
 					</div>
-					<div className="px-3 py-1 rounded-full text-[10px] font-semibold bg-slate-900/60 border border-slate-850 text-slate-300 flex items-center gap-1.5">
-						<span className="text-slate-500">Deudas:</span>
-						<span className="font-semibold font-mono">{debts.length}</span>
+					<div className="px-3 py-1 rounded-full text-[10px] font-medium bg-card border border-border text-foreground flex items-center gap-1.5">
+						<span className="text-muted-foreground">Deudas:</span>
+						<span className="font-medium font-mono">{debts.length}</span>
 					</div>
 				</div>
 
 				{/* Cuerpo del Chat */}
 				{chatMessages.length === 0 ? (
 					<div
-						className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-500 space-y-4 overflow-y-auto"
+						className="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground space-y-4 overflow-y-auto"
 						style={{ WebkitOverflowScrolling: 'touch' }}
 					>
-						<div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 shadow-md">
+						<div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center text-foreground border border-border">
 							<Icons.Sparkles />
 						</div>
 						<div>
-							<p className="text-sm font-bold text-slate-300">Comienza a planificar tu mes</p>
-							<p className="text-xs text-slate-500 max-w-xs mt-1 leading-relaxed">
+							<p className="text-sm font-semibold text-foreground">Comienza a planificar tu mes</p>
+							<p className="text-xs text-muted-foreground max-w-xs mt-1 leading-relaxed">
 								Pregúntame sobre tu balance del mes, recomendaciones de ahorro, o el impacto de tus
 								deudas y simulaciones.
 							</p>
 						</div>
 						<div className="flex flex-wrap gap-2 justify-center max-w-md pt-2">
 							{!geminiApiKey && (
-								<p className="w-full text-[11px] text-amber-400 leading-relaxed">
+								<p className="w-full text-[11px] text-amber-500 leading-relaxed">
 									{GEMINI_API_KEY_UNAVAILABLE_MESSAGE}
 								</p>
 							)}
@@ -349,7 +349,7 @@ export function AiTab() {
 										handleAskGemini(q);
 									}}
 									disabled={aiLoading || !geminiApiKey}
-									className="px-3 py-1.5 glass-panel hover:border-indigo-500/30 text-slate-350 hover:text-white rounded-lg text-[11px] font-medium transition-all text-left shadow-sm active:scale-95"
+									className="px-3 py-1.5 bg-card hover:bg-muted/40 border border-border text-muted-foreground hover:text-foreground rounded-lg text-[11px] font-medium transition-all text-left active:scale-[0.98]"
 								>
 									{q}
 								</button>
@@ -361,7 +361,7 @@ export function AiTab() {
 						<div
 							ref={chatContainerRef}
 							onScroll={handleChatScroll}
-							className="absolute inset-0 overflow-y-auto p-4 space-y-4 bg-slate-950/20"
+							className="absolute inset-0 overflow-y-auto p-4 space-y-4 bg-background"
 							style={{ WebkitOverflowScrolling: 'touch' }}
 						>
 							{chatMessages.map((msg, idx) => (
@@ -370,16 +370,16 @@ export function AiTab() {
 									className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
 								>
 									<div className="flex items-center space-x-1.5 mb-1.5">
-										<span className="text-[10px] text-slate-400 font-bold font-heading">
+										<span className="text-[10px] text-muted-foreground font-medium">
 											{msg.role === 'user' ? 'Tú' : 'Asesor Gemini'}
 										</span>
-										<span className="text-[9px] text-slate-500 font-mono">({msg.timestamp})</span>
+										<span className="text-[9px] text-muted-foreground font-mono">({msg.timestamp})</span>
 									</div>
 									<div
-										className={`p-3.5 rounded-2xl text-sm leading-relaxed max-w-[85%] ${
+										className={`p-3.5 rounded-xl text-sm leading-relaxed max-w-[85%] ${
 											msg.role === 'user'
-												? 'bg-gradient-to-br from-indigo-600 to-violet-700 text-white rounded-tr-none shadow-lg shadow-indigo-500/10'
-												: 'glass-panel text-slate-200 rounded-tl-none shadow-sm'
+												? 'bg-primary text-primary-foreground rounded-tr-none'
+												: 'bg-card border border-border text-card-foreground rounded-tl-none'
 										}`}
 									>
 										{msg.role === 'user' ? (
@@ -393,14 +393,14 @@ export function AiTab() {
 							{aiLoading && (
 								<div className="flex flex-col items-start">
 									<div className="flex items-center space-x-1.5 mb-1.5">
-										<span className="text-[10px] text-slate-400 font-bold">Asesor Gemini</span>
-										<span className="text-[9px] text-indigo-400 animate-pulse font-medium">
+										<span className="text-[10px] text-muted-foreground font-medium">Asesor Gemini</span>
+										<span className="text-[9px] text-muted-foreground animate-pulse font-medium">
 											escribiendo...
 										</span>
 									</div>
-									<div className="glass-panel p-4 rounded-2xl rounded-tl-none text-sm text-slate-400 shadow-md flex items-center space-x-2">
+									<div className="bg-card border border-border p-4 rounded-xl rounded-tl-none text-sm text-muted-foreground flex items-center space-x-2">
 										<svg
-											className="animate-spin h-4 w-4 text-indigo-400"
+											className="animate-spin h-4 w-4 text-foreground"
 											fill="none"
 											viewBox="0 0 24 24"
 										>
@@ -423,7 +423,7 @@ export function AiTab() {
 								</div>
 							)}
 							{aiError && (
-								<div className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-450 text-xs rounded-xl">
+								<div className="p-3.5 bg-destructive/10 border border-destructive/20 text-destructive text-xs rounded-xl">
 									{aiError}
 								</div>
 							)}
@@ -435,7 +435,7 @@ export function AiTab() {
 							<button
 								type="button"
 								onClick={() => scrollToBottom()}
-								className="absolute bottom-3 right-3 z-10 w-9 h-9 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 flex items-center justify-center transition-all active:scale-90 animate-in fade-in"
+								className="absolute bottom-3 right-3 z-10 w-9 h-9 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-md flex items-center justify-center transition-all active:scale-90 animate-in fade-in"
 								title="Ir al final"
 							>
 								<svg
@@ -443,7 +443,7 @@ export function AiTab() {
 									fill="none"
 									viewBox="0 0 24 24"
 									stroke="currentColor"
-									strokeWidth={2.5}
+									strokeWidth={2}
 								>
 									<path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
 								</svg>
@@ -458,7 +458,7 @@ export function AiTab() {
 						e.preventDefault();
 						handleAskGemini(customQuestion);
 					}}
-					className="p-3 bg-slate-950/40 border-t border-slate-800/40 flex gap-2 items-end shrink-0"
+					className="p-3 bg-card border-t border-border flex gap-2 items-end shrink-0"
 				>
 					<textarea
 						ref={textareaRef}
@@ -480,12 +480,12 @@ export function AiTab() {
 							geminiApiKey ? 'Escribe tu consulta sobre finanzas...' : 'Configura tu API Key para empezar'
 						}
 						disabled={!geminiApiKey}
-						className="flex-1 premium-input focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none resize-none placeholder:text-slate-500 max-h-32 overflow-y-auto disabled:opacity-40 disabled:cursor-not-allowed"
+						className="flex-1 rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-ring resize-none placeholder:text-muted-foreground max-h-32 overflow-y-auto disabled:opacity-40 disabled:cursor-not-allowed"
 					/>
 					<button
 						type="submit"
 						disabled={aiLoading || !customQuestion.trim() || !geminiApiKey}
-						className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:hover:bg-indigo-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-md shadow-indigo-600/10"
+						className="bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground font-medium px-4 py-2.5 rounded-lg text-sm transition-all flex items-center justify-center gap-1.5 active:scale-[0.98]"
 					>
 						<Icons.Sparkles />
 						<span className="hidden sm:inline">Enviar</span>

@@ -27,7 +27,7 @@ export const Icons = {
 			/>
 		</svg>
 	),
-	Scale: ({ className = 'w-5 h-5 text-indigo-500' }: IconProps) => (
+	Scale: ({ className = 'w-5 h-5 text-foreground' }: IconProps) => (
 		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path
 				strokeLinecap="round"
@@ -59,7 +59,7 @@ export const Icons = {
 			/>
 		</svg>
 	),
-	Sparkles: ({ className = 'w-5 h-5 text-indigo-400' }: IconProps) => (
+	Sparkles: ({ className = 'w-5 h-5 text-foreground' }: IconProps) => (
 		<svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
 			<path
 				strokeLinecap="round"

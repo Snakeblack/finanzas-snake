@@ -4,101 +4,101 @@
 
 @layer base {
   :root {
-    --background: 224 71% 4%;
-    --foreground: 213 31% 91%;
+    --background: 0 0% 4%;
+    --foreground: 0 0% 98%;
 
-    --muted: 223 47% 11%;
-    --muted-foreground: 215.4 16.3% 56.9%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 60%;
 
-    --popover: 224 71% 4%;
-    --popover-foreground: 213 31% 91%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 98%;
 
-    --card: 224 71% 4%;
-    --card-foreground: 213 31% 91%;
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 98%;
 
-    --border: 216 34% 17%;
-    --input: 216 34% 17%;
+    --border: 0 0% 16%;
+    --input: 0 0% 10%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 4%;
 
-    --secondary: 222.2 47.4% 11.2%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 98%;
 
-    --accent: 216 34% 17%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 0 0% 14%;
+    --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 98%;
 
-    --ring: 224 82% 56%;
+    --ring: 0 0% 50%;
 
-    --radius: 0.75rem;
+    --radius: 0.625rem;
 
-    /* Slate variables for Dark Mode (Default) */
-    --slate-50: 210 40% 98%;
-    --slate-100: 210 40% 96.1%;
-    --slate-200: 214.3 31.8% 91.4%;
-    --slate-300: 212.7 26.8% 83.9%;
-    --slate-350: 214 21% 74.5%;
-    --slate-400: 215.4 16.3% 65.1%;
-    --slate-450: 215.4 16.3% 56%;
-    --slate-500: 215.4 16.3% 46.9%;
-    --slate-600: 215.4 19.3% 34.5%;
-    --slate-700: 217.2 19.1% 26.7%;
-    --slate-750: 217.2 26% 22%;
-    --slate-800: 217.2 32.6% 17.5%;
-    --slate-850: 220 40% 14.3%;
-    --slate-900: 222.2 47.4% 11.2%;
-    --slate-950: 222.2 84% 4.9%;
+    /* Scandinavian Neutral Slate variables for Dark Mode */
+    --slate-50: 0 0% 98%;
+    --slate-100: 0 0% 95%;
+    --slate-200: 0 0% 88%;
+    --slate-300: 0 0% 76%;
+    --slate-350: 0 0% 66%;
+    --slate-400: 0 0% 58%;
+    --slate-450: 0 0% 50%;
+    --slate-500: 0 0% 44%;
+    --slate-600: 0 0% 34%;
+    --slate-700: 0 0% 24%;
+    --slate-750: 0 0% 19%;
+    --slate-800: 0 0% 15%;
+    --slate-850: 0 0% 11%;
+    --slate-900: 0 0% 7%;
+    --slate-950: 0 0% 4%;
   }
 
   .light {
-    --background: 210 40% 98%;
-    --foreground: 222.2 47.4% 11.2%;
+    --background: 0 0% 98%;
+    --foreground: 0 0% 6%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 0 0% 94%;
+    --muted-foreground: 0 0% 42%;
 
-    --popover: 210 40% 98%;
-    --popover-foreground: 222.2 47.4% 11.2%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 6%;
 
-    --card: 210 40% 98%;
-    --card-foreground: 222.2 47.4% 11.2%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 6%;
 
-    --border: 214.3 32% 91.4%;
-    --input: 214.3 32% 91.4%;
+    --border: 0 0% 89%;
+    --input: 0 0% 97%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 0 0% 6%;
+    --primary-foreground: 0 0% 98%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 0 0% 94%;
+    --secondary-foreground: 0 0% 6%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 0 0% 94%;
+    --accent-foreground: 0 0% 6%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 70% 45%;
+    --destructive-foreground: 0 0% 98%;
 
-    --ring: 221.2 83.2% 53.3%;
+    --ring: 0 0% 40%;
 
-    /* Inverted Slate variables for Light Mode */
-    --slate-50: 222.2 47.4% 11.2%;
-    --slate-100: 222.2 47.4% 11.2%;
-    --slate-200: 217.2 32.6% 17.5%;
-    --slate-300: 215.4 19.3% 26.5%;
-    --slate-350: 215.4 19.3% 32.5%;
-    --slate-400: 215.4 16.3% 42%;
-    --slate-450: 215.4 16.3% 48%;
-    --slate-500: 215.4 16.3% 54%;
-    --slate-600: 215.4 16.3% 62%;
-    --slate-700: 215.4 19.3% 72%;
-    --slate-750: 217.2 26% 80%;
-    --slate-800: 214.3 32% 86%;
-    --slate-850: 214 32% 91%;
-    --slate-900: 210 40% 96.1%;
-    --slate-950: 210 40% 98%;
+    /* Scandinavian Neutral Slate variables for Light Mode */
+    --slate-50: 0 0% 6%;
+    --slate-100: 0 0% 10%;
+    --slate-200: 0 0% 18%;
+    --slate-300: 0 0% 28%;
+    --slate-350: 0 0% 36%;
+    --slate-400: 0 0% 45%;
+    --slate-450: 0 0% 54%;
+    --slate-500: 0 0% 62%;
+    --slate-600: 0 0% 72%;
+    --slate-700: 0 0% 80%;
+    --slate-750: 0 0% 86%;
+    --slate-800: 0 0% 90%;
+    --slate-850: 0 0% 94%;
+    --slate-900: 0 0% 97%;
+    --slate-950: 0 0% 100%;
   }
 }
 
@@ -127,81 +127,66 @@ textarea {
   font-size: 16px !important; /* Prevents auto-zoom on iOS */
 }
 
-/* Scrollbar styling */
+/* Scrollbar styling - minimal, restrained */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 3px;
+  background: hsl(var(--border));
+  border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: hsl(var(--muted-foreground));
 }
 
-/* Glassmorphism effects */
+/* Scandinavian Surface cards - calm, functional, subtle border */
 .premium-card {
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: border-color 0.15s ease;
 }
 
 .premium-card:hover {
-  border-color: rgba(99, 102, 241, 0.25);
-  box-shadow: 0 12px 40px 0 rgba(99, 102, 241, 0.08);
+  border-color: hsl(var(--border) / 0.8);
 }
 
 .glass-panel {
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
 }
 
-/* Ambient glows */
-.bg-glow-indigo {
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
-  filter: blur(50px);
-  pointer-events: none;
-  z-index: 0;
-}
-
+/* Ambient glows removed under Scandinavian Design */
+.bg-glow-indigo,
 .bg-glow-violet {
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.12) 0%, rgba(0, 0, 0, 0) 70%);
-  filter: blur(60px);
-  pointer-events: none;
-  z-index: 0;
+  display: none !important;
 }
 
-/* Modern inputs */
+/* Restrained inputs */
 .premium-input {
-  background: rgba(8, 12, 24, 0.5) !important;
-  border: 1px solid rgba(255, 255, 255, 0.07) !important;
-  transition: all 0.2s ease-in-out;
+  background: hsl(var(--input)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+  transition: border-color 0.15s ease;
 }
 .premium-input:focus {
-  border-color: rgba(99, 102, 241, 0.8) !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+  border-color: hsl(var(--ring)) !important;
+  box-shadow: 0 0 0 1px hsl(var(--ring)) !important;
 }
 
 /* Tab animations */
 .tab-transition {
-  animation: fadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeIn 0.2s ease-out;
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
@@ -216,39 +201,33 @@ textarea {
 }
 
 .light ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #e2e2e2;
 }
 
 .light ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #b0b0b0;
 }
 
 .light .premium-card {
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  box-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.04);
-}
-
-.light .premium-card:hover {
-  border-color: rgba(99, 102, 241, 0.25);
-  box-shadow: 0 12px 40px 0 rgba(99, 102, 241, 0.05);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
 }
 
 .light .glass-panel {
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 8px 32px 0 rgba(15, 23, 42, 0.04);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .light .premium-input {
-  background: rgba(255, 255, 255, 0.8) !important;
-  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.14) !important;
   color: hsl(var(--foreground)) !important;
 }
 
 .light .premium-input:focus {
-  border-color: rgba(99, 102, 241, 0.8) !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12) !important;
+  border-color: hsl(var(--ring)) !important;
+  box-shadow: 0 0 0 1px hsl(var(--ring)) !important;
 }
 
 /* Light mode specific adjustment for calendar/date picker icons */
@@ -257,7 +236,7 @@ textarea {
   filter: invert(0);
 }
 
-/* Dark mode adjustment for calendar picker indicator (which might need invert) */
+/* Dark mode adjustment for calendar picker indicator */
 input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="month"]::-webkit-calendar-picker-indicator {
   filter: invert(1);

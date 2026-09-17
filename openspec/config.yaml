@@ -1,0 +1,10 @@
+project:
+  name: "finanzas-snake"
+  version: "0.2.0"
+  status: "active"
+  strict_tdd: false
+  stack:
+    core: "React + TypeScript"
+    bundler: "Vite"
+    css: "Tailwind CSS"
+    db: "IndexedDB"

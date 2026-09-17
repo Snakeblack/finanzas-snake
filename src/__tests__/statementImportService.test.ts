@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
 	normalizeAmount,
@@ -114,9 +115,8 @@ describe('statementImportService', () => {
 			expect(normalizeDate('05-06-99')).toBe('1999-06-05');
 		});
 
-		it('debe retornar la fecha actual para valores inválidos', () => {
-			const today = new Date().toISOString().substring(0, 10);
-			expect(normalizeDate('fecha-invalida')).toBe(today);
+		it('debe retornar 1970-01-01 para valores inválidos', () => {
+			expect(normalizeDate('fecha-invalida')).toBe('1970-01-01');
 		});
 	});
 
@@ -262,6 +262,38 @@ describe('statementImportService', () => {
 			expect(result[0].selected).toBe(false); // desmarcado por defecto
 			expect(result[1].isDuplicate).toBe(false);
 			expect(result[1].selected).toBe(true);
+		});
+
+		it('no debe marcar como duplicados si solo coinciden palabras genéricas de parada (stop words) como "Pago" o "Compra"', () => {
+			const imported = [
+				{
+					id: 'i1',
+					date: '2026-06-05',
+					desc: 'Pago Internet Fibra',
+					amount: '30.00',
+					type: 'expense' as const,
+					tag: 'Ocio',
+					selected: true,
+					isDuplicate: false,
+					owner: 'joint' as const,
+					paidBy: 'shared' as const
+				}
+			];
+
+			const existing: Transaction[] = [
+				{
+					id: 't1',
+					desc: 'Pago Luz Endesa',
+					money: { amount: '30.00', currency: 'EUR' },
+					type: 'expense',
+					tag: 'Ocio',
+					date: '2026-06-05',
+					owner: 'joint'
+				}
+			];
+
+			const result = detectDuplicates(imported, existing);
+			expect(result[0].isDuplicate).toBe(false);
 		});
 
 		it('debe marcar duplicados por fingerprint, fecha, importe y cuenta', () => {
@@ -491,6 +523,111 @@ describe('statementImportService', () => {
 			expect(result[0].transferCorrelationId).toBe(result[1].transferCorrelationId);
 			expect(result[0].fromAccountId).toBe('account-a');
 			expect(result[0].toAccountId).toBe('account-b');
+		});
+
+		it('debe correlacionar traspasos con desfase de 1 y 2 días (T+1 y T+2)', () => {
+			const resultT1 = correlateInternalTransfers([
+				createPreparedFixture({
+					id: 'out',
+					type: 'expense',
+					accountId: 'account-a',
+					date: '2026-05-01',
+					desc: 'Traspaso enviado'
+				}),
+				createPreparedFixture({
+					id: 'in',
+					type: 'income',
+					accountId: 'account-b',
+					date: '2026-05-02',
+					desc: 'Traspaso recibido'
+				})
+			]);
+			expect(resultT1[0].type).toBe('transfer');
+			expect(resultT1[0].transferCorrelationId).toBeDefined();
+
+			const resultT2 = correlateInternalTransfers([
+				createPreparedFixture({
+					id: 'out',
+					type: 'expense',
+					accountId: 'account-a',
+					date: '2026-05-01',
+					desc: 'Traspaso enviado'
+				}),
+				createPreparedFixture({
+					id: 'in',
+					type: 'income',
+					accountId: 'account-b',
+					date: '2026-05-03',
+					desc: 'Traspaso recibido'
+				})
+			]);
+			expect(resultT2[0].type).toBe('transfer');
+			expect(resultT2[0].transferCorrelationId).toBeDefined();
+		});
+
+		it('no debe correlacionar traspasos con desfase superior a 2 días (T+3)', () => {
+			const result = correlateInternalTransfers([
+				createPreparedFixture({
+					id: 'out',
+					type: 'expense',
+					accountId: 'account-a',
+					date: '2026-05-01',
+					desc: 'Traspaso enviado'
+				}),
+				createPreparedFixture({
+					id: 'in',
+					type: 'income',
+					accountId: 'account-b',
+					date: '2026-05-04',
+					desc: 'Traspaso recibido'
+				})
+			]);
+			expect(result[0].type).toBe('expense');
+			expect(result[0].transferCorrelationId).toBeUndefined();
+		});
+
+		it('debe reconocer Bizum como evidencia de transferencia en España', () => {
+			const result = correlateInternalTransfers([
+				createPreparedFixture({
+					id: 'out',
+					type: 'expense',
+					accountId: 'account-a',
+					date: '2026-05-01',
+					desc: 'Bizum enviado a Ana'
+				}),
+				createPreparedFixture({
+					id: 'in',
+					type: 'income',
+					accountId: 'account-b',
+					date: '2026-05-01',
+					desc: 'Bizum recibido de Juan'
+				})
+			]);
+			expect(result[0].type).toBe('transfer');
+			expect(result[1].type).toBe('transfer');
+			expect(result[0].transferCorrelationId).toBeDefined();
+		});
+
+		it('no debe correlacionar si el abono (income) es cronológicamente anterior al cargo (expense)', () => {
+			const result = correlateInternalTransfers([
+				createPreparedFixture({
+					id: 'out',
+					type: 'expense',
+					accountId: 'account-a',
+					date: '2026-05-03',
+					desc: 'Traspaso enviado'
+				}),
+				createPreparedFixture({
+					id: 'in',
+					type: 'income',
+					accountId: 'account-b',
+					date: '2026-05-01',
+					desc: 'Traspaso recibido'
+				})
+			]);
+			expect(result[0].type).toBe('expense');
+			expect(result[1].type).toBe('income');
+			expect(result[0].transferCorrelationId).toBeUndefined();
 		});
 
 		it('no debe correlacionar movimientos comunes aunque coincidan fecha e importe', () => {
@@ -745,6 +882,14 @@ describe('statementImportService', () => {
 
 			await expect(askGeminiToParseStatement('api-key-invalida', 'Texto de extracto')).rejects.toThrow(
 				'Gemini no está disponible: configura una API Key activa. Obtén tu clave en https://aistudio.google.com/api-keys.'
+			);
+		});
+
+		it('debe propagar errores genéricos de askGemini no relacionados con API Key', async () => {
+			vi.mocked(askGemini).mockRejectedValue(new Error('Network connection timeout'));
+
+			await expect(askGeminiToParseStatement('api-key-test', 'Texto de extracto')).rejects.toThrow(
+				'Network connection timeout'
 			);
 		});
 	});

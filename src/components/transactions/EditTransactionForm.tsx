@@ -87,10 +87,10 @@ export function EditTransactionForm({
 					<button
 						type="button"
 						onClick={() => setEditForm({ ...editForm, recurrence: 'one-off' })}
-						className={`py-2 rounded-lg text-xs font-semibold transition-all \${
+						className={`py-2 rounded-lg text-xs font-semibold transition-all ${
 							editForm.recurrence === 'one-off' || !editForm.recurrence
-								? 'bg-indigo-600 text-white shadow-md'
-								: 'text-slate-400 hover:text-slate-200'
+								? 'bg-primary text-primary-foreground shadow-sm'
+								: 'text-muted-foreground hover:text-foreground'
 						}`}
 					>
 						Puntual
@@ -98,10 +98,10 @@ export function EditTransactionForm({
 					<button
 						type="button"
 						onClick={() => setEditForm({ ...editForm, recurrence: 'recurring' })}
-						className={`py-2 rounded-lg text-xs font-semibold transition-all \${
+						className={`py-2 rounded-lg text-xs font-semibold transition-all ${
 							editForm.recurrence === 'recurring'
-								? 'bg-indigo-600 text-white shadow-md'
-								: 'text-slate-400 hover:text-slate-200'
+								? 'bg-primary text-primary-foreground shadow-sm'
+								: 'text-muted-foreground hover:text-foreground'
 						}`}
 					>
 						Recurrente
@@ -261,10 +261,10 @@ export function EditTransactionForm({
 							<button
 								type="button"
 								onClick={() => setEditForm({ ...editForm, owner: 'userA' })}
-								className={`py-1.5 rounded-lg text-xs font-semibold transition-all \${
+								className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
 									editForm.owner === 'userA'
-										? 'bg-indigo-600 text-white shadow-md'
-										: 'text-slate-400 hover:text-slate-200'
+										? 'bg-primary text-primary-foreground shadow-sm'
+										: 'text-muted-foreground hover:text-foreground'
 								}`}
 							>
 								{userAName}
@@ -272,10 +272,10 @@ export function EditTransactionForm({
 							<button
 								type="button"
 								onClick={() => setEditForm({ ...editForm, owner: 'userB' })}
-								className={`py-1.5 rounded-lg text-xs font-semibold transition-all \${
+								className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
 									editForm.owner === 'userB'
-										? 'bg-indigo-600 text-white shadow-md'
-										: 'text-slate-400 hover:text-slate-200'
+										? 'bg-primary text-primary-foreground shadow-sm'
+										: 'text-muted-foreground hover:text-foreground'
 								}`}
 							>
 								{userBName}
@@ -283,10 +283,10 @@ export function EditTransactionForm({
 							<button
 								type="button"
 								onClick={() => setEditForm({ ...editForm, owner: 'joint' })}
-								className={`py-1.5 rounded-lg text-xs font-semibold transition-all \${
+								className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
 									editForm.owner === 'joint'
-										? 'bg-indigo-600 text-white shadow-md'
-										: 'text-slate-400 hover:text-slate-200'
+										? 'bg-primary text-primary-foreground shadow-sm'
+										: 'text-muted-foreground hover:text-foreground'
 								}`}
 							>
 								Conjunto
@@ -301,10 +301,10 @@ export function EditTransactionForm({
 								<button
 									type="button"
 									onClick={() => setEditForm({ ...editForm, paidBy: 'userA' })}
-									className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all \${
+									className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 										editForm.paidBy === 'userA'
-											? 'bg-slate-750 text-white shadow-md'
-											: 'text-slate-400 hover:text-slate-200'
+											? 'bg-primary text-primary-foreground shadow-sm'
+											: 'text-muted-foreground hover:text-foreground'
 									}`}
 								>
 									{userAName}
@@ -312,10 +312,10 @@ export function EditTransactionForm({
 								<button
 									type="button"
 									onClick={() => setEditForm({ ...editForm, paidBy: 'userB' })}
-									className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all \${
+									className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 										editForm.paidBy === 'userB'
-											? 'bg-slate-750 text-white shadow-md'
-											: 'text-slate-400 hover:text-slate-200'
+											? 'bg-primary text-primary-foreground shadow-sm'
+											: 'text-muted-foreground hover:text-foreground'
 									}`}
 								>
 									{userBName}
@@ -323,10 +323,10 @@ export function EditTransactionForm({
 								<button
 									type="button"
 									onClick={() => setEditForm({ ...editForm, paidBy: 'shared' })}
-									className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all \${
+									className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 										editForm.paidBy === 'shared'
-											? 'bg-slate-750 text-white shadow-md'
-											: 'text-slate-400 hover:text-slate-200'
+											? 'bg-primary text-primary-foreground shadow-sm'
+											: 'text-muted-foreground hover:text-foreground'
 									}`}
 								>
 									Común
@@ -369,7 +369,7 @@ export function EditTransactionForm({
 								value="only-this"
 								checked={editScope === 'only-this'}
 								onChange={() => setEditScope('only-this')}
-								className="w-4 h-4 rounded-full border-slate-850 text-indigo-600 focus:ring-0 bg-slate-900"
+								className="w-4 h-4 rounded-full border-slate-850 text-foreground focus:ring-0 bg-slate-900 accent-foreground"
 							/>
 							<span>Solo este mes</span>
 						</label>
@@ -380,7 +380,7 @@ export function EditTransactionForm({
 								value="future"
 								checked={editScope === 'future'}
 								onChange={() => setEditScope('future')}
-								className="w-4 h-4 rounded-full border-slate-850 text-indigo-600 focus:ring-0 bg-slate-900"
+								className="w-4 h-4 rounded-full border-slate-850 text-foreground focus:ring-0 bg-slate-900 accent-foreground"
 							/>
 							<span>Este y todos los meses futuros</span>
 						</label>
@@ -391,7 +391,7 @@ export function EditTransactionForm({
 								value="all"
 								checked={editScope === 'all'}
 								onChange={() => setEditScope('all')}
-								className="w-4 h-4 rounded-full border-slate-850 text-indigo-600 focus:ring-0 bg-slate-900"
+								className="w-4 h-4 rounded-full border-slate-850 text-foreground focus:ring-0 bg-slate-900 accent-foreground"
 							/>
 							<span>Toda la serie (pasado y futuro)</span>
 						</label>
@@ -402,14 +402,14 @@ export function EditTransactionForm({
 			<div className="flex gap-2 pt-2">
 				<button
 					type="submit"
-					className="w-1/2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-bold py-2.5 rounded-xl text-xs transition-all active:scale-95 shadow-md shadow-indigo-600/10"
+					className="w-1/2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2.5 rounded-xl text-xs transition-all active:scale-95"
 				>
 					Guardar
 				</button>
 				<button
 					type="button"
 					onClick={onCancel}
-					className="w-1/2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition-all"
+					className="w-1/2 bg-muted hover:bg-accent text-foreground font-semibold py-2.5 rounded-xl text-xs transition-all border border-border"
 				>
 					Cancelar
 				</button>

@@ -132,8 +132,8 @@ export function OverviewTab() {
 			type: 'inflow' as const,
 			start: 0,
 			end: totalIncomes,
-			colorClass: 'from-emerald-600 to-emerald-400',
-			textColor: 'text-emerald-400',
+			colorClass: 'bg-emerald-600 dark:bg-emerald-500',
+			textColor: 'text-emerald-500',
 			dotColor: 'bg-emerald-500',
 			description: 'Ingresos totales del mes'
 		},
@@ -143,8 +143,8 @@ export function OverviewTab() {
 			type: 'outflow' as const,
 			start: totalIncomes,
 			end: totalIncomes - totalExpenses,
-			colorClass: 'from-rose-600 to-rose-400',
-			textColor: 'text-rose-400',
+			colorClass: 'bg-rose-600 dark:bg-rose-500',
+			textColor: 'text-rose-500',
 			dotColor: 'bg-rose-500',
 			description: profileCount === 1 ? 'Gastos mensuales' : 'Gastos comunes y compartidos'
 		},
@@ -154,8 +154,8 @@ export function OverviewTab() {
 			type: 'outflow' as const,
 			start: totalIncomes - totalExpenses,
 			end: totalIncomes - totalExpenses - totalMonthlyDebtPayments,
-			colorClass: 'from-amber-600 to-amber-400',
-			textColor: 'text-amber-400',
+			colorClass: 'bg-amber-600 dark:bg-amber-500',
+			textColor: 'text-amber-500',
 			dotColor: 'bg-amber-500',
 			description: 'Cuotas de deudas activas'
 		},
@@ -165,8 +165,8 @@ export function OverviewTab() {
 			type: 'total' as const,
 			start: 0,
 			end: netMonthlyBalance,
-			colorClass: netMonthlyBalance >= 0 ? 'from-emerald-600 to-emerald-400' : 'from-rose-600 to-rose-400',
-			textColor: netMonthlyBalance >= 0 ? 'text-emerald-400' : 'text-rose-400',
+			colorClass: netMonthlyBalance >= 0 ? 'bg-emerald-600 dark:bg-emerald-500' : 'bg-rose-600 dark:bg-rose-500',
+			textColor: netMonthlyBalance >= 0 ? 'text-emerald-500' : 'text-rose-500',
 			dotColor: netMonthlyBalance >= 0 ? 'bg-emerald-500' : 'bg-rose-500',
 			description: 'Balance mensual neto final'
 		}
@@ -238,7 +238,7 @@ export function OverviewTab() {
 		if (name === 'G. Comunes') return 'url(#gradient-rose)';
 		if (name === 'Cuota Deuda') return 'url(#gradient-amber)';
 		if (name === 'Neto') return isPositive ? 'url(#gradient-emerald)' : 'url(#gradient-rose)';
-		return 'url(#gradient-indigo)';
+		return 'url(#gradient-emerald)';
 	};
 
 	// Obtener ID del gradiente para móvil
@@ -247,7 +247,7 @@ export function OverviewTab() {
 		if (name === 'G. Comunes') return 'url(#gradient-rose-mobile)';
 		if (name === 'Cuota Deuda') return 'url(#gradient-amber-mobile)';
 		if (name === 'Neto') return isPositive ? 'url(#gradient-emerald-mobile)' : 'url(#gradient-rose-mobile)';
-		return 'url(#gradient-indigo-mobile)';
+		return 'url(#gradient-emerald-mobile)';
 	};
 
 	// Formateador de etiquetas de barra (evita +0€ o -0€)
@@ -650,9 +650,9 @@ export function OverviewTab() {
 											{formatAmount(amount)} ({pct}%)
 										</span>
 									</div>
-									<div className="w-full bg-slate-950/60 h-2.5 rounded-full overflow-hidden border border-white/5">
+									<div className="w-full bg-muted/40 h-2 rounded-full overflow-hidden border border-border">
 										<div
-											className="bg-gradient-to-r from-indigo-500 to-violet-500 h-full rounded-full transition-all duration-500"
+											className="bg-primary h-full rounded-full transition-all duration-500"
 											style={{ width: `${(amount / maxTagAmount) * 100}%` }}
 										></div>
 									</div>
@@ -666,9 +666,9 @@ export function OverviewTab() {
 			{/* Tarjeta: Hacer Cuentas (Liquidación de Gastos Conjuntos) */}
 			{profileCount === 2 && (
 				<div className="lg:col-span-12 premium-card rounded-2xl p-6">
-					<h3 className="font-heading text-lg font-bold text-slate-100 mb-2 flex items-center gap-2">
+					<h3 className="font-heading text-lg font-bold text-foreground mb-2 flex items-center gap-2">
 						<svg
-							className="w-5 h-5 text-indigo-400"
+							className="w-5 h-5 text-muted-foreground"
 							fill="none"
 							viewBox="0 0 24 24"
 							stroke="currentColor"
@@ -682,43 +682,43 @@ export function OverviewTab() {
 						</svg>
 						Cuentas del Mes ({selectedMonth})
 					</h3>
-					<p className="text-xs text-slate-400 mb-6">
+					<p className="text-xs text-muted-foreground mb-6">
 						Desglose de los gastos comunes y quién los ha pagado para cuadrar cuentas a final de mes.
 					</p>
 
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 						{/* Columna Usuario A */}
-						<div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/60 backdrop-blur-sm shadow-inner transition-all hover:border-indigo-500/20">
-							<div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">
+						<div className="bg-card p-4 rounded-xl border border-border transition-all">
+							<div className="text-xs text-muted-foreground font-medium mb-2">
 								Gastos comunes pagados por
 							</div>
-							<div className="text-xl font-bold text-slate-200">{userAName}</div>
-							<div className="text-2xl font-black text-indigo-400 mt-2">{formatAmount(jointPaidByA)}</div>
-							<p className="text-[10px] text-slate-500 mt-1">
+							<div className="text-xl font-bold text-foreground">{userAName}</div>
+							<div className="text-2xl font-bold text-foreground mt-2">{formatAmount(jointPaidByA)}</div>
+							<p className="text-[11px] text-muted-foreground mt-1">
 								Aportación correspondiente: {formatAmount(jointPaidByA / 2)} por persona
 							</p>
 						</div>
 
 						{/* Columna Usuario B */}
-						<div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/60 backdrop-blur-sm shadow-inner transition-all hover:border-indigo-500/20">
-							<div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">
+						<div className="bg-card p-4 rounded-xl border border-border transition-all">
+							<div className="text-xs text-muted-foreground font-medium mb-2">
 								Gastos comunes pagados por
 							</div>
-							<div className="text-xl font-bold text-slate-200">{userBName}</div>
-							<div className="text-2xl font-black text-indigo-400 mt-2">{formatAmount(jointPaidByB)}</div>
-							<p className="text-[10px] text-slate-500 mt-1">
+							<div className="text-xl font-bold text-foreground">{userBName}</div>
+							<div className="text-2xl font-bold text-foreground mt-2">{formatAmount(jointPaidByB)}</div>
+							<p className="text-[11px] text-muted-foreground mt-1">
 								Aportación correspondiente: {formatAmount(jointPaidByB / 2)} por persona
 							</p>
 						</div>
 
 						{/* Columna Liquidación */}
-						<div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/60 backdrop-blur-sm shadow-inner flex flex-col justify-between transition-all hover:border-indigo-500/20">
+						<div className="bg-card p-4 rounded-xl border border-border flex flex-col justify-between transition-all">
 							<div>
-								<div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">
+								<div className="text-xs text-muted-foreground font-medium mb-2">
 									Estado de Cuentas
 								</div>
 								{netOwed === 0 ? (
-									<div className="text-emerald-400 font-bold text-lg mt-2">¡Cuentas al día!</div>
+									<div className="text-emerald-500 font-bold text-lg mt-2">¡Cuentas al día!</div>
 								) : netOwed > 0 ? (
 									<div>
 										<div className="text-rose-400 font-bold text-lg mt-1">
@@ -755,9 +755,9 @@ export function OverviewTab() {
 				>
 					<div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
 						<div>
-							<h3 className="font-heading text-lg font-bold text-slate-100 flex items-center gap-2">
+							<h3 className="font-heading text-lg font-bold text-foreground flex items-center gap-2">
 								<svg
-									className="w-5 h-5 text-violet-400"
+									className="w-5 h-5 text-muted-foreground"
 									fill="none"
 									viewBox="0 0 24 24"
 									stroke="currentColor"
@@ -991,10 +991,10 @@ export function OverviewTab() {
 														y1={pMarginTop}
 														x2={x}
 														y2={pHeight - pMarginBottom}
-														stroke="#6366f1"
-														strokeWidth={1.5}
-														strokeDasharray="4 4"
-														className="opacity-70"
+														stroke="currentColor"
+														strokeWidth={1}
+														strokeDasharray="3 3"
+														className="text-border opacity-80"
 													/>
 													<rect
 														x={x - 45}
@@ -1002,15 +1002,14 @@ export function OverviewTab() {
 														width={90}
 														height={16}
 														rx={4}
-														fill="#1e1b4b"
-														stroke="#312e81"
+														className="fill-muted stroke-border"
 														strokeWidth={1}
 													/>
 													<text
 														x={x}
 														y={pMarginTop - 4}
 														textAnchor="middle"
-														className="fill-indigo-300 text-[8px] uppercase tracking-wider font-bold"
+														className="fill-foreground text-[8px] tracking-wider font-medium"
 													>
 														Proyección →
 													</text>
@@ -1111,11 +1110,11 @@ export function OverviewTab() {
 										<path
 											d={`M ${linePoints}`}
 											fill="none"
-											stroke="#a78bfa"
-											strokeWidth={3}
+											stroke="currentColor"
+											strokeWidth={2.5}
 											strokeLinecap="round"
 											strokeLinejoin="round"
-											className="opacity-90 pointer-events-none"
+											className="text-foreground opacity-90 pointer-events-none"
 										/>
 
 										{/* Puntos / Marcadores del Patrimonio Neto */}
@@ -1129,9 +1128,9 @@ export function OverviewTab() {
 													key={`proj-dot-${idx}`}
 													cx={x}
 													cy={y}
-													r={isHovered ? 6 : 4}
-													fill={p.isProjected ? '#6366f1' : '#c084fc'}
-													stroke="#1e1b4b"
+													r={isHovered ? 5 : 3.5}
+													fill={p.isProjected ? '#737373' : '#ffffff'}
+													stroke="#0a0a0a"
 													strokeWidth={isHovered ? 2 : 1.5}
 													className="transition-all duration-300 pointer-events-none"
 													style={{
@@ -1166,7 +1165,7 @@ export function OverviewTab() {
 												<div className="font-bold flex justify-between items-center text-slate-200 border-b border-slate-800/60 pb-1 mb-1">
 													<span>{formatShortMonth(pItem.month)}</span>
 													<span
-														className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${pItem.isProjected ? 'bg-indigo-500/20 text-indigo-300' : 'bg-emerald-500/20 text-emerald-300'}`}
+														className={`px-1.5 py-0.5 rounded text-[8px] font-medium ${pItem.isProjected ? 'bg-muted text-muted-foreground border border-border' : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'}`}
 													>
 														{pItem.isProjected ? 'PROYECCIÓN' : 'REAL'}
 													</span>
@@ -1192,13 +1191,13 @@ export function OverviewTab() {
 													</span>
 												</div>
 
-												<div className="flex justify-between items-center text-[11px] font-bold border-t border-slate-800/60 pt-1 mt-1">
-													<span className="text-violet-300 flex items-center gap-1.5">
-														<span className="w-2 h-2 rounded-full bg-violet-400"></span>{' '}
+												<div className="flex justify-between items-center text-[11px] font-medium border-t border-border pt-1 mt-1">
+													<span className="text-foreground flex items-center gap-1.5">
+														<span className="w-2 h-2 rounded-full bg-foreground"></span>{' '}
 														Patrimonio:
 													</span>
 													<span
-														className={`font-mono ${pItem.netWorth >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+														className={`font-mono ${pItem.netWorth >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}
 													>
 														{formatAmount(pItem.netWorth, { forceShow: true })}
 													</span>
@@ -1206,7 +1205,7 @@ export function OverviewTab() {
 
 												{/* Cambio con respecto al mes anterior */}
 												{hoveredProjIndex > 0 && (
-													<div className="text-[9px] text-slate-500 mt-1 flex justify-between">
+													<div className="text-[9px] text-muted-foreground mt-1 flex justify-between">
 														<span>Var. intermensual:</span>
 														{(() => {
 															const prevNet = projections[hoveredProjIndex - 1].netWorth;
@@ -1230,7 +1229,7 @@ export function OverviewTab() {
 					})()}
 
 					{/* Leyenda */}
-					<div className="flex flex-wrap justify-between items-center mt-4 text-xs text-slate-500 gap-4 border-t border-slate-900 pt-4">
+					<div className="flex flex-wrap justify-between items-center mt-4 text-xs text-muted-foreground gap-4 border-t border-border pt-4">
 						<p>
 							* Los activos representan los saldos en cuenta acumulados. Los pasivos son el principal de
 							deudas pendientes.
@@ -1238,15 +1237,15 @@ export function OverviewTab() {
 						<div className="flex gap-x-4 gap-y-2">
 							<span className="flex items-center">
 								<span className="w-3 h-3 rounded bg-emerald-500/70 mr-1.5 border border-emerald-500/30"></span>
-								<span className="text-slate-400 font-medium">Activos</span>
+								<span className="text-muted-foreground font-medium">Activos</span>
 							</span>
 							<span className="flex items-center">
 								<span className="w-3 h-3 rounded bg-rose-500/70 mr-1.5 border border-rose-500/30"></span>
-								<span className="text-slate-400 font-medium">Pasivos (Deudas)</span>
+								<span className="text-muted-foreground font-medium">Pasivos (Deudas)</span>
 							</span>
 							<span className="flex items-center">
-								<span className="w-2 h-2 rounded-full bg-violet-400 mr-1.5"></span>
-								<span className="text-slate-400 font-medium">Patrimonio Neto</span>
+								<span className="w-2 h-2 rounded-full bg-foreground mr-1.5"></span>
+								<span className="text-muted-foreground font-medium">Patrimonio Neto</span>
 							</span>
 						</div>
 					</div>
@@ -1275,56 +1274,56 @@ export function OverviewTab() {
 							return (
 								<div
 									key={d.id}
-									className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/60 hover:border-indigo-500/30 hover:shadow-[0_0_15px_rgba(99,102,241,0.05)] transition-all duration-300"
+									className="bg-card p-4 rounded-xl border border-border hover:border-border/80 transition-all duration-300"
 								>
 									<div className="flex justify-between items-start mb-2">
 										<span className="text-[10px] font-semibold px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded">
 											{d.tag}
 										</span>
-										<span className="text-xs text-slate-500 font-mono">
+										<span className="text-xs text-muted-foreground font-mono">
 											{normalizeMonth(d.date)}
 										</span>
 									</div>
-									<h4 className="font-bold text-slate-200 text-sm mb-1">{d.desc}</h4>
-									<div className="grid grid-cols-2 gap-2 my-3 text-xs border-y border-slate-800 py-2">
+									<h4 className="font-bold text-foreground text-sm mb-1">{d.desc}</h4>
+									<div className="grid grid-cols-2 gap-2 my-3 text-xs border-y border-border py-2">
 										<div>
-											<span className="text-slate-500 block">
+											<span className="text-muted-foreground block">
 												{isPlan ? 'Financiado:' : 'Capital Inicial:'}
 											</span>
-											<span className="font-semibold text-slate-300">
+											<span className="font-semibold text-foreground">
 												{formatAmount(isPlan ? d.financedAmount : d.principal, { decimals: 0 })}
 											</span>
 										</div>
 										<div>
-											<span className="text-slate-500 block">
+											<span className="text-muted-foreground block">
 												{isPlan ? 'Comisiones:' : 'Intereses Totales:'}
 											</span>
-											<span className="font-semibold text-rose-400">
+											<span className="font-semibold text-rose-500">
 												{formatAmount(totalIntereses)}
 											</span>
 										</div>
 									</div>
 									<div className="flex justify-between items-center text-xs mt-2 gap-3">
 										<div>
-											<span className="text-slate-500 block">
+											<span className="text-muted-foreground block">
 												{isPlan ? 'Tipo / Pendiente:' : 'Plazo / Tipo:'}
 											</span>
-											<span className="font-semibold text-slate-300">
+											<span className="font-semibold text-foreground">
 												{isPlan
 													? `Fraccionamiento · ${formatAmount(getPaymentPlanRemainingAmount(d))}`
 													: `${d.termMonths}m / ${getDebtRateLabel(d)}`}
 											</span>
 											{overdueAmount > 0 && (
-												<span className="block text-[10px] text-rose-400">
+												<span className="block text-[10px] text-rose-500">
 													Vencido: {formatAmount(overdueAmount)}
 												</span>
 											)}
 										</div>
 										<div className="text-right">
-											<span className="text-slate-500 block">
+											<span className="text-muted-foreground block">
 												{isPlan ? 'Exigible este mes:' : 'Cuota Mensual:'}
 											</span>
-											<span className="font-bold text-sm text-indigo-400">
+											<span className="font-semibold text-sm text-foreground">
 												{formatAmount(cuota)}
 											</span>
 										</div>

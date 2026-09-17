@@ -31,8 +31,8 @@ const getScheduleRowClassName = (month: string, currentMonth: string): string =>
 	const isCurrentMonth = month === currentMonth;
 	const isPastMonth = month < currentMonth;
 	return [
-		'hover:bg-slate-800/10 transition-colors scroll-mt-12',
-		isCurrentMonth ? 'bg-indigo-500/15 ring-1 ring-inset ring-indigo-400/40' : '',
+		'hover:bg-muted/40 transition-colors scroll-mt-12',
+		isCurrentMonth ? 'bg-muted/80 ring-1 ring-inset ring-border font-medium' : '',
 		isPastMonth ? 'opacity-45' : ''
 	]
 		.filter(Boolean)
@@ -116,7 +116,7 @@ export function DebtsTab() {
 						</>
 					) : (
 						<>
-							<Icons.Plus className="w-4 h-4 text-indigo-400 mr-0" />
+							<Icons.Plus className="w-4 h-4 text-foreground mr-0" />
 							<span>Nueva Deuda</span>
 						</>
 					)}
@@ -128,7 +128,7 @@ export function DebtsTab() {
 				className={`${isMobileFormOpen ? 'block' : 'hidden'} lg:block lg:col-span-4 premium-card rounded-2xl p-6 h-fit lg:max-h-full lg:overflow-y-auto shrink-0 lg:shrink`}
 			>
 				<h3 className="font-heading text-lg font-bold text-slate-100 mb-6 flex items-center">
-					<span className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg mr-2">
+					<span className="p-1.5 bg-muted text-foreground rounded-lg mr-2">
 						<Icons.CreditCard className="w-4 h-4" />
 					</span>
 					Nueva deuda
@@ -155,14 +155,14 @@ export function DebtsTab() {
 							<button
 								type="button"
 								onClick={() => setDebtForm({ ...debtForm, kind: 'classic' })}
-								className={`py-2 rounded-lg text-xs font-semibold transition-all ${debtForm.kind === 'classic' ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+								className={`py-2 rounded-lg text-xs font-semibold transition-all ${debtForm.kind === 'classic' ? 'bg-background text-foreground shadow-sm font-semibold' : 'text-slate-400 hover:text-slate-200'}`}
 							>
 								Préstamo TIN/TAE/CER
 							</button>
 							<button
 								type="button"
 								onClick={() => setDebtForm({ ...debtForm, kind: 'paymentPlan' })}
-								className={`py-2 rounded-lg text-xs font-semibold transition-all ${debtForm.kind === 'paymentPlan' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+								className={`py-2 rounded-lg text-xs font-semibold transition-all ${debtForm.kind === 'paymentPlan' ? 'bg-background text-foreground shadow-sm font-semibold' : 'text-slate-400 hover:text-slate-200'}`}
 							>
 								Fraccionamiento manual
 							</button>
@@ -180,7 +180,7 @@ export function DebtsTab() {
 									onClick={() => setDebtForm({ ...debtForm, owner: 'userA' })}
 									className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
 										debtForm.owner === 'userA'
-											? 'bg-indigo-600 text-white shadow-md'
+											? 'bg-background text-foreground shadow-sm font-semibold'
 											: 'text-slate-400 hover:text-slate-200'
 									}`}
 								>
@@ -191,7 +191,7 @@ export function DebtsTab() {
 									onClick={() => setDebtForm({ ...debtForm, owner: 'userB' })}
 									className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
 										debtForm.owner === 'userB'
-											? 'bg-indigo-600 text-white shadow-md'
+											? 'bg-background text-foreground shadow-sm font-semibold'
 											: 'text-slate-400 hover:text-slate-200'
 									}`}
 								>
@@ -202,7 +202,7 @@ export function DebtsTab() {
 									onClick={() => setDebtForm({ ...debtForm, owner: 'joint' })}
 									className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
 										debtForm.owner === 'joint' || !debtForm.owner
-											? 'bg-indigo-600 text-white shadow-md'
+											? 'bg-background text-foreground shadow-sm font-semibold'
 											: 'text-slate-400 hover:text-slate-200'
 									}`}
 								>
@@ -447,7 +447,7 @@ export function DebtsTab() {
 									<button
 										type="button"
 										onClick={addPaymentPlanTranche}
-										className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold"
+										className="text-xs text-foreground hover:underline font-medium"
 									>
 										+ Agregar tramo
 									</button>
@@ -585,14 +585,14 @@ export function DebtsTab() {
 					<div className="flex gap-2">
 						<button
 							type="submit"
-							className="flex-1 mt-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 hover:shadow-[0_0_15px_rgba(245,158,11,0.4)] text-white font-bold py-2.5 rounded-xl text-sm transition-all shadow-md active:scale-95"
+							className="flex-1 mt-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 rounded-lg text-sm transition-all active:scale-[0.98]"
 						>
 							Agregar deuda
 						</button>
 						<button
 							type="button"
 							onClick={() => setIsMobileFormOpen(false)}
-							className="lg:hidden flex-1 mt-2 bg-slate-850 hover:bg-slate-800 text-slate-350 font-semibold py-2.5 rounded-xl text-sm transition-all border border-slate-800 active:scale-95"
+							className="lg:hidden flex-1 mt-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium py-2.5 rounded-lg text-sm transition-all border border-border active:scale-[0.98]"
 						>
 							Cancelar
 						</button>
@@ -616,7 +616,7 @@ export function DebtsTab() {
 								return (
 									<div
 										key={d.id}
-										className="p-4 rounded-xl bg-slate-950/40 border border-slate-800/60 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-300 hover:border-indigo-500/20 hover:shadow-[0_0_15px_rgba(99,102,241,0.05)]"
+										className="p-4 rounded-xl bg-card border border-border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-300 hover:border-border/80"
 									>
 										<div>
 											<div className="flex items-center space-x-2">
@@ -649,13 +649,13 @@ export function DebtsTab() {
 											<div className="flex sm:flex-col gap-1.5 w-full sm:w-auto">
 												<button
 													onClick={() => setSelectedDebtSchedule(d)}
-													className="flex-1 sm:flex-initial px-3 py-2 bg-indigo-600/10 hover:bg-indigo-600 text-indigo-400 hover:text-white border border-indigo-500/20 text-xs font-semibold rounded-lg transition-colors min-h-[40px] flex items-center justify-center"
+													className="flex-1 sm:flex-initial px-3 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-medium rounded-lg transition-colors min-h-[40px] flex items-center justify-center"
 												>
 													{isPlan ? 'Calendario' : 'Plan Amort.'}
 												</button>
 												<button
 													onClick={() => handleDeleteDebt(d.id)}
-													className="flex-1 sm:flex-initial px-3 py-2 bg-rose-500/15 hover:bg-rose-500 text-rose-400 hover:text-white border border-rose-500/20 text-xs font-semibold rounded-lg transition-colors min-h-[40px] flex items-center justify-center"
+													className="flex-1 sm:flex-initial px-3 py-2 bg-destructive/10 hover:bg-destructive/20 text-destructive border border-destructive/20 text-xs font-medium rounded-lg transition-colors min-h-[40px] flex items-center justify-center"
 												>
 													Eliminar
 												</button>
@@ -670,7 +670,7 @@ export function DebtsTab() {
 
 				{/* Detalle de deuda */}
 				{selectedDebtSchedule && (
-					<div className="premium-card border-indigo-500/20 rounded-2xl p-6">
+					<div className="premium-card rounded-2xl p-6">
 						<div className="flex justify-between items-center mb-4">
 							<div>
 								<h4 className="font-bold text-slate-100 text-sm">
@@ -726,7 +726,7 @@ export function DebtsTab() {
 															{formatScheduleMonth(installment.dueMonth)}
 														</span>
 														{isCurrentRow && (
-															<span className="ml-2 rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-bold text-indigo-200">
+															<span className="ml-2 rounded-full bg-muted border border-border px-2 py-0.5 text-[10px] font-medium text-foreground">
 																Actual
 															</span>
 														)}
@@ -801,7 +801,7 @@ export function DebtsTab() {
 															{formatScheduleMonth(row.dueMonth)}
 														</span>
 														{isCurrentRow && (
-															<span className="ml-2 rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-bold text-indigo-200">
+															<span className="ml-2 rounded-full bg-muted border border-border px-2 py-0.5 text-[10px] font-medium text-foreground">
 																Actual
 															</span>
 														)}

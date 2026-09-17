@@ -640,7 +640,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 			>
 				<DialogHeader className="mb-4">
 					<div className="flex items-center gap-3">
-						<div className="p-2.5 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 text-indigo-400">
+						<div className="p-2.5 bg-muted rounded-2xl border border-border text-foreground">
 							<Upload className="w-5 h-5" />
 						</div>
 						<div>
@@ -661,7 +661,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 				{/* INDICADOR DE PASOS */}
 				<div className="flex items-center gap-2 mb-6 border-b border-slate-800/80 pb-4 text-xs font-semibold shrink-0">
 					<span
-						className={`px-2 py-1 rounded-lg ${step === 'config' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950 text-slate-450'}`}
+						className={`px-2 py-1 rounded-lg ${step === 'config' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'bg-muted text-muted-foreground'}`}
 					>
 						1. Configuración
 					</span>
@@ -669,7 +669,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 					{templateKey === 'custom' && (
 						<>
 							<span
-								className={`px-2 py-1 rounded-lg ${step === 'mapping' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950 text-slate-450'}`}
+								className={`px-2 py-1 rounded-lg ${step === 'mapping' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'bg-muted text-muted-foreground'}`}
 							>
 								2. Mapeo
 							</span>
@@ -677,7 +677,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 						</>
 					)}
 					<span
-						className={`px-2 py-1 rounded-lg ${step === 'preview' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950 text-slate-450'}`}
+						className={`px-2 py-1 rounded-lg ${step === 'preview' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'bg-muted text-muted-foreground'}`}
 					>
 						{templateKey === 'custom' ? '3' : '2'}. Vista Previa
 					</span>
@@ -685,7 +685,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 						<>
 							<ChevronRight className="w-3.5 h-3.5 text-slate-650" />
 							<span
-								className={`px-2 py-1 rounded-lg ${step === 'transfers' ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-950 text-slate-450'}`}
+								className={`px-2 py-1 rounded-lg ${step === 'transfers' ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : 'bg-muted text-muted-foreground'}`}
 							>
 								{templateKey === 'custom' ? '4' : '3'}. Traspasos
 							</span>
@@ -714,8 +714,8 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 									onClick={() => setMethod('csv')}
 									className={`py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
 										method === 'csv'
-											? 'bg-indigo-600 text-white shadow-md'
-											: 'text-slate-400 hover:text-slate-200'
+											? 'bg-primary text-primary-foreground shadow-sm'
+											: 'text-muted-foreground hover:text-foreground'
 									}`}
 								>
 									<FileText className="w-4 h-4" /> Archivo (CSV / PDF)
@@ -725,8 +725,8 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 									onClick={() => setMethod('ai')}
 									className={`py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
 										method === 'ai'
-											? 'bg-indigo-600 text-white shadow-md'
-											: 'text-slate-400 hover:text-slate-200'
+											? 'bg-primary text-primary-foreground shadow-sm'
+											: 'text-muted-foreground hover:text-foreground'
 									}`}
 								>
 									<Sparkles className="w-4 h-4 text-current" /> Copiar y Pegar (IA)
@@ -800,8 +800,8 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 									</div>
 								) : (
 									<div className="space-y-4">
-										<div className="p-4 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-2xl flex items-start gap-2.5 text-xs leading-relaxed animate-in fade-in zoom-in-95">
-											<Sparkles className="w-5 h-5 shrink-0 text-indigo-400 mt-0.5 animate-pulse" />
+										<div className="p-4 bg-muted border border-border text-foreground rounded-2xl flex items-start gap-2.5 text-xs leading-relaxed animate-in fade-in zoom-in-95">
+											<Sparkles className="w-5 h-5 shrink-0 text-foreground mt-0.5 animate-pulse" />
 											<div>
 												<span className="font-bold text-slate-200 block mb-0.5">
 													Procesamiento inteligente de PDF
@@ -815,10 +815,10 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 										</div>
 
 										{!geminiApiKey && (
-											<div className="space-y-2 p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl">
+											<div className="space-y-2 p-3 bg-muted/50 border border-border rounded-2xl">
 												<label
 													htmlFor="modal-gemini-key-pdf"
-													className="block text-[10px] font-bold text-indigo-400 uppercase tracking-wide"
+													className="block text-[10px] font-bold text-foreground uppercase tracking-wide"
 												>
 													Introduce tu Gemini API Key (Requerida para PDF)
 												</label>
@@ -852,7 +852,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 										onDragOver={handleDragOver}
 										onDrop={handleDrop}
 										onClick={() => fileInputRef.current?.click()}
-										className="border-2 border-dashed border-slate-800 hover:border-indigo-500/40 bg-slate-950/40 hover:bg-slate-950/80 rounded-2xl p-6 text-center cursor-pointer transition-all duration-300 flex flex-col items-center justify-center gap-3 relative group"
+										className="border-2 border-dashed border-slate-800 hover:border-slate-600 bg-slate-950/40 hover:bg-slate-950/80 rounded-2xl p-6 text-center cursor-pointer transition-all duration-300 flex flex-col items-center justify-center gap-3 relative group"
 									>
 										<input
 											ref={fileInputRef}
@@ -863,7 +863,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 											className="hidden"
 										/>
 										<div className="p-3 bg-slate-900 rounded-full group-hover:scale-110 transition-all border border-slate-800">
-											<Upload className="w-6 h-6 text-slate-400 group-hover:text-indigo-400" />
+											<Upload className="w-6 h-6 text-slate-400 group-hover:text-foreground" />
 										</div>
 										<div>
 											<p className="text-xs font-bold text-slate-200">
@@ -915,7 +915,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 																	event.target.value
 																)
 															}
-															className="h-9 rounded-xl border border-slate-800 bg-slate-950 px-2 text-xs normal-case tracking-normal text-slate-100 outline-none focus:border-indigo-500"
+															className="h-9 rounded-xl border border-slate-800 bg-slate-950 px-2 text-xs normal-case tracking-normal text-slate-100 outline-none focus:border-foreground"
 														>
 															<option value="">Selecciona cuenta</option>
 															{accounts.map((acc) => (
@@ -938,7 +938,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 																			.value as keyof typeof BANK_TEMPLATES
 																	)
 																}
-																className="h-9 rounded-xl border border-slate-800 bg-slate-950 px-2 text-xs normal-case tracking-normal text-slate-100 outline-none focus:border-indigo-500"
+																className="h-9 rounded-xl border border-slate-800 bg-slate-950 px-2 text-xs normal-case tracking-normal text-slate-100 outline-none focus:border-foreground"
 															>
 																{Object.entries(BANK_TEMPLATES).map(
 																	([key, template]) => (
@@ -971,10 +971,10 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 							<div className="space-y-5">
 								{/* API Key si falta */}
 								{!geminiApiKey && (
-									<div className="space-y-2 p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl">
+									<div className="space-y-2 p-3 bg-muted/50 border border-border rounded-2xl">
 										<label
 											htmlFor="modal-gemini-key"
-											className="block text-[10px] font-bold text-indigo-400 uppercase tracking-wide"
+											className="block text-[10px] font-bold text-foreground uppercase tracking-wide"
 										>
 											Introduce tu Gemini API Key
 										</label>
@@ -1007,7 +1007,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 										value={aiText}
 										onChange={(e) => setAiText(e.target.value)}
 										placeholder="Pega las líneas copiadas de tu app bancaria aquí. Por ejemplo:&#10;05/06/2026 PAGO EN MERCADONA -45,20 EUR&#10;04/06/2026 ABONO NOMINA +1.500,00 EUR"
-										className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-xs font-mono outline-none focus:border-indigo-500 text-slate-200 placeholder:text-slate-600 resize-none h-[150px]"
+										className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-xs font-mono outline-none focus:border-foreground text-slate-200 placeholder:text-slate-600 resize-none h-[150px]"
 									/>
 								</div>
 							</div>
@@ -1019,7 +1019,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 								type="button"
 								onClick={handleProcessConfig}
 								disabled={isLoading || (method === 'csv' && hasLoadingAttachments)}
-								className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 hover:shadow-[0_0_15px_rgba(99,102,241,0.3)] text-white font-bold py-3 rounded-2xl text-sm transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
+								className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 rounded-2xl text-sm transition-all active:scale-95 disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
 							>
 								{isLoading ? (
 									<>
@@ -1050,7 +1050,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 										key={idx}
 										className="flex gap-2 bg-slate-900 p-1.5 rounded border border-slate-800/40"
 									>
-										<span className="font-bold text-indigo-400 shrink-0 select-none w-4">
+										<span className="font-bold text-muted-foreground shrink-0 select-none w-4">
 											{idx}:
 										</span>
 										{row.map((field, cellIdx) => (
@@ -1192,7 +1192,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 									className="flex items-center gap-2 text-xs font-semibold text-slate-350 hover:text-slate-200"
 								>
 									{customMapping.hasHeader ? (
-										<CheckSquare className="w-4.5 h-4.5 text-indigo-500" />
+										<CheckSquare className="w-4.5 h-4.5 text-foreground" />
 									) : (
 										<Square className="w-4.5 h-4.5 text-slate-700" />
 									)}
@@ -1205,14 +1205,14 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 							<button
 								type="button"
 								onClick={() => setStep('config')}
-								className="w-1/2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold py-2.5 rounded-2xl text-xs transition-all"
+								className="w-1/2 bg-muted hover:bg-accent text-foreground font-semibold py-2.5 rounded-2xl text-xs transition-all border border-border"
 							>
 								Volver
 							</button>
 							<button
 								type="button"
 								onClick={handleProcessCustomMapping}
-								className="w-1/2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-bold py-2.5 rounded-2xl text-xs transition-all shadow-md active:scale-95"
+								className="w-1/2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2.5 rounded-2xl text-xs transition-all active:scale-95"
 							>
 								Procesar
 							</button>
@@ -1243,7 +1243,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 									<span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider block">
 										Importar
 									</span>
-									<span className="text-sm font-black text-indigo-400">
+									<span className="text-sm font-black text-foreground">
 										{selectedImportableTxs.length}
 									</span>
 								</div>
@@ -1277,7 +1277,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 											<button
 												type="button"
 												onClick={toggleSelectAll}
-												className="p-1 hover:bg-slate-800 rounded text-indigo-400 flex items-center justify-center mx-auto"
+												className="p-1 hover:bg-slate-800 rounded text-foreground flex items-center justify-center mx-auto"
 												title="Seleccionar / Deseleccionar todos"
 											>
 												{allImportableTxsSelected ? (
@@ -1318,7 +1318,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 															? `Duplicado exacto no importable: ${tx.desc}`
 															: `Seleccionar movimiento: ${tx.desc}`
 													}
-													className={`p-1 rounded flex items-center justify-center mx-auto text-indigo-400 ${tx.isDuplicate ? 'cursor-not-allowed opacity-50' : 'hover:bg-slate-850'}`}
+													className={`p-1 rounded flex items-center justify-center mx-auto text-foreground ${tx.isDuplicate ? 'cursor-not-allowed opacity-50' : 'hover:bg-slate-850'}`}
 												>
 													{tx.selected ? (
 														<CheckSquare className="w-4 h-4" />
@@ -1453,14 +1453,14 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 							<button
 								type="button"
 								onClick={() => setStep('config')}
-								className="w-1/2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold py-3 rounded-2xl text-xs transition-all"
+								className="w-1/2 bg-muted hover:bg-accent text-foreground font-semibold py-3 rounded-2xl text-xs transition-all border border-border"
 							>
 								Volver a configurar
 							</button>
 							<button
 								type="button"
 								onClick={handleNextFromPreview}
-								className="w-1/2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-3 rounded-2xl text-xs transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
+								className="w-1/2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 rounded-2xl text-xs transition-all active:scale-95 flex items-center justify-center gap-1.5"
 							>
 								<CheckCircle className="w-4 h-4" />
 								<span>
@@ -1510,7 +1510,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 												>
 													{tx.desc}
 												</span>
-												<span className="text-xs font-black text-indigo-400 block">
+												<span className="text-xs font-bold text-foreground block">
 													{toNumber(tx.amount).toFixed(2)} €
 												</span>
 											</div>
@@ -1526,7 +1526,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 																{activeAccountName}
 															</span>
 														</div>
-														<ChevronRight className="hidden w-4 h-4 text-indigo-400 shrink-0 mb-2 sm:block" />
+														<ChevronRight className="hidden w-4 h-4 text-muted-foreground shrink-0 mb-2 sm:block" />
 														<label className="grid gap-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
 															<span>Cuenta de destino</span>
 															<select
@@ -1580,7 +1580,7 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 																Contraparte de este traspaso manual.
 															</span>
 														</label>
-														<ChevronRight className="hidden w-4 h-4 text-indigo-400 shrink-0 mb-2 sm:block" />
+														<ChevronRight className="hidden w-4 h-4 text-muted-foreground shrink-0 mb-2 sm:block" />
 														<div className="grid gap-1">
 															<span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
 																Cuenta de destino
@@ -1602,14 +1602,14 @@ export function ImportStatementModal({ isOpen, onClose }: ImportStatementModalPr
 							<button
 								type="button"
 								onClick={() => setStep('preview')}
-								className="w-1/2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold py-3 rounded-2xl text-xs transition-all"
+								className="w-1/2 bg-muted hover:bg-accent text-foreground font-semibold py-3 rounded-2xl text-xs transition-all border border-border"
 							>
 								Volver a vista previa
 							</button>
 							<button
 								type="button"
 								onClick={handleImportConfirm}
-								className="w-1/2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold py-3 rounded-2xl text-xs transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
+								className="w-1/2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 rounded-2xl text-xs transition-all active:scale-95 flex items-center justify-center gap-1.5"
 							>
 								<CheckCircle className="w-4 h-4" />
 								<span>Confirmar e importar</span>

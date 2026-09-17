@@ -55,9 +55,9 @@ export function AccountsTab() {
 			<div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 				{/* Listado de Cuentas */}
 				<div className="lg:col-span-8 premium-card rounded-2xl p-6">
-					<h3 className="font-heading text-lg font-bold text-slate-100 mb-2 flex items-center gap-2">
+					<h3 className="font-heading text-lg font-bold text-foreground mb-2 flex items-center gap-2">
 						<svg
-							className="w-5 h-5 text-indigo-400"
+							className="w-5 h-5 text-muted-foreground"
 							fill="none"
 							viewBox="0 0 24 24"
 							stroke="currentColor"
@@ -71,7 +71,7 @@ export function AccountsTab() {
 						</svg>
 						Cuentas Configuradas
 					</h3>
-					<p className="text-xs text-slate-400 mb-6">
+					<p className="text-xs text-muted-foreground mb-6">
 						Tus cuentas financieras activas. Los saldos de apertura de la cronología se calculan en base a
 						sus saldos iniciales.
 					</p>
@@ -83,22 +83,16 @@ export function AccountsTab() {
 							return (
 								<div
 									key={acc.id}
-									className="bg-slate-950/40 p-5 rounded-xl border border-slate-800/60 hover:border-indigo-500/30 transition-all flex flex-col justify-between hover:shadow-[0_0_15px_rgba(99,102,241,0.05)] duration-300"
+									className="bg-card p-5 rounded-xl border border-border transition-all flex flex-col justify-between hover:border-border/80 duration-300"
 								>
 									<div>
 										<div className="flex justify-between items-start mb-2">
-											<h4 className="font-bold text-slate-100 text-sm truncate max-w-[150px]">
+											<h4 className="font-bold text-foreground text-sm truncate max-w-[150px]">
 												{acc.name}
 											</h4>
 											{profileCount === 2 && (
 												<span
-													className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold ${
-														acc.owner === 'userA'
-															? 'bg-indigo-500/15 text-indigo-400'
-															: acc.owner === 'userB'
-																? 'bg-violet-500/15 text-violet-400'
-																: 'bg-emerald-500/15 text-emerald-400'
-													}`}
+													className="inline-block px-2 py-0.5 rounded text-[9px] font-medium bg-muted text-muted-foreground border border-border"
 												>
 													{acc.owner === 'userA'
 														? userAName
@@ -108,18 +102,18 @@ export function AccountsTab() {
 												</span>
 											)}
 										</div>
-										<div className="text-xs text-slate-500 font-mono mt-1 space-y-1">
+										<div className="text-xs text-muted-foreground font-mono mt-1 space-y-1">
 											<div>Saldo Inicial: {formatAmount(acc.initialBalance)}</div>
 										</div>
 									</div>
 
-									<div className="mt-4 pt-4 border-t border-slate-900/60 flex items-center justify-between">
+									<div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
 										<div>
-											<span className="block text-[10px] text-slate-500">
+											<span className="block text-[10px] text-muted-foreground">
 												Saldo en {selectedMonth}:
 											</span>
 											<span
-												className={`text-sm font-extrabold ${closingBal >= 0 ? 'text-indigo-400' : 'text-rose-500'}`}
+												className={`text-sm font-semibold ${closingBal >= 0 ? 'text-foreground' : 'text-rose-500'}`}
 											>
 												{formatAmount(closingBal)}
 											</span>
@@ -127,14 +121,14 @@ export function AccountsTab() {
 										<div className="flex space-x-1.5">
 											<button
 												onClick={() => handleStartEditAccount(acc)}
-												className="text-slate-500 hover:text-indigo-400 p-1.5 rounded-lg transition-colors border border-slate-850 bg-slate-900"
+												className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg transition-colors border border-border bg-card"
 												title="Editar cuenta"
 											>
 												<Icons.Edit />
 											</button>
 											<button
 												onClick={() => handleDeleteAccount(acc.id)}
-												className="text-slate-500 hover:text-rose-400 p-1.5 rounded-lg transition-colors border border-slate-850 bg-slate-900"
+												className="text-muted-foreground hover:text-destructive p-1.5 rounded-lg transition-colors border border-border bg-card"
 												title="Eliminar cuenta"
 											>
 												<Icons.Trash />
@@ -149,8 +143,8 @@ export function AccountsTab() {
 
 				{/* Formulario de Alta/Edición */}
 				<div className="lg:col-span-4 premium-card rounded-2xl p-6 h-fit">
-					<h3 className="font-heading text-lg font-bold text-slate-100 mb-6 flex items-center">
-						<span className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg mr-2">
+					<h3 className="font-heading text-lg font-bold text-foreground mb-6 flex items-center">
+						<span className="p-1.5 bg-muted text-foreground rounded-lg mr-2">
 							{editingAccount ? <Icons.Edit className="w-4 h-4" /> : <Icons.Plus className="w-4 h-4" />}
 						</span>
 						{editingAccount ? 'Editar Cuenta' : 'Nueva Cuenta'}
@@ -182,7 +176,7 @@ export function AccountsTab() {
 										onClick={() => setAccountForm({ ...accountForm, owner: 'userA' })}
 										className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 											accountForm.owner === 'userA'
-												? 'bg-indigo-600 text-white shadow-md'
+												? 'bg-background text-foreground shadow-sm font-semibold'
 												: 'text-slate-400 hover:text-slate-200'
 										}`}
 									>
@@ -193,7 +187,7 @@ export function AccountsTab() {
 										onClick={() => setAccountForm({ ...accountForm, owner: 'userB' })}
 										className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 											accountForm.owner === 'userB'
-												? 'bg-indigo-600 text-white shadow-md'
+												? 'bg-background text-foreground shadow-sm font-semibold'
 												: 'text-slate-400 hover:text-slate-200'
 										}`}
 									>
@@ -204,7 +198,7 @@ export function AccountsTab() {
 										onClick={() => setAccountForm({ ...accountForm, owner: 'joint' })}
 										className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 											accountForm.owner === 'joint'
-												? 'bg-indigo-600 text-white shadow-md'
+												? 'bg-background text-foreground shadow-sm font-semibold'
 												: 'text-slate-400 hover:text-slate-200'
 										}`}
 									>
@@ -233,7 +227,7 @@ export function AccountsTab() {
 						<div className="flex gap-2 pt-2">
 							<button
 								type="submit"
-								className={`font-bold py-2.5 rounded-xl text-sm transition-all active:scale-95 ${editingAccount ? 'w-1/2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] text-white shadow-md' : 'w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] text-white shadow-md'}`}
+								className={`font-medium py-2.5 rounded-lg text-sm transition-all active:scale-[0.98] ${editingAccount ? 'w-1/2 bg-primary hover:bg-primary/90 text-primary-foreground' : 'w-full bg-primary hover:bg-primary/90 text-primary-foreground'}`}
 							>
 								{editingAccount ? 'Guardar' : 'Agregar Cuenta'}
 							</button>
@@ -248,7 +242,7 @@ export function AccountsTab() {
 											initialBalance: ''
 										});
 									}}
-									className="w-1/2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition-all"
+									className="w-1/2 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium py-2.5 rounded-lg text-xs transition-all"
 								>
 									Cancelar
 								</button>
@@ -260,9 +254,9 @@ export function AccountsTab() {
 
 			{/* Copia de Seguridad (Backup) */}
 			<div className="premium-card rounded-2xl p-6">
-				<h3 className="font-heading text-lg font-bold text-slate-100 mb-2 flex items-center gap-2">
+				<h3 className="font-heading text-lg font-bold text-foreground mb-2 flex items-center gap-2">
 					<svg
-						className="w-5 h-5 text-indigo-400"
+						className="w-5 h-5 text-muted-foreground"
 						fill="none"
 						viewBox="0 0 24 24"
 						stroke="currentColor"
@@ -276,23 +270,23 @@ export function AccountsTab() {
 					</svg>
 					Copia de Seguridad (Backup)
 				</h3>
-				<p className="text-xs text-slate-400 mb-6">
+				<p className="text-xs text-muted-foreground mb-6">
 					Guarda o restaura toda tu información financiera (cuentas, movimientos, deudas, perfiles y chat)
 					para tener un respaldo o transferirla a otro ordenador.
 				</p>
 
 				<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-					<div className="bg-slate-950/40 p-5 rounded-xl border border-slate-850/60 flex flex-col justify-between transition-all hover:border-indigo-500/20 duration-300">
+					<div className="bg-card p-5 rounded-xl border border-border flex flex-col justify-between transition-all hover:border-border/80 duration-300">
 						<div>
-							<h4 className="font-bold text-slate-100 text-sm mb-1">Exportar Datos</h4>
-							<p className="text-xs text-slate-500 leading-relaxed">
+							<h4 className="font-bold text-foreground text-sm mb-1">Exportar Datos</h4>
+							<p className="text-xs text-muted-foreground leading-relaxed">
 								Descarga un archivo JSON en tu ordenador que contiene toda la configuración y registros
 								actuales de la aplicación.
 							</p>
 						</div>
 						<button
 							onClick={handleExportData}
-							className="mt-4 w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md"
+							className="mt-4 w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 px-4 rounded-lg text-xs transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
 						>
 							<svg
 								className="w-4 h-4"
@@ -311,12 +305,12 @@ export function AccountsTab() {
 						</button>
 					</div>
 
-					<div className="bg-slate-950/40 p-5 rounded-xl border border-slate-850/60 flex flex-col justify-between transition-all hover:border-indigo-500/20 duration-300">
+					<div className="bg-card p-5 rounded-xl border border-border flex flex-col justify-between transition-all hover:border-border/80 duration-300">
 						<div>
-							<h4 className="font-bold text-slate-100 text-sm mb-1">Importar Copia de Seguridad</h4>
-							<p className="text-xs text-slate-500 leading-relaxed">
+							<h4 className="font-bold text-foreground text-sm mb-1">Importar Copia de Seguridad</h4>
+							<p className="text-xs text-muted-foreground leading-relaxed">
 								Sube un archivo de copia de seguridad JSON previamente exportado.{' '}
-								<span className="text-amber-500 font-semibold">
+								<span className="text-amber-500 font-medium">
 									Esto reemplazará todos tus datos locales actuales.
 								</span>
 							</p>
@@ -331,7 +325,7 @@ export function AccountsTab() {
 							/>
 							<label
 								htmlFor="import-backup-file"
-								className="w-full bg-slate-900/60 hover:bg-slate-850/80 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer text-center"
+								className="w-full bg-secondary hover:bg-secondary/80 border border-border text-secondary-foreground font-medium py-2.5 px-4 rounded-lg text-xs transition-all flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer text-center"
 							>
 								<svg
 									className="w-4 h-4"
@@ -351,17 +345,17 @@ export function AccountsTab() {
 						</div>
 					</div>
 
-					<div className="bg-slate-950/40 p-5 rounded-xl border border-slate-850/60 flex flex-col justify-between transition-all hover:border-indigo-500/20 duration-300">
+					<div className="bg-card p-5 rounded-xl border border-border flex flex-col justify-between transition-all hover:border-border/80 duration-300">
 						<div>
-							<h4 className="font-bold text-slate-100 text-sm mb-1">Sincronización P2P</h4>
-							<p className="text-xs text-slate-500 leading-relaxed">
+							<h4 className="font-bold text-foreground text-sm mb-1">Sincronización P2P</h4>
+							<p className="text-xs text-muted-foreground leading-relaxed">
 								Transfiere datos en tiempo real entre tu ordenador y tu móvil. Directo, cifrado y sin
 								usar servidores de terceros.
 							</p>
 						</div>
 						<button
 							onClick={() => setIsSyncModalOpen(true)}
-							className="mt-4 w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 hover:shadow-[0_0_15px_rgba(139,92,246,0.4)] text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md"
+							className="mt-4 w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 px-4 rounded-lg text-xs transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
 						>
 							<svg
 								className="w-4 h-4"
@@ -382,7 +376,7 @@ export function AccountsTab() {
 				</div>
 
 				{importError && (
-					<div className="mt-4 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-450 text-xs rounded-xl flex items-center gap-2">
+					<div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 text-destructive text-xs rounded-lg flex items-center gap-2">
 						<svg
 							className="w-4 h-4 shrink-0"
 							fill="none"

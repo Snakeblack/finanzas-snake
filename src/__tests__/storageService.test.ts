@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { STORAGE_KEYS } from '../constants';
 import {
@@ -23,7 +24,11 @@ import {
 	buildFinanceBackupPayload,
 	readFinanceBackupPayload,
 	importFinanceBackupPayload,
-	setCryptoKey
+	setCryptoKey,
+	saveStoredTransactionSingle,
+	deleteStoredTransactionSingle,
+	saveStoredDebtSingle,
+	deleteStoredDebtSingle
 } from '../services/storageService';
 import { deriveKeyFromPassword, generateSalt } from '../services/cryptoService';
 import { IndexedDBProvider } from '../services/db/idbProvider';
@@ -623,5 +628,421 @@ describe('getInitialData', () => {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
 		const result = getInitialData();
 		expect(result.accounts).toHaveLength(3); // default-a, default-b, default-joint
+	});
+});
+
+describe('Caché y Diffing de Transacciones / Deudas', () => {
+	beforeEach(async () => {
+		globalThis.__resetMockIndexedDBForTests?.();
+	});
+
+	it('debe guardar transacciones de forma incremental usando diffing', async () => {
+		const initialTxs: Transaction[] = [
+			{
+				id: 't-1',
+				desc: 'Gasto 1',
+				money: { amount: '10.00', currency: 'EUR' },
+				type: 'expense',
+				tag: 'Ocio',
+				date: '2026-05-01',
+				recurrence: 'one-off',
+				owner: 'userA',
+				paidBy: 'userA'
+			},
+			{
+				id: 't-2',
+				desc: 'Gasto 2',
+				money: { amount: '20.00', currency: 'EUR' },
+				type: 'expense',
+				tag: 'Ocio',
+				date: '2026-05-01',
+				recurrence: 'one-off',
+				owner: 'userA',
+				paidBy: 'userA'
+			}
+		];
+
+		// Primer guardado inicializa la caché y escribe todo
+		await saveStoredTransactions(initialTxs);
+
+		const firstRead = await readStoredTransactions();
+		expect(firstRead).toHaveLength(2);
+
+		// Espiar llamadas de executeBatch
+		const batchSpy = vi.spyOn(IndexedDBProvider.prototype, 'executeBatch');
+
+		// Guardar un array modificado:
+		// - 't-1' modificado (cambia importe)
+		// - 't-2' eliminado
+		// - 't-3' añadido
+		const modifiedTxs: Transaction[] = [
+			{
+				id: 't-1',
+				desc: 'Gasto 1 Modificado',
+				money: { amount: '15.00', currency: 'EUR' },
+				type: 'expense',
+				tag: 'Ocio',
+				date: '2026-05-01',
+				recurrence: 'one-off',
+				owner: 'userA',
+				paidBy: 'userA'
+			},
+			{
+				id: 't-3',
+				desc: 'Gasto 3',
+				money: { amount: '30.00', currency: 'EUR' },
+				type: 'expense',
+				tag: 'Ocio',
+				date: '2026-05-02',
+				recurrence: 'one-off',
+				owner: 'userA',
+				paidBy: 'userA'
+			}
+		];
+
+		await saveStoredTransactions(modifiedTxs);
+
+		// Verificar que se llamó a executeBatch para realizar todas las operaciones atómicamente
+		expect(batchSpy).toHaveBeenCalledTimes(1);
+		expect(batchSpy).toHaveBeenCalledWith('transactions', ['t-2'], [
+			expect.objectContaining({ id: 't-1', desc: 'Gasto 1 Modificado' }),
+			expect.objectContaining({ id: 't-3', desc: 'Gasto 3' })
+		]);
+		batchSpy.mockRestore();
+
+		// Verificar que la lectura final es correcta
+		const finalRead = await readStoredTransactions();
+		expect(finalRead).toHaveLength(2);
+		expect(finalRead.find((t) => t.id === 't-1')?.money.amount).toBe('15.00');
+		expect(finalRead.find((t) => t.id === 't-3')?.desc).toBe('Gasto 3');
+		expect(finalRead.find((t) => t.id === 't-2')).toBeUndefined();
+	});
+
+	it('debe lanzar un error si se intenta escribir estando la base de datos bloqueada (salt en localStorage pero key null)', async () => {
+		localStorage.setItem('finanzas_v3_password_salt', 'algunsalt');
+		setCryptoKey(null);
+
+		const testTx: Transaction = {
+			id: 't-locked',
+			desc: 'Gasto bloqueado',
+			money: { amount: '10.00', currency: 'EUR' },
+			type: 'expense',
+			tag: 'Ocio',
+			date: '2026-05-01',
+			recurrence: 'one-off',
+			owner: 'userA',
+			paidBy: 'userA'
+		};
+
+		const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+		await expect(saveStoredTransactions([testTx])).rejects.toThrow(/bloqueada/);
+		consoleErrorSpy.mockRestore();
+
+		localStorage.removeItem('finanzas_v3_password_salt');
+		const result = await readStoredTransactions();
+		expect(result).toHaveLength(0);
+	});
+
+	it('debe propagar los errores de lectura de IndexedDB para evitar el borrado silencioso por auto-guardado', async () => {
+		const spyGetAll = vi.spyOn(IndexedDBProvider.prototype, 'getAllEntities').mockRejectedValue(new Error('Lectura corrupta'));
+
+		await expect(readStoredTransactions()).rejects.toThrow('Lectura corrupta');
+
+		spyGetAll.mockRestore();
+	});
+
+	it('debe abortar la migración silenciosa si el almacenamiento está cifrado y bloqueado', async () => {
+		localStorage.setItem('finanzas_v3_password_salt', 'salt');
+		setCryptoKey(null);
+
+		const consoleInfoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+		await executeSilentMigrationIfRequired();
+		expect(consoleInfoSpy).toHaveBeenCalledWith('Migración silenciosa pospuesta: el almacenamiento está cifrado y bloqueado.');
+		consoleInfoSpy.mockRestore();
+	});
+
+	it('debe utilizar executeBatch para agrupar inserciones y eliminaciones en una única transacción', async () => {
+		const initialTxs: Transaction[] = [
+			{
+				id: 't-1',
+				desc: 'Gasto 1',
+				money: { amount: '10.00', currency: 'EUR' },
+				type: 'expense',
+				tag: 'Ocio',
+				date: '2026-05-01',
+				recurrence: 'one-off',
+				owner: 'userA',
+				paidBy: 'userA'
+			},
+			{
+				id: 't-2',
+				desc: 'Gasto 2',
+				money: { amount: '20.00', currency: 'EUR' },
+				type: 'expense',
+				tag: 'Ocio',
+				date: '2026-05-01',
+				recurrence: 'one-off',
+				owner: 'userA',
+				paidBy: 'userA'
+			}
+		];
+
+		await saveStoredTransactions(initialTxs);
+
+		const modifiedTxs: Transaction[] = [
+			{
+				id: 't-1',
+				desc: 'Gasto 1 Modificado',
+				money: { amount: '15.00', currency: 'EUR' },
+				type: 'expense',
+				tag: 'Ocio',
+				date: '2026-05-01',
+				recurrence: 'one-off',
+				owner: 'userA',
+				paidBy: 'userA'
+			},
+			{
+				id: 't-3',
+				desc: 'Gasto 3',
+				money: { amount: '30.00', currency: 'EUR' },
+				type: 'expense',
+				tag: 'Ocio',
+				date: '2026-05-02',
+				recurrence: 'one-off',
+				owner: 'userA',
+				paidBy: 'userA'
+			}
+		];
+
+		const batchSpy = vi.spyOn(IndexedDBProvider.prototype, 'executeBatch');
+		await saveStoredTransactions(modifiedTxs);
+
+		expect(batchSpy).toHaveBeenCalledTimes(1);
+		expect(batchSpy).toHaveBeenCalledWith('transactions', ['t-2'], [
+			expect.objectContaining({ id: 't-1', desc: 'Gasto 1 Modificado' }),
+			expect.objectContaining({ id: 't-3', desc: 'Gasto 3' })
+		]);
+		batchSpy.mockRestore();
+	});
+
+	it('debe acotar fechas extremadamente lejanas a un rango razonable de +/- 10 años en readStoredPeriods', async () => {
+		const txs: Transaction[] = [
+			{
+				id: 't-invalid-date',
+				desc: 'Gasto lejano',
+				money: { amount: '10.00', currency: 'EUR' },
+				type: 'expense',
+				tag: 'Ocio',
+				date: '1900-01-01',
+				recurrence: 'one-off',
+				owner: 'userA',
+				paidBy: 'userA'
+			}
+		];
+
+		const result = await readStoredPeriods(txs, []);
+		const currentYear = new Date().getFullYear();
+		const minYear = currentYear - 10;
+
+		expect(result[0].month).toBe(`${minYear}-01`);
+	});
+
+	it('debe acotar fechas lejanas en el futuro en readStoredPeriods (limite maxYear)', async () => {
+		const txs: Transaction[] = [
+			{
+				id: 't-future-date',
+				desc: 'Gasto futuro lejano',
+				money: { amount: '10.00', currency: 'EUR' },
+				type: 'expense',
+				tag: 'Ocio',
+				date: '2090-01-01',
+				recurrence: 'one-off',
+				owner: 'userA',
+				paidBy: 'userA'
+			}
+		];
+
+		const result = await readStoredPeriods(txs, []);
+		const currentYear = new Date().getFullYear();
+		const maxYear = currentYear + 10;
+
+		expect(result[0].month).toBe(`${maxYear}-12`);
+	});
+
+	it('debe retornar minYear-01 si la fecha no tiene año numérico válido en clampMonth', async () => {
+		const txs: Transaction[] = [
+			{
+				id: 't-nan-date',
+				desc: 'Gasto fecha no-num',
+				money: { amount: '10.00', currency: 'EUR' },
+				type: 'expense',
+				tag: 'Ocio',
+				date: 'xxxx-01-01',
+				recurrence: 'one-off',
+				owner: 'userA',
+				paidBy: 'userA'
+			}
+		];
+
+		const result = await readStoredPeriods(txs, []);
+		const currentYear = new Date().getFullYear();
+		const minYear = currentYear - 10;
+		expect(result[0].month).toBe(`${minYear}-01`);
+	});
+
+	it('debe registrar error y lanzar excepción al intentar guardar datos inválidos en interfaces públicas', async () => {
+		const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+		// Transacción inválida (money y tipo incorrectos)
+		const invalidTx = { id: 'invalid-tx' } as any;
+		await expect(saveStoredTransactions([invalidTx])).rejects.toThrow();
+
+		// Deuda inválida
+		const invalidDebt = { id: 'invalid-debt' } as any;
+		await expect(saveStoredDebts([invalidDebt])).rejects.toThrow();
+
+		// Periodo inválido
+		const invalidPeriod = { month: 'invalid-month', openingBalance: 'string-instead-of-num' } as any;
+		await expect(saveStoredPeriods([invalidPeriod])).rejects.toThrow();
+
+		// Cuenta inválida
+		const invalidAccount = { id: 'invalid-acc', initialBalance: 'string-instead-of-num' } as any;
+		await expect(saveStoredAccounts([invalidAccount])).rejects.toThrow();
+
+		// Chat inválido
+		const invalidChat = [{ role: 'invalid-role', content: 123 }] as any;
+		await expect(saveAiChat(invalidChat)).rejects.toThrow();
+
+		consoleErrorSpy.mockRestore();
+	});
+
+	it('debe lanzar error directo al guardar entidad única inválida', async () => {
+		const invalidTx = { id: 'invalid-tx' } as any;
+		await expect(saveStoredTransactionSingle(invalidTx)).rejects.toThrow();
+
+		const invalidDebt = { id: 'invalid-debt' } as any;
+		await expect(saveStoredDebtSingle(invalidDebt)).rejects.toThrow();
+	});
+
+	it('debe verificar salvaguardas y lanzar error de bloqueo al guardar con bd bloqueada', async () => {
+		localStorage.setItem('finanzas_v3_password_salt', 'salt');
+		setCryptoKey(null);
+		const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+		// Cuentas
+		await expect(saveStoredAccounts([{ id: 'acc1', name: 'Cuenta 1', owner: 'joint', initialBalance: 100 }])).rejects.toThrow(/bloqueada/);
+
+		// Periodos
+		await expect(saveStoredPeriods([{ month: '2026-05', openingBalance: 100 }])).rejects.toThrow(/bloqueada/);
+
+		// API Key Gemini
+		await expect(saveGeminiApiKey('some-key')).rejects.toThrow(/bloqueada/);
+
+		// Chat
+		await expect(saveAiChat([{ role: 'user', content: 'hola', timestamp: '2026-05-01T00:00:00Z' }])).rejects.toThrow(/bloqueada/);
+
+		consoleErrorSpy.mockRestore();
+	});
+
+	it('debe lanzar error directo al guardar o eliminar entidad única si la base de datos está bloqueada', async () => {
+		localStorage.setItem('finanzas_v3_password_salt', 'salt');
+		setCryptoKey(null);
+
+		const validTx: Transaction = {
+			id: 't-1',
+			desc: 'Gasto',
+			money: { amount: '10.00', currency: 'EUR' },
+			type: 'expense',
+			tag: 'Ocio',
+			date: '2026-05-01',
+			recurrence: 'one-off',
+			owner: 'userA',
+			paidBy: 'userA'
+		};
+
+		const validDebt: Debt = {
+			id: 'd-1',
+			kind: 'classic',
+			desc: 'Hipoteca',
+			tag: 'Vivienda',
+			date: '2026-05',
+			owner: 'joint',
+			principal: 10000,
+			tae: 3.5,
+			termMonths: 120
+		};
+
+		await expect(saveStoredTransactionSingle(validTx)).rejects.toThrow(/bloqueada/);
+		await expect(deleteStoredTransactionSingle('t-1')).rejects.toThrow(/bloqueada/);
+		await expect(saveStoredDebtSingle(validDebt)).rejects.toThrow(/bloqueada/);
+		await expect(deleteStoredDebtSingle('d-1')).rejects.toThrow(/bloqueada/);
+	});
+
+	it('debe propagar errores en executeBatch de IndexedDBProvider cuando la transacción falla', async () => {
+		const dbProvider = new IndexedDBProvider();
+		const spyInit = vi.spyOn(dbProvider, 'initDB').mockImplementation(async () => {
+			return {
+				transaction: () => {
+					const tx = {
+						objectStore: () => ({
+							delete: () => {},
+							put: () => {}
+						}),
+						set onerror(cb: any) {
+							setTimeout(() => cb({ target: { error: new Error('Batch Error') } }), 0);
+						},
+						set oncomplete(cb: any) {}
+					} as any;
+					return tx;
+				}
+			} as any;
+		});
+
+		await expect(dbProvider.executeBatch('transactions', ['t-1'], [])).rejects.toThrow();
+		spyInit.mockRestore();
+	});
+
+	it('debe propagar errores en saveStoredTransactions y readStoredAccounts cuando falla la persistencia', async () => {
+		const spyBulk = vi.spyOn(IndexedDBProvider.prototype, 'saveEntitiesBulk').mockRejectedValue(new Error('DB Bulk Write Error'));
+		const spyGetAll = vi.spyOn(IndexedDBProvider.prototype, 'getAllEntities').mockRejectedValue(new Error('DB Read Error'));
+
+		const validTx = {
+			id: 't-1',
+			desc: 'Gasto normal',
+			money: { amount: '10.00', currency: 'EUR' as const },
+			type: 'expense' as const,
+			tag: 'Ocio',
+			date: '2026-01-01',
+			recurrence: 'one-off' as const,
+			owner: 'userA' as const,
+			paidBy: 'userA' as const
+		};
+
+		await expect(saveStoredTransactions([validTx])).rejects.toThrow('DB Bulk Write Error');
+		await expect(readStoredAccounts()).rejects.toThrow('DB Read Error');
+
+		spyBulk.mockRestore();
+		spyGetAll.mockRestore();
+	});
+
+	it('debe propagar errores en saveGeminiApiKey y saveAiChat cuando falla la base de datos', async () => {
+		const spySingle = vi.spyOn(IndexedDBProvider.prototype, 'saveSingleEntity').mockRejectedValue(new Error('DB Single Write Error'));
+
+		await expect(saveGeminiApiKey('some-key')).rejects.toThrow('DB Single Write Error');
+		await expect(saveAiChat([])).rejects.toThrow('DB Single Write Error');
+
+		spySingle.mockRestore();
+	});
+
+	it('debe registrar error y retornar por defecto en readUserNames si falla la lectura', async () => {
+		const spyGet = vi.spyOn(IndexedDBProvider.prototype, 'getSingleEntity').mockRejectedValue(new Error('Config Read Error'));
+		const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+		const names = await readUserNames();
+		expect(names).toEqual({ userAName: 'Usuario A', userBName: 'Usuario B' });
+		expect(consoleErrorSpy).toHaveBeenCalled();
+
+		spyGet.mockRestore();
+		consoleErrorSpy.mockRestore();
 	});
 });

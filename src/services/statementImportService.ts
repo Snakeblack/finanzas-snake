@@ -154,7 +154,8 @@ const hasTransferEvidence = (tx: ImportedTransaction): boolean => {
 		'cbu',
 		'cvu',
 		'sepa',
-		'iban'
+		'iban',
+		'bizum'
 	]);
 	const hasDirectionalTerm = hasAnyToken(searchableText, ['envio', 'enviado', 'enviada', 'recibido', 'recibida']);
 	const hasAccountTerm = hasAnyToken(searchableText, ['cuenta', 'account']);
@@ -362,7 +363,7 @@ export function normalizeDate(val: string): string {
 		const [_, y, m, d] = ymdMatch;
 		return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
 	}
-	return new Date().toISOString().substring(0, 10);
+	return '1970-01-01';
 }
 
 /**
@@ -543,26 +544,26 @@ export function correlateInternalTransfers(importedTxs: ImportedTransaction[]): 
 	const transfersById = new Map<string, ImportedTransaction>();
 
 	for (const expense of importedTxs.filter((tx) => tx.type === 'expense')) {
-		const matches = importedTxs.filter(
-			(income) =>
-				income.type === 'income' &&
-				income.date === expense.date &&
-				income.amount === expense.amount &&
-				income.accountId !== expense.accountId
-		);
+		const matches = importedTxs.filter((income) => {
+			if (income.type !== 'income' || income.amount !== expense.amount || income.accountId === expense.accountId) {
+				return false;
+			}
+			const dist = getDateDistanceDays(expense.date, income.date);
+			return dist !== undefined && dist <= 2 && expense.date <= income.date;
+		});
 
 		if (matches.length !== 1) {
 			continue;
 		}
 
 		const [income] = matches;
-		const inverseMatches = importedTxs.filter(
-			(candidate) =>
-				candidate.type === 'expense' &&
-				candidate.date === income.date &&
-				candidate.amount === income.amount &&
-				candidate.accountId !== income.accountId
-		);
+		const inverseMatches = importedTxs.filter((candidate) => {
+			if (candidate.type !== 'expense' || candidate.amount !== income.amount || candidate.accountId === income.accountId) {
+				return false;
+			}
+			const dist = getDateDistanceDays(income.date, candidate.date);
+			return dist !== undefined && dist <= 2 && candidate.date <= income.date;
+		});
 
 		if (inverseMatches.length !== 1 || matchedIds.has(expense.id) || matchedIds.has(income.id)) {
 			continue;
@@ -638,6 +639,8 @@ export function formatImportedTransactionsForPersistence(
 }
 
 function formatInternalTransfer(tx: ImportedTransaction, accounts: Account[]): Transaction {
+	const owner = getTransferOwner(accounts, tx.fromAccountId, tx.toAccountId);
+	const paidBy = tx.paidBy || (owner === 'userA' ? 'userA' : owner === 'userB' ? 'userB' : 'shared');
 	return {
 		id: tx.transferCorrelationId || tx.importFingerprint || tx.id,
 		desc: tx.desc,
@@ -646,7 +649,8 @@ function formatInternalTransfer(tx: ImportedTransaction, accounts: Account[]): T
 		tag: 'Traspaso',
 		date: tx.date,
 		recurrence: 'one-off',
-		owner: getTransferOwner(accounts, tx.fromAccountId, tx.toAccountId),
+		owner,
+		paidBy,
 		accountId: undefined,
 		fromAccountId: tx.fromAccountId,
 		toAccountId: tx.toAccountId
@@ -718,8 +722,8 @@ export function detectDuplicates(
 			let sameDesc = desc1 === desc2 || desc1.includes(desc2) || desc2.includes(desc1);
 
 			if (!sameDesc) {
-				const words1 = desc1.split(/[^a-záéíóúüñ0-9]+/i).filter((w) => w.length >= 4);
-				const words2 = desc2.split(/[^a-záéíóúüñ0-9]+/i).filter((w) => w.length >= 4);
+				const words1 = desc1.split(/[^a-záéíóúüñ0-9]+/i).filter((w) => w.length >= 4 && !STATEMENT_CONCEPT_STOP_WORDS.has(w));
+				const words2 = desc2.split(/[^a-záéíóúüñ0-9]+/i).filter((w) => w.length >= 4 && !STATEMENT_CONCEPT_STOP_WORDS.has(w));
 				if (words1.length > 0 && words2.length > 0) {
 					sameDesc = words1.some((w) => words2.includes(w));
 				}
@@ -904,7 +908,7 @@ Reglas estrictas:
 			createImportedTransactionFromGemini(tx, index, 'imported-ai')
 		);
 	} catch (err: unknown) {
-		console.error('Error al parsear el JSON de Gemini:', err, 'Texto recibido:', resultText);
+		console.error('Error al parsear el JSON de Gemini:', err);
 		throw new Error(
 			'No se pudo procesar el extracto con IA. Asegúrate de que el texto contiene movimientos válidos y que tu API Key es correcta.',
 			{ cause: err }

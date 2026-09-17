@@ -12,7 +12,7 @@ function renderInlineCode(text: string, key: string): ReactNode[] {
 			return (
 				<code
 					key={`${key}-${cIdx}`}
-					className="bg-slate-900 border border-slate-800 text-indigo-300 px-1.5 py-0.5 rounded font-mono text-xs mx-0.5 font-semibold"
+					className="bg-slate-900 border border-slate-800 text-foreground px-1.5 py-0.5 rounded font-mono text-xs mx-0.5 font-semibold"
 				>
 					{codeText}
 				</code>

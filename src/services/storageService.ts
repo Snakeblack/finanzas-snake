@@ -17,6 +17,8 @@ import { TransactionSchema, DebtSchema, PeriodSchema, AccountSchema, ChatMessage
 
 const idb = new IndexedDBProvider();
 
+const isBrowserEnvironment = typeof window !== 'undefined' || typeof globalThis.localStorage !== 'undefined';
+
 const UNIFIED_IDB_MIGRATION_FLAG = 'finanzas_v5_unified_idb';
 const IDB_CONFIG_KEYS = {
 	migrationCompleted: 'migration:unified-idb:v5',
@@ -83,11 +85,17 @@ type ConfigEntity = {
 // Clave criptográfica activa en memoria (RAM)
 let activeCryptoKey: CryptoKey | null = null;
 
+// Caché en memoria para transacciones y deudas
+let transactionCache: Map<string, Transaction> | null = null;
+let debtCache: Map<string, Debt> | null = null;
+
 /**
  * Establece la clave criptográfica activa para las operaciones de lectura y escritura.
  */
 export const setCryptoKey = (key: CryptoKey | null): void => {
 	activeCryptoKey = key;
+	transactionCache = null;
+	debtCache = null;
 };
 
 /**
@@ -228,13 +236,13 @@ const hasConfigEntity = async (key: string): Promise<boolean> => {
 
 const getLegacyUserNames = (): UserNames => ({
 	userAName:
-		(typeof window !== 'undefined' && localStorage.getItem(STORAGE_KEYS.userAName)) || DEFAULT_USER_NAMES.userAName,
+		(isBrowserEnvironment && localStorage.getItem(STORAGE_KEYS.userAName)) || DEFAULT_USER_NAMES.userAName,
 	userBName:
-		(typeof window !== 'undefined' && localStorage.getItem(STORAGE_KEYS.userBName)) || DEFAULT_USER_NAMES.userBName
+		(isBrowserEnvironment && localStorage.getItem(STORAGE_KEYS.userBName)) || DEFAULT_USER_NAMES.userBName
 });
 
 const migrateLegacyUserNamesToIdb = async (): Promise<void> => {
-	if (typeof window === 'undefined') return;
+	if (!isBrowserEnvironment) return;
 	const legacyUserAName = localStorage.getItem(STORAGE_KEYS.userAName);
 	const legacyUserBName = localStorage.getItem(STORAGE_KEYS.userBName);
 	if (!legacyUserAName && !legacyUserBName) return;
@@ -287,7 +295,7 @@ const assignDefaultAccountIds = (transactions: Transaction[]): Transaction[] => 
  * La limpieza destructiva de claves legacy se realiza solo después de una migración exitosa.
  */
 export const cleanLegacyData = (): void => {
-	if (typeof window !== 'undefined' && !localStorage.getItem(STORAGE_KEYS.clearedV2)) {
+	if (isBrowserEnvironment && !localStorage.getItem(STORAGE_KEYS.clearedV2)) {
 		localStorage.setItem(STORAGE_KEYS.clearedV2, 'true');
 	}
 };
@@ -313,7 +321,8 @@ const readStoredArray = async (primaryKey: string, fallbackKey?: string): Promis
 				return Array.isArray(decrypted) ? decrypted : null;
 			}
 			return null;
-		} catch {
+		} catch (error) {
+			console.error(`Error reading array from LocalStorage for key ${key}:`, error);
 			return null;
 		}
 	};
@@ -353,7 +362,7 @@ export const migrateTransaction = (rawTransaction: UnsafeRecord, index: number):
 						? DEFAULT_TAGS.income[0]
 						: DEFAULT_TAGS.expense[0])
 		),
-		date: String(tx['date'] ?? new Date().toISOString().substring(0, 10)).substring(0, 10),
+		date: String(tx['date'] ?? '1970-01-01').substring(0, 10),
 		recurrence: tx['recurrence'] === 'recurring' ? 'recurring' : 'one-off',
 		originId: tx['originId'] ? String(tx['originId']) : undefined,
 		owner:
@@ -373,9 +382,9 @@ export const migrateTransaction = (rawTransaction: UnsafeRecord, index: number):
 /**
  * Migra una estructura de deuda sin tipar a un objeto de tipo Debt (clásica o plan de pagos) válido de la v3.
  */
-export const migrateDebt = (rawDebt: UnsafeRecord): Debt => {
+export const migrateDebt = (rawDebt: UnsafeRecord, index: number = 0): Debt => {
 	const debt = rawDebt || {};
-	const id = String(debt['id'] ?? Date.now());
+	const id = String(debt['id'] ?? `debt-${index + 1}`);
 	const desc = String(debt['desc'] ?? 'Deuda sin nombre');
 	const tag = String(debt['tag'] ?? DEFAULT_TAGS.debt[0]);
 	const date = normalizeMonth(debt['date'] as string);
@@ -468,23 +477,184 @@ const saveEntitiesToIdbBulk = async <T extends object>(
 	}
 };
 
+const isStorageLocked = (): boolean => {
+	return (
+		isBrowserEnvironment &&
+		localStorage.getItem('finanzas_v3_password_salt') !== null &&
+		activeCryptoKey === null
+	);
+};
+
+const isTransactionEqual = (a: Transaction, b: Transaction): boolean => {
+	return (
+		a.id === b.id &&
+		a.desc === b.desc &&
+		a.type === b.type &&
+		a.tag === b.tag &&
+		a.date === b.date &&
+		a.recurrence === b.recurrence &&
+		a.originId === b.originId &&
+		a.owner === b.owner &&
+		a.paidBy === b.paidBy &&
+		a.accountId === b.accountId &&
+		a.fromAccountId === b.fromAccountId &&
+		a.toAccountId === b.toAccountId &&
+		a.money?.amount === b.money?.amount &&
+		a.money?.currency === b.money?.currency
+	);
+};
+
+const isDebtEqual = (a: Debt, b: Debt): boolean => {
+	if (
+		a.id !== b.id ||
+		a.kind !== b.kind ||
+		a.desc !== b.desc ||
+		a.tag !== b.tag ||
+		a.date !== b.date ||
+		a.owner !== b.owner ||
+		a.paymentAccountId !== b.paymentAccountId ||
+		a.chargeDay !== b.chargeDay ||
+		a.recurringMonthlyCosts !== b.recurringMonthlyCosts
+	) {
+		return false;
+	}
+	if (a.kind === 'classic' && b.kind === 'classic') {
+		return (
+			a.principal === b.principal &&
+			a.openingCommission === b.openingCommission &&
+			a.tin === b.tin &&
+			a.tae === b.tae &&
+			a.termMonths === b.termMonths
+		);
+	}
+	if (a.kind === 'paymentPlan' && b.kind === 'paymentPlan') {
+		if (
+			a.financedAmount !== b.financedAmount ||
+			a.fees !== b.fees ||
+			a.totalToPay !== b.totalToPay ||
+			a.installments.length !== b.installments.length
+		) {
+			return false;
+		}
+		return a.installments.every((inst, idx) => {
+			const bInst = b.installments[idx];
+			return (
+				bInst &&
+				inst.id === bInst.id &&
+				inst.dueMonth === bInst.dueMonth &&
+				inst.amount === bInst.amount &&
+				inst.status === bInst.status &&
+				inst.label === bInst.label
+			);
+		});
+	}
+	return false;
+};
+
 const saveStoredTransactionsStrict = async (transactions: Transaction[]): Promise<void> => {
-	await saveEntitiesToIdbBulk('transactions', 'id', transactions);
+	if (isStorageLocked()) {
+		throw new Error('No se pueden realizar escrituras en IndexedDB: la base de datos está cifrada y bloqueada.');
+	}
+
+	if (transactionCache === null) {
+		await saveEntitiesToIdbBulk('transactions', 'id', transactions);
+		transactionCache = new Map(transactions.map((t) => [t.id, t]));
+		return;
+	}
+
+	const incomingMap = new Map(transactions.map((t) => [t.id, t]));
+	const deletes: string[] = [];
+	const puts: any[] = [];
+
+	// 1. Detectar eliminados
+	for (const id of transactionCache.keys()) {
+		if (!incomingMap.has(id)) {
+			deletes.push(id);
+		}
+	}
+
+	// 2. Detectar nuevos o modificados
+	for (const [id, tx] of incomingMap) {
+		const cached = transactionCache.get(id);
+		if (!cached || !isTransactionEqual(cached, tx)) {
+			if (activeCryptoKey) {
+				const ciphertext = await encryptData(tx);
+				puts.push({ id, ciphertext });
+			} else {
+				puts.push(tx);
+			}
+		}
+	}
+
+	if (deletes.length > 0 || puts.length > 0) {
+		await idb.executeBatch('transactions', deletes, puts);
+	}
+
+	// 3. Sincronizar cache
+	transactionCache = incomingMap;
 };
 
 const saveStoredDebtsStrict = async (debts: Debt[]): Promise<void> => {
-	await saveEntitiesToIdbBulk('debts', 'id', debts);
+	if (isStorageLocked()) {
+		throw new Error('No se pueden realizar escrituras en IndexedDB: la base de datos está cifrada y bloqueada.');
+	}
+
+	if (debtCache === null) {
+		await saveEntitiesToIdbBulk('debts', 'id', debts);
+		debtCache = new Map(debts.map((d) => [d.id, d]));
+		return;
+	}
+
+	const incomingMap = new Map(debts.map((d) => [d.id, d]));
+	const deletes: string[] = [];
+	const puts: any[] = [];
+
+	// 1. Detectar eliminados
+	for (const id of debtCache.keys()) {
+		if (!incomingMap.has(id)) {
+			deletes.push(id);
+		}
+	}
+
+	// 2. Detectar nuevos o modificados
+	for (const [id, debt] of incomingMap) {
+		const cached = debtCache.get(id);
+		if (!cached || !isDebtEqual(cached, debt)) {
+			if (activeCryptoKey) {
+				const ciphertext = await encryptData(debt);
+				puts.push({ id, ciphertext });
+			} else {
+				puts.push(debt);
+			}
+		}
+	}
+
+	if (deletes.length > 0 || puts.length > 0) {
+		await idb.executeBatch('debts', deletes, puts);
+	}
+
+	// 3. Sincronizar cache
+	debtCache = incomingMap;
 };
 
 const saveStoredPeriodsStrict = async (periods: Period[]): Promise<void> => {
+	if (isStorageLocked()) {
+		throw new Error('No se pueden realizar escrituras en IndexedDB: la base de datos está cifrada y bloqueada.');
+	}
 	await saveEntitiesToIdbBulk('periods', 'month', periods);
 };
 
 const saveStoredAccountsStrict = async (accounts: Account[]): Promise<void> => {
+	if (isStorageLocked()) {
+		throw new Error('No se pueden realizar escrituras en IndexedDB: la base de datos está cifrada y bloqueada.');
+	}
 	await saveEntitiesToIdbBulk('accounts', 'id', accounts);
 };
 
 const saveGeminiApiKeyStrict = async (key: string): Promise<void> => {
+	if (isStorageLocked()) {
+		throw new Error('No se pueden realizar escrituras en IndexedDB: la base de datos está cifrada y bloqueada.');
+	}
 	if (activeCryptoKey && key.trim()) {
 		const ciphertext = await encryptWithKey(key, activeCryptoKey);
 		await idb.saveSingleEntity('config', { key: 'geminiKey', ciphertext });
@@ -494,6 +664,9 @@ const saveGeminiApiKeyStrict = async (key: string): Promise<void> => {
 };
 
 const saveAiChatStrict = async (chat: ChatMessage[]): Promise<void> => {
+	if (isStorageLocked()) {
+		throw new Error('No se pueden realizar escrituras en IndexedDB: la base de datos está cifrada y bloqueada.');
+	}
 	if (activeCryptoKey) {
 		const ciphertext = await encryptData({ id: 'history', messages: chat });
 		await idb.saveSingleEntity('chat', { id: 'history', ciphertext });
@@ -527,6 +700,10 @@ const readEntitiesFromIdb = async (storeName: string): Promise<unknown[]> => {
  */
 export const executeSilentMigrationIfRequired = async (decryptedTransactions?: Transaction[]): Promise<void> => {
 	try {
+		if (isStorageLocked()) {
+			console.info('Migración silenciosa pospuesta: el almacenamiento está cifrado y bloqueado.');
+			return;
+		}
 		await migrateLegacyUserNamesToIdb();
 		const migrationUserNames = await readUserNames();
 
@@ -549,7 +726,7 @@ export const executeSilentMigrationIfRequired = async (decryptedTransactions?: T
 			decryptedTransactions && decryptedTransactions.length > 0
 				? decryptedTransactions
 				: ((await readStoredArray(STORAGE_KEYS.transactions, 'finanzas_v2_transactions')) as Transaction[]);
-		let migratedTx = Array.isArray(rawTx) ? rawTx.map((tx) => migrateTransaction(tx as UnsafeRecord, 0)) : [];
+		let migratedTx = Array.isArray(rawTx) ? rawTx.map((tx, idx) => migrateTransaction(tx as UnsafeRecord, idx)) : [];
 		const rawDebts = (await readStoredArray(STORAGE_KEYS.debts, 'finanzas_v2_debts')) as Debt[];
 		const migratedDebts = Array.isArray(rawDebts) ? rawDebts.map(migrateDebt) : [];
 		const rawPeriods = (await readStoredArray(STORAGE_KEYS.periods)) as Period[];
@@ -627,7 +804,7 @@ export const executeSilentMigrationIfRequired = async (decryptedTransactions?: T
 export const readStoredTransactions = async (): Promise<Transaction[]> => {
 	try {
 		const rawTxs = await readEntitiesFromIdb('transactions');
-		return rawTxs.map((item, index) => {
+		const txs = rawTxs.map((item, index) => {
 			const parsed = TransactionSchema.safeParse(item);
 			if (parsed.success) {
 				return parsed.data;
@@ -635,9 +812,11 @@ export const readStoredTransactions = async (): Promise<Transaction[]> => {
 			const migrated = migrateTransaction(item as UnsafeRecord, index);
 			return TransactionSchema.parse(migrated);
 		});
+		transactionCache = new Map(txs.map((t) => [t.id, t]));
+		return txs;
 	} catch (error) {
 		console.error('Error reading transactions from IndexedDB:', error);
-		return [];
+		throw error;
 	}
 };
 
@@ -646,9 +825,53 @@ export const readStoredTransactions = async (): Promise<Transaction[]> => {
  */
 export const saveStoredTransactions = async (transactions: Transaction[]): Promise<void> => {
 	try {
+		transactions.forEach((t) => TransactionSchema.parse(t));
 		await saveStoredTransactionsStrict(transactions);
 	} catch (error) {
 		console.error('Error saving transactions to IndexedDB:', error);
+		throw error;
+	}
+};
+
+/**
+ * Guarda una única transacción de forma incremental en IndexedDB y actualiza la caché.
+ */
+export const saveStoredTransactionSingle = async (tx: Transaction): Promise<void> => {
+	TransactionSchema.parse(tx);
+	try {
+		if (isStorageLocked()) {
+			throw new Error('No se pueden realizar escrituras en IndexedDB: la base de datos está cifrada y bloqueada.');
+		}
+		if (activeCryptoKey) {
+			const ciphertext = await encryptData(tx);
+			await idb.saveSingleEntity('transactions', { id: tx.id, ciphertext });
+		} else {
+			await idb.saveSingleEntity('transactions', tx);
+		}
+		if (transactionCache !== null) {
+			transactionCache.set(tx.id, tx);
+		}
+	} catch (error) {
+		console.error('Error saving transaction incrementally to IndexedDB:', error);
+		throw error;
+	}
+};
+
+/**
+ * Elimina una única transacción de forma incremental en IndexedDB y actualiza la caché.
+ */
+export const deleteStoredTransactionSingle = async (id: string): Promise<void> => {
+	try {
+		if (isStorageLocked()) {
+			throw new Error('No se pueden realizar escrituras en IndexedDB: la base de datos está cifrada y bloqueada.');
+		}
+		await idb.deleteSingleEntity('transactions', id);
+		if (transactionCache !== null) {
+			transactionCache.delete(id);
+		}
+	} catch (error) {
+		console.error('Error deleting transaction incrementally from IndexedDB:', error);
+		throw error;
 	}
 };
 
@@ -658,17 +881,19 @@ export const saveStoredTransactions = async (transactions: Transaction[]): Promi
 export const readStoredDebts = async (): Promise<Debt[]> => {
 	try {
 		const rawDebts = await readEntitiesFromIdb('debts');
-		return rawDebts.map((item) => {
+		const debts = rawDebts.map((item, index) => {
 			const parsed = DebtSchema.safeParse(item);
 			if (parsed.success) {
 				return parsed.data;
 			}
-			const migrated = migrateDebt(item as UnsafeRecord);
+			const migrated = migrateDebt(item as UnsafeRecord, index);
 			return DebtSchema.parse(migrated);
 		});
+		debtCache = new Map(debts.map((d) => [d.id, d]));
+		return debts;
 	} catch (error) {
 		console.error('Error reading debts from IndexedDB:', error);
-		return [];
+		throw error;
 	}
 };
 
@@ -677,7 +902,7 @@ export const readStoredDebts = async (): Promise<Debt[]> => {
  */
 export const readStoredDebtsSync = (): Debt[] => {
 	if (
-		typeof window !== 'undefined' &&
+		isBrowserEnvironment &&
 		(localStorage.getItem('finanzas_v3_password_salt') ||
 			localStorage.getItem('finanzas_v5_unified_idb') === 'true')
 	) {
@@ -688,13 +913,14 @@ export const readStoredDebtsSync = (): Debt[] => {
 	try {
 		const parsed = JSON.parse(stored);
 		return Array.isArray(parsed)
-			? parsed.map((item) => {
+			? parsed.map((item, index) => {
 					const validated = DebtSchema.safeParse(item);
 					if (validated.success) return validated.data;
-					return migrateDebt(item as UnsafeRecord);
+					return migrateDebt(item as UnsafeRecord, index);
 				})
 			: [];
-	} catch {
+	} catch (error) {
+		console.error('Error parsing sync debts from LocalStorage:', error);
 		return [];
 	}
 };
@@ -704,11 +930,56 @@ export const readStoredDebtsSync = (): Debt[] => {
  */
 export const saveStoredDebts = async (debts: Debt[]): Promise<void> => {
 	try {
+		debts.forEach((d) => DebtSchema.parse(d));
 		await saveStoredDebtsStrict(debts);
 	} catch (error) {
 		console.error('Error saving debts to IndexedDB:', error);
+		throw error;
 	}
 };
+
+/**
+ * Guarda una única deuda de forma incremental en IndexedDB y actualiza la caché.
+ */
+export const saveStoredDebtSingle = async (debt: Debt): Promise<void> => {
+	DebtSchema.parse(debt);
+	try {
+		if (isStorageLocked()) {
+			throw new Error('No se pueden realizar escrituras en IndexedDB: la base de datos está cifrada y bloqueada.');
+		}
+		if (activeCryptoKey) {
+			const ciphertext = await encryptData(debt);
+			await idb.saveSingleEntity('debts', { id: debt.id, ciphertext });
+		} else {
+			await idb.saveSingleEntity('debts', debt);
+		}
+		if (debtCache !== null) {
+			debtCache.set(debt.id, debt);
+		}
+	} catch (error) {
+		console.error('Error saving debt incrementally to IndexedDB:', error);
+		throw error;
+	}
+};
+
+/**
+ * Elimina una única deuda de forma incremental en IndexedDB y actualiza la caché.
+ */
+export const deleteStoredDebtSingle = async (id: string): Promise<void> => {
+	try {
+		if (isStorageLocked()) {
+			throw new Error('No se pueden realizar escrituras en IndexedDB: la base de datos está cifrada y bloqueada.');
+		}
+		await idb.deleteSingleEntity('debts', id);
+		if (debtCache !== null) {
+			debtCache.delete(id);
+		}
+	} catch (error) {
+		console.error('Error deleting debt incrementally from IndexedDB:', error);
+		throw error;
+	}
+};
+
 
 /**
  * Lee los periodos de balance mensual desde IndexedDB o los autogenera si no existen.
@@ -738,15 +1009,34 @@ export const readStoredPeriods = async (existingTx: Transaction[], existingDebts
 		}
 	} catch (error) {
 		console.error('Error reading periods from IndexedDB:', error);
+		throw error;
 	}
 
 	// Generación bajo demanda en caso de migración sin periodos registrados
 	const months = new Set<string>();
+	const currentYear = new Date().getFullYear();
+	const minYear = currentYear - 10;
+	const maxYear = currentYear + 10;
+
+	const clampMonth = (m: string): string => {
+		const y = parseInt(m.substring(0, 4), 10);
+		if (isNaN(y)) return `${minYear}-01`;
+		if (y < minYear) return `${minYear}-01`;
+		if (y > maxYear) return `${maxYear}-12`;
+		return m;
+	};
+
 	existingTx.forEach((t) => {
-		if (t.date) months.add(t.date.substring(0, 7));
+		if (t.date) {
+			const m = t.date.substring(0, 7);
+			months.add(clampMonth(m));
+		}
 	});
 	existingDebts.forEach((d) => {
-		if (d.date) months.add(normalizeMonth(d.date));
+		if (d.date) {
+			const m = normalizeMonth(d.date);
+			months.add(clampMonth(m));
+		}
 	});
 
 	if (months.size === 0) {
@@ -778,9 +1068,11 @@ export const readStoredPeriods = async (existingTx: Transaction[], existingDebts
  */
 export const saveStoredPeriods = async (periods: Period[]): Promise<void> => {
 	try {
+		periods.forEach((p) => PeriodSchema.parse(p));
 		await saveStoredPeriodsStrict(periods);
 	} catch (error) {
 		console.error('Error saving periods to IndexedDB:', error);
+		throw error;
 	}
 };
 
@@ -795,7 +1087,7 @@ export const getInitialData = (): {
 	periods: Period[];
 } => {
 	if (
-		typeof window !== 'undefined' &&
+		isBrowserEnvironment &&
 		(localStorage.getItem('finanzas_v3_password_salt') ||
 			localStorage.getItem('finanzas_v5_unified_idb') === 'true')
 	) {
@@ -815,8 +1107,9 @@ export const getInitialData = (): {
 			const stored = localStorage.getItem(STORAGE_KEYS.transactions);
 			if (!stored) return [];
 			const parsed = JSON.parse(stored);
-			return Array.isArray(parsed) ? parsed.map(migrateTransaction) : [];
-		} catch {
+			return Array.isArray(parsed) ? parsed.map((tx, idx) => migrateTransaction(tx, idx)) : [];
+		} catch (error) {
+			console.error('Error parsing sync transactions from LocalStorage:', error);
 			return [];
 		}
 	};
@@ -826,8 +1119,9 @@ export const getInitialData = (): {
 			const stored = localStorage.getItem(STORAGE_KEYS.debts);
 			if (!stored) return [];
 			const parsed = JSON.parse(stored);
-			return Array.isArray(parsed) ? parsed.map(migrateDebt) : [];
-		} catch {
+			return Array.isArray(parsed) ? parsed.map((d, idx) => migrateDebt(d, idx)) : [];
+		} catch (error) {
+			console.error('Error parsing sync debts from LocalStorage:', error);
 			return [];
 		}
 	};
@@ -946,7 +1240,7 @@ export const readStoredAccounts = async (): Promise<Account[]> => {
 		});
 	} catch (error) {
 		console.error('Error reading accounts from IndexedDB:', error);
-		return [];
+		throw error;
 	}
 };
 
@@ -955,9 +1249,11 @@ export const readStoredAccounts = async (): Promise<Account[]> => {
  */
 export const saveStoredAccounts = async (accounts: Account[]): Promise<void> => {
 	try {
+		accounts.forEach((a) => AccountSchema.parse(a));
 		await saveStoredAccountsStrict(accounts);
 	} catch (error) {
 		console.error('Error saving accounts to IndexedDB:', error);
+		throw error;
 	}
 };
 
@@ -986,7 +1282,7 @@ export const readGeminiApiKey = async (): Promise<string> => {
  */
 export const readGeminiApiKeySync = (): string => {
 	if (
-		typeof window !== 'undefined' &&
+		isBrowserEnvironment &&
 		(localStorage.getItem('finanzas_v3_password_salt') ||
 			localStorage.getItem('finanzas_v5_unified_idb') === 'true')
 	) {
@@ -1003,6 +1299,7 @@ export const saveGeminiApiKey = async (key: string): Promise<void> => {
 		await saveGeminiApiKeyStrict(key);
 	} catch (error) {
 		console.error('Error saving Gemini API key to IndexedDB:', error);
+		throw error;
 	}
 };
 
@@ -1054,7 +1351,7 @@ export const readAiChat = async (): Promise<ChatMessage[]> => {
  */
 export const readAiChatSync = (): ChatMessage[] => {
 	if (
-		typeof window !== 'undefined' &&
+		isBrowserEnvironment &&
 		(localStorage.getItem('finanzas_v3_password_salt') ||
 			localStorage.getItem('finanzas_v5_unified_idb') === 'true')
 	) {
@@ -1070,7 +1367,8 @@ export const readAiChatSync = (): ChatMessage[] => {
 					content: decodeHtmlEntities(msg.content || '')
 				}))
 			: [];
-	} catch {
+	} catch (error) {
+		console.error('Error parsing sync AI chat from LocalStorage:', error);
 		return [];
 	}
 };
@@ -1080,9 +1378,11 @@ export const readAiChatSync = (): ChatMessage[] => {
  */
 export const saveAiChat = async (chat: ChatMessage[]): Promise<void> => {
 	try {
+		chat.forEach((msg) => ChatMessageSchema.parse(msg));
 		await saveAiChatStrict(chat);
 	} catch (error) {
 		console.error('Error saving AI chat to IndexedDB:', error);
+		throw error;
 	}
 };
 

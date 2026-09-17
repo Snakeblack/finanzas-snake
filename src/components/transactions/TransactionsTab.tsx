@@ -143,7 +143,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 						</>
 					) : (
 						<>
-							<Icons.Plus className="w-4 h-4 text-indigo-400 mr-0" />
+							<Icons.Plus className="w-4 h-4 text-foreground mr-0" />
 							<span>Crear Manual</span>
 						</>
 					)}
@@ -152,7 +152,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 				<button
 					type="button"
 					onClick={() => setIsImportModalOpen(true)}
-					className="flex items-center justify-center gap-2 bg-indigo-600/90 hover:bg-indigo-550 border border-indigo-500/20 text-slate-100 hover:text-white px-4 py-3 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm active:scale-[0.98]"
+					className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-3 rounded-lg text-xs sm:text-sm font-medium transition-all shadow-sm active:scale-[0.98]"
 				>
 					<Upload className="w-4 h-4" />
 					<span>Importar Extracto</span>
@@ -165,7 +165,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 			>
 				<div className="flex flex-col gap-4 mb-6">
 					<h3 className="font-heading text-lg font-bold text-slate-100 flex items-center">
-						<span className="p-1.5 bg-indigo-500/20 text-indigo-400 rounded-lg mr-2">
+						<span className="p-1.5 bg-muted text-foreground rounded-lg mr-2">
 							<Icons.Plus className="w-4 h-4" />
 						</span>
 						Nueva Transacción
@@ -174,7 +174,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 					<button
 						type="button"
 						onClick={() => setIsImportModalOpen(true)}
-						className="w-full flex items-center justify-center gap-2 bg-indigo-600/20 hover:bg-indigo-600/35 border border-indigo-500/20 text-indigo-400 hover:text-indigo-350 px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-[0.98] outline-none"
+						className="w-full flex items-center justify-center gap-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border px-3 py-2 rounded-lg text-xs font-medium transition-all shadow-sm active:scale-[0.98] outline-none"
 					>
 						<Upload className="w-3.5 h-3.5" />
 						<span>Importar Extracto Bancario</span>
@@ -231,7 +231,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 								onClick={() => setTxForm({ ...txForm, recurrence: 'one-off' })}
 								className={`py-2 rounded-lg text-xs font-semibold transition-all ${
 									txForm.recurrence === 'one-off' || !txForm.recurrence
-										? 'bg-indigo-600 text-white shadow-md'
+										? 'bg-background text-foreground shadow-sm font-semibold'
 										: 'text-slate-400 hover:text-slate-200'
 								}`}
 							>
@@ -242,7 +242,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 								onClick={() => setTxForm({ ...txForm, recurrence: 'recurring' })}
 								className={`py-2 rounded-lg text-xs font-semibold transition-all ${
 									txForm.recurrence === 'recurring'
-										? 'bg-indigo-600 text-white shadow-md'
+										? 'bg-background text-foreground shadow-sm font-semibold'
 										: 'text-slate-400 hover:text-slate-200'
 								}`}
 							>
@@ -426,7 +426,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 												onClick={() => setTxForm({ ...txForm, owner: 'userA' })}
 												className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
 													txForm.owner === 'userA'
-														? 'bg-indigo-600 text-white shadow-md'
+														? 'bg-background text-foreground shadow-sm font-semibold'
 														: 'text-slate-400 hover:text-slate-200'
 												}`}
 											>
@@ -437,7 +437,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 												onClick={() => setTxForm({ ...txForm, owner: 'userB' })}
 												className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
 													txForm.owner === 'userB'
-														? 'bg-indigo-600 text-white shadow-md'
+														? 'bg-background text-foreground shadow-sm font-semibold'
 														: 'text-slate-400 hover:text-slate-200'
 												}`}
 											>
@@ -448,7 +448,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 												onClick={() => setTxForm({ ...txForm, owner: 'joint' })}
 												className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
 													txForm.owner === 'joint' || !txForm.owner
-														? 'bg-indigo-600 text-white shadow-md'
+														? 'bg-background text-foreground shadow-sm font-semibold'
 														: 'text-slate-400 hover:text-slate-200'
 												}`}
 											>
@@ -468,7 +468,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 													onClick={() => setTxForm({ ...txForm, paidBy: 'userA' })}
 													className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 														txForm.paidBy === 'userA'
-															? 'bg-slate-755 text-white shadow-md'
+															? 'bg-background text-foreground shadow-sm font-semibold'
 															: 'text-slate-400 hover:text-slate-200'
 													}`}
 												>
@@ -479,7 +479,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 													onClick={() => setTxForm({ ...txForm, paidBy: 'userB' })}
 													className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 														txForm.paidBy === 'userB'
-															? 'bg-slate-755 text-white shadow-md'
+															? 'bg-background text-foreground shadow-sm font-semibold'
 															: 'text-slate-400 hover:text-slate-200'
 													}`}
 												>
@@ -490,7 +490,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 													onClick={() => setTxForm({ ...txForm, paidBy: 'shared' })}
 													className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 														txForm.paidBy === 'shared' || !txForm.paidBy
-															? 'bg-slate-755 text-white shadow-md'
+															? 'bg-background text-foreground shadow-sm font-semibold'
 															: 'text-slate-400 hover:text-slate-200'
 													}`}
 												>
@@ -525,14 +525,14 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 					<div className="flex gap-2">
 						<button
 							type="submit"
-							className="flex-1 mt-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] text-white font-bold py-2.5 rounded-xl text-sm transition-all shadow-md active:scale-95"
+							className="flex-1 mt-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 rounded-lg text-sm transition-all active:scale-[0.98]"
 						>
 							Agregar Transacción
 						</button>
 						<button
 							type="button"
 							onClick={() => setIsMobileFormOpen(false)}
-							className="lg:hidden flex-1 mt-2 bg-slate-850 hover:bg-slate-800 text-slate-350 font-semibold py-2.5 rounded-xl text-sm transition-all border border-slate-800 active:scale-95"
+							className="lg:hidden flex-1 mt-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium py-2.5 rounded-lg text-sm transition-all border border-border active:scale-[0.98]"
 						>
 							Cancelar
 						</button>
@@ -552,7 +552,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 							onClick={() => setTypeFilter('all')}
 							className={`px-3 py-1.5 rounded-lg transition-all ${
 								typeFilter === 'all'
-									? 'bg-indigo-600 text-white shadow-md'
+									? 'bg-background text-foreground shadow-sm font-semibold'
 									: 'text-slate-400 hover:text-slate-200'
 							}`}
 						>
@@ -563,7 +563,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 							onClick={() => setTypeFilter('both')}
 							className={`px-3 py-1.5 rounded-lg transition-all ${
 								typeFilter === 'both'
-									? 'bg-indigo-600 text-white shadow-md'
+									? 'bg-background text-foreground shadow-sm font-semibold'
 									: 'text-slate-400 hover:text-slate-200'
 							}`}
 						>
@@ -574,7 +574,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 							onClick={() => setTypeFilter('expense')}
 							className={`px-3 py-1.5 rounded-lg transition-all ${
 								typeFilter === 'expense'
-									? 'bg-indigo-600 text-white shadow-md'
+									? 'bg-background text-foreground shadow-sm font-semibold'
 									: 'text-slate-400 hover:text-slate-200'
 							}`}
 						>
@@ -585,7 +585,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 							onClick={() => setTypeFilter('income')}
 							className={`px-3 py-1.5 rounded-lg transition-all ${
 								typeFilter === 'income'
-									? 'bg-indigo-600 text-white shadow-md'
+									? 'bg-background text-foreground shadow-sm font-semibold'
 									: 'text-slate-400 hover:text-slate-200'
 							}`}
 						>
@@ -612,31 +612,31 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 									onDragLeave={handleDragLeave}
 									onDrop={(e) => handleDrop(e, t.id)}
 									onDragEnd={handleDragEnd}
-									className={`bg-slate-950 p-4 rounded-xl border flex flex-col justify-between space-y-3 transition-all duration-200 ${
+									className={`bg-card p-4 rounded-xl border flex flex-col justify-between space-y-3 transition-all duration-200 ${
 										draggedTxId === t.id ? 'opacity-40 cursor-grabbing' : ''
 									} ${
 										dragOverTxId === t.id
-											? 'border-indigo-500 bg-indigo-950/30 shadow-[0_0_12px_rgba(99,102,241,0.15)] scale-[1.01]'
-											: 'border-slate-850 hover:border-slate-800'
+											? 'border-foreground/40 bg-muted/50 scale-[1.01]'
+											: 'border-border hover:border-border/80'
 									}`}
 								>
 									<div className="flex justify-between items-start">
 										<div className="space-y-1">
 											<div className="flex items-center gap-1.5 flex-wrap">
 												<div
-													className="cursor-grab active:cursor-grabbing p-0.5 hover:bg-slate-850 rounded text-slate-500 flex items-center justify-center"
+													className="cursor-grab active:cursor-grabbing p-0.5 hover:bg-muted rounded text-muted-foreground flex items-center justify-center"
 													title="Arrastrar para reordenar"
 												>
 													<Icons.GripVertical className="w-3.5 h-3.5" />
 												</div>
-												<span className="font-semibold text-slate-100 text-sm">{t.desc}</span>
+												<span className="font-semibold text-foreground text-sm">{t.desc}</span>
 												{t.recurrence === 'recurring' && (
-													<span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+													<span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-medium bg-muted text-muted-foreground border border-border">
 														Recurrente
 													</span>
 												)}
 											</div>
-											<div className="text-[10px] text-slate-500 font-mono">
+											<div className="text-[10px] text-muted-foreground font-mono">
 												{t.date}
 												{t.type === 'transfer' ? (
 													<span className="block mt-0.5">
@@ -660,12 +660,12 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 
 										<div className="text-right">
 											{t.type === 'transfer' ? (
-												<span className="text-sky-400 font-bold text-sm">
+												<span className="text-sky-500 font-semibold text-sm">
 													{formatAmount(toNumber(t.money?.amount))}
 												</span>
 											) : (
 												<span
-													className={`font-bold text-sm ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}
+													className={`font-semibold text-sm ${t.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}
 												>
 													{formatAmount(toNumber(t.money?.amount), { showSign: true })}
 												</span>
@@ -673,28 +673,22 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 										</div>
 									</div>
 
-									<div className="flex justify-between items-center pt-2.5 border-t border-slate-900/60">
+									<div className="flex justify-between items-center pt-2.5 border-t border-border">
 										<div className="flex gap-1 flex-wrap">
 											<span
-												className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold ${
+												className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-medium ${
 													t.type === 'income'
-														? 'bg-emerald-500/10 text-emerald-400'
+														? 'bg-emerald-500/10 text-emerald-500'
 														: t.type === 'transfer'
-															? 'bg-sky-500/10 text-sky-400'
-															: 'bg-rose-500/10 text-rose-400'
+															? 'bg-sky-500/10 text-sky-500'
+															: 'bg-rose-500/10 text-rose-500'
 												}`}
 											>
 												{t.tag}
 											</span>
 											{profileCount === 2 && t.type !== 'transfer' && (
 												<span
-													className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold ${
-														t.owner === 'userA'
-															? 'bg-indigo-500/15 text-indigo-400'
-															: t.owner === 'userB'
-																? 'bg-violet-500/15 text-violet-400'
-																: 'bg-emerald-500/15 text-emerald-400'
-													}`}
+													className="inline-block px-1.5 py-0.5 rounded text-[9px] font-medium bg-muted text-muted-foreground border border-border"
 												>
 													{t.owner === 'userA'
 														? userAName
@@ -708,14 +702,14 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 										<div className="flex gap-2">
 											<button
 												onClick={() => handleStartEditTransaction(t)}
-												className="text-slate-450 hover:text-indigo-400 p-2 rounded-lg transition-all border border-slate-800 bg-slate-900 shadow-sm min-h-[40px] min-w-[40px] flex items-center justify-center"
+												className="text-muted-foreground hover:text-foreground p-2 rounded-lg transition-all border border-border bg-card shadow-sm min-h-[40px] min-w-[40px] flex items-center justify-center"
 												title="Editar transacción"
 											>
 												<Icons.Edit />
 											</button>
 											<button
 												onClick={() => handleDeleteTransaction(t.id)}
-												className="text-slate-450 hover:text-rose-400 p-2 rounded-lg transition-all border border-slate-800 bg-slate-900 shadow-sm min-h-[40px] min-w-[40px] flex items-center justify-center"
+												className="text-muted-foreground hover:text-destructive p-2 rounded-lg transition-all border border-border bg-card shadow-sm min-h-[40px] min-w-[40px] flex items-center justify-center"
 												title="Eliminar transacción"
 											>
 												<Icons.Trash />
@@ -753,30 +747,30 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 											className={`transition-all duration-200 ${
 												draggedTxId === t.id
 													? 'opacity-40 cursor-grabbing'
-													: 'hover:bg-slate-800/20'
+													: 'hover:bg-muted/40'
 											} ${
 												dragOverTxId === t.id
-													? 'bg-indigo-950/50 border-t-2 border-b-2 border-indigo-500/50 shadow-[inset_0_0_8px_rgba(99,102,241,0.2)]'
-													: 'border-b border-slate-800/60'
+													? 'bg-muted/60 border-t-2 border-b-2 border-foreground/30'
+													: 'border-b border-border'
 											}`}
 										>
 											<td className="py-3.5 pl-2 text-center align-middle w-8">
 												<div
-													className="cursor-grab active:cursor-grabbing p-1 hover:bg-slate-800/50 rounded flex items-center justify-center text-slate-500"
+													className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded flex items-center justify-center text-muted-foreground"
 													title="Arrastrar para reordenar"
 												>
 													<Icons.GripVertical className="w-3.5 h-3.5" />
 												</div>
 											</td>
-											<td className="py-3.5 pl-2 text-slate-400 font-mono text-xs">{t.date}</td>
-											<td className="py-3.5 font-medium text-slate-200">
+											<td className="py-3.5 pl-2 text-muted-foreground font-mono text-xs">{t.date}</td>
+											<td className="py-3.5 font-medium text-foreground">
 												<div className="flex flex-col">
 													<div className="flex items-center space-x-2">
 														<span>{t.desc}</span>
 														{t.recurrence === 'recurring' && (
 															<span
 																title="Movimiento Recurrente"
-																className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+																className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-muted text-muted-foreground border border-border"
 															>
 																<svg
 																	className="w-3 h-3 mr-0.5"
@@ -796,7 +790,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 														)}
 													</div>
 													{t.type === 'transfer' ? (
-														<div className="text-[10px] text-slate-500 font-mono mt-0.5">
+														<div className="text-[10px] text-muted-foreground font-mono mt-0.5">
 															{accounts.find((a) => a.id === t.fromAccountId)?.name ||
 																'Sin origen'}{' '}
 															➔{' '}
@@ -805,7 +799,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 														</div>
 													) : (
 														t.accountId && (
-															<div className="text-[10px] text-slate-500 font-mono mt-0.5">
+															<div className="text-[10px] text-muted-foreground font-mono mt-0.5">
 																Cuenta:{' '}
 																{accounts.find((a) => a.id === t.accountId)?.name ||
 																	'Desconocida'}
@@ -817,18 +811,12 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 											{profileCount === 2 && (
 												<td className="py-3.5">
 													{t.type === 'transfer' ? (
-														<span className="inline-block px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-bold">
+														<span className="inline-block px-2 py-0.5 rounded text-[10px] bg-muted text-muted-foreground font-medium">
 															Traspaso
 														</span>
 													) : (
 														<span
-															className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-																t.owner === 'userA'
-																	? 'bg-indigo-500/15 text-indigo-400'
-																	: t.owner === 'userB'
-																		? 'bg-violet-500/15 text-violet-400'
-																		: 'bg-emerald-500/15 text-emerald-400'
-															}`}
+															className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border"
 														>
 															{t.owner === 'userA'
 																? userAName
@@ -881,27 +869,27 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 															const netChange = (toW - fromW) * txAmount;
 															if (netChange > 0.001) {
 																return (
-																	<span className="text-emerald-400 font-bold">
+																	<span className="text-emerald-500 font-semibold">
 																		{formatAmount(txAmount, { showSign: true })}
 																	</span>
 																);
 															} else if (netChange < -0.001) {
 																return (
-																	<span className="text-rose-400 font-bold">
+																	<span className="text-rose-500 font-semibold">
 																		{formatAmount(-txAmount)}
 																	</span>
 																);
 															}
 														}
 														return (
-															<span className="text-sky-400 font-bold">
+															<span className="text-sky-500 font-semibold">
 																{formatAmount(toNumber(t.money?.amount))}
 															</span>
 														);
 													}
 													return (
 														<span
-															className={`font-bold ${t.type === 'income' ? 'text-emerald-400' : 'text-rose-400'}`}
+															className={`font-semibold ${t.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}
 														>
 															{formatAmount(toNumber(t.money?.amount), {
 																showSign: t.type === 'income'
@@ -910,17 +898,17 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 													);
 												})()}
 											</td>
-											<td className="py-3.5 text-center font-semibold">
+											<td className="py-3.5 text-center font-medium">
 												<button
 													onClick={() => handleStartEditTransaction(t)}
-													className="text-slate-550 hover:text-indigo-400 p-1.5 rounded-lg transition-colors mr-1"
+													className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg transition-colors mr-1"
 													title="Editar transacción"
 												>
 													<Icons.Edit />
 												</button>
 												<button
 													onClick={() => handleDeleteTransaction(t.id)}
-													className="text-slate-550 hover:text-rose-400 p-1.5 rounded-lg transition-colors"
+													className="text-muted-foreground hover:text-destructive p-1.5 rounded-lg transition-colors"
 													title="Eliminar transacción"
 												>
 													<Icons.Trash />

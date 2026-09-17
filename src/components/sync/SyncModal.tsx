@@ -391,9 +391,9 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 
 				{/* Cabecera común */}
 				<div className="text-center">
-					<div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+					<div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-muted border border-border flex items-center justify-center">
 						<svg
-							className="w-6 h-6 text-white"
+							className="w-6 h-6 text-foreground"
 							fill="none"
 							viewBox="0 0 24 24"
 							stroke="currentColor"
@@ -419,7 +419,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 							onClick={handleStartHosting}
 							className="w-full flex items-center gap-4 p-4 bg-slate-950 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 rounded-2xl text-left transition-all group"
 						>
-							<div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl group-hover:bg-indigo-500/20 transition-all">
+							<div className="p-3 bg-muted text-foreground rounded-xl group-hover:bg-accent transition-all border border-border">
 								<svg
 									className="w-6 h-6"
 									fill="none"
@@ -448,7 +448,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 							onClick={() => setMode('receive')}
 							className="w-full flex items-center gap-4 p-4 bg-slate-950 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 rounded-2xl text-left transition-all group"
 						>
-							<div className="p-3 bg-violet-500/10 text-violet-400 rounded-xl group-hover:bg-violet-500/20 transition-all">
+							<div className="p-3 bg-muted text-foreground rounded-xl group-hover:bg-accent transition-all border border-border">
 								<svg
 									className="w-6 h-6"
 									fill="none"
@@ -501,7 +501,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 											href="https://www.metered.ca"
 											target="_blank"
 											rel="noopener noreferrer"
-											className="text-indigo-400 hover:underline"
+											className="text-foreground underline underline-offset-4 hover:text-foreground/80"
 										>
 											Metered.ca
 										</a>{' '}
@@ -515,7 +515,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 											'[\n  {\n    "urls": "turn:relay.metered.ca:443",\n    "username": "...",\n    "credential": "..."\n  }\n]'
 										}
 										rows={5}
-										className="w-full bg-slate-900 border border-slate-850 rounded-xl px-3 py-2 text-[10px] font-mono text-slate-300 focus:border-indigo-500 outline-none resize-none leading-relaxed"
+										className="w-full bg-slate-900 border border-slate-850 rounded-xl px-3 py-2 text-[10px] font-mono text-slate-300 focus:border-foreground outline-none resize-none leading-relaxed"
 									/>
 									{advancedError && (
 										<p className="text-[9px] text-rose-400 font-medium">{advancedError}</p>
@@ -528,7 +528,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 									<button
 										type="button"
 										onClick={handleSaveAdvanced}
-										className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 rounded-lg text-[10px] transition-all"
+										className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-1.5 rounded-lg text-[10px] transition-all"
 									>
 										Guardar Ajustes
 									</button>
@@ -543,7 +543,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 					<div className="space-y-6 text-center pt-2">
 						{status === 'connecting' && (
 							<div className="space-y-4">
-								<div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+								<div className="w-8 h-8 border-2 border-foreground border-t-transparent rounded-full animate-spin mx-auto"></div>
 								<p className="text-xs text-slate-400 font-medium">{statusText}</p>
 							</div>
 						)}
@@ -555,7 +555,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 									dispositivo:
 								</p>
 								<div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 inline-block">
-									<span className="text-4xl font-mono font-black tracking-widest text-indigo-400 select-all">
+									<span className="text-4xl font-mono font-black tracking-widest text-foreground select-all">
 										{code}
 									</span>
 								</div>
@@ -568,8 +568,8 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 
 						{status === 'connected' && (
 							<div className="space-y-4">
-								<div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-								<p className="text-xs text-indigo-400 font-bold">{statusText}</p>
+								<div className="w-8 h-8 border-2 border-foreground border-t-transparent rounded-full animate-spin mx-auto"></div>
+								<p className="text-xs text-foreground font-semibold">{statusText}</p>
 							</div>
 						)}
 
@@ -618,7 +618,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 										placeholder="EJ: XZYQWEABCD"
 										value={inputCode}
 										onChange={(e) => setInputCode(e.target.value.toUpperCase().trim())}
-										className="py-3 text-lg font-mono font-black text-center text-indigo-300 tracking-widest uppercase"
+										className="py-3 text-lg font-mono font-black text-center text-foreground tracking-widest uppercase"
 									/>
 								</div>
 
@@ -645,14 +645,14 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 								<div className="flex gap-2 pt-2">
 									<button
 										type="submit"
-										className="w-1/2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl text-xs transition-all active:scale-95 shadow-md shadow-indigo-600/10"
+										className="w-1/2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2.5 rounded-xl text-xs transition-all active:scale-95"
 									>
 										Conectar y Sincronizar
 									</button>
 									<button
 										type="button"
 										onClick={() => setMode('select')}
-										className="w-1/2 bg-slate-850 hover:bg-slate-800 text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition-all"
+										className="w-1/2 bg-muted hover:bg-accent text-foreground font-semibold py-2.5 rounded-xl text-xs transition-all border border-border"
 									>
 										Atrás
 									</button>
@@ -662,15 +662,15 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 
 						{status === 'connecting' && (
 							<div className="space-y-4 text-center">
-								<div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+								<div className="w-8 h-8 border-2 border-foreground border-t-transparent rounded-full animate-spin mx-auto"></div>
 								<p className="text-xs text-slate-400 font-medium">{statusText}</p>
 							</div>
 						)}
 
 						{status === 'connected' && (
 							<div className="space-y-4 text-center">
-								<div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-								<p className="text-xs text-indigo-400 font-bold">{statusText}</p>
+								<div className="w-8 h-8 border-2 border-foreground border-t-transparent rounded-full animate-spin mx-auto"></div>
+								<p className="text-xs text-foreground font-semibold">{statusText}</p>
 							</div>
 						)}
 
@@ -718,7 +718,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 						<div className="flex gap-2 pt-2 justify-center">
 							<button
 								onClick={mode === 'send' ? handleStartHosting : () => setStatus('idle')}
-								className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all"
+								className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold rounded-xl transition-all"
 							>
 								Reintentar
 							</button>
