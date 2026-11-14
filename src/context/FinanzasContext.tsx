@@ -160,8 +160,11 @@ export interface FinanzasContextType {
 	isLocked: boolean;
 	isInitialized: boolean;
 	hasPasswordSet: boolean;
+	isSettingUpPin: boolean;
 	passwordError: string;
 	setPasswordError: (err: string) => void;
+	handleStartPinSetup: () => void;
+	handleCancelPinSetup: () => void;
 	handleSetupPassword: (password: string) => Promise<boolean>;
 	handleUnlock: (password: string) => Promise<boolean>;
 	handleLockApp: () => void;
@@ -447,8 +450,11 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		isLocked,
 		setIsLocked,
 		hasPasswordSet,
+		isSettingUpPin,
 		passwordError,
 		setPasswordError,
+		handleStartPinSetup,
+		handleCancelPinSetup,
 		handleSetupPassword,
 		handleUnlock,
 		handleLockApp
@@ -461,7 +467,8 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			geminiApiKey: aiBridgeRef.current.geminiApiKey,
 			chatMessages: aiBridgeRef.current.chatMessages,
 			userAName,
-			userBName
+			userBName,
+			profileCount
 		}),
 		appliers: {
 			setAccounts,
@@ -473,7 +480,8 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			setGeminiApiKey: (value) => aiBridgeRef.current.setGeminiApiKey(value),
 			setChatMessages: (value) => aiBridgeRef.current.setChatMessages(value),
 			setSelectedMonth,
-			setIsInitialized
+			setIsInitialized,
+			setProfileCount
 		}
 	});
 
@@ -1032,8 +1040,11 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 				isLocked,
 				isInitialized,
 				hasPasswordSet,
+				isSettingUpPin,
 				passwordError,
 				setPasswordError,
+				handleStartPinSetup,
+				handleCancelPinSetup,
 				handleSetupPassword,
 				handleUnlock,
 				handleLockApp,

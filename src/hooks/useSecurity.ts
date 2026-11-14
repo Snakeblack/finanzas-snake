@@ -10,6 +10,7 @@ import {
 	saveGeminiApiKey,
 	saveAiChat,
 	saveUserNames,
+	saveProfileCount,
 	executeSilentMigrationIfRequired,
 	readUserNames,
 	readStoredTransactions,
@@ -36,7 +37,7 @@ export interface SecurityDataSnapshot {
 	chatMessages: ChatMessage[];
 	userAName: string;
 	userBName: string;
-	profileCount?: number;
+	profileCount: 1 | 2;
 }
 
 /** Setters del contexto que el flujo de seguridad aplica al desbloquear o bloquear. */
@@ -51,7 +52,7 @@ export interface SecurityStateAppliers {
 	setChatMessages: Dispatch<SetStateAction<ChatMessage[]>>;
 	setSelectedMonth: Dispatch<SetStateAction<string>>;
 	setIsInitialized: Dispatch<SetStateAction<boolean>>;
-	setProfileCount?: Dispatch<SetStateAction<1 | 2>>;
+	setProfileCount: Dispatch<SetStateAction<1 | 2>>;
 }
 
 interface UseSecurityParams {
@@ -64,8 +65,12 @@ export interface UseSecurityResult {
 	isLocked: boolean;
 	setIsLocked: Dispatch<SetStateAction<boolean>>;
 	hasPasswordSet: boolean;
+	/** La persona abrió la pantalla para crear su PIN; los datos siguen en memoria. */
+	isSettingUpPin: boolean;
 	passwordError: string;
 	setPasswordError: Dispatch<SetStateAction<string>>;
+	handleStartPinSetup: () => void;
+	handleCancelPinSetup: () => void;
 	handleSetupPassword: (password: string) => Promise<boolean>;
 	handleUnlock: (password: string) => Promise<boolean>;
 	handleLockApp: () => void;
@@ -92,7 +97,20 @@ export const useSecurity = ({ getSnapshot, appliers }: UseSecurityParams): UseSe
 		}
 		return false;
 	});
+	const [isSettingUpPin, setIsSettingUpPin] = useState(false);
 	const [passwordError, setPasswordError] = useState('');
+
+	// Configurar el PIN no es bloquear: handleSetupPassword cifra lo que hay en memoria,
+	// así que la pantalla se abre sin limpiar el estado.
+	const handleStartPinSetup = () => {
+		setPasswordError('');
+		setIsSettingUpPin(true);
+	};
+
+	const handleCancelPinSetup = () => {
+		setPasswordError('');
+		setIsSettingUpPin(false);
+	};
 
 	const handleSetupPassword = async (password: string): Promise<boolean> => {
 		setPasswordError('');
@@ -100,6 +118,7 @@ export const useSecurity = ({ getSnapshot, appliers }: UseSecurityParams): UseSe
 			setPasswordError('El PIN debe tener al menos 4 caracteres.');
 			return false;
 		}
+		let pinPersisted = false;
 		try {
 			const salt = generateSalt();
 			const key = await deriveKeyFromPassword(password, salt);
@@ -114,10 +133,20 @@ export const useSecurity = ({ getSnapshot, appliers }: UseSecurityParams): UseSe
 
 			// Establecer clave activa en storage
 			setCryptoKey(key);
+			pinPersisted = true;
 
 			// Cifrar y guardar el estado actual (si existía previamente en texto plano)
-			const { accounts, transactions, debts, periods, geminiApiKey, chatMessages, userAName, userBName } =
-				getSnapshot();
+			const {
+				accounts,
+				transactions,
+				debts,
+				periods,
+				geminiApiKey,
+				chatMessages,
+				userAName,
+				userBName,
+				profileCount
+			} = getSnapshot();
 			await saveStoredAccounts(accounts);
 			await saveStoredTransactions(transactions);
 			await saveStoredDebts(debts);
@@ -125,13 +154,29 @@ export const useSecurity = ({ getSnapshot, appliers }: UseSecurityParams): UseSe
 			await saveGeminiApiKey(geminiApiKey);
 			await saveAiChat(chatMessages);
 			await saveUserNames({ userAName, userBName });
+			await saveProfileCount(profileCount);
 
 			setHasPasswordSet(true);
+			setIsSettingUpPin(false);
 			setIsLocked(false);
 			appliers.setIsInitialized(true);
 			return true;
 		} catch (err) {
-			setPasswordError(`Error al configurar PIN: ${err instanceof Error ? err.message : String(err)}`);
+			const detail = err instanceof Error ? err.message : String(err);
+			if (pinPersisted) {
+				// La sal y la clave ya existen y puede haber datos cifrados con ellas: quitarlas los
+				// dejaría ilegibles. El PIN queda activo y la interfaz lo refleja, en vez de aparentar
+				// que no hay PIN y bloquearse en la siguiente recarga.
+				setHasPasswordSet(true);
+				setIsSettingUpPin(false);
+				setIsLocked(false);
+				window.alert(
+					`El PIN ha quedado activado, pero falló el cifrado de parte de los datos: ${detail}. ` +
+						'Tus datos siguen accesibles con este PIN. Exporta una copia de seguridad.'
+				);
+				return false;
+			}
+			setPasswordError(`Error al configurar PIN: ${detail}`);
 			return false;
 		}
 	};
@@ -220,9 +265,7 @@ export const useSecurity = ({ getSnapshot, appliers }: UseSecurityParams): UseSe
 				appliers.setUserBName(loadedUserNames.userBName);
 				appliers.setGeminiApiKey(loadedKey);
 				appliers.setChatMessages(loadedChat);
-				if (appliers.setProfileCount) {
-					appliers.setProfileCount(loadedProfileCount as 1 | 2);
-				}
+				appliers.setProfileCount(loadedProfileCount as 1 | 2);
 
 				if (loadedPeriods.length > 0) {
 					const sortedP = [...loadedPeriods].sort((a, b) => a.month.localeCompare(b.month));
@@ -264,8 +307,11 @@ export const useSecurity = ({ getSnapshot, appliers }: UseSecurityParams): UseSe
 		isLocked,
 		setIsLocked,
 		hasPasswordSet,
+		isSettingUpPin,
 		passwordError,
 		setPasswordError,
+		handleStartPinSetup,
+		handleCancelPinSetup,
 		handleSetupPassword,
 		handleUnlock,
 		handleLockApp

@@ -80,6 +80,8 @@ function MainAppContent() {
 		isLocked,
 		isInitialized,
 		hasPasswordSet,
+		isSettingUpPin,
+		handleStartPinSetup,
 		handleLockApp,
 		handleImportData,
 		importError,
@@ -126,7 +128,7 @@ function MainAppContent() {
 		}
 	};
 
-	if (isLocked) {
+	if (isLocked || isSettingUpPin) {
 		return <LockScreen />;
 	}
 
@@ -348,7 +350,7 @@ function MainAppContent() {
 							)}
 						</button>
 						<button
-							onClick={handleLockApp}
+							onClick={hasPasswordSet ? handleLockApp : handleStartPinSetup}
 							aria-label={hasPasswordSet ? 'Bloquear Aplicación' : 'Configurar PIN de Seguridad'}
 							className="h-9 w-9 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
 							title={hasPasswordSet ? 'Bloquear Aplicación' : 'Configurar PIN de Seguridad'}
@@ -1634,7 +1636,14 @@ export default function App() {
  * Pantalla de bloqueo / Registro de PIN
  */
 function LockScreen() {
-	const { hasPasswordSet, passwordError, setPasswordError, handleSetupPassword, handleUnlock } = useFinanzas();
+	const {
+		hasPasswordSet,
+		passwordError,
+		setPasswordError,
+		handleSetupPassword,
+		handleUnlock,
+		handleCancelPinSetup
+	} = useFinanzas();
 
 	const [pin, setPin] = useState('');
 	const [confirmPin, setConfirmPin] = useState('');
@@ -1760,7 +1769,25 @@ function LockScreen() {
 					>
 						{loading ? 'Procesando...' : !hasPasswordSet ? 'Activar seguridad local' : 'Desbloquear'}
 					</button>
+
+					{!hasPasswordSet && (
+						<button
+							type="button"
+							onClick={handleCancelPinSetup}
+							disabled={loading}
+							className="w-full border border-border bg-card hover:bg-muted text-foreground font-medium py-3 rounded-lg text-sm transition-colors disabled:opacity-50"
+						>
+							Cancelar
+						</button>
+					)}
 				</form>
+
+				{!hasPasswordSet && (
+					<p className="text-[11px] text-muted-foreground text-center mt-6 leading-relaxed">
+						El PIN no se puede recuperar. Si lo olvidas, solo podrás volver a tus datos restaurando una
+						copia de seguridad: exporta una antes de activarlo.
+					</p>
+				)}
 
 				{hasPasswordSet && (
 					<p className="text-[11px] text-muted-foreground text-center mt-6 leading-relaxed">
