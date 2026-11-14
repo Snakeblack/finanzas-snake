@@ -27,10 +27,10 @@ activo no hay datos financieros en claro en el almacenamiento.
 
 | Defecto | Dónde | Estado |
 | --- | --- | --- |
-| Los recurrentes encadenan su identificador mes a mes hasta superar el máximo que acepta el validador: la copia exportada deja de poder importarse y la sincronización falla | `src/utils/dateUtils.ts:80`, `src/utils/backupValidator.ts:207` | Reproducido |
-| El esquema de copias descarta el vínculo de serie recurrente | `src/utils/backupValidator.ts:206` | Reproducido |
-| Importar escapa el texto y la interfaz no lo decodifica: los nombres se corrompen en cada ronda | `src/utils/backupValidator.ts:8` | Reproducido |
-| El número de perfiles no viaja en la copia ni en la sincronización | `src/services/storageService.ts:1432`, `src/components/sync/SyncModal.tsx:18` | Reproducido |
+| Los recurrentes encadenan su identificador mes a mes hasta superar el máximo que acepta el validador: la copia exportada deja de poder importarse y la sincronización falla | `src/utils/dateUtils.ts:80`, `src/utils/backupValidator.ts:207` | Resuelto en 0.2.3 |
+| El esquema de copias descarta el vínculo de serie recurrente | `src/utils/backupValidator.ts:206` | Resuelto en 0.2.3 |
+| Importar escapa el texto y la interfaz no lo decodifica: los nombres se corrompen en cada ronda | `src/utils/backupValidator.ts:8` | Resuelto en 0.2.3 |
+| El número de perfiles no viaja en la copia ni en la sincronización | `src/services/storageService.ts:1432`, `src/components/sync/SyncModal.tsx:18` | Resuelto en 0.2.3 |
 | «Configurar cuenta» sustituye todos los periodos por uno; al recargar se duplican los recurrentes | `src/context/FinanzasContext.tsx:836` | Reproducido |
 | Cuentas y periodos se guardan vaciando y reescribiendo en dos pasos | `src/services/storageService.ts:472` | Leído |
 | El orden manual de movimientos no se guarda | `src/components/transactions/TransactionsTab.tsx:109` | Leído |
@@ -96,11 +96,17 @@ Presupuestos por categoría, metas de ahorro, reglas de categorización y
 conciliación con el saldo del extracto. Sin fecha: tipos de cambio reales,
 conexión bancaria.
 
+## Decisiones tomadas
+
+- 2026-11-14: el cambio SDD `optimize-storage-and-matching` (verificado, con la
+  revisión pendiente) se archiva tal cual en
+  `openspec/changes/archive/2026-11-14-optimize-storage-and-matching/`, sin
+  cerrar su revisión.
+
 ## Decisiones aplazadas
 
 | Decisión | Dueño | Último momento responsable |
 | --- | --- | --- |
-| Qué hacer con el cambio SDD `optimize-storage-and-matching` (verificado, con la revisión pendiente): cerrarlo en SDD o archivarlo | Propietario | Antes de H1, que toca los mismos archivos |
 | Dirección visual del rediseño (referencias, tipografía, densidad, color) | Propietario | Antes de empezar H5 |
 | Carpetas concretas de las cuatro capas | Propietario | Al abrir el primer cambio de H4 |
 | Cómo se actualiza la versión en clientes con arranque sin conexión | Propietario | Antes de empezar H6 |
