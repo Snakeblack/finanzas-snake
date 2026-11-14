@@ -1,0 +1,381 @@
+{
+  "schema": "idd-state/v1",
+  "change": "vercel-skip-docs-builds",
+  "mode": "idd",
+  "status": "closed",
+  "intent": {
+    "request": "debes ser eficiente con los actions, que se ejecuten solo cuando realmente se necesita",
+    "kind": "refactor",
+    "summary": "Saltar la construcción en Vercel cuando un push solo cambia documentación",
+    "acceptance": "vercel.json declara un ignoreCommand que termina en 0 (construcción omitida) solo si existe un despliegue previo de la rama y nada fuera de docs/, idd/, openspec/ y archivos .md cambió desde él; en cualquier otro caso, incluido el primer push de una rama o un error de git, termina en 1 y se construye; se aplica también a main"
+  },
+  "facts": {
+    "basis": "El usuario respondió 'todas las recomendadas' a las cuatro preguntas: rutas docs/**, idd/**, openspec/** y *.md; se aplica también a producción; el primer push de una rama siempre construye. Semántica de ignoreCommand y VERCEL_GIT_PREVIOUS_SHA verificada en la documentación de Vercel el 2026-11-14"
+  },
+  "plan": {
+    "paths": [
+      "vercel.json"
+    ],
+    "work_units": 1,
+    "decision": true,
+    "operations": [],
+    "decisions": [
+      "Comparar contra VERCEL_GIT_PREVIOUS_SHA y no contra HEAD^: un push de varios commits no se salta por error",
+      "Cualquier fallo del comando (sin despliegue previo, SHA ausente del clon) termina en 1 y construye: ante la duda, se despliega"
+    ]
+  },
+  "signals": [
+    {
+      "id": "always",
+      "reason": "every change with a resolved intent",
+      "source": "declaration"
+    },
+    {
+      "id": "multi-unit-or-decision",
+      "reason": "declared a non-obvious decision",
+      "source": "declaration"
+    },
+    {
+      "id": "security-boundary",
+      "reason": "security boundary: touches vercel.json (matches vercel.json)",
+      "source": "declaration"
+    },
+    {
+      "id": "adr-or-quality-attribute",
+      "reason": "declared ADR 0011",
+      "source": "declaration"
+    }
+  ],
+  "impacts": [
+    {
+      "kind": "adr",
+      "id": "0001",
+      "impact": "none",
+      "reason": "No añade llamadas de red ni puntos de entrada de servidor; solo configura cuándo construye el alojamiento"
+    },
+    {
+      "kind": "adr",
+      "id": "0011",
+      "impact": "conforms",
+      "reason": "Sigue siendo un único desplegable estático más una función; solo se evita construir cuando el contenido publicado no cambia"
+    },
+    {
+      "kind": "scenario",
+      "id": "uso-sin-conexion",
+      "impact": "none",
+      "reason": "No toca la carga ni el arranque del cliente"
+    }
+  ],
+  "obligations": [
+    {
+      "id": "checks-pass",
+      "signal": "always",
+      "status": "satisfied",
+      "evidence": [
+        "ev-4"
+      ]
+    },
+    {
+      "id": "living-doc",
+      "signal": "multi-unit-or-decision",
+      "status": "satisfied",
+      "evidence": [
+        "ev-6"
+      ]
+    },
+    {
+      "id": "trust-review",
+      "signal": "security-boundary",
+      "status": "satisfied",
+      "evidence": [
+        "ev-3"
+      ]
+    },
+    {
+      "id": "adr-impact-declaration",
+      "signal": "adr-or-quality-attribute",
+      "status": "satisfied",
+      "evidence": [
+        "ev-5"
+      ]
+    }
+  ],
+  "gates": [],
+  "evidence": [
+    {
+      "id": "ev-1",
+      "kind": "check-run",
+      "obligation": "checks-pass",
+      "recorded_at": "2026-11-14T16:41:33.847Z",
+      "detail": {
+        "tree": "sha256:6718ec7b59ac765db46b1c49bf786fc91c622436dfcd7a340144432906fe20d6",
+        "runs": [
+          "run-1",
+          "run-2",
+          "run-3"
+        ]
+      }
+    },
+    {
+      "id": "ev-2",
+      "kind": "check-run",
+      "obligation": "checks-pass",
+      "recorded_at": "2026-11-14T16:42:07.673Z",
+      "detail": {
+        "tree": "sha256:ff69635b9cc21bd0ae8819a3d48c236ca81c6c1b029c9638e480e2eebeb1d17a",
+        "runs": [
+          "run-4",
+          "run-5",
+          "run-6"
+        ]
+      }
+    },
+    {
+      "id": "ev-3",
+      "kind": "frozen-review",
+      "obligation": "trust-review",
+      "recorded_at": "2026-11-14T16:42:50.027Z",
+      "detail": {
+        "lineage_id": "sha256:ffcb09e3916b6277816d401ae57a2012e50df681eb7b816a9747a3e32c95f4b1",
+        "candidate_id": "sha256:dca78d22bbfa70cf55546882eeee30e0e7f38a31fff43f04ea57b428ba76a51f",
+        "candidate_tree": "0cee8c94c4a70f58c37a77bec1e517a0396b16d3",
+        "findings_digest": "sha256:4d59fd4aa8eefff6dbf7cd085cc100ee928217573658f8bbc301aa4a3f1adc0f",
+        "attestation": "subagent-stop",
+        "receipt": {
+          "agent": "review-trust",
+          "recorded_at": "2026-11-14T16:42:39.805Z",
+          "result_digest": "sha256:f00248b378227b07c5d427a257b3fab08b8beb777cf89c26724f479d48282d64"
+        }
+      }
+    },
+    {
+      "id": "ev-4",
+      "kind": "check-run",
+      "obligation": "checks-pass",
+      "recorded_at": "2026-11-14T16:42:59.274Z",
+      "detail": {
+        "tree": "sha256:ff69635b9cc21bd0ae8819a3d48c236ca81c6c1b029c9638e480e2eebeb1d17a",
+        "runs": [
+          "run-7",
+          "run-8",
+          "run-9"
+        ]
+      }
+    },
+    {
+      "id": "ev-5",
+      "kind": "adr-impact-declaration",
+      "obligation": "adr-impact-declaration",
+      "recorded_at": "2026-11-14T16:42:59.274Z",
+      "detail": {
+        "refs": [
+          "adr:0001 none",
+          "adr:0011 conforms",
+          "scenario:uso-sin-conexion none"
+        ],
+        "records": []
+      }
+    },
+    {
+      "id": "ev-6",
+      "kind": "living-doc-current",
+      "obligation": "living-doc",
+      "recorded_at": "2026-11-14T16:43:06.002Z"
+    }
+  ],
+  "base": "16ef3de0f9c7a547af9c7ed4ae55c5acd9e4dcde",
+  "runs": [
+    {
+      "id": "run-1",
+      "purpose": "checks",
+      "name": "test",
+      "command": "pnpm vitest run",
+      "exit_code": 0,
+      "output_sha256": "sha256:a5cfe6e7469d0adb4f236056681a3d1f1a78b26b96781e5afae5e6ca83ca0455",
+      "tree": "sha256:6718ec7b59ac765db46b1c49bf786fc91c622436dfcd7a340144432906fe20d6",
+      "recorded_at": "2026-11-14T16:41:33.847Z"
+    },
+    {
+      "id": "run-2",
+      "purpose": "checks",
+      "name": "lint",
+      "command": "pnpm lint",
+      "exit_code": 0,
+      "output_sha256": "sha256:2f6f677012237199a95f787bffc1aa319bc292b5b23280874ed20f6f148aded4",
+      "tree": "sha256:6718ec7b59ac765db46b1c49bf786fc91c622436dfcd7a340144432906fe20d6",
+      "recorded_at": "2026-11-14T16:41:33.847Z"
+    },
+    {
+      "id": "run-3",
+      "purpose": "checks",
+      "name": "typecheck",
+      "command": "pnpm typecheck",
+      "exit_code": 0,
+      "output_sha256": "sha256:8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+      "tree": "sha256:6718ec7b59ac765db46b1c49bf786fc91c622436dfcd7a340144432906fe20d6",
+      "recorded_at": "2026-11-14T16:41:33.847Z"
+    },
+    {
+      "id": "run-4",
+      "purpose": "checks",
+      "name": "test",
+      "command": "pnpm vitest run",
+      "exit_code": 0,
+      "output_sha256": "sha256:90bc28efd1d3cfc6cccb99b8685eb8b6ca7ca1979691f82697a3e6c1c2405613",
+      "tree": "sha256:ff69635b9cc21bd0ae8819a3d48c236ca81c6c1b029c9638e480e2eebeb1d17a",
+      "recorded_at": "2026-11-14T16:42:07.673Z"
+    },
+    {
+      "id": "run-5",
+      "purpose": "checks",
+      "name": "lint",
+      "command": "pnpm lint",
+      "exit_code": 0,
+      "output_sha256": "sha256:2f6f677012237199a95f787bffc1aa319bc292b5b23280874ed20f6f148aded4",
+      "tree": "sha256:ff69635b9cc21bd0ae8819a3d48c236ca81c6c1b029c9638e480e2eebeb1d17a",
+      "recorded_at": "2026-11-14T16:42:07.673Z"
+    },
+    {
+      "id": "run-6",
+      "purpose": "checks",
+      "name": "typecheck",
+      "command": "pnpm typecheck",
+      "exit_code": 0,
+      "output_sha256": "sha256:8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+      "tree": "sha256:ff69635b9cc21bd0ae8819a3d48c236ca81c6c1b029c9638e480e2eebeb1d17a",
+      "recorded_at": "2026-11-14T16:42:07.673Z"
+    },
+    {
+      "id": "run-7",
+      "purpose": "checks",
+      "name": "test",
+      "command": "pnpm vitest run",
+      "exit_code": 0,
+      "output_sha256": "sha256:4882baf89e2a2001ae86eac18ba90c29a3ab3c80b730a7bed698242984c46fc6",
+      "tree": "sha256:ff69635b9cc21bd0ae8819a3d48c236ca81c6c1b029c9638e480e2eebeb1d17a",
+      "recorded_at": "2026-11-14T16:42:59.274Z"
+    },
+    {
+      "id": "run-8",
+      "purpose": "checks",
+      "name": "lint",
+      "command": "pnpm lint",
+      "exit_code": 0,
+      "output_sha256": "sha256:2f6f677012237199a95f787bffc1aa319bc292b5b23280874ed20f6f148aded4",
+      "tree": "sha256:ff69635b9cc21bd0ae8819a3d48c236ca81c6c1b029c9638e480e2eebeb1d17a",
+      "recorded_at": "2026-11-14T16:42:59.274Z"
+    },
+    {
+      "id": "run-9",
+      "purpose": "checks",
+      "name": "typecheck",
+      "command": "pnpm typecheck",
+      "exit_code": 0,
+      "output_sha256": "sha256:8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+      "tree": "sha256:ff69635b9cc21bd0ae8819a3d48c236ca81c6c1b029c9638e480e2eebeb1d17a",
+      "recorded_at": "2026-11-14T16:42:59.274Z"
+    }
+  ],
+  "reviews": [
+    {
+      "schema_version": 2,
+      "lineage_id": "sha256:ffcb09e3916b6277816d401ae57a2012e50df681eb7b816a9747a3e32c95f4b1",
+      "generation": 1,
+      "predecessor_lineage_id": null,
+      "migration": null,
+      "recovery": null,
+      "revision": 3,
+      "status": "approved",
+      "genesis": {
+        "candidate": {
+          "projection": "idd-tree-diff/v1",
+          "base_tree": "ced046e40ed159afd45ba45e4921a180cbbc42b0",
+          "candidate_tree": "0cee8c94c4a70f58c37a77bec1e517a0396b16d3",
+          "paths": [
+            "vercel.json"
+          ],
+          "diff_hash": "sha256:edd8565169ec7bc43b1c6c6cc29a8db71e49f8f43139e49baa1a282589be7abe",
+          "paths_digest": "sha256:a3265310f552fb66876e8bfe8809737e59e5ba946bdf39138b44d9baf4e21240",
+          "authored_lines": 1,
+          "original_changed_lines": 1
+        },
+        "candidate_id": "sha256:dca78d22bbfa70cf55546882eeee30e0e7f38a31fff43f04ea57b428ba76a51f",
+        "paths": [
+          "vercel.json"
+        ],
+        "classification": "high-risk",
+        "selected_domains": [
+          "trust"
+        ],
+        "evidence_fingerprint": "0cee8c94c4a70f58c37a77bec1e517a0396b16d3",
+        "original_changed_lines": 1,
+        "authored_lines": 1
+      },
+      "current_candidate_id": "sha256:dca78d22bbfa70cf55546882eeee30e0e7f38a31fff43f04ea57b428ba76a51f",
+      "current_candidate": {
+        "projection": "idd-tree-diff/v1",
+        "base_tree": "ced046e40ed159afd45ba45e4921a180cbbc42b0",
+        "candidate_tree": "0cee8c94c4a70f58c37a77bec1e517a0396b16d3",
+        "paths": [
+          "vercel.json"
+        ],
+        "diff_hash": "sha256:edd8565169ec7bc43b1c6c6cc29a8db71e49f8f43139e49baa1a282589be7abe",
+        "paths_digest": "sha256:a3265310f552fb66876e8bfe8809737e59e5ba946bdf39138b44d9baf4e21240",
+        "authored_lines": 1,
+        "original_changed_lines": 1
+      },
+      "lenses": {
+        "trust": {
+          "selected": true,
+          "status": "completed",
+          "request_id": "vercel-skip-docs-builds:lens-start:1:0",
+          "result_digest": "sha256:0fa38eeaca8882e0d194fd5ba5d8378917d98e795204f8f7a9dfdb78f111f3cc",
+          "result": {
+            "findings": []
+          },
+          "operation": null,
+          "result_request_id": "vercel-skip-docs-builds:lens-result:1:1"
+        },
+        "runtime": {
+          "selected": false,
+          "status": "skipped",
+          "request_id": null,
+          "result_digest": null,
+          "result": null,
+          "operation": null
+        },
+        "evolution": {
+          "selected": false,
+          "status": "skipped",
+          "request_id": null,
+          "result_digest": null,
+          "result": null,
+          "operation": null
+        },
+        "efficiency": {
+          "selected": false,
+          "status": "skipped",
+          "request_id": null,
+          "result_digest": null,
+          "result": null,
+          "operation": null
+        }
+      },
+      "findings": [],
+      "findings_digest": "sha256:4d59fd4aa8eefff6dbf7cd085cc100ee928217573658f8bbc301aa4a3f1adc0f",
+      "correction_budget": {
+        "limit_lines": 1,
+        "used_lines": 0,
+        "failed_attempts": 0,
+        "max_failed_attempts": 3
+      },
+      "correction_history": [],
+      "validation_history": [],
+      "follow_ups": [],
+      "pending_operation": null,
+      "pending_correction": null,
+      "terminal_reason": "no-unresolved-blocking-findings"
+    }
+  ],
+  "closed_at": "2026-11-14T16:43:06.002Z"
+}
