@@ -12,6 +12,7 @@ vi.mock('../services/storageService', () => ({
 	saveGeminiApiKey: vi.fn(),
 	saveAiChat: vi.fn(),
 	saveUserNames: vi.fn(),
+	saveProfileCount: vi.fn(),
 	executeSilentMigrationIfRequired: vi.fn(),
 	readUserNames: vi.fn().mockResolvedValue({ userAName: 'User A', userBName: 'User B' }),
 	readStoredTransactions: vi.fn().mockResolvedValue([]),
@@ -96,6 +97,29 @@ describe('useSecurity hook', () => {
 		expect(localStorage.getItem('finanzas_v3_password_salt')).not.toBeNull();
 		expect(localStorage.getItem('finanzas_v3_password_check')).not.toBeNull();
 		expect(storageService.saveStoredAccounts).toHaveBeenCalled();
+	});
+
+	it('debe dejar el PIN activo y visible si falla el cifrado tras guardar la sal', async () => {
+		vi.mocked(storageService.saveStoredDebts).mockRejectedValueOnce(new Error('sin espacio'));
+		const { result } = renderHook(() =>
+			useSecurity({
+				getSnapshot: mockGetSnapshot,
+				appliers: mockAppliers
+			})
+		);
+		act(() => result.current.handleStartPinSetup());
+		let setupRes;
+		await act(async () => {
+			setupRes = await result.current.handleSetupPassword('1234');
+		});
+
+		expect(setupRes).toBe(false);
+		// Nunca sal persistida con la interfaz diciendo que no hay PIN.
+		expect(localStorage.getItem('finanzas_v3_password_salt')).not.toBeNull();
+		expect(result.current.hasPasswordSet).toBe(true);
+		expect(result.current.isSettingUpPin).toBe(false);
+		expect(result.current.isLocked).toBe(false);
+		expect(window.alert).toHaveBeenCalledWith(expect.stringContaining('sin espacio'));
 	});
 
 	it('debe bloquear la app', () => {

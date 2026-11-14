@@ -1,0 +1,982 @@
+{
+  "schema": "idd-state/v1",
+  "change": "pin-setup-and-profile-count",
+  "mode": "idd",
+  "status": "closed",
+  "intent": {
+    "request": "esta aplicación... la intención está, pero no funciona bien... que todo este cableado y funcione",
+    "kind": "bug",
+    "summary": "El PIN se puede activar desde la interfaz y el modo de un perfil sobrevive a recargar con PIN activo",
+    "acceptance": "Sin PIN configurado, el botón de la cabecera abre la pantalla de configuración sin vaciar los datos en memoria; al confirmar un PIN válido los datos quedan cifrados y la aplicación sigue desbloqueada con los mismos datos; tras recargar y desbloquear con PIN activo, el número de perfiles guardado (1 o 2) se restaura y no se sobrescribe con 2"
+  },
+  "facts": {
+    "open": [
+      "En la pantalla de configuración del PIN, ¿debe haber un botón Cancelar que vuelva a la aplicación sin activar el cifrado?"
+    ]
+  },
+  "plan": {
+    "paths": [
+      "src/__tests__/pinSetup.test.tsx",
+      "src/__tests__/useSecurity.test.tsx",
+      "src/components/App.tsx",
+      "src/context/FinanzasContext.tsx",
+      "src/hooks/useSecurity.ts"
+    ],
+    "work_units": 1,
+    "decision": true,
+    "operations": [],
+    "decisions": [
+      "Configurar el PIN es una acción distinta de bloquear: abre la pantalla de configuración sin limpiar el estado, porque handleSetupPassword cifra lo que hay en memoria",
+      "El número de perfiles se añade al snapshot que se cifra al activar el PIN y a los appliers del desbloqueo, como dato obligatorio"
+    ]
+  },
+  "signals": [
+    {
+      "id": "always",
+      "reason": "every change with a resolved intent",
+      "source": "declaration"
+    },
+    {
+      "id": "bug-fix",
+      "reason": "the intent is a bug fix",
+      "source": "declaration"
+    },
+    {
+      "id": "multi-unit-or-decision",
+      "reason": "declared a non-obvious decision",
+      "source": "declaration"
+    },
+    {
+      "id": "security-boundary",
+      "reason": "security boundary: touches src/hooks/useSecurity.ts (matches src/hooks/useSecurity.ts)",
+      "source": "declaration"
+    },
+    {
+      "id": "adr-or-quality-attribute",
+      "reason": "declared ADR 0009 and quality scenario confidencialidad, integridad-datos",
+      "source": "declaration"
+    },
+    {
+      "id": "persistent-data",
+      "reason": "persistent data: src/context/FinanzasContext.tsx uses localStorage",
+      "source": "diff"
+    }
+  ],
+  "impacts": [
+    {
+      "kind": "adr",
+      "id": "0002",
+      "impact": "conforms",
+      "reason": "La interfaz sigue hablando solo con el estado de aplicación; el hook de seguridad usa el almacenamiento y el cifrado como antes"
+    },
+    {
+      "kind": "adr",
+      "id": "0003",
+      "impact": "conforms",
+      "reason": "La escritura sigue pasando solo por el adaptador de almacenamiento; se añade una llamada más al mismo camino al activar el PIN"
+    },
+    {
+      "kind": "adr",
+      "id": "0009",
+      "impact": "conforms",
+      "reason": "Hace alcanzable el cifrado opcional con PIN, cifra también el número de perfiles al activarlo y añade el aviso de que el PIN no se recupera"
+    },
+    {
+      "kind": "scenario",
+      "id": "confidencialidad",
+      "impact": "conforms",
+      "reason": "El cifrado en reposo pasa a poder activarse desde la interfaz; no cambia qué se cifra salvo añadir el número de perfiles"
+    },
+    {
+      "kind": "scenario",
+      "id": "integridad-datos",
+      "impact": "conforms",
+      "reason": "Activar el PIN ya no vacía el estado en memoria y el número de perfiles se conserva tras recargar y desbloquear"
+    },
+    {
+      "kind": "scenario",
+      "id": "modificabilidad",
+      "impact": "conforms",
+      "reason": "El cambio respeta las capas: la interfaz usa el estado de aplicación y el hook usa los adaptadores; no añade reglas a la interfaz"
+    },
+    {
+      "kind": "scenario",
+      "id": "usabilidad",
+      "impact": "conforms",
+      "reason": "La pantalla de configuración del PIN pasa a ser alcanzable, con salida mediante Cancelar y aviso de que el PIN no se recupera"
+    }
+  ],
+  "obligations": [
+    {
+      "id": "checks-pass",
+      "signal": "always",
+      "status": "satisfied",
+      "evidence": [
+        "ev-9"
+      ]
+    },
+    {
+      "id": "repro-test",
+      "signal": "bug-fix",
+      "status": "satisfied",
+      "evidence": [
+        "ev-2"
+      ]
+    },
+    {
+      "id": "living-doc",
+      "signal": "multi-unit-or-decision",
+      "status": "satisfied",
+      "evidence": [
+        "ev-11"
+      ]
+    },
+    {
+      "id": "trust-review",
+      "signal": "security-boundary",
+      "status": "satisfied",
+      "evidence": [
+        "ev-6"
+      ]
+    },
+    {
+      "id": "adr-impact-declaration",
+      "signal": "adr-or-quality-attribute",
+      "status": "satisfied",
+      "evidence": [
+        "ev-10"
+      ]
+    },
+    {
+      "id": "migration-compat-and-test",
+      "signal": "persistent-data",
+      "status": "satisfied",
+      "evidence": [
+        "ev-8"
+      ]
+    }
+  ],
+  "gates": [
+    {
+      "id": "open-facts",
+      "status": "resolved",
+      "opened_turn": 13,
+      "answer": "lo recomendado (sí: botón Cancelar en la pantalla de configuración del PIN que vuelve a la aplicación sin activar el cifrado)",
+      "source": "user",
+      "resolved_turn": 14
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-1",
+      "kind": "check-run",
+      "obligation": "checks-pass",
+      "recorded_at": "2026-11-14T17:18:37.950Z",
+      "detail": {
+        "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+        "runs": [
+          "run-5",
+          "run-6",
+          "run-7"
+        ]
+      }
+    },
+    {
+      "id": "ev-2",
+      "kind": "repro-run-pair",
+      "obligation": "repro-test",
+      "recorded_at": "2026-11-14T17:19:07.462Z",
+      "detail": {
+        "red": "run-14",
+        "green": "run-15",
+        "counterproof": [
+          "run-16",
+          "run-17"
+        ]
+      }
+    },
+    {
+      "id": "ev-3",
+      "kind": "migration-test",
+      "obligation": "migration-compat-and-test",
+      "recorded_at": "2026-11-14T17:19:11.571Z",
+      "detail": {
+        "run": "run-18",
+        "tree": "sha256:1f6594fb4675af28f2cc005d3ab5e99c64b81d2f7dc029dd968e3140463acf82",
+        "plan": "Sin cambio de formato ni de claves de almacenamiento: el número de perfiles ya se guardaba en la misma entrada de configuración, cifrada cuando hay clave activa; solo se añade escribirla también al activar el PIN. La lectura acepta el valor en claro o cifrado, así que los datos existentes se leen igual y volver a la versión anterior no requiere conversión"
+      }
+    },
+    {
+      "id": "ev-4",
+      "kind": "check-run",
+      "obligation": "checks-pass",
+      "recorded_at": "2026-11-14T17:19:33.305Z",
+      "detail": {
+        "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+        "runs": [
+          "run-19",
+          "run-20",
+          "run-21"
+        ]
+      }
+    },
+    {
+      "id": "ev-5",
+      "kind": "frozen-review",
+      "obligation": "trust-review",
+      "recorded_at": "2026-11-14T17:21:49.475Z",
+      "detail": {
+        "lineage_id": "sha256:1a347e89529d9cef738677d719762a254618ca6dc1fea66f0ad56a3a2d0beeee",
+        "candidate_id": "sha256:56966e5dc9be3aedb46fa036359456de4eb7ddb2422c8d59b76603745e271b39",
+        "candidate_tree": "6c390bf06988ad866e217e805d89e7b7fbac95c1",
+        "findings_digest": "sha256:b221e570d917d43654e8413a6ad761cd914ab735d42e1208654e537458a56aeb",
+        "attestation": "subagent-stop",
+        "receipt": {
+          "agent": "review-trust",
+          "recorded_at": "2026-11-14T17:21:22.621Z",
+          "result_digest": "sha256:00586fe8098cde04bb242bbe24f9542e49a058b5c818164812dd46a6e19abb0b"
+        }
+      }
+    },
+    {
+      "id": "ev-6",
+      "kind": "frozen-review",
+      "obligation": "trust-review",
+      "recorded_at": "2026-11-14T17:23:11.175Z",
+      "detail": {
+        "lineage_id": "sha256:1a347e89529d9cef738677d719762a254618ca6dc1fea66f0ad56a3a2d0beeee",
+        "candidate_id": "sha256:56966e5dc9be3aedb46fa036359456de4eb7ddb2422c8d59b76603745e271b39",
+        "candidate_tree": "c1bff3ba9c6d8a7d2e441cd1b996a3983ccd93d4",
+        "findings_digest": "sha256:b221e570d917d43654e8413a6ad761cd914ab735d42e1208654e537458a56aeb",
+        "correction": "advisory",
+        "attestation": "subagent-stop",
+        "receipt": {
+          "agent": "review-correction",
+          "recorded_at": "2026-11-14T17:22:56.666Z",
+          "result_digest": "sha256:68dfdacb3dfab68a1d562c84d881541f53bfac3c5be21e58b5680d7f8d718161"
+        }
+      }
+    },
+    {
+      "id": "ev-7",
+      "kind": "check-run",
+      "obligation": "checks-pass",
+      "recorded_at": "2026-11-14T17:23:24.637Z",
+      "detail": {
+        "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+        "runs": [
+          "run-28",
+          "run-29",
+          "run-30"
+        ]
+      }
+    },
+    {
+      "id": "ev-8",
+      "kind": "migration-test",
+      "obligation": "migration-compat-and-test",
+      "recorded_at": "2026-11-14T17:23:43.140Z",
+      "detail": {
+        "run": "run-37",
+        "tree": "sha256:3dfef5eb63d611b1a1a0e437c4cb35dbc467a5cecc2a8c3657581ca1deec9174",
+        "plan": "Sin cambio de formato ni de claves de almacenamiento: el número de perfiles ya se guardaba en la misma entrada de configuración, cifrada cuando hay clave activa; solo se añade escribirla también al activar el PIN. La lectura acepta el valor en claro o cifrado, así que los datos existentes se leen igual y volver a la versión anterior no requiere conversión"
+      }
+    },
+    {
+      "id": "ev-9",
+      "kind": "check-run",
+      "obligation": "checks-pass",
+      "recorded_at": "2026-11-14T17:23:56.610Z",
+      "detail": {
+        "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+        "runs": [
+          "run-38",
+          "run-39",
+          "run-40"
+        ]
+      }
+    },
+    {
+      "id": "ev-10",
+      "kind": "adr-impact-declaration",
+      "obligation": "adr-impact-declaration",
+      "recorded_at": "2026-11-14T17:23:56.610Z",
+      "detail": {
+        "refs": [
+          "adr:0002 conforms",
+          "adr:0003 conforms",
+          "adr:0009 conforms",
+          "scenario:confidencialidad conforms",
+          "scenario:integridad-datos conforms",
+          "scenario:modificabilidad conforms",
+          "scenario:usabilidad conforms"
+        ],
+        "records": [],
+        "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+        "fitness": [
+          "run-41",
+          "run-42",
+          "run-43",
+          "run-44",
+          "run-45",
+          "run-46"
+        ]
+      }
+    },
+    {
+      "id": "ev-11",
+      "kind": "living-doc-current",
+      "obligation": "living-doc",
+      "recorded_at": "2026-11-14T17:24:03.253Z"
+    }
+  ],
+  "base": "687cd70ba40dfe6456f76a1e3410367d468977be",
+  "runs": [
+    {
+      "id": "run-1",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run src/__tests__/pinSetup.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:23e262958a4f4953f5aa7e87f051b9514ba1757f34c7fd78f321d0349c3b0d03",
+      "tree": "sha256:337d5991cfc5f8f28b08c7abc7ab621a514276dcd178f2fbbe9f051449b974e0",
+      "recorded_at": "2026-11-14T17:17:14.225Z"
+    },
+    {
+      "id": "run-2",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run src/__tests__/pinSetup.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:4346948f948b3851a21a00efc655ee82a05db5cddba57917450767775f19c852",
+      "tree": "sha256:1f6594fb4675af28f2cc005d3ab5e99c64b81d2f7dc029dd968e3140463acf82",
+      "recorded_at": "2026-11-14T17:18:09.647Z",
+      "counterproof": [
+        "run-3",
+        "run-4"
+      ]
+    },
+    {
+      "id": "run-3",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "687cd70ba40dfe6456f76a1e3410367d468977be",
+      "mount": "sha256:25cd411b98daa60436a160e7a556c4ef17981404c478a3387db03a93634a58b3",
+      "command": "pnpm vitest run src/__tests__/pinSetup.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:70980928d382e596e151255af0164cf0bc5db4e4fb10b66cf0fb4989e235240c",
+      "tree": "sha256:1f6594fb4675af28f2cc005d3ab5e99c64b81d2f7dc029dd968e3140463acf82",
+      "recorded_at": "2026-11-14T17:18:09.647Z"
+    },
+    {
+      "id": "run-4",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "687cd70ba40dfe6456f76a1e3410367d468977be",
+      "mount": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "control": true,
+      "command": "pnpm vitest run src/__tests__/pinSetup.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:70980928d382e596e151255af0164cf0bc5db4e4fb10b66cf0fb4989e235240c",
+      "tree": "sha256:1f6594fb4675af28f2cc005d3ab5e99c64b81d2f7dc029dd968e3140463acf82",
+      "recorded_at": "2026-11-14T17:18:09.647Z"
+    },
+    {
+      "id": "run-5",
+      "purpose": "checks",
+      "name": "test",
+      "command": "pnpm vitest run",
+      "exit_code": 0,
+      "output_sha256": "sha256:a9bb66cb3b3621544a3d1f996ea6b6709067d2982d3bc1d56c9e235540282085",
+      "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+      "recorded_at": "2026-11-14T17:18:37.950Z"
+    },
+    {
+      "id": "run-6",
+      "purpose": "checks",
+      "name": "lint",
+      "command": "pnpm lint",
+      "exit_code": 0,
+      "output_sha256": "sha256:2f6f677012237199a95f787bffc1aa319bc292b5b23280874ed20f6f148aded4",
+      "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+      "recorded_at": "2026-11-14T17:18:37.950Z"
+    },
+    {
+      "id": "run-7",
+      "purpose": "checks",
+      "name": "typecheck",
+      "command": "pnpm typecheck",
+      "exit_code": 0,
+      "output_sha256": "sha256:8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+      "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+      "recorded_at": "2026-11-14T17:18:37.950Z"
+    },
+    {
+      "id": "run-8",
+      "purpose": "fitness",
+      "ref": "adr:0002",
+      "command": "sh -c '! grep -rqsE \"from .(react|react-dom).|/(hooks|components|context)/\" src/services src/utils src/domain src/adapters'",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+      "recorded_at": "2026-11-14T17:18:37.950Z"
+    },
+    {
+      "id": "run-9",
+      "purpose": "fitness",
+      "ref": "adr:0003",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:6cb791fa1f4369aea76cd7c8cc032e8250b94129d6c1f470bfc4171f604a6188",
+      "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+      "recorded_at": "2026-11-14T17:18:37.950Z"
+    },
+    {
+      "id": "run-10",
+      "purpose": "fitness",
+      "ref": "adr:0009",
+      "command": "pnpm vitest run src/__tests__/cryptoService.test.ts src/__tests__/useSecurity.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:f57409229f13d3ed4042f992caa6de4a7c8fef34cc10a2a1c82e01db379d9b5a",
+      "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+      "recorded_at": "2026-11-14T17:18:37.950Z"
+    },
+    {
+      "id": "run-11",
+      "purpose": "fitness",
+      "ref": "scenario:confidencialidad",
+      "command": "pnpm vitest run src/__tests__/cryptoService.test.ts src/__tests__/useSecurity.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:415fa5545258b49d012838badbaf441361136aaa1ef074fe2f10e0a4fb890920",
+      "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+      "recorded_at": "2026-11-14T17:18:37.950Z"
+    },
+    {
+      "id": "run-12",
+      "purpose": "fitness",
+      "ref": "scenario:integridad-datos",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts src/__tests__/syncService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:6dbfdcb1ae7c09f563ab1b3f1d875d04531cb11b4410ce89e25ba5d6befbe444",
+      "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+      "recorded_at": "2026-11-14T17:18:37.950Z"
+    },
+    {
+      "id": "run-13",
+      "purpose": "fitness",
+      "ref": "scenario:modificabilidad",
+      "command": "sh -c \"! grep -rnE \\\"from .(react|react-dom).|/(hooks|components|context)/\\\" src/services src/utils\"",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+      "recorded_at": "2026-11-14T17:18:37.950Z"
+    },
+    {
+      "id": "run-14",
+      "purpose": "repro-test",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/pinSetup.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:f1fe7d4a95ccaf4597ff7e3e6e21164b7305adf962f1ada31c51a6c664388eec",
+      "tree": "sha256:337d5991cfc5f8f28b08c7abc7ab621a514276dcd178f2fbbe9f051449b974e0",
+      "recorded_at": "2026-11-14T17:19:05.047Z"
+    },
+    {
+      "id": "run-15",
+      "purpose": "repro-test",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/pinSetup.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:9a7cb0f593e7f968ff9b68b03ab2a056149ed10f2bf9911e45743b471e6841fb",
+      "tree": "sha256:1f6594fb4675af28f2cc005d3ab5e99c64b81d2f7dc029dd968e3140463acf82",
+      "recorded_at": "2026-11-14T17:19:07.462Z",
+      "counterproof": [
+        "run-16",
+        "run-17"
+      ]
+    },
+    {
+      "id": "run-16",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "687cd70ba40dfe6456f76a1e3410367d468977be",
+      "mount": "sha256:25cd411b98daa60436a160e7a556c4ef17981404c478a3387db03a93634a58b3",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/pinSetup.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:c944ae906d73cb19426a9dd5426703a244396c9fdef9472a2c0c12c9af94d6d0",
+      "tree": "sha256:1f6594fb4675af28f2cc005d3ab5e99c64b81d2f7dc029dd968e3140463acf82",
+      "recorded_at": "2026-11-14T17:19:07.462Z"
+    },
+    {
+      "id": "run-17",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "687cd70ba40dfe6456f76a1e3410367d468977be",
+      "mount": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "control": true,
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/pinSetup.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:e214db467f9b9a0f2d4f0d1b9d90c9ca41a7798d525a6125ad3e8730b64f133e",
+      "tree": "sha256:1f6594fb4675af28f2cc005d3ab5e99c64b81d2f7dc029dd968e3140463acf82",
+      "recorded_at": "2026-11-14T17:19:07.462Z"
+    },
+    {
+      "id": "run-18",
+      "purpose": "migration-test",
+      "command": "node_modules/.bin/vitest run src/__tests__/storageService.test.ts src/__tests__/useSecurity.test.tsx src/__tests__/pinSetup.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:a2532ed3ab08d3b484c88306208398dfda59930de1b9191f16963fffb94a8046",
+      "tree": "sha256:1f6594fb4675af28f2cc005d3ab5e99c64b81d2f7dc029dd968e3140463acf82",
+      "recorded_at": "2026-11-14T17:19:11.571Z"
+    },
+    {
+      "id": "run-19",
+      "purpose": "checks",
+      "name": "test",
+      "command": "pnpm vitest run",
+      "exit_code": 0,
+      "output_sha256": "sha256:973f6d3a50e943f456a4f51468b742a46cccfe03956ce42ea1d9c6d8fffaf096",
+      "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+      "recorded_at": "2026-11-14T17:19:33.305Z"
+    },
+    {
+      "id": "run-20",
+      "purpose": "checks",
+      "name": "lint",
+      "command": "pnpm lint",
+      "exit_code": 0,
+      "output_sha256": "sha256:2f6f677012237199a95f787bffc1aa319bc292b5b23280874ed20f6f148aded4",
+      "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+      "recorded_at": "2026-11-14T17:19:33.305Z"
+    },
+    {
+      "id": "run-21",
+      "purpose": "checks",
+      "name": "typecheck",
+      "command": "pnpm typecheck",
+      "exit_code": 0,
+      "output_sha256": "sha256:8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+      "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+      "recorded_at": "2026-11-14T17:19:33.305Z"
+    },
+    {
+      "id": "run-22",
+      "purpose": "fitness",
+      "ref": "adr:0002",
+      "command": "sh -c '! grep -rqsE \"from .(react|react-dom).|/(hooks|components|context)/\" src/services src/utils src/domain src/adapters'",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+      "recorded_at": "2026-11-14T17:19:33.305Z"
+    },
+    {
+      "id": "run-23",
+      "purpose": "fitness",
+      "ref": "adr:0003",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:1f67d62e40346e7a59111fe5678b8595c69100c1e190e4adabdd4e8efe82c09d",
+      "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+      "recorded_at": "2026-11-14T17:19:33.305Z"
+    },
+    {
+      "id": "run-24",
+      "purpose": "fitness",
+      "ref": "adr:0009",
+      "command": "pnpm vitest run src/__tests__/cryptoService.test.ts src/__tests__/useSecurity.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:9c554e7c273b1dab8ea12ffd038f5358a5c80e5c740e309cac9d1e3b36b6563f",
+      "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+      "recorded_at": "2026-11-14T17:19:33.305Z"
+    },
+    {
+      "id": "run-25",
+      "purpose": "fitness",
+      "ref": "scenario:confidencialidad",
+      "command": "pnpm vitest run src/__tests__/cryptoService.test.ts src/__tests__/useSecurity.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:ea30f589a7c097bd5c2e82794bed19b295bb088814e2cefe28573fbac4dc98eb",
+      "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+      "recorded_at": "2026-11-14T17:19:33.305Z"
+    },
+    {
+      "id": "run-26",
+      "purpose": "fitness",
+      "ref": "scenario:integridad-datos",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts src/__tests__/syncService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:b59d9fa3be2ec78502293fdaef83e9399be48c629352a1aa0b94e5e3ebc00728",
+      "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+      "recorded_at": "2026-11-14T17:19:33.305Z"
+    },
+    {
+      "id": "run-27",
+      "purpose": "fitness",
+      "ref": "scenario:modificabilidad",
+      "command": "sh -c \"! grep -rnE \\\"from .(react|react-dom).|/(hooks|components|context)/\\\" src/services src/utils\"",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:e3ae367e8450baa684a26c8083ee0d8d1af76ce4260b557908c004053fb7c939",
+      "recorded_at": "2026-11-14T17:19:33.305Z"
+    },
+    {
+      "id": "run-28",
+      "purpose": "checks",
+      "name": "test",
+      "command": "pnpm vitest run",
+      "exit_code": 0,
+      "output_sha256": "sha256:919f363258f04b962314ddfc0bde74291f0b89fbd86531f95f59aca3e940278f",
+      "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+      "recorded_at": "2026-11-14T17:23:24.637Z"
+    },
+    {
+      "id": "run-29",
+      "purpose": "checks",
+      "name": "lint",
+      "command": "pnpm lint",
+      "exit_code": 0,
+      "output_sha256": "sha256:2f6f677012237199a95f787bffc1aa319bc292b5b23280874ed20f6f148aded4",
+      "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+      "recorded_at": "2026-11-14T17:23:24.637Z"
+    },
+    {
+      "id": "run-30",
+      "purpose": "checks",
+      "name": "typecheck",
+      "command": "pnpm typecheck",
+      "exit_code": 0,
+      "output_sha256": "sha256:8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+      "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+      "recorded_at": "2026-11-14T17:23:24.637Z"
+    },
+    {
+      "id": "run-31",
+      "purpose": "fitness",
+      "ref": "adr:0002",
+      "command": "sh -c '! grep -rqsE \"from .(react|react-dom).|/(hooks|components|context)/\" src/services src/utils src/domain src/adapters'",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+      "recorded_at": "2026-11-14T17:23:24.637Z"
+    },
+    {
+      "id": "run-32",
+      "purpose": "fitness",
+      "ref": "adr:0003",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:10bad1b9a3bdd115519f2e3d82a4155ee0e313928c72b7ee4fca5e29c8407cd8",
+      "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+      "recorded_at": "2026-11-14T17:23:24.637Z"
+    },
+    {
+      "id": "run-33",
+      "purpose": "fitness",
+      "ref": "adr:0009",
+      "command": "pnpm vitest run src/__tests__/cryptoService.test.ts src/__tests__/useSecurity.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:3ec1ca425347c46826f65a5b81c9c1f7bf6bb824695709c3e02b1ea8f3f3bd91",
+      "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+      "recorded_at": "2026-11-14T17:23:24.637Z"
+    },
+    {
+      "id": "run-34",
+      "purpose": "fitness",
+      "ref": "scenario:confidencialidad",
+      "command": "pnpm vitest run src/__tests__/cryptoService.test.ts src/__tests__/useSecurity.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:34e9bb7d618b7683fb031ce476ce2bfbfa58d0eadf484c123ff87f6041e80ec5",
+      "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+      "recorded_at": "2026-11-14T17:23:24.637Z"
+    },
+    {
+      "id": "run-35",
+      "purpose": "fitness",
+      "ref": "scenario:integridad-datos",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts src/__tests__/syncService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:31942ffcddbaecd64150d53982508021d790df0d4cb307c710a3bfbf3deceb98",
+      "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+      "recorded_at": "2026-11-14T17:23:24.637Z"
+    },
+    {
+      "id": "run-36",
+      "purpose": "fitness",
+      "ref": "scenario:modificabilidad",
+      "command": "sh -c \"! grep -rnE \\\"from .(react|react-dom).|/(hooks|components|context)/\\\" src/services src/utils\"",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+      "recorded_at": "2026-11-14T17:23:24.637Z"
+    },
+    {
+      "id": "run-37",
+      "purpose": "migration-test",
+      "command": "node_modules/.bin/vitest run src/__tests__/storageService.test.ts src/__tests__/useSecurity.test.tsx src/__tests__/pinSetup.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:f4cce9cb538d7b9ee3f29b061fb8b7f4d7b0bec47c8e995a63a9c186c5c1a680",
+      "tree": "sha256:3dfef5eb63d611b1a1a0e437c4cb35dbc467a5cecc2a8c3657581ca1deec9174",
+      "recorded_at": "2026-11-14T17:23:43.140Z"
+    },
+    {
+      "id": "run-38",
+      "purpose": "checks",
+      "name": "test",
+      "command": "pnpm vitest run",
+      "exit_code": 0,
+      "output_sha256": "sha256:1f81adcdc0223ae5f2fc7263a4f6d9b10896c6f68a45f00f6ff01ddede64ce1c",
+      "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+      "recorded_at": "2026-11-14T17:23:56.610Z"
+    },
+    {
+      "id": "run-39",
+      "purpose": "checks",
+      "name": "lint",
+      "command": "pnpm lint",
+      "exit_code": 0,
+      "output_sha256": "sha256:2f6f677012237199a95f787bffc1aa319bc292b5b23280874ed20f6f148aded4",
+      "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+      "recorded_at": "2026-11-14T17:23:56.610Z"
+    },
+    {
+      "id": "run-40",
+      "purpose": "checks",
+      "name": "typecheck",
+      "command": "pnpm typecheck",
+      "exit_code": 0,
+      "output_sha256": "sha256:8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+      "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+      "recorded_at": "2026-11-14T17:23:56.610Z"
+    },
+    {
+      "id": "run-41",
+      "purpose": "fitness",
+      "ref": "adr:0002",
+      "command": "sh -c '! grep -rqsE \"from .(react|react-dom).|/(hooks|components|context)/\" src/services src/utils src/domain src/adapters'",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+      "recorded_at": "2026-11-14T17:23:56.610Z"
+    },
+    {
+      "id": "run-42",
+      "purpose": "fitness",
+      "ref": "adr:0003",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:01c34ac1f157a20af69adf9dcc9688b9406271829e065c699963cc223a1eee40",
+      "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+      "recorded_at": "2026-11-14T17:23:56.610Z"
+    },
+    {
+      "id": "run-43",
+      "purpose": "fitness",
+      "ref": "adr:0009",
+      "command": "pnpm vitest run src/__tests__/cryptoService.test.ts src/__tests__/useSecurity.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:b557a697f0326a6e43af8c6ff237eabdc18ab353b5b30b3fb67f4dce2d7851fd",
+      "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+      "recorded_at": "2026-11-14T17:23:56.610Z"
+    },
+    {
+      "id": "run-44",
+      "purpose": "fitness",
+      "ref": "scenario:confidencialidad",
+      "command": "pnpm vitest run src/__tests__/cryptoService.test.ts src/__tests__/useSecurity.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:142f40a3b2c83aaadffd906535b682561dce62f44023249c17e65263ce043a4d",
+      "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+      "recorded_at": "2026-11-14T17:23:56.610Z"
+    },
+    {
+      "id": "run-45",
+      "purpose": "fitness",
+      "ref": "scenario:integridad-datos",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts src/__tests__/syncService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:9a90453f45c2a0665a3aa9fe46b2a4b89b225c287d297462141f9d8fb3150266",
+      "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+      "recorded_at": "2026-11-14T17:23:56.610Z"
+    },
+    {
+      "id": "run-46",
+      "purpose": "fitness",
+      "ref": "scenario:modificabilidad",
+      "command": "sh -c \"! grep -rnE \\\"from .(react|react-dom).|/(hooks|components|context)/\\\" src/services src/utils\"",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:22628d0d28736b77e0caf1ca2ffd094e71a9fe16d28878105aa64cea38a0a303",
+      "recorded_at": "2026-11-14T17:23:56.610Z"
+    }
+  ],
+  "reviews": [
+    {
+      "schema_version": 2,
+      "lineage_id": "sha256:1a347e89529d9cef738677d719762a254618ca6dc1fea66f0ad56a3a2d0beeee",
+      "generation": 1,
+      "predecessor_lineage_id": null,
+      "migration": null,
+      "recovery": null,
+      "revision": 3,
+      "status": "approved",
+      "genesis": {
+        "candidate": {
+          "projection": "idd-tree-diff/v1",
+          "base_tree": "8e6c3d9a053b4df0c6e3242043598c8569301596",
+          "candidate_tree": "6c390bf06988ad866e217e805d89e7b7fbac95c1",
+          "paths": [
+            "src/__tests__/pinSetup.test.tsx",
+            "src/__tests__/useSecurity.test.tsx",
+            "src/components/App.tsx",
+            "src/context/FinanzasContext.tsx",
+            "src/hooks/useSecurity.ts"
+          ],
+          "diff_hash": "sha256:43bf2165fd13e73f95c787f2f7eec1348f1dcbc1449308c8b06da959f344fa9f",
+          "paths_digest": "sha256:2174f60d303632d193c4eb51dd36fc94b6f86e0b6089f80f851dc230671eafde",
+          "authored_lines": 193,
+          "original_changed_lines": 205
+        },
+        "candidate_id": "sha256:56966e5dc9be3aedb46fa036359456de4eb7ddb2422c8d59b76603745e271b39",
+        "paths": [
+          "src/__tests__/pinSetup.test.tsx",
+          "src/__tests__/useSecurity.test.tsx",
+          "src/components/App.tsx",
+          "src/context/FinanzasContext.tsx",
+          "src/hooks/useSecurity.ts"
+        ],
+        "classification": "high-risk",
+        "selected_domains": [
+          "trust"
+        ],
+        "evidence_fingerprint": "6c390bf06988ad866e217e805d89e7b7fbac95c1",
+        "original_changed_lines": 205,
+        "authored_lines": 193
+      },
+      "current_candidate_id": "sha256:56966e5dc9be3aedb46fa036359456de4eb7ddb2422c8d59b76603745e271b39",
+      "current_candidate": {
+        "projection": "idd-tree-diff/v1",
+        "base_tree": "8e6c3d9a053b4df0c6e3242043598c8569301596",
+        "candidate_tree": "6c390bf06988ad866e217e805d89e7b7fbac95c1",
+        "paths": [
+          "src/__tests__/pinSetup.test.tsx",
+          "src/__tests__/useSecurity.test.tsx",
+          "src/components/App.tsx",
+          "src/context/FinanzasContext.tsx",
+          "src/hooks/useSecurity.ts"
+        ],
+        "diff_hash": "sha256:43bf2165fd13e73f95c787f2f7eec1348f1dcbc1449308c8b06da959f344fa9f",
+        "paths_digest": "sha256:2174f60d303632d193c4eb51dd36fc94b6f86e0b6089f80f851dc230671eafde",
+        "authored_lines": 193,
+        "original_changed_lines": 205
+      },
+      "lenses": {
+        "trust": {
+          "selected": true,
+          "status": "completed",
+          "request_id": "pin-setup-and-profile-count:lens-start:1:0",
+          "result_digest": "sha256:f9481cfeee8fc9deb022251ace0ef8ea159230fb7dbcd74ea93cc392d16caf77",
+          "result": {
+            "findings": [
+              {
+                "severity": "WARNING",
+                "summary": "src/hooks/useSecurity.ts:128-165 y src/components/App.tsx:1773-1782. Si handleSetupPassword falla tras escribir la sal y el check (líneas 130-134), el catch (162-165) solo muestra el error: la sal, el check y la clave en memoria quedan puestos, mientras hasPasswordSet sigue en false y isSettingUpPin en true. El nuevo botón «Cancelar» (handleCancelPinSetup, líneas 110-113) solo pone isSettingUpPin=false y no deshace nada. La app vuelve desbloqueada, con la cabecera en «Configurar PIN» y los guardados posteriores cifrados con la clave activa. En la siguiente recarga la sal hace que isLocked arranque en true y pide un PIN que la persona canceló creyendo que no existía. Antes de este cambio el camino no era alcanzable desde la UI, así que el estado a medias con Cancelar es nuevo. No es el fallo de escritura parcial entre colecciones, que se da por conocido.",
+                "acceptance_criteria": "Tras un handleSetupPassword fallido seguido de handleCancelPinSetup, el estado queda coherente de una de estas dos formas, comprobado con un test que fuerce el fallo de un save: (a) no queda sal ni check en localStorage y no hay clave activa, o (b) la UI refleja que hay PIN (hasPasswordSet=true y botón «Bloquear»). No debe haber sal persistida con hasPasswordSet=false en una sesión desbloqueada. La corrección no puede dejar colecciones cifradas ilegibles tras recargar."
+              }
+            ]
+          },
+          "operation": null,
+          "result_request_id": "pin-setup-and-profile-count:lens-result:1:1"
+        },
+        "runtime": {
+          "selected": false,
+          "status": "skipped",
+          "request_id": null,
+          "result_digest": null,
+          "result": null,
+          "operation": null
+        },
+        "evolution": {
+          "selected": false,
+          "status": "skipped",
+          "request_id": null,
+          "result_digest": null,
+          "result": null,
+          "operation": null
+        },
+        "efficiency": {
+          "selected": false,
+          "status": "skipped",
+          "request_id": null,
+          "result_digest": null,
+          "result": null,
+          "operation": null
+        }
+      },
+      "findings": [
+        {
+          "id": "F-681779b8a4934bdd",
+          "owner": "trust",
+          "severity": "WARNING",
+          "summary": "src/hooks/useSecurity.ts:128-165 y src/components/App.tsx:1773-1782. Si handleSetupPassword falla tras escribir la sal y el check (líneas 130-134), el catch (162-165) solo muestra el error: la sal, el check y la clave en memoria quedan puestos, mientras hasPasswordSet sigue en false y isSettingUpPin en true. El nuevo botón «Cancelar» (handleCancelPinSetup, líneas 110-113) solo pone isSettingUpPin=false y no deshace nada. La app vuelve desbloqueada, con la cabecera en «Configurar PIN» y los guardados posteriores cifrados con la clave activa. En la siguiente recarga la sal hace que isLocked arranque en true y pide un PIN que la persona canceló creyendo que no existía. Antes de este cambio el camino no era alcanzable desde la UI, así que el estado a medias con Cancelar es nuevo. No es el fallo de escritura parcial entre colecciones, que se da por conocido.",
+          "acceptance_criteria": "Tras un handleSetupPassword fallido seguido de handleCancelPinSetup, el estado queda coherente de una de estas dos formas, comprobado con un test que fuerce el fallo de un save: (a) no queda sal ni check en localStorage y no hay clave activa, o (b) la UI refleja que hay PIN (hasPasswordSet=true y botón «Bloquear»). No debe haber sal persistida con hasPasswordSet=false en una sesión desbloqueada. La corrección no puede dejar colecciones cifradas ilegibles tras recargar.",
+          "blocking": false,
+          "resolution": "advisory"
+        }
+      ],
+      "findings_digest": "sha256:b221e570d917d43654e8413a6ad761cd914ab735d42e1208654e537458a56aeb",
+      "correction_budget": {
+        "limit_lines": 103,
+        "used_lines": 0,
+        "failed_attempts": 0,
+        "max_failed_attempts": 3
+      },
+      "correction_history": [],
+      "validation_history": [],
+      "follow_ups": [],
+      "pending_operation": null,
+      "pending_correction": null,
+      "terminal_reason": "no-unresolved-blocking-findings"
+    }
+  ],
+  "advisory_corrections": [
+    {
+      "lineage_id": "sha256:1a347e89529d9cef738677d719762a254618ca6dc1fea66f0ad56a3a2d0beeee",
+      "status": "passed",
+      "finding_ids": [
+        "F-681779b8a4934bdd"
+      ],
+      "paths": [
+        "src/__tests__/useSecurity.test.tsx",
+        "src/hooks/useSecurity.ts"
+      ],
+      "changed_lines": 41,
+      "candidate_tree": "c1bff3ba9c6d8a7d2e441cd1b996a3983ccd93d4",
+      "diff_hash": "sha256:73565856c103088a74872cd7cd11ce1ae25a482882d68c9c344460a75ded69da",
+      "recorded_at": "2026-11-14T17:22:15.722Z",
+      "validation": {
+        "recorded_at": "2026-11-14T17:23:11.175Z",
+        "outcomes": [
+          {
+            "id": "F-681779b8a4934bdd",
+            "status": "resolved"
+          }
+        ],
+        "regression": {
+          "detected": false,
+          "evidence": [
+            "Inspección estática, sin ejecutar pruebas. En useSecurity.ts:121-136 pinPersisted pasa a true justo después de guardar sal y check (131-132) y de setCryptoKey (135). El catch (164-181) con pinPersisted pone hasPasswordSet=true, isSettingUpPin=false e isLocked=false y avisa con window.alert. Eso cumple la opción (b): no queda sal persistida con hasPasswordSet=false en una sesión desbloqueada.",
+            "La sal, el check y la clave no se borran, así que las colecciones ya cifradas siguen legibles tras recargar: la sal hace que isLocked arranque en true y el PIN activo las descifra. Cumple la cláusula de no dejar colecciones ilegibles. El fallo parcial entre colecciones queda fuera de este hallazgo, como indica la petición.",
+            "El test de useSecurity.test.tsx:102-123 fuerza el rechazo de saveStoredDebts, sin mockear la sal. Comprueba que la sal sigue en localStorage, hasPasswordSet=true, isSettingUpPin=false, isLocked=false y que se llamó a window.alert con el detalle. setupTests.ts:48 mockea window.alert. La ruta previa al guardado de la sal sigue mostrando passwordError y devuelve false, y la ruta de éxito no cambió. Sin regresión en los caminos adyacentes."
+          ]
+        },
+        "follow_ups": [
+          {
+            "owner": "trust",
+            "summary": "El test no encadena handleCancelPinSetup tras el fallo, aunque el criterio lo menciona. En la ruta corregida isSettingUpPin ya es false y Cancelar es inofensivo, así que no bloquea. Convendría añadir esa aserción en un sucesor."
+          },
+          {
+            "owner": "runtime",
+            "summary": "Tras el fallo, handleSetupPassword devuelve false pero no llama a appliers.setIsInitialized(true), a diferencia del éxito. Conviene verificar que la UI desbloqueada no queda esperando inicialización si el estado ya estaba inicializado."
+          }
+        ]
+      }
+    }
+  ],
+  "closed_at": "2026-11-14T17:24:03.253Z"
+}
