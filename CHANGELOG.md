@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+## [0.2.1] - 2026-11-14
+
+### Changed
+- Saltar la construcción en Vercel cuando un push solo cambia documentación (vercel-skip-docs-builds)
+
 ## [0.2.0] - 2026-07-14
 
 ### Añadido
