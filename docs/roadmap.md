@@ -105,5 +105,5 @@ conexión bancaria.
 | Carpetas concretas de las cuatro capas | Propietario | Al abrir el primer cambio de H4 |
 | Cómo se actualiza la versión en clientes con arranque sin conexión | Propietario | Antes de empezar H6 |
 | Vigencia de las credenciales públicas del retransmisor por defecto, o retirarlas | Propietario | Durante H3 |
-| Añadir integración continua | Propietario | Si un despliegue roto llega a producción |
+| Añadir integración continua. Condición del propietario (2026-11-14): los flujos automáticos se ejecutan solo cuando hacen falta: filtrados por las rutas que cambian (nada en cambios solo de documentación), sin ejecuciones duplicadas por el mismo cambio y cancelando la anterior al llegar una nueva | Propietario | Si un despliegue roto llega a producción |
 | Fusión de cambios entre dispositivos | Propietario | Si la sobrescritura al sincronizar pierde datos en uso real (reabre ADR 0006) |
