@@ -257,12 +257,31 @@ export function OverviewTab() {
 	};
 
 	return (
-		<div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+		<div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 			{/* Gráfico SVG de Cascada de Composición */}
 			<div id="waterfall-card" className="lg:col-span-7 premium-card rounded-2xl p-6 relative overflow-visible">
-				<h3 className="font-heading text-lg font-bold text-slate-100 mb-6">
-					Composición del Flujo Mensual en {selectedMonth}
-				</h3>
+				<div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+					<div>
+						<h3 className="font-heading text-base font-bold text-foreground tracking-tight">
+							Composición del Flujo Mensual en {selectedMonth}
+						</h3>
+						<p className="text-xs text-muted-foreground mt-0.5">
+							 Cascada de ingresos, gastos operativos, servicio de deuda y balance neto.
+						</p>
+					</div>
+					{totalIncomes > 0 && (
+						<div className="bg-muted/60 border border-border px-3 py-1.5 rounded-lg text-right">
+							<span className="text-[10px] uppercase tracking-wider text-muted-foreground block font-semibold">
+								Tasa de Ahorro
+							</span>
+							<span
+								className={`text-xs font-bold font-mono tabular-nums ${netMonthlyBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
+							>
+								{((netMonthlyBalance / totalIncomes) * 100).toFixed(1)}%
+							</span>
+						</div>
+					)}
+				</div>
 
 				{/* Vista de Escritorio: Gráfico de Cascada Horizontal */}
 				<div className="hidden md:block w-full h-64 relative select-none">
@@ -290,13 +309,14 @@ export function OverviewTab() {
 						{ticks.map((tick, idx) => {
 							const y = getScaleY(tick);
 							return (
-								<g key={idx} className="opacity-75">
+								<g key={idx} className="opacity-85">
 									<line
 										x1={marginLeft}
 										y1={y}
 										x2={width - marginRight}
 										y2={y}
-										stroke="#1e293b"
+										stroke="currentColor"
+										className="text-border"
 										strokeWidth={tick === 0 ? 1.5 : 1}
 										strokeDasharray={tick === 0 ? '0' : '3 3'}
 									/>
@@ -304,7 +324,7 @@ export function OverviewTab() {
 										x={marginLeft - 10}
 										y={y + 4}
 										textAnchor="end"
-										className="fill-slate-400 text-[10px] font-mono font-medium"
+										className="fill-muted-foreground text-[10px] font-mono font-medium"
 									>
 										{formatAmount(tick, { decimals: 0 })}
 									</text>
@@ -327,7 +347,8 @@ export function OverviewTab() {
 									y1={y1}
 									x2={x2}
 									y2={y2}
-									stroke="#475569"
+									stroke="currentColor"
+									className="text-muted-foreground/50"
 									strokeWidth={1.5}
 									strokeDasharray="4 4"
 								/>
@@ -344,7 +365,7 @@ export function OverviewTab() {
 							const isZero = Math.abs(step.amount) < 0.01;
 
 							const isHovered = hoveredIndex === idx;
-							const opacity = isHovered || hoveredIndex === null ? 0.9 : 0.4;
+							const opacity = isHovered || hoveredIndex === null ? 0.92 : 0.4;
 							const isPositiveNet = step.name === 'Neto' ? netMonthlyBalance >= 0 : step.amount >= 0;
 
 							return (
@@ -397,7 +418,7 @@ export function OverviewTab() {
 										y={y - 8}
 										textAnchor="middle"
 										fill="currentColor"
-										className={`font-semibold text-[10px] md:text-xs transition-all duration-300 ${step.textColor}`}
+										className={`font-semibold font-mono text-[10px] md:text-xs transition-all duration-300 ${step.textColor}`}
 										style={{ opacity: hoveredIndex === null ? 1.0 : isHovered ? 1.0 : 0.3 }}
 									>
 										{getLabelText(step.amount)}
@@ -408,7 +429,7 @@ export function OverviewTab() {
 										x={x + barWidth / 2}
 										y={height - marginBottom + 20}
 										textAnchor="middle"
-										className="fill-slate-400 text-xs font-semibold"
+										className="fill-muted-foreground text-xs font-semibold"
 									>
 										{step.name}
 									</text>
@@ -444,13 +465,14 @@ export function OverviewTab() {
 						{ticks.map((tick, idx) => {
 							const x = getScaleXMobile(tick);
 							return (
-								<g key={`grid-mobile-${idx}`} className="opacity-75">
+								<g key={`grid-mobile-${idx}`} className="opacity-85">
 									<line
 										x1={x}
 										y1={marginTopMobile}
 										x2={x}
 										y2={marginTopMobile + chartHeightMobile}
-										stroke="#1e293b"
+										stroke="currentColor"
+										className="text-border"
 										strokeWidth={tick === 0 ? 1.5 : 1}
 										strokeDasharray={tick === 0 ? '0' : '3 3'}
 									/>
@@ -458,7 +480,7 @@ export function OverviewTab() {
 										x={x}
 										y={marginTopMobile - 8}
 										textAnchor="middle"
-										className="fill-slate-400 text-[10px] font-mono font-medium"
+										className="fill-muted-foreground text-[10px] font-mono font-medium"
 									>
 										{formatAmount(tick, { decimals: 0 })}
 									</text>
@@ -479,7 +501,8 @@ export function OverviewTab() {
 									y1={y1}
 									x2={x}
 									y2={y2}
-									stroke="#475569"
+									stroke="currentColor"
+									className="text-muted-foreground/50"
 									strokeWidth={1.5}
 									strokeDasharray="4 4"
 								/>
@@ -496,7 +519,7 @@ export function OverviewTab() {
 							const isZero = Math.abs(step.amount) < 0.01;
 
 							const isHovered = hoveredIndex === idx;
-							const opacity = isHovered || hoveredIndex === null ? 0.9 : 0.4;
+							const opacity = isHovered || hoveredIndex === null ? 0.92 : 0.4;
 							const isPositiveNet = step.name === 'Neto' ? netMonthlyBalance >= 0 : step.amount >= 0;
 
 							return (
@@ -552,7 +575,7 @@ export function OverviewTab() {
 										y={y - 4}
 										textAnchor="middle"
 										fill="currentColor"
-										className={`font-semibold text-[10px] transition-all duration-300 ${step.textColor}`}
+										className={`font-semibold font-mono text-[10px] transition-all duration-300 ${step.textColor}`}
 										style={{ opacity: hoveredIndex === null ? 1.0 : isHovered ? 1.0 : 0.3 }}
 									>
 										{getLabelText(step.amount)}
@@ -563,7 +586,7 @@ export function OverviewTab() {
 										x={marginLeftMobile - 10}
 										y={y + barHeightMobile / 2 + 4}
 										textAnchor="end"
-										className="fill-slate-400 text-xs font-semibold"
+										className="fill-muted-foreground text-xs font-semibold"
 									>
 										{step.name}
 									</text>
@@ -588,24 +611,24 @@ export function OverviewTab() {
 
 						return (
 							<div
-								className="absolute bg-slate-950/95 border border-slate-800/80 text-slate-100 rounded-xl p-3 shadow-2xl backdrop-blur-md pointer-events-none transition-all duration-200 z-50 flex flex-col gap-1 w-48 text-xs font-sans animate-in fade-in zoom-in-95 duration-150"
+								className="absolute bg-popover/95 border border-border text-popover-foreground rounded-xl p-3 shadow-xl backdrop-blur-md pointer-events-none transition-all duration-200 z-50 flex flex-col gap-1 w-48 text-xs font-sans animate-in fade-in zoom-in-95 duration-150"
 								style={{
 									left: `${tooltipPos.x}px`,
 									top: `${tooltipPos.y - 15}px`,
 									transform: `translate(${translateX}, -100%)`
 								}}
 							>
-								<div className="font-bold flex justify-between items-center text-slate-200">
+								<div className="font-bold flex justify-between items-center text-foreground">
 									<span>{steps[hoveredIndex].name}</span>
-									<span className={steps[hoveredIndex].textColor}>
+									<span className={`font-mono ${steps[hoveredIndex].textColor}`}>
 										{getLabelText(steps[hoveredIndex].amount)}
 									</span>
 								</div>
-								<p className="text-[10px] text-slate-400">{steps[hoveredIndex].description}</p>
+								<p className="text-[10px] text-muted-foreground">{steps[hoveredIndex].description}</p>
 								{steps[hoveredIndex].name !== 'Ingresos' && totalIncomes > 0 && (
-									<div className="text-[10px] text-slate-500 mt-1 border-t border-slate-800/60 pt-1 flex justify-between">
+									<div className="text-[10px] text-muted-foreground mt-1 border-t border-border pt-1 flex justify-between">
 										<span>Proporción:</span>
-										<span className="font-mono font-medium text-slate-400">
+										<span className="font-mono font-medium text-foreground">
 											{Math.abs((steps[hoveredIndex].amount / totalIncomes) * 100).toFixed(1)}%
 										</span>
 									</div>
@@ -614,13 +637,13 @@ export function OverviewTab() {
 						);
 					})()}
 
-				<div className="flex flex-wrap justify-between items-center mt-6 text-xs text-slate-500 gap-4 border-t border-slate-900 pt-4">
+				<div className="flex flex-wrap justify-between items-center mt-6 text-xs text-muted-foreground gap-4 border-t border-border pt-4">
 					<p>* Escala absoluta del flujo mensual acumulado.</p>
 					<div className="flex flex-wrap gap-x-4 gap-y-2">
 						{steps.map((step) => (
 							<span key={step.name} className="flex items-center">
 								<span className={`w-2.5 h-2.5 rounded-full ${step.dotColor} mr-1.5`}></span>
-								<span className="text-slate-400 font-medium">{step.name}</span>
+								<span className="text-muted-foreground font-medium">{step.name}</span>
 							</span>
 						))}
 					</div>
@@ -629,28 +652,33 @@ export function OverviewTab() {
 
 			{/* Desglose Acumulado por Etiquetas */}
 			<div className="lg:col-span-5 premium-card rounded-2xl p-6 h-fit">
-				<h3 className="font-heading text-lg font-bold text-slate-100 mb-6">
-					Desglose Acumulado por Etiquetas ({selectedMonth})
-				</h3>
+				<div className="mb-5">
+					<h3 className="font-heading text-base font-bold text-foreground tracking-tight">
+						Desglose Acumulado por Etiquetas ({selectedMonth})
+					</h3>
+					<p className="text-xs text-muted-foreground mt-0.5">
+						Distribución de salidas y servicio de deuda por categoría.
+					</p>
+				</div>
 
 				{tagData.length === 0 ? (
-					<div className="h-48 flex flex-col items-center justify-center text-slate-500 text-center">
-						<p className="text-sm">No hay egresos ni cuotas este mes.</p>
-						<p className="text-xs">Usa el menú para añadir datos o cambia de mes.</p>
+					<div className="h-48 flex flex-col items-center justify-center text-muted-foreground text-center border border-dashed border-border rounded-xl p-4">
+						<p className="text-sm font-medium text-foreground/80">No hay egresos ni cuotas este mes.</p>
+						<p className="text-xs mt-1">Usa el menú para añadir datos o cambia de mes.</p>
 					</div>
 				) : (
-					<div className="space-y-4 max-h-[310px] overflow-y-auto pr-2">
+					<div className="space-y-3.5 max-h-[320px] overflow-y-auto pr-2">
 						{tagData.map(({ tag, amount }) => {
 							const pct = ((amount / (totalExpenses + totalMonthlyDebtPayments)) * 100).toFixed(0);
 							return (
-								<div key={tag} className="space-y-1">
-									<div className="flex justify-between text-xs font-medium text-slate-300">
-										<span>{tag}</span>
-										<span className="text-slate-400">
-											{formatAmount(amount)} ({pct}%)
+								<div key={tag} className="space-y-1.5">
+									<div className="flex justify-between items-baseline text-xs font-medium">
+										<span className="text-foreground truncate pr-2">{tag}</span>
+										<span className="text-muted-foreground font-mono tabular-nums shrink-0">
+											<strong className="text-foreground font-semibold">{formatAmount(amount)}</strong> ({pct}%)
 										</span>
 									</div>
-									<div className="w-full bg-muted/40 h-2 rounded-full overflow-hidden border border-border">
+									<div className="w-full bg-muted/60 h-2 rounded-full overflow-hidden border border-border/60">
 										<div
 											className="bg-primary h-full rounded-full transition-all duration-500"
 											style={{ width: `${(amount / maxTagAmount) * 100}%` }}
@@ -666,7 +694,7 @@ export function OverviewTab() {
 			{/* Tarjeta: Hacer Cuentas (Liquidación de Gastos Conjuntos) */}
 			{profileCount === 2 && (
 				<div className="lg:col-span-12 premium-card rounded-2xl p-6">
-					<h3 className="font-heading text-lg font-bold text-foreground mb-2 flex items-center gap-2">
+					<h3 className="font-heading text-base font-bold text-foreground mb-1 flex items-center gap-2 tracking-tight">
 						<svg
 							className="w-5 h-5 text-muted-foreground"
 							fill="none"
@@ -682,64 +710,70 @@ export function OverviewTab() {
 						</svg>
 						Cuentas del Mes ({selectedMonth})
 					</h3>
-					<p className="text-xs text-muted-foreground mb-6">
+					<p className="text-xs text-muted-foreground mb-5">
 						Desglose de los gastos comunes y quién los ha pagado para cuadrar cuentas a final de mes.
 					</p>
 
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+					<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 						{/* Columna Usuario A */}
-						<div className="bg-card p-4 rounded-xl border border-border transition-all">
-							<div className="text-xs text-muted-foreground font-medium mb-2">
+						<div className="bg-muted/35 p-4 rounded-xl border border-border transition-all taste-lift">
+							<div className="text-xs text-muted-foreground font-medium mb-1">
 								Gastos comunes pagados por
 							</div>
-							<div className="text-xl font-bold text-foreground">{userAName}</div>
-							<div className="text-2xl font-bold text-foreground mt-2">{formatAmount(jointPaidByA)}</div>
+							<div className="text-base font-bold text-foreground">{userAName}</div>
+							<div className="text-2xl font-bold font-mono tabular-nums text-foreground mt-2">
+								{formatAmount(jointPaidByA)}
+							</div>
 							<p className="text-[11px] text-muted-foreground mt-1">
 								Aportación correspondiente: {formatAmount(jointPaidByA / 2)} por persona
 							</p>
 						</div>
 
 						{/* Columna Usuario B */}
-						<div className="bg-card p-4 rounded-xl border border-border transition-all">
-							<div className="text-xs text-muted-foreground font-medium mb-2">
+						<div className="bg-muted/35 p-4 rounded-xl border border-border transition-all taste-lift">
+							<div className="text-xs text-muted-foreground font-medium mb-1">
 								Gastos comunes pagados por
 							</div>
-							<div className="text-xl font-bold text-foreground">{userBName}</div>
-							<div className="text-2xl font-bold text-foreground mt-2">{formatAmount(jointPaidByB)}</div>
+							<div className="text-base font-bold text-foreground">{userBName}</div>
+							<div className="text-2xl font-bold font-mono tabular-nums text-foreground mt-2">
+								{formatAmount(jointPaidByB)}
+							</div>
 							<p className="text-[11px] text-muted-foreground mt-1">
 								Aportación correspondiente: {formatAmount(jointPaidByB / 2)} por persona
 							</p>
 						</div>
 
 						{/* Columna Liquidación */}
-						<div className="bg-card p-4 rounded-xl border border-border flex flex-col justify-between transition-all">
+						<div className="bg-muted/50 p-4 rounded-xl border border-border flex flex-col justify-between transition-all taste-lift">
 							<div>
-								<div className="text-xs text-muted-foreground font-medium mb-2">
+								<div className="text-xs text-muted-foreground font-medium mb-1">
 									Estado de Cuentas
 								</div>
 								{netOwed === 0 ? (
-									<div className="text-emerald-500 font-bold text-lg mt-2">¡Cuentas al día!</div>
+									<div className="text-emerald-600 dark:text-emerald-400 font-bold text-lg mt-2">
+										¡Cuentas al día!
+									</div>
 								) : netOwed > 0 ? (
 									<div>
-										<div className="text-rose-400 font-bold text-lg mt-1">
+										<div className="text-rose-600 dark:text-rose-400 font-bold text-base mt-1">
 											{userBName} debe a {userAName}
 										</div>
-										<div className="text-3xl font-black text-rose-400 mt-2">
+										<div className="text-2xl font-black font-mono tabular-nums text-rose-600 dark:text-rose-400 mt-1.5">
 											{formatAmount(netOwed)}
 										</div>
 									</div>
 								) : (
 									<div>
-										<div className="text-rose-400 font-bold text-lg mt-1">
+										<div className="text-rose-600 dark:text-rose-400 font-bold text-base mt-1">
 											{userAName} debe a {userBName}
 										</div>
-										<div className="text-3xl font-black text-rose-400 mt-2">
+										<div className="text-2xl font-black font-mono tabular-nums text-rose-600 dark:text-rose-400 mt-1.5">
 											{formatAmount(Math.abs(netOwed))}
 										</div>
 									</div>
 								)}
 							</div>
-							<p className="text-[10px] text-slate-500 mt-2">
+							<p className="text-[10px] text-muted-foreground mt-2">
 								Calculado en base a gastos compartidos 50/50 donde uno adelanta el pago.
 							</p>
 						</div>
@@ -755,7 +789,7 @@ export function OverviewTab() {
 				>
 					<div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
 						<div>
-							<h3 className="font-heading text-lg font-bold text-foreground flex items-center gap-2">
+							<h3 className="font-heading text-base font-bold text-foreground flex items-center gap-2 tracking-tight">
 								<svg
 									className="w-5 h-5 text-muted-foreground"
 									fill="none"
@@ -771,42 +805,42 @@ export function OverviewTab() {
 								</svg>
 								Patrimonio Neto y Tendencia a Futuro
 							</h3>
-							<p className="text-xs text-slate-400 mt-1">
+							<p className="text-xs text-muted-foreground mt-1">
 								Histórico de balance contable y proyección predictiva a 12 meses basada en flujos
 								recurrentes y amortizaciones.
 							</p>
 						</div>
 
 						{/* Tarjetas KPI en miniatura */}
-						<div className="flex flex-wrap gap-3">
+						<div className="flex flex-wrap gap-2.5">
 							{(() => {
 								const currentProj =
 									projections.find((p) => p.month === selectedMonth) || projections[0];
 								return (
 									<>
-										<div className="bg-slate-900/60 border border-slate-800/80 px-3 py-1.5 rounded-lg text-right">
-											<span className="text-[10px] text-slate-500 block font-medium">
+										<div className="bg-muted/60 border border-border px-3 py-1.5 rounded-lg text-right">
+											<span className="text-[10px] text-muted-foreground block font-semibold uppercase tracking-wider">
 												PATRIMONIO NETO ({currentProj.month})
 											</span>
 											<span
-												className={`text-sm font-bold font-mono ${currentProj.netWorth >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}
+												className={`text-sm font-bold font-mono tabular-nums ${currentProj.netWorth >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
 											>
 												{formatAmount(currentProj.netWorth, { forceShow: true })}
 											</span>
 										</div>
-										<div className="bg-slate-900/60 border border-slate-800/80 px-3 py-1.5 rounded-lg text-right">
-											<span className="text-[10px] text-slate-500 block font-medium">
+										<div className="bg-muted/60 border border-border px-3 py-1.5 rounded-lg text-right">
+											<span className="text-[10px] text-muted-foreground block font-semibold uppercase tracking-wider">
 												ACTIVOS TOTALES
 											</span>
-											<span className="text-sm font-bold font-mono text-slate-300">
+											<span className="text-sm font-bold font-mono tabular-nums text-foreground">
 												{formatAmount(currentProj.assets, { forceShow: true })}
 											</span>
 										</div>
-										<div className="bg-slate-900/60 border border-slate-800/80 px-3 py-1.5 rounded-lg text-right">
-											<span className="text-[10px] text-slate-500 block font-medium">
+										<div className="bg-muted/60 border border-border px-3 py-1.5 rounded-lg text-right">
+											<span className="text-[10px] text-muted-foreground block font-semibold uppercase tracking-wider">
 												PASIVOS (DEUDAS)
 											</span>
-											<span className="text-sm font-bold font-mono text-rose-400">
+											<span className="text-sm font-bold font-mono tabular-nums text-rose-600 dark:text-rose-400">
 												{formatAmount(currentProj.liabilities, { forceShow: true })}
 											</span>
 										</div>
@@ -956,13 +990,14 @@ export function OverviewTab() {
 										{projTicks.map((tick, idx) => {
 											const y = getProjScaleY(tick);
 											return (
-												<g key={`proj-grid-${idx}`} className="opacity-75">
+												<g key={`proj-grid-${idx}`} className="opacity-85">
 													<line
 														x1={pMarginLeft}
 														y1={y}
 														x2={pWidth - pMarginRight}
 														y2={y}
-														stroke="#1e293b"
+														stroke="currentColor"
+														className="text-border"
 														strokeWidth={tick === 0 ? 1.5 : 1}
 														strokeDasharray={tick === 0 ? '0' : '3 3'}
 													/>
@@ -970,7 +1005,7 @@ export function OverviewTab() {
 														x={pMarginLeft - 10}
 														y={y + 4}
 														textAnchor="end"
-														className="fill-slate-400 text-[10px] font-mono font-medium"
+														className="fill-muted-foreground text-[10px] font-mono font-medium"
 													>
 														{formatAmount(tick, { decimals: 0, forceShow: true })}
 													</text>
@@ -1096,7 +1131,7 @@ export function OverviewTab() {
 															x={xBase + projBarWidth}
 															y={pHeight - pMarginBottom + 16}
 															textAnchor="middle"
-															className="fill-slate-500 text-[9px] font-semibold"
+															className="fill-muted-foreground text-[9px] font-semibold"
 														>
 															{formatShortMonth(p.month)}
 														</text>
@@ -1129,10 +1164,10 @@ export function OverviewTab() {
 													cx={x}
 													cy={y}
 													r={isHovered ? 5 : 3.5}
-													fill={p.isProjected ? '#737373' : '#ffffff'}
-													stroke="#0a0a0a"
+													fill={p.isProjected ? '#737373' : '#10b981'}
+													stroke="currentColor"
 													strokeWidth={isHovered ? 2 : 1.5}
-													className="transition-all duration-300 pointer-events-none"
+													className="text-card transition-all duration-300 pointer-events-none"
 													style={{
 														opacity: hoveredProjIndex === null || isHovered ? 1.0 : 0.5
 													}}
@@ -1155,14 +1190,14 @@ export function OverviewTab() {
 										}
 										return (
 											<div
-												className="absolute bg-slate-950/95 border border-slate-800/80 text-slate-100 rounded-xl p-3 shadow-2xl backdrop-blur-md pointer-events-none transition-all duration-200 z-50 flex flex-col gap-1 w-52 text-xs font-sans animate-in fade-in zoom-in-95 duration-150"
+												className="absolute bg-popover/95 border border-border text-popover-foreground rounded-xl p-3 shadow-xl backdrop-blur-md pointer-events-none transition-all duration-200 z-50 flex flex-col gap-1 w-52 text-xs font-sans animate-in fade-in zoom-in-95 duration-150"
 												style={{
 													left: `${projTooltipPos.x}px`,
 													top: `${projTooltipPos.y - 15}px`,
 													transform: `translate(${transX}, -100%)`
 												}}
 											>
-												<div className="font-bold flex justify-between items-center text-slate-200 border-b border-slate-800/60 pb-1 mb-1">
+												<div className="font-bold flex justify-between items-center text-foreground border-b border-border pb-1 mb-1">
 													<span>{formatShortMonth(pItem.month)}</span>
 													<span
 														className={`px-1.5 py-0.5 rounded text-[8px] font-medium ${pItem.isProjected ? 'bg-muted text-muted-foreground border border-border' : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'}`}
@@ -1172,21 +1207,21 @@ export function OverviewTab() {
 												</div>
 
 												<div className="flex justify-between items-center text-[11px] mt-0.5">
-													<span className="text-slate-400 flex items-center gap-1.5">
+													<span className="text-muted-foreground flex items-center gap-1.5">
 														<span className="w-2 h-2 rounded-full bg-emerald-500"></span>{' '}
 														Activos:
 													</span>
-													<span className="font-mono font-semibold text-slate-200">
+													<span className="font-mono font-semibold text-foreground">
 														{formatAmount(pItem.assets, { forceShow: true })}
 													</span>
 												</div>
 
 												<div className="flex justify-between items-center text-[11px]">
-													<span className="text-slate-400 flex items-center gap-1.5">
+													<span className="text-muted-foreground flex items-center gap-1.5">
 														<span className="w-2 h-2 rounded-full bg-rose-500"></span>{' '}
 														Pasivos:
 													</span>
-													<span className="font-mono font-semibold text-slate-200 text-rose-300">
+													<span className="font-mono font-semibold text-rose-600 dark:text-rose-400">
 														{formatAmount(pItem.liabilities, { forceShow: true })}
 													</span>
 												</div>
@@ -1197,7 +1232,7 @@ export function OverviewTab() {
 														Patrimonio:
 													</span>
 													<span
-														className={`font-mono ${pItem.netWorth >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}
+														className={`font-mono ${pItem.netWorth >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
 													>
 														{formatAmount(pItem.netWorth, { forceShow: true })}
 													</span>
@@ -1212,7 +1247,7 @@ export function OverviewTab() {
 															const diff = pItem.netWorth - prevNet;
 															return (
 																<span
-																	className={`font-mono font-medium ${diff >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}
+																	className={`font-mono font-medium ${diff >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
 																>
 																	{diff >= 0 ? '+' : ''}
 																	{formatAmount(diff, { forceShow: true })}
@@ -1254,12 +1289,12 @@ export function OverviewTab() {
 
 			{/* Resumen de Deudas Activas */}
 			<div className="lg:col-span-12 premium-card rounded-2xl p-6">
-				<h3 className="font-heading text-lg font-bold text-slate-100 mb-4">
+				<h3 className="font-heading text-base font-bold text-foreground mb-4 tracking-tight">
 					Deudas Activas al Mes {selectedMonth}
 				</h3>
 
 				{filteredDebts.length === 0 ? (
-					<p className="text-sm text-slate-500">
+					<p className="text-sm text-muted-foreground">
 						No se registran deudas activas iniciadas en o antes de {selectedMonth}.
 					</p>
 				) : (
@@ -1274,10 +1309,10 @@ export function OverviewTab() {
 							return (
 								<div
 									key={d.id}
-									className="bg-card p-4 rounded-xl border border-border hover:border-border/80 transition-all duration-300"
+									className="bg-muted/35 p-4 rounded-xl border border-border hover:border-border/80 transition-all duration-300 taste-lift"
 								>
 									<div className="flex justify-between items-start mb-2">
-										<span className="text-[10px] font-semibold px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded">
+										<span className="text-[10px] font-semibold px-2 py-0.5 bg-amber-500/15 text-amber-600 dark:text-amber-400 rounded">
 											{d.tag}
 										</span>
 										<span className="text-xs text-muted-foreground font-mono">
@@ -1290,7 +1325,7 @@ export function OverviewTab() {
 											<span className="text-muted-foreground block">
 												{isPlan ? 'Financiado:' : 'Capital Inicial:'}
 											</span>
-											<span className="font-semibold text-foreground">
+											<span className="font-semibold font-mono tabular-nums text-foreground">
 												{formatAmount(isPlan ? d.financedAmount : d.principal, { decimals: 0 })}
 											</span>
 										</div>
@@ -1298,7 +1333,7 @@ export function OverviewTab() {
 											<span className="text-muted-foreground block">
 												{isPlan ? 'Comisiones:' : 'Intereses Totales:'}
 											</span>
-											<span className="font-semibold text-rose-500">
+											<span className="font-semibold font-mono tabular-nums text-rose-600 dark:text-rose-400">
 												{formatAmount(totalIntereses)}
 											</span>
 										</div>
@@ -1308,13 +1343,13 @@ export function OverviewTab() {
 											<span className="text-muted-foreground block">
 												{isPlan ? 'Tipo / Pendiente:' : 'Plazo / Tipo:'}
 											</span>
-											<span className="font-semibold text-foreground">
+											<span className="font-semibold font-mono tabular-nums text-foreground">
 												{isPlan
 													? `Fraccionamiento · ${formatAmount(getPaymentPlanRemainingAmount(d))}`
 													: `${d.termMonths}m / ${getDebtRateLabel(d)}`}
 											</span>
 											{overdueAmount > 0 && (
-												<span className="block text-[10px] text-rose-500">
+												<span className="block text-[10px] text-rose-600 dark:text-rose-400 font-mono">
 													Vencido: {formatAmount(overdueAmount)}
 												</span>
 											)}
@@ -1323,7 +1358,7 @@ export function OverviewTab() {
 											<span className="text-muted-foreground block">
 												{isPlan ? 'Exigible este mes:' : 'Cuota Mensual:'}
 											</span>
-											<span className="font-semibold text-sm text-foreground">
+											<span className="font-semibold font-mono tabular-nums text-sm text-foreground">
 												{formatAmount(cuota)}
 											</span>
 										</div>

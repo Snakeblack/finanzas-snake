@@ -31,17 +31,26 @@ export function ConsolidationTab() {
 	} = useFinanzas();
 
 	return (
-		<div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+		<div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 			{/* Paso 1: Seleccionar Deudas */}
-			<div className="lg:col-span-6 premium-card rounded-2xl p-6">
-				<h3 className="text-lg font-semibold text-slate-200 mb-4">Paso 1: Selecciona las Deudas a Unificar</h3>
-				<p className="text-xs text-slate-400 mb-6">
+			<div className="lg:col-span-6 premium-card rounded-2xl p-5 lg:p-6">
+				<div className="flex items-center justify-between gap-2 mb-1.5">
+					<h3 className="font-heading text-base font-bold text-foreground tracking-tight">
+						Paso 1: Selecciona las Deudas a Unificar
+					</h3>
+					<span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-muted text-muted-foreground border border-border">
+						{selectedDebtsForConsolidation.length}/{debts.filter((d) => !isPaymentPlanDebt(d)).length}
+					</span>
+				</div>
+				<p className="text-xs text-muted-foreground mb-5 pb-3.5 border-b border-border">
 					Marca aquellas pequeñas deudas o deudas activas que te gustaría liquidar mediante un único préstamo
 					unificado.
 				</p>
 
 				{debts.length === 0 ? (
-					<p className="text-sm text-slate-500 py-6">No hay deudas registradas en la aplicación.</p>
+					<div className="text-center py-10 border border-dashed border-border rounded-xl">
+						<p className="text-sm text-muted-foreground">No hay deudas registradas en la aplicación.</p>
+					</div>
 				) : (
 					<div className="space-y-3">
 						{debts.map((d) => {
@@ -54,9 +63,9 @@ export function ConsolidationTab() {
 									onClick={() => toggleDebtSelection(d.id)}
 									className={`p-4 rounded-xl border transition-all flex items-center justify-between ${
 										isPlan
-											? 'bg-muted/20 opacity-40 cursor-not-allowed border-border'
+											? 'bg-muted/20 opacity-45 cursor-not-allowed border-border'
 											: isChecked
-												? 'bg-muted/60 border-foreground/50 cursor-pointer'
+												? 'bg-muted/60 border-foreground/50 cursor-pointer shadow-sm'
 												: 'bg-card hover:border-border/80 border-border cursor-pointer'
 									}`}
 								>
@@ -69,8 +78,8 @@ export function ConsolidationTab() {
 											className="w-4 h-4 rounded border-border text-primary focus:ring-0 bg-background"
 										/>
 										<div>
-											<h4 className="font-bold text-slate-200 text-sm">{d.desc}</h4>
-											<p className="text-xs text-slate-400">
+											<h4 className="font-bold text-foreground text-sm">{d.desc}</h4>
+											<p className="text-xs text-muted-foreground">
 												{isPlan
 													? `Fraccionamiento: pendiente ${formatAmount(getPaymentPlanRemainingAmount(d))} · no se reunifica automáticamente`
 													: `Capital: ${formatAmount(d.principal)} | ${getDebtRateLabel(d)}`}
@@ -78,10 +87,10 @@ export function ConsolidationTab() {
 										</div>
 									</div>
 									<div className="text-right">
-										<span className="block text-[10px] text-slate-500">
+										<span className="block text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
 											{isPlan ? 'Exigible' : 'Cuota'}
 										</span>
-										<span className="text-sm font-bold text-slate-350">
+										<span className="text-sm font-bold font-mono tabular-nums text-foreground">
 											{formatAmount(cuota)}
 											{isPlan ? '' : '/mes'}
 										</span>
@@ -96,15 +105,15 @@ export function ConsolidationTab() {
 			{/* Paso 2: Propuesta Nueva Deuda */}
 			<div className="lg:col-span-6 space-y-6">
 				{/* Parámetros del préstamo consolidado */}
-				<div className="premium-card rounded-2xl p-6">
-					<h3 className="text-lg font-semibold text-slate-200 mb-4">
+				<div className="premium-card rounded-2xl p-5 lg:p-6">
+					<h3 className="font-heading text-base font-bold text-foreground mb-4 pb-3 border-b border-border tracking-tight">
 						Paso 2: Parámetros del Préstamo Unificado
 					</h3>
 
 					<div className="space-y-4">
-						<div className="grid grid-cols-2 gap-4">
+						<div className="grid grid-cols-2 gap-3.5">
 							<div>
-								<label htmlFor="new-tae" className="block text-xs font-medium text-slate-400 mb-1.5">
+								<label htmlFor="new-tae" className="block text-xs font-medium text-muted-foreground mb-1.5">
 									Nuevo TAE/CER Propuesto (%)
 								</label>
 								<Input
@@ -119,7 +128,7 @@ export function ConsolidationTab() {
 								/>
 							</div>
 							<div>
-								<label htmlFor="new-term" className="block text-xs font-medium text-slate-400 mb-1.5">
+								<label htmlFor="new-term" className="block text-xs font-medium text-muted-foreground mb-1.5">
 									Nuevo Plazo (Meses)
 								</label>
 								<Input
@@ -136,9 +145,9 @@ export function ConsolidationTab() {
 
 						{/* Input de Capital Adicional */}
 						<div>
-							<label htmlFor="extra-capital" className="block text-xs font-medium text-slate-400 mb-1.5">
+							<label htmlFor="extra-capital" className="block text-xs font-medium text-muted-foreground mb-1.5">
 								Capital Adicional Requerido (€){' '}
-								<span className="text-slate-500">(Opcional para x cosa / compra nueva)</span>
+								<span className="text-muted-foreground/70">(Opcional para x cosa / compra nueva)</span>
 							</label>
 							<Input
 								id="extra-capital"
@@ -157,14 +166,16 @@ export function ConsolidationTab() {
 
 				{/* Comparativa Analítica */}
 				{selectedDebtsForConsolidation.length > 0 && (
-					<div className="premium-card rounded-2xl p-6 space-y-4">
-						<h3 className="text-lg font-bold text-foreground">Resultado de la Reunificación</h3>
+					<div className="premium-card rounded-2xl p-5 lg:p-6 space-y-4">
+						<h3 className="font-heading text-base font-bold text-foreground tracking-tight">
+							Resultado de la Reunificación
+						</h3>
 
-						<div className="grid grid-cols-2 gap-4">
-							<div className="p-4 rounded-xl bg-card border border-border">
-								<span className="text-xs text-muted-foreground block">Estructura del Capital</span>
-								<div className="space-y-1 mt-1 font-mono text-xs">
-									<span className="text-sm block text-muted-foreground">
+						<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+							<div className="p-4 rounded-xl bg-muted/35 border border-border">
+								<span className="text-xs text-muted-foreground block font-medium">Estructura del Capital</span>
+								<div className="space-y-1 mt-1.5 font-mono tabular-nums text-xs">
+									<span className="text-xs block text-muted-foreground">
 										Deuda actual: {formatAmount(consolidatedPrincipal)}
 									</span>
 									{additionalCapital > 0 && (
@@ -172,7 +183,7 @@ export function ConsolidationTab() {
 											+ Nuevo capital: {formatAmount(additionalCapital)}
 										</span>
 									)}
-									<div className="border-t border-border pt-1 mt-1">
+									<div className="border-t border-border pt-1.5 mt-1.5">
 										<span className="text-sm font-bold text-foreground">
 											Préstamo Total: {formatAmount(totalNewPrincipal)}
 										</span>
@@ -180,14 +191,14 @@ export function ConsolidationTab() {
 								</div>
 							</div>
 
-							<div className="p-4 rounded-xl bg-card border border-border flex flex-col justify-between">
+							<div className="p-4 rounded-xl bg-muted/35 border border-border flex flex-col justify-between">
 								<div>
-									<span className="text-xs text-muted-foreground block">Nueva Cuota Mensual</span>
-									<span className="text-xl font-bold text-foreground font-mono">
+									<span className="text-xs text-muted-foreground block font-medium">Nueva Cuota Mensual</span>
+									<span className="text-xl font-bold text-foreground font-mono tabular-nums mt-1 block">
 										{formatAmount(newConsolidatedCuota)}/mes
 									</span>
 								</div>
-								<span className="block text-[10px] text-emerald-500 mt-2 font-medium">
+								<span className="block text-[10px] text-emerald-600 dark:text-emerald-400 mt-2 font-medium">
 									{newConsolidatedCuota < currentConsolidatedMonthlySum
 										? `Ahorras ${formatAmount(currentConsolidatedMonthlySum - newConsolidatedCuota)}/mes respecto a deudas previas`
 										: 'La cuota mensual aumenta'}
@@ -196,10 +207,10 @@ export function ConsolidationTab() {
 						</div>
 
 						{/* Diferencial de intereses (Crítica Financiera) */}
-						<div className="bg-card border border-border p-4 rounded-xl space-y-2 text-sm">
+						<div className="bg-muted/35 border border-border p-4 rounded-xl space-y-2 text-sm">
 							<div className="flex justify-between">
 								<span className="text-muted-foreground">Intereses Totales Actuales:</span>
-								<span className="font-semibold text-foreground font-mono">
+								<span className="font-semibold text-foreground font-mono tabular-nums">
 									{formatAmount(currentTotalInterests)}
 								</span>
 							</div>
@@ -207,17 +218,17 @@ export function ConsolidationTab() {
 								<span className="text-muted-foreground">
 									Intereses Préstamo Unificado (incl. nuevo dinero):
 								</span>
-								<span className="font-semibold text-foreground font-mono">
+								<span className="font-semibold text-foreground font-mono tabular-nums">
 									{formatAmount(newConsolidatedInterests)}
 								</span>
 							</div>
 							<div className="border-t border-border pt-2 flex justify-between font-bold">
 								<span className="text-foreground">Diferencial de Interés Neto:</span>
 								<span
-									className={`font-mono ${
+									className={`font-mono tabular-nums ${
 										newConsolidatedInterests > currentTotalInterests
-											? 'text-rose-500'
-											: 'text-emerald-500'
+											? 'text-rose-600 dark:text-rose-400'
+											: 'text-emerald-600 dark:text-emerald-400'
 									}`}
 								>
 									{formatAmount(newConsolidatedInterests - currentTotalInterests)}
@@ -228,7 +239,7 @@ export function ConsolidationTab() {
 							</div>
 						</div>
 
-						<div className="p-3 bg-muted border border-border rounded-xl text-xs text-foreground leading-relaxed">
+						<div className="p-3.5 bg-muted/60 border border-border rounded-xl text-xs text-foreground leading-relaxed">
 							<span className="font-bold">⚠️ Análisis Técnico:</span> Alargar los plazos reduce tu asfixia
 							de caja actual. Sin embargo, al añadir **
 							{additionalCapital > 0 ? `${additionalCapital}€ de capital adicional` : 'capital nuevo'}**,

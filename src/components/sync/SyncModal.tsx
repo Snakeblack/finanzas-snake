@@ -373,15 +373,15 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 	if (!isOpen) return null;
 
 	return (
-		<div className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+		<div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
 			<div
-				className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 relative"
+				className="max-w-md w-full bg-card border border-border rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 relative text-foreground"
 				onClick={(e) => e.stopPropagation()}
 			>
 				{/* Botón de cerrar */}
 				<button
 					onClick={onClose}
-					className="absolute top-4 right-4 text-slate-500 hover:text-slate-200 transition-colors"
+					className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
 					aria-label="Cerrar modal"
 				>
 					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -406,8 +406,8 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 							/>
 						</svg>
 					</div>
-					<h2 className="text-xl font-bold text-slate-100">Sincronización P2P</h2>
-					<p className="text-xs text-slate-400 mt-1">
+					<h2 className="text-xl font-bold text-foreground">Sincronización P2P</h2>
+					<p className="text-xs text-muted-foreground mt-1">
 						Transfiere tus finanzas directamente entre dispositivos sin usar la nube.
 					</p>
 				</div>
@@ -417,9 +417,9 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 					<div className="space-y-4 pt-2">
 						<button
 							onClick={handleStartHosting}
-							className="w-full flex items-center gap-4 p-4 bg-slate-950 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 rounded-2xl text-left transition-all group"
+							className="w-full flex items-center gap-4 p-4 bg-muted/40 hover:bg-muted/80 border border-border rounded-2xl text-left transition-all group"
 						>
-							<div className="p-3 bg-muted text-foreground rounded-xl group-hover:bg-accent transition-all border border-border">
+							<div className="p-3 bg-card text-foreground rounded-xl group-hover:bg-accent transition-all border border-border">
 								<svg
 									className="w-6 h-6"
 									fill="none"
@@ -435,10 +435,10 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 								</svg>
 							</div>
 							<div>
-								<span className="font-semibold text-slate-200 block text-sm">
+								<span className="font-semibold text-foreground block text-sm">
 									Enviar datos (desde este dispositivo)
 								</span>
-								<span className="text-[11px] text-slate-500 block leading-normal mt-0.5">
+								<span className="text-[11px] text-muted-foreground block leading-normal mt-0.5">
 									Genera un código temporal para compartir los datos de este PC con tu móvil.
 								</span>
 							</div>
@@ -446,9 +446,9 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 
 						<button
 							onClick={() => setMode('receive')}
-							className="w-full flex items-center gap-4 p-4 bg-slate-950 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 rounded-2xl text-left transition-all group"
+							className="w-full flex items-center gap-4 p-4 bg-muted/40 hover:bg-muted/80 border border-border rounded-2xl text-left transition-all group"
 						>
-							<div className="p-3 bg-muted text-foreground rounded-xl group-hover:bg-accent transition-all border border-border">
+							<div className="p-3 bg-card text-foreground rounded-xl group-hover:bg-accent transition-all border border-border">
 								<svg
 									className="w-6 h-6"
 									fill="none"
@@ -464,10 +464,10 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 								</svg>
 							</div>
 							<div>
-								<span className="font-semibold text-slate-200 block text-sm">
+								<span className="font-semibold text-foreground block text-sm">
 									Recibir datos (en este dispositivo)
 								</span>
-								<span className="text-[11px] text-slate-500 block leading-normal mt-0.5">
+								<span className="text-[11px] text-muted-foreground block leading-normal mt-0.5">
 									Introduce el código del otro dispositivo para descargar y sobreescribir tus datos
 									locales.
 								</span>
@@ -475,11 +475,11 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 						</button>
 
 						{/* AJUSTES AVANZADOS */}
-						<div className="pt-2 border-t border-slate-800/60">
+						<div className="pt-2 border-t border-border">
 							<button
 								type="button"
 								onClick={() => setShowAdvanced(!showAdvanced)}
-								className="w-full flex items-center justify-between py-1 text-slate-400 hover:text-slate-200 transition-colors text-xs font-semibold"
+								className="w-full flex items-center justify-between py-1 text-muted-foreground hover:text-foreground transition-colors text-xs font-semibold"
 							>
 								<span>Ajustes avanzados de red (WebRTC)</span>
 								<svg
@@ -494,8 +494,8 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 							</button>
 
 							{showAdvanced && (
-								<div className="mt-3 space-y-3 bg-slate-950/50 p-4 border border-slate-800/80 rounded-2xl animate-fadeIn">
-									<p className="text-[10px] text-slate-400 leading-normal">
+								<div className="mt-3 space-y-3 bg-muted/50 p-4 border border-border rounded-2xl animate-fadeIn">
+									<p className="text-[10px] text-muted-foreground leading-normal">
 										Si la conexión directa falla por el router, regístrate gratis en{' '}
 										<a
 											href="https://www.metered.ca"
@@ -515,13 +515,13 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 											'[\n  {\n    "urls": "turn:relay.metered.ca:443",\n    "username": "...",\n    "credential": "..."\n  }\n]'
 										}
 										rows={5}
-										className="w-full bg-slate-900 border border-slate-850 rounded-xl px-3 py-2 text-[10px] font-mono text-slate-300 focus:border-foreground outline-none resize-none leading-relaxed"
+										className="w-full bg-background border border-border rounded-xl px-3 py-2 text-[10px] font-mono text-foreground focus:border-foreground outline-none resize-none leading-relaxed"
 									/>
 									{advancedError && (
-										<p className="text-[9px] text-rose-400 font-medium">{advancedError}</p>
+										<p className="text-[9px] text-rose-600 dark:text-rose-400 font-medium">{advancedError}</p>
 									)}
 									{advancedSuccess && (
-										<p className="text-[9px] text-emerald-400 font-medium">
+										<p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-medium">
 											✓ Ajustes guardados correctamente.
 										</p>
 									)}
@@ -544,22 +544,22 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 						{status === 'connecting' && (
 							<div className="space-y-4">
 								<div className="w-8 h-8 border-2 border-foreground border-t-transparent rounded-full animate-spin mx-auto"></div>
-								<p className="text-xs text-slate-400 font-medium">{statusText}</p>
+								<p className="text-xs text-muted-foreground font-medium">{statusText}</p>
 							</div>
 						)}
 
 						{status === 'idle' && (
 							<div className="space-y-4">
-								<p className="text-xs text-slate-400">
+								<p className="text-xs text-muted-foreground">
 									Introduce este código temporal en la opción **"Recibir datos"** de tu móvil/otro
 									dispositivo:
 								</p>
-								<div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 inline-block">
+								<div className="bg-muted border border-border rounded-2xl p-4 inline-block">
 									<span className="text-4xl font-mono font-black tracking-widest text-foreground select-all">
 										{code}
 									</span>
 								</div>
-								<p className="text-[10px] text-slate-500 italic">
+								<p className="text-[10px] text-muted-foreground italic">
 									Mantén esta pestaña abierta. El envío comenzará de forma automática al conectarse el
 									móvil.
 								</p>
@@ -575,7 +575,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 
 						{status === 'completed' && (
 							<div className="space-y-3">
-								<div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto">
+								<div className="w-12 h-12 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
 									<svg
 										className="w-6 h-6"
 										fill="none"
@@ -586,10 +586,10 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 										<path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
 									</svg>
 								</div>
-								<p className="text-sm font-bold text-slate-200">{statusText}</p>
+								<p className="text-sm font-bold text-foreground">{statusText}</p>
 								<button
 									onClick={onClose}
-									className="mt-2 px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl transition-all"
+									className="mt-2 px-6 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-semibold rounded-xl transition-all"
 								>
 									Entendido
 								</button>
@@ -606,7 +606,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 								<div className="space-y-2">
 									<label
 										htmlFor="sync-code-input"
-										className="block text-xs font-medium text-slate-400"
+										className="block text-xs font-medium text-muted-foreground"
 									>
 										Código de Conexión (10 letras/números)
 									</label>
@@ -622,7 +622,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 									/>
 								</div>
 
-								<div className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-[10px] text-rose-450 leading-relaxed flex gap-2">
+								<div className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-[10px] text-rose-600 dark:text-rose-400 leading-relaxed flex gap-2">
 									<svg
 										className="w-4 h-4 shrink-0 text-rose-500"
 										fill="none"
@@ -663,7 +663,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 						{status === 'connecting' && (
 							<div className="space-y-4 text-center">
 								<div className="w-8 h-8 border-2 border-foreground border-t-transparent rounded-full animate-spin mx-auto"></div>
-								<p className="text-xs text-slate-400 font-medium">{statusText}</p>
+								<p className="text-xs text-muted-foreground font-medium">{statusText}</p>
 							</div>
 						)}
 
@@ -676,7 +676,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 
 						{status === 'completed' && (
 							<div className="space-y-3 text-center">
-								<div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto">
+								<div className="w-12 h-12 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
 									<svg
 										className="w-6 h-6"
 										fill="none"
@@ -687,7 +687,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 										<path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
 									</svg>
 								</div>
-								<p className="text-sm font-bold text-slate-200">{statusText}</p>
+								<p className="text-sm font-bold text-foreground">{statusText}</p>
 							</div>
 						)}
 					</div>
@@ -696,7 +696,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 				{/* MENSAJES DE ERROR */}
 				{status === 'error' && (
 					<div className="space-y-4 text-center pt-2">
-						<div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center mx-auto">
+						<div className="w-12 h-12 rounded-full bg-rose-500/15 text-rose-500 flex items-center justify-center mx-auto">
 							<svg
 								className="w-6 h-6"
 								fill="none"
@@ -712,8 +712,8 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 							</svg>
 						</div>
 						<div className="space-y-2">
-							<p className="text-sm font-bold text-slate-200">Ha ocurrido un error</p>
-							<p className="text-xs text-rose-400 leading-relaxed px-2">{errorMsg}</p>
+							<p className="text-sm font-bold text-foreground">Ha ocurrido un error</p>
+							<p className="text-xs text-rose-600 dark:text-rose-400 leading-relaxed px-2">{errorMsg}</p>
 						</div>
 						<div className="flex gap-2 pt-2 justify-center">
 							<button
@@ -724,7 +724,7 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 							</button>
 							<button
 								onClick={() => setMode('select')}
-								className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-350 text-xs font-semibold rounded-xl transition-all"
+								className="px-4 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border text-xs font-semibold rounded-xl transition-all"
 							>
 								Cambiar Modo
 							</button>

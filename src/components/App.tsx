@@ -166,38 +166,56 @@ function MainAppContent() {
 		<div
 			className={`min-h-screen ${activeTab === 'ai' ? 'h-screen overflow-hidden' : activeTab === 'transactions' ? 'lg:h-screen lg:overflow-hidden' : ''} flex flex-col bg-background text-foreground font-sans antialiased relative`}
 		>
+			<a
+				href="#main-content"
+				className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:rounded-lg focus:bg-primary focus:text-primary-foreground focus:text-xs focus:font-semibold focus:shadow-lg"
+			>
+				Saltar al contenido
+			</a>
+
 			{/* HEADER DE LA APP */}
-			<header className="border-b border-border bg-background/90 backdrop-blur-md sticky top-0 z-30">
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-					<div className="flex items-center space-x-2.5">
-						<svg
-							className="w-5 h-5 text-foreground shrink-0"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth={1.75}
-							strokeLinecap="round"
-							strokeLinejoin="round"
-						>
-							<path d="M 4 18 c 2 -4, 4 -7, 8 -7 s 4 5, 8 5 s 3 -10, 4 -12" />
-							<path d="M 20 4 h 4 v 4" />
-						</svg>
-						<span className="font-heading font-medium text-sm text-foreground">
-							Finanzas <span className="font-semibold">Snake</span>
-						</span>
+			<header className="border-b border-border bg-background/95 backdrop-blur-md sticky top-0 z-30">
+				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+					<div className="flex items-center gap-3 shrink-0">
+						<div className="w-8 h-8 rounded-lg bg-card border border-border flex items-center justify-center shadow-sm">
+							<svg
+								className="w-4 h-4 text-foreground shrink-0"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth={2}
+								strokeLinecap="round"
+								strokeLinejoin="round"
+							>
+								<path d="M 4 18 c 2 -4, 4 -7, 8 -7 s 4 5, 8 5 s 3 -10, 4 -12" />
+								<path d="M 20 4 h 4 v 4" />
+							</svg>
+						</div>
+						<div className="flex flex-col">
+							<span className="font-heading font-semibold text-sm tracking-tight text-foreground leading-none">
+								Finanzas <span className="font-bold">Snake</span>
+							</span>
+							<span className="text-[10px] text-muted-foreground hidden sm:inline mt-0.5">
+								Planificación local-first
+							</span>
+						</div>
 					</div>
 
 					{/* Selector de Pestañas Principal */}
-					<nav className="hidden md:flex bg-muted/60 p-1 rounded-lg border border-border">
+					<nav
+						aria-label="Navegación principal"
+						className="hidden md:flex items-center bg-muted/70 p-1 rounded-xl border border-border gap-0.5"
+					>
 						<button
 							onClick={() => {
 								setActiveTab('overview');
 								setSelectedDebtSchedule(null);
 							}}
-							className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+							aria-current={activeTab === 'overview' ? 'page' : undefined}
+							className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
 								activeTab === 'overview'
-									? 'bg-background text-foreground shadow-sm'
-									: 'text-muted-foreground hover:text-foreground hover:bg-muted'
+									? 'bg-card text-foreground shadow-sm border border-border/80 font-semibold'
+									: 'text-muted-foreground hover:text-foreground hover:bg-background/40'
 							}`}
 						>
 							Resumen General
@@ -207,10 +225,11 @@ function MainAppContent() {
 								setActiveTab('transactions');
 								setSelectedDebtSchedule(null);
 							}}
-							className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+							aria-current={activeTab === 'transactions' ? 'page' : undefined}
+							className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
 								activeTab === 'transactions'
-									? 'bg-background text-foreground shadow-sm'
-									: 'text-muted-foreground hover:text-foreground hover:bg-muted'
+									? 'bg-card text-foreground shadow-sm border border-border/80 font-semibold'
+									: 'text-muted-foreground hover:text-foreground hover:bg-background/40'
 							}`}
 						>
 							Gastos e Ingresos
@@ -220,10 +239,11 @@ function MainAppContent() {
 								setActiveTab('debts');
 								setSelectedDebtSchedule(null);
 							}}
-							className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+							aria-current={activeTab === 'debts' ? 'page' : undefined}
+							className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
 								activeTab === 'debts'
-									? 'bg-background text-foreground shadow-sm'
-									: 'text-muted-foreground hover:text-foreground hover:bg-muted'
+									? 'bg-card text-foreground shadow-sm border border-border/80 font-semibold'
+									: 'text-muted-foreground hover:text-foreground hover:bg-background/40'
 							}`}
 						>
 							Deudas
@@ -233,10 +253,11 @@ function MainAppContent() {
 								setActiveTab('accounts');
 								setSelectedDebtSchedule(null);
 							}}
-							className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+							aria-current={activeTab === 'accounts' ? 'page' : undefined}
+							className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
 								activeTab === 'accounts'
-									? 'bg-background text-foreground shadow-sm'
-									: 'text-muted-foreground hover:text-foreground hover:bg-muted'
+									? 'bg-card text-foreground shadow-sm border border-border/80 font-semibold'
+									: 'text-muted-foreground hover:text-foreground hover:bg-background/40'
 							}`}
 						>
 							Cuentas
@@ -246,10 +267,11 @@ function MainAppContent() {
 								setActiveTab('consolidation');
 								setSelectedDebtSchedule(null);
 							}}
-							className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+							aria-current={activeTab === 'consolidation' ? 'page' : undefined}
+							className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
 								activeTab === 'consolidation'
-									? 'bg-background text-foreground shadow-sm'
-									: 'text-muted-foreground hover:text-foreground hover:bg-muted'
+									? 'bg-card text-foreground shadow-sm border border-border/80 font-semibold'
+									: 'text-muted-foreground hover:text-foreground hover:bg-background/40'
 							}`}
 						>
 							Reunificación
@@ -259,19 +281,22 @@ function MainAppContent() {
 								setActiveTab('ai');
 								setSelectedDebtSchedule(null);
 							}}
-							className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
+							aria-current={activeTab === 'ai' ? 'page' : undefined}
+							className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
 								activeTab === 'ai'
-									? 'bg-background text-foreground shadow-sm'
-									: 'text-muted-foreground hover:text-foreground hover:bg-muted'
+									? 'bg-card text-foreground shadow-sm border border-border/80 font-semibold'
+									: 'text-muted-foreground hover:text-foreground hover:bg-background/40'
 							}`}
 						>
 							<Icons.Sparkles className="w-3.5 h-3.5 text-foreground" /> Asesor Gemini
 						</button>
 					</nav>
-					<div className="flex items-center space-x-2 ml-auto md:ml-3">
+
+					<div className="flex items-center gap-2 ml-auto md:ml-0 shrink-0">
 						<button
 							onClick={toggleTheme}
-							className="p-2 rounded-lg border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shadow-sm flex items-center justify-center"
+							aria-label={theme === 'light' ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro'}
+							className="h-9 w-9 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
 							title={theme === 'light' ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro'}
 						>
 							{theme === 'light' ? (
@@ -308,22 +333,24 @@ function MainAppContent() {
 
 						<button
 							onClick={toggleSensitiveData}
-							className={`p-2 rounded-lg border border-border transition-colors shadow-sm flex items-center justify-center ${
+							aria-label={hideSensitiveData ? 'Mostrar datos sensibles' : 'Ocultar datos sensibles'}
+							className={`h-9 w-9 rounded-lg border border-border transition-colors flex items-center justify-center ${
 								hideSensitiveData
-									? 'bg-muted text-foreground'
-									: 'bg-background hover:bg-muted text-muted-foreground hover:text-foreground'
+									? 'bg-primary text-primary-foreground border-primary'
+									: 'bg-card hover:bg-muted text-muted-foreground hover:text-foreground'
 							}`}
 							title={hideSensitiveData ? 'Mostrar datos sensibles' : 'Ocultar datos sensibles'}
 						>
 							{hideSensitiveData ? (
-								<Icons.EyeOff className="w-4 h-4 text-foreground" />
+								<Icons.EyeOff className="w-4 h-4" />
 							) : (
-								<Icons.Eye className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+								<Icons.Eye className="w-4 h-4" />
 							)}
 						</button>
 						<button
 							onClick={handleLockApp}
-							className="p-2 rounded-lg border border-border bg-background hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shadow-sm flex items-center justify-center"
+							aria-label={hasPasswordSet ? 'Bloquear Aplicación' : 'Configurar PIN de Seguridad'}
+							className="h-9 w-9 rounded-lg border border-border bg-card hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
 							title={hasPasswordSet ? 'Bloquear Aplicación' : 'Configurar PIN de Seguridad'}
 						>
 							{hasPasswordSet ? (
@@ -361,381 +388,399 @@ function MainAppContent() {
 			</header>
 
 			{/* MENÚ MÓVIL INFERIOR FIJO */}
-			<div className="md:hidden fixed bottom-3 left-3 right-3 bg-background/95 backdrop-blur-md border border-border py-2 px-1 flex justify-around items-center z-40 shadow-sm rounded-xl">
+			<nav
+				aria-label="Navegación móvil"
+				className="md:hidden fixed bottom-3 left-3 right-3 bg-card/95 backdrop-blur-md border border-border py-1.5 px-1.5 flex justify-around items-center z-40 shadow-lg rounded-2xl"
+			>
 				<button
 					onClick={() => {
 						setActiveTab('overview');
 						setSelectedDebtSchedule(null);
 					}}
-					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-colors rounded-lg ${
+					className={`flex-1 py-2 flex flex-col items-center gap-1 transition-all rounded-xl ${
 						activeTab === 'overview'
-							? 'text-foreground font-medium bg-muted'
+							? 'text-foreground font-semibold bg-muted shadow-sm'
 							: 'text-muted-foreground hover:text-foreground'
 					}`}
 				>
-					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+					<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
 						<path
 							strokeLinecap="round"
 							strokeLinejoin="round"
 							d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
 						/>
 					</svg>
-					<span className="text-[10px]">Resumen</span>
+					<span className="text-[10px] leading-none">Resumen</span>
 				</button>
 				<button
 					onClick={() => {
 						setActiveTab('transactions');
 						setSelectedDebtSchedule(null);
 					}}
-					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-colors rounded-lg ${
+					className={`flex-1 py-2 flex flex-col items-center gap-1 transition-all rounded-xl ${
 						activeTab === 'transactions'
-							? 'text-foreground font-medium bg-muted'
+							? 'text-foreground font-semibold bg-muted shadow-sm'
 							: 'text-muted-foreground hover:text-foreground'
 					}`}
 				>
-					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+					<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
 						<path
 							strokeLinecap="round"
 							strokeLinejoin="round"
 							d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 						/>
 					</svg>
-					<span className="text-[10px]">Movs</span>
+					<span className="text-[10px] leading-none">Movs</span>
 				</button>
 				<button
 					onClick={() => {
 						setActiveTab('debts');
 						setSelectedDebtSchedule(null);
 					}}
-					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-colors rounded-lg ${
+					className={`flex-1 py-2 flex flex-col items-center gap-1 transition-all rounded-xl ${
 						activeTab === 'debts'
-							? 'text-foreground font-medium bg-muted'
+							? 'text-foreground font-semibold bg-muted shadow-sm'
 							: 'text-muted-foreground hover:text-foreground'
 					}`}
 				>
-					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+					<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
 						<path
 							strokeLinecap="round"
 							strokeLinejoin="round"
 							d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"
 						/>
 					</svg>
-					<span className="text-[10px]">Deudas</span>
+					<span className="text-[10px] leading-none">Deudas</span>
 				</button>
 				<button
 					onClick={() => {
 						setActiveTab('accounts');
 						setSelectedDebtSchedule(null);
 					}}
-					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-colors rounded-lg ${
+					className={`flex-1 py-2 flex flex-col items-center gap-1 transition-all rounded-xl ${
 						activeTab === 'accounts'
-							? 'text-foreground font-medium bg-muted'
+							? 'text-foreground font-semibold bg-muted shadow-sm'
 							: 'text-muted-foreground hover:text-foreground'
 					}`}
 				>
-					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+					<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
 						<path
 							strokeLinecap="round"
 							strokeLinejoin="round"
 							d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
 						/>
 					</svg>
-					<span className="text-[10px]">Cuentas</span>
+					<span className="text-[10px] leading-none">Cuentas</span>
 				</button>
 				<button
 					onClick={() => {
 						setActiveTab('consolidation');
 						setSelectedDebtSchedule(null);
 					}}
-					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-colors rounded-lg ${
+					className={`flex-1 py-2 flex flex-col items-center gap-1 transition-all rounded-xl ${
 						activeTab === 'consolidation'
-							? 'text-foreground font-medium bg-muted'
+							? 'text-foreground font-semibold bg-muted shadow-sm'
 							: 'text-muted-foreground hover:text-foreground'
 					}`}
 				>
-					<svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+					<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
 						<path
 							strokeLinecap="round"
 							strokeLinejoin="round"
 							d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
 						/>
 					</svg>
-					<span className="text-[10px]">Reunificar</span>
+					<span className="text-[10px] leading-none">Reunificar</span>
 				</button>
 				<button
 					onClick={() => {
 						setActiveTab('ai');
 						setSelectedDebtSchedule(null);
 					}}
-					className={`flex-1 py-1.5 flex flex-col items-center gap-1 transition-colors rounded-lg ${
+					className={`flex-1 py-2 flex flex-col items-center gap-1 transition-all rounded-xl ${
 						activeTab === 'ai'
-							? 'text-foreground font-medium bg-muted'
+							? 'text-foreground font-semibold bg-muted shadow-sm'
 							: 'text-muted-foreground hover:text-foreground'
 					}`}
 				>
-					<Icons.Sparkles className="w-5 h-5" />
-					<span className="text-[10px]">Asesor</span>
+					<Icons.Sparkles className="w-4 h-4" />
+					<span className="text-[10px] leading-none">Asesor</span>
 				</button>
-			</div>
+			</nav>
 
 			{/* CUERPO PRINCIPAL */}
 			<main
-				className={`flex-1 w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-6 pb-24 md:py-8 flex flex-col ${activeTab === 'ai' ? 'min-h-0 overflow-hidden' : activeTab === 'transactions' ? 'lg:min-h-0 lg:overflow-hidden' : ''}`}
+				id="main-content"
+				className={`flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 pb-24 md:py-6 flex flex-col ${activeTab === 'ai' ? 'min-h-0 overflow-hidden' : activeTab === 'transactions' ? 'lg:min-h-0 lg:overflow-hidden' : ''}`}
 			>
 				{periods.length === 0 ? (
-					<div className="max-w-md mx-auto my-12 bg-card border border-border rounded-xl p-8 shadow-sm">
-						<div className="text-center mb-8">
-							<div className="w-12 h-12 mx-auto mb-3 flex items-center justify-center">
-								<svg
-									className="w-8 h-8 text-foreground"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth={1.75}
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								>
-									<path d="M 4 18 c 2 -4, 4 -7, 8 -7 s 4 5, 8 5 s 3 -10, 4 -12" />
-									<path d="M 20 4 h 4 v 4" />
-								</svg>
+					<div className="max-w-3xl w-full mx-auto my-6 lg:my-10 premium-card rounded-2xl p-6 sm:p-8 lg:p-10">
+						<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-6 border-b border-border">
+							<div className="flex items-center gap-3.5">
+								<div className="w-12 h-12 rounded-xl bg-muted border border-border flex items-center justify-center shrink-0">
+									<svg
+										className="w-6 h-6 text-foreground"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth={1.75}
+										strokeLinecap="round"
+										strokeLinejoin="round"
+									>
+										<path d="M 4 18 c 2 -4, 4 -7, 8 -7 s 4 5, 8 5 s 3 -10, 4 -12" />
+										<path d="M 20 4 h 4 v 4" />
+									</svg>
+								</div>
+								<div>
+									<h2 className="text-xl font-bold text-foreground font-heading tracking-tight">
+										Bienvenido a Finanzas Snake
+									</h2>
+									<p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+										Establecé el inicio de tu cronología y balance para comenzar a planificar tus finanzas.
+									</p>
+								</div>
 							</div>
-							<h2 className="text-lg font-semibold text-foreground font-heading">
-								Bienvenido a Finanzas Snake
-							</h2>
-							<p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-								Establecé el inicio de tu cronología y balance para comenzar a planificar tus finanzas.
-							</p>
 						</div>
 
-						<form onSubmit={handleOnboardingSubmit} className="space-y-5">
-							<div>
-								<label className="block text-xs font-medium text-muted-foreground mb-2">
-									Flujo de Inicio
-								</label>
-								<div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-lg border border-border">
-									<button
-										type="button"
-										onClick={() => {
-											setInitFlow('current');
-											setInitMonth(currentMonthString);
-										}}
-										className={`py-2 rounded-md text-xs font-medium transition-colors ${
-											initFlow === 'current'
-												? 'bg-background text-foreground shadow-sm'
-												: 'text-muted-foreground hover:text-foreground'
-										}`}
-									>
-										Mes en Curso
-									</button>
-									<button
-										type="button"
-										onClick={() => setInitFlow('past')}
-										className={`py-2 rounded-md text-xs font-medium transition-colors ${
-											initFlow === 'past'
-												? 'bg-background text-foreground shadow-sm'
-												: 'text-muted-foreground hover:text-foreground'
-										}`}
-									>
-										Registrar desde el Pasado
-									</button>
-								</div>
-							</div>
-
-							{initFlow === 'past' ? (
+						<form onSubmit={handleOnboardingSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+							{/* Columna Izquierda: Cronología y Perfiles */}
+							<div className="lg:col-span-7 space-y-6">
 								<div>
-									<label
-										htmlFor="init-month-input"
-										className="block text-xs font-medium text-muted-foreground mb-1.5"
-									>
-										Seleccionar Mes de Partida
+									<label className="block text-xs font-medium text-muted-foreground mb-2">
+										Flujo de Inicio
 									</label>
-									<Input
-										id="init-month-input"
-										type="month"
-										required
-										max={currentMonthString}
-										value={initMonth}
-										onChange={(e) => setInitMonth(e.target.value)}
-										className="font-mono"
-									/>
-									<p className="text-[11px] text-muted-foreground mt-1">
-										Vas a poder ingresar transacciones históricas desde este mes seleccionado.
-									</p>
+									<div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-xl border border-border">
+										<button
+											type="button"
+											onClick={() => {
+												setInitFlow('current');
+												setInitMonth(currentMonthString);
+											}}
+											className={`py-2.5 rounded-lg text-xs font-medium transition-all ${
+												initFlow === 'current'
+													? 'bg-card text-foreground shadow-sm font-semibold'
+													: 'text-muted-foreground hover:text-foreground'
+											}`}
+										>
+											Mes en Curso
+										</button>
+										<button
+											type="button"
+											onClick={() => setInitFlow('past')}
+											className={`py-2.5 rounded-lg text-xs font-medium transition-all ${
+												initFlow === 'past'
+													? 'bg-card text-foreground shadow-sm font-semibold'
+													: 'text-muted-foreground hover:text-foreground'
+											}`}
+										>
+											Registrar desde el Pasado
+										</button>
+									</div>
 								</div>
-							) : (
-								<div className="p-3 bg-muted/40 border border-border rounded-lg text-xs text-foreground">
-									<span className="font-semibold">Mes Activo de Inicio:</span>{' '}
-									{currentMonthString}
-									<p className="text-[11px] text-muted-foreground mt-1">
-										La cronología arranca directamente en el mes actual del calendario.
-									</p>
-								</div>
-							)}
 
-							<div className="space-y-3 border-t border-border pt-4">
-								<label className="block text-xs font-medium text-muted-foreground mb-1.5">
-									Número de Perfiles
-								</label>
-								<div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-lg border border-border">
-									<button
-										type="button"
-										onClick={() => setProfileCount(1)}
-										className={`py-2 rounded-md text-xs font-medium transition-colors ${
-											profileCount === 1
-												? 'bg-background text-foreground shadow-sm'
-												: 'text-muted-foreground hover:text-foreground'
-										}`}
-									>
-										1 Perfil (Individual)
-									</button>
-									<button
-										type="button"
-										onClick={() => setProfileCount(2)}
-										className={`py-2 rounded-md text-xs font-medium transition-colors ${
-											profileCount === 2
-												? 'bg-background text-foreground shadow-sm'
-												: 'text-muted-foreground hover:text-foreground'
-										}`}
-									>
-										2 Perfiles (Pareja/Conjunto)
-									</button>
-								</div>
-							</div>
-
-							<div className="space-y-3 border-t border-border pt-4">
-								<h3 className="text-xs font-semibold text-foreground">
-									Perfiles de Usuario
-								</h3>
-								<div className={`grid ${profileCount === 2 ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
+								{initFlow === 'past' ? (
 									<div>
 										<label
-											htmlFor="user-a-name-input"
-											className="block text-[11px] font-medium text-muted-foreground mb-1"
+											htmlFor="init-month-input"
+											className="block text-xs font-medium text-muted-foreground mb-1.5"
 										>
-											Nombre {userAName || 'Usuario A'}
+											Seleccionar Mes de Partida
 										</label>
 										<Input
-											id="user-a-name-input"
-											type="text"
+											id="init-month-input"
+											type="month"
 											required
-											value={userAName}
-											onChange={(e) => setUserAName(e.target.value)}
-											className="px-3 py-1.5 text-xs"
+											max={currentMonthString}
+											value={initMonth}
+											onChange={(e) => setInitMonth(e.target.value)}
+											className="font-mono"
 										/>
+										<p className="text-[11px] text-muted-foreground mt-1.5">
+											Vas a poder ingresar transacciones históricas desde este mes seleccionado.
+										</p>
 									</div>
-									{profileCount === 2 && (
+								) : (
+									<div className="p-3.5 bg-muted/50 border border-border rounded-xl text-xs text-foreground">
+										<div className="flex items-center justify-between">
+											<span className="font-medium text-muted-foreground">Mes Activo de Inicio:</span>
+											<span className="font-mono font-semibold text-foreground">{currentMonthString}</span>
+										</div>
+										<p className="text-[11px] text-muted-foreground mt-1">
+											La cronología arranca directamente en el mes actual del calendario.
+										</p>
+									</div>
+								)}
+
+								<div className="space-y-3 border-t border-border pt-5">
+									<label className="block text-xs font-medium text-muted-foreground">
+										Número de Perfiles
+									</label>
+									<div className="grid grid-cols-2 gap-2 p-1 bg-muted rounded-xl border border-border">
+										<button
+											type="button"
+											onClick={() => setProfileCount(1)}
+											className={`py-2.5 rounded-lg text-xs font-medium transition-all ${
+												profileCount === 1
+													? 'bg-card text-foreground shadow-sm font-semibold'
+													: 'text-muted-foreground hover:text-foreground'
+											}`}
+										>
+											1 Perfil (Individual)
+										</button>
+										<button
+											type="button"
+											onClick={() => setProfileCount(2)}
+											className={`py-2.5 rounded-lg text-xs font-medium transition-all ${
+												profileCount === 2
+													? 'bg-card text-foreground shadow-sm font-semibold'
+													: 'text-muted-foreground hover:text-foreground'
+											}`}
+										>
+											2 Perfiles (Pareja/Conjunto)
+										</button>
+									</div>
+								</div>
+
+								<div className="space-y-3 border-t border-border pt-5">
+									<h3 className="text-xs font-semibold text-foreground">
+										Perfiles de Usuario
+									</h3>
+									<div className={`grid ${profileCount === 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'} gap-3`}>
 										<div>
 											<label
-												htmlFor="user-b-name-input"
-												className="block text-[11px] font-medium text-muted-foreground mb-1"
+												htmlFor="user-a-name-input"
+												className="block text-[11px] font-medium text-muted-foreground mb-1.5"
 											>
-												Nombre {userBName || 'Usuario B'}
+												Nombre {userAName || 'Usuario A'}
 											</label>
 											<Input
-												id="user-b-name-input"
+												id="user-a-name-input"
 												type="text"
 												required
-												value={userBName}
-												onChange={(e) => setUserBName(e.target.value)}
-												className="px-3 py-1.5 text-xs"
+												value={userAName}
+												onChange={(e) => setUserAName(e.target.value)}
 											/>
 										</div>
-									)}
-								</div>
-							</div>
-
-							<div className="space-y-3 border-t border-border pt-4">
-								<h3 className="text-xs font-semibold text-foreground">
-									Balances de Apertura (€)
-								</h3>
-								<div className="space-y-2.5">
-									{accounts
-										.filter((acc) => profileCount === 2 || acc.owner === 'userA')
-										.map((acc) => (
-											<div key={acc.id} className="flex flex-col">
+										{profileCount === 2 && (
+											<div>
 												<label
-													htmlFor={`init-balance-welcome-${acc.id}`}
-													className="block text-[11px] font-medium text-muted-foreground mb-1"
+													htmlFor="user-b-name-input"
+													className="block text-[11px] font-medium text-muted-foreground mb-1.5"
 												>
-													Saldo inicial: {acc.name} (
-													{acc.owner === 'userA'
-														? userAName
-														: acc.owner === 'userB'
-															? userBName
-															: 'Compartida'}
-													)
+													Nombre {userBName || 'Usuario B'}
 												</label>
 												<Input
-													id={`init-balance-welcome-${acc.id}`}
-													type="number"
-													step="0.01"
-													min="0"
-													placeholder="0.00"
-													value={acc.initialBalance || ''}
-													onChange={(e) => {
-														const val = parseOpeningBalanceInput(e.target.value);
-														if (Number.isNaN(val)) return;
-														setAccounts((prev) =>
-															prev.map((a) =>
-																a.id === acc.id ? { ...a, initialBalance: val } : a
-															)
-														);
-													}}
-													className="px-3 py-2 text-xs font-mono"
+													id="user-b-name-input"
+													type="text"
+													required
+													value={userBName}
+													onChange={(e) => setUserBName(e.target.value)}
 												/>
 											</div>
-										))}
-								</div>
-								<div className="p-3 bg-muted/40 border border-border rounded-lg text-xs flex justify-between items-center text-foreground">
-									<span>Total {profileCount === 1 ? 'Individual' : 'Conjunto'}:</span>
-									<span className="font-semibold text-foreground text-sm font-mono">
-										{accounts
-											.filter((acc) => profileCount === 2 || acc.owner === 'userA')
-											.reduce((sum, a) => sum + (a.initialBalance || 0), 0)
-											.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-										€
-									</span>
+										)}
+									</div>
 								</div>
 							</div>
 
-							<button
-								type="submit"
-								name="onboarding-action"
-								value="overview"
-								className="w-full bg-primary text-primary-foreground hover:opacity-90 font-medium py-2.5 rounded-lg text-sm transition-all shadow-sm active:scale-[0.98]"
-							>
-								Inicializar Planificación
-							</button>
+							{/* Columna Derecha: Saldos Iniciales y Acciones */}
+							<div className="lg:col-span-5 flex flex-col justify-between space-y-6 lg:border-l lg:border-border lg:pl-8">
+								<div className="space-y-3">
+									<h3 className="text-xs font-semibold text-foreground">
+										Balances de Apertura (€)
+									</h3>
+									<div className="space-y-3">
+										{accounts
+											.filter((acc) => profileCount === 2 || acc.owner === 'userA')
+											.map((acc) => (
+												<div key={acc.id} className="flex flex-col">
+													<label
+														htmlFor={`init-balance-welcome-${acc.id}`}
+														className="block text-[11px] font-medium text-muted-foreground mb-1.5"
+													>
+														Saldo inicial: {acc.name} (
+														{acc.owner === 'userA'
+															? userAName
+															: acc.owner === 'userB'
+																? userBName
+																: 'Compartida'}
+														)
+													</label>
+													<Input
+														id={`init-balance-welcome-${acc.id}`}
+														type="number"
+														step="0.01"
+														min="0"
+														placeholder="0.00"
+														value={acc.initialBalance || ''}
+														onChange={(e) => {
+															const val = parseOpeningBalanceInput(e.target.value);
+															if (Number.isNaN(val)) return;
+															setAccounts((prev) =>
+																prev.map((a) =>
+																	a.id === acc.id ? { ...a, initialBalance: val } : a
+																)
+															);
+														}}
+														className="font-mono"
+													/>
+												</div>
+											))}
+									</div>
+									<div className="p-3.5 bg-muted/50 border border-border rounded-xl text-xs flex justify-between items-center text-foreground">
+										<span className="text-muted-foreground font-medium">
+											Total {profileCount === 1 ? 'Individual' : 'Conjunto'}:
+										</span>
+										<span className="font-semibold text-foreground text-sm font-mono">
+											{accounts
+												.filter((acc) => profileCount === 2 || acc.owner === 'userA')
+												.reduce((sum, a) => sum + (a.initialBalance || 0), 0)
+												.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+											€
+										</span>
+									</div>
+								</div>
 
-							<div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-								<button
-									type="submit"
-									name="onboarding-action"
-									value="accounts"
-									className="w-full border border-border bg-background hover:bg-muted text-foreground font-medium py-2.5 rounded-lg text-xs transition-all active:scale-[0.98]"
-								>
-									Configurar cuentas
-								</button>
-								<button
-									type="submit"
-									name="onboarding-action"
-									value="statement-import"
-									className="w-full border border-border bg-secondary hover:opacity-90 text-secondary-foreground font-medium py-2.5 rounded-lg text-xs transition-all active:scale-[0.98]"
-								>
-									Importar PDF/CSV por cuenta
-								</button>
+								<div className="space-y-2.5 pt-2">
+									<button
+										type="submit"
+										name="onboarding-action"
+										value="overview"
+										className="w-full bg-primary text-primary-foreground hover:opacity-90 font-semibold py-2.5 px-4 rounded-xl text-sm transition-all shadow-sm"
+									>
+										Inicializar Planificación
+									</button>
+
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+										<button
+											type="submit"
+											name="onboarding-action"
+											value="accounts"
+											className="w-full border border-border bg-background hover:bg-muted text-foreground font-medium py-2.5 px-3 rounded-xl text-xs transition-all"
+										>
+											Configurar cuentas
+										</button>
+										<button
+											type="submit"
+											name="onboarding-action"
+											value="statement-import"
+											className="w-full border border-border bg-secondary hover:opacity-90 text-secondary-foreground font-medium py-2.5 px-3 rounded-xl text-xs transition-all"
+										>
+											Importar PDF/CSV por cuenta
+										</button>
+									</div>
+								</div>
 							</div>
 						</form>
 
-						<div className="relative flex py-4 items-center">
+						<div className="relative flex py-5 items-center">
 							<div className="flex-grow border-t border-border"></div>
 							<span className="flex-shrink mx-4 text-muted-foreground text-xs font-medium">
-								O bien
+								O restaurar desde respaldo existente
 							</span>
 							<div className="flex-grow border-t border-border"></div>
 						</div>
 
-						<div className="grid grid-cols-1 gap-2.5 text-center">
+						<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-center">
 							<div>
 								<input
 									id="welcome-import-backup-file"
@@ -746,7 +791,7 @@ function MainAppContent() {
 								/>
 								<label
 									htmlFor="welcome-import-backup-file"
-									className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-background text-foreground hover:bg-muted text-xs font-medium cursor-pointer transition-colors active:scale-[0.98]"
+									className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-background text-foreground hover:bg-muted text-xs font-medium cursor-pointer transition-colors"
 								>
 									<svg
 										className="w-4 h-4 text-muted-foreground"
@@ -768,7 +813,7 @@ function MainAppContent() {
 							<button
 								type="button"
 								onClick={() => setIsSyncModalOpen(true)}
-								className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-background text-foreground hover:bg-muted text-xs font-medium transition-colors active:scale-[0.98]"
+								className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-border bg-background text-foreground hover:bg-muted text-xs font-medium transition-colors"
 							>
 								<svg
 									className="w-4 h-4 text-muted-foreground"
@@ -788,7 +833,7 @@ function MainAppContent() {
 						</div>
 
 						{importError && (
-							<div className="mt-4 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs rounded-lg flex items-center gap-2">
+							<div className="mt-4 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs rounded-xl flex items-center gap-2">
 								<svg
 									className="w-4 h-4 shrink-0"
 									fill="none"
@@ -806,7 +851,7 @@ function MainAppContent() {
 							</div>
 						)}
 						{importSuccess && (
-							<div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs rounded-lg flex items-center gap-2">
+							<div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs rounded-xl flex items-center gap-2">
 								<svg
 									className="w-4 h-4 shrink-0"
 									fill="none"
@@ -826,13 +871,11 @@ function MainAppContent() {
 					</div>
 				) : (
 					<>
-						{/* BARRA DE CONTROL DE TIEMPO Y BALANCE */}
-						<div
-							className={`flex items-center justify-between gap-3 mb-4 lg:mb-6 p-2 lg:p-3 bg-card border border-border rounded-xl ${activeTab === 'ai' ? 'hidden lg:flex' : 'flex'}`}
-						>
-							<div className="flex items-center gap-1.5 shrink-0">
+						{/* BARRA DE CONTROL DE TIEMPO Y CONTEXTO */}
+						<div className="flex flex-wrap items-center justify-between gap-2.5 mb-4 p-2.5 sm:px-4 bg-card border border-border rounded-xl shadow-sm shrink-0">
+							<div className="flex items-center gap-2 shrink-0">
 								<span className="text-xs font-medium text-muted-foreground hidden sm:inline">
-									Mes:
+									Periodo:
 								</span>
 								<Select
 									value={selectedMonth}
@@ -844,7 +887,7 @@ function MainAppContent() {
 								>
 									<SelectTrigger
 										id="global-month-selector"
-										className="bg-input text-foreground border border-border rounded-md px-2.5 py-1 text-xs font-mono font-medium outline-none focus:ring-1 focus:ring-ring cursor-pointer w-auto h-auto min-w-[100px]"
+										className="bg-input text-foreground border border-border rounded-lg px-3 py-1.5 text-xs font-mono font-semibold outline-none focus:ring-2 focus:ring-ring/20 cursor-pointer w-auto h-9 min-w-[110px]"
 										aria-label="Seleccionar mes"
 									>
 										<SelectValue placeholder="Mes" />
@@ -861,7 +904,7 @@ function MainAppContent() {
 								</Select>
 								<button
 									onClick={handleCreateNextMonth}
-									className="bg-muted hover:bg-muted/80 text-foreground border border-border p-1.5 rounded-md transition-colors flex items-center justify-center shadow-sm active:scale-95"
+									className="h-9 px-2.5 bg-muted hover:bg-muted/80 text-foreground border border-border rounded-lg transition-colors flex items-center justify-center gap-1.5 text-xs font-medium"
 									title="Crear mes siguiente bajo demanda"
 								>
 									<svg
@@ -873,48 +916,51 @@ function MainAppContent() {
 									>
 										<path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
 									</svg>
+									<span className="hidden md:inline">Siguiente mes</span>
 								</button>
 							</div>
 
-							{profileCount === 2 && (
-								<div className="flex bg-muted/60 p-1 rounded-lg border border-border">
-									<button
-										onClick={() => setViewMode('all')}
-										className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-											viewMode === 'all'
-												? 'bg-background text-foreground shadow-sm'
-												: 'text-muted-foreground hover:text-foreground'
-										}`}
-									>
-										<span className="hidden sm:inline">Conjunto</span>
-										<span className="sm:hidden">Conj.</span>
-									</button>
-									<button
-										onClick={() => setViewMode('userA')}
-										className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-											viewMode === 'userA'
-												? 'bg-background text-foreground shadow-sm'
-												: 'text-muted-foreground hover:text-foreground'
-										}`}
-									>
-										<span className="hidden sm:inline">{userAName}</span>
-										<span className="sm:hidden">{userAName ? userAName.substring(0, 3) : 'A'}</span>
-									</button>
-									<button
-										onClick={() => setViewMode('userB')}
-										className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-											viewMode === 'userB'
-												? 'bg-background text-foreground shadow-sm'
-												: 'text-muted-foreground hover:text-foreground'
-										}`}
-									>
-										<span className="hidden sm:inline">{userBName}</span>
-										<span className="sm:hidden">{userBName ? userBName.substring(0, 3) : 'B'}</span>
-									</button>
-								</div>
-							)}
+							<div className="flex items-center gap-2.5 ml-auto">
+								{profileCount === 2 && (
+									<div className="flex bg-muted/70 p-1 rounded-lg border border-border">
+										<button
+											onClick={() => setViewMode('all')}
+											className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+												viewMode === 'all'
+													? 'bg-card text-foreground shadow-sm font-semibold'
+													: 'text-muted-foreground hover:text-foreground'
+											}`}
+										>
+											<span className="hidden sm:inline">Conjunto</span>
+											<span className="sm:hidden">Conj.</span>
+										</button>
+										<button
+											onClick={() => setViewMode('userA')}
+											className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+												viewMode === 'userA'
+													? 'bg-card text-foreground shadow-sm font-semibold'
+													: 'text-muted-foreground hover:text-foreground'
+											}`}
+										>
+											<span className="block max-w-[5.5rem] sm:max-w-none truncate" title={userAName}>
+												{userAName || 'A'}
+											</span>
+										</button>
+										<button
+											onClick={() => setViewMode('userB')}
+											className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+												viewMode === 'userB'
+													? 'bg-card text-foreground shadow-sm font-semibold'
+													: 'text-muted-foreground hover:text-foreground'
+											}`}
+										>
+											<span className="block max-w-[5.5rem] sm:max-w-none truncate" title={userBName}>
+												{userBName || 'B'}
+											</span>
+										</button>
+									</div>
+								)}
 
-							<div className="shrink-0">
 								<button
 									onClick={() => {
 										const sorted = [...periods].sort((a, b) => a.month.localeCompare(b.month));
@@ -925,7 +971,7 @@ function MainAppContent() {
 										setReconfigAccounts(accounts.map((acc) => ({ ...acc })));
 										setIsReconfiguring(true);
 									}}
-									className="px-3 py-1.5 bg-background hover:bg-muted text-foreground border border-border rounded-lg transition-colors flex items-center gap-1.5 shadow-sm active:scale-95 text-xs font-medium"
+									className="h-9 px-3 bg-background hover:bg-muted text-foreground border border-border rounded-lg transition-colors flex items-center gap-1.5 text-xs font-medium shrink-0"
 									title="Reconfigurar Cuenta"
 								>
 									<svg
@@ -946,135 +992,197 @@ function MainAppContent() {
 											d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
 										/>
 									</svg>
-									<span className="hidden lg:inline">Configurar</span>
+									<span className="hidden sm:inline">Configurar</span>
 								</button>
 							</div>
 						</div>
 
-						{/* INDICADORES FINANCIEROS MENSUALES */}
-						<section
-							className={`grid-cols-2 lg:grid-cols-5 gap-2.5 lg:gap-4 mb-4 lg:mb-8 ${activeTab === 'overview' ? 'grid' : 'hidden lg:grid'}`}
-						>
-							{/* Tarjeta: Saldo de Apertura */}
-							<div className="bg-card border border-border rounded-xl p-3.5 lg:p-5 shadow-sm">
-								<div className="flex items-center justify-between mb-2 lg:mb-3">
-									<span className="text-xs font-medium text-muted-foreground truncate">
-										Apertura
-									</span>
-									<div className="p-1.5 bg-muted rounded-md text-foreground">
-										<svg
-											className="w-4 h-4 text-muted-foreground"
-											fill="none"
-											viewBox="0 0 24 24"
-											stroke="currentColor"
-											strokeWidth={2}
-										>
-											<path
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l3-3m-3 3L9 8m-5 5h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293h3.172a1 1 0 00.707-.293l2.414-2.414a1 1 0 01.707-.293H20"
-											/>
-										</svg>
-									</div>
-								</div>
-								<div className="text-base lg:text-2xl font-semibold text-foreground font-mono truncate">
-									{formatAmount(currentOpeningBalance)}
-								</div>
-								<p className="text-[11px] text-muted-foreground mt-1 hidden lg:block">
-									Saldo inicial del periodo
-								</p>
-							</div>
-
-							{/* Tarjeta: Ingresos */}
-							<div className="bg-card border border-border rounded-xl p-3.5 lg:p-5 shadow-sm">
-								<div className="flex items-center justify-between mb-2 lg:mb-3">
-									<span className="text-xs font-medium text-muted-foreground truncate">
-										Ingresos
-									</span>
-									<div className="p-1.5 bg-emerald-500/10 rounded-md text-emerald-600 dark:text-emerald-400">
-										<Icons.TrendingUp className="w-4 h-4" />
-									</div>
-								</div>
-								<div className="text-base lg:text-2xl font-semibold text-emerald-600 dark:text-emerald-400 font-mono truncate">
-									{formatAmount(totalIncomes, { showSign: true })}
-								</div>
-								<p className="text-[11px] text-muted-foreground mt-1 hidden lg:block">
-									{oneOffIncomes > 0
-										? `Recurrentes: ${formatAmount(recurringIncomes, { showSign: true })} | Puntuales: ${formatAmount(oneOffIncomes, { showSign: true })}`
-										: 'Registrados para este mes'}
-								</p>
-							</div>
-
-							{/* Tarjeta: Gastos de Flujo Diario */}
-							<div className="bg-card border border-border rounded-xl p-3.5 lg:p-5 shadow-sm">
-								<div className="flex items-center justify-between mb-2 lg:mb-3">
-									<span className="text-xs font-medium text-muted-foreground truncate">
-										Gastos
-									</span>
-									<div className="p-1.5 bg-rose-500/10 rounded-md text-rose-600 dark:text-rose-400">
-										<Icons.TrendingDown className="w-4 h-4" />
-									</div>
-								</div>
-								<div className="text-base lg:text-2xl font-semibold text-rose-600 dark:text-rose-400 font-mono truncate">
-									{formatAmount(-totalExpenses)}
-								</div>
-								<p className="text-[11px] text-muted-foreground mt-1 hidden lg:block">
-									{oneOffExpenses > 0
-										? `Recurrentes: ${formatAmount(-recurringExpenses)} | Puntuales: ${formatAmount(-oneOffExpenses)}`
-										: 'Sin contar amortización de deudas'}
-								</p>
-							</div>
-
-							{/* Tarjeta: Amortización de Deudas (TIN / TAE/CER) */}
-							<div className="bg-card border border-border rounded-xl p-3.5 lg:p-5 shadow-sm">
-								<div className="flex items-center justify-between mb-2 lg:mb-3">
-									<div className="flex items-center space-x-1">
+						{/* INDICADORES FINANCIEROS MENSUALES: Tarjetas completas en Resumen General, cinta compacta en pestañas operativas */}
+						{activeTab === 'overview' ? (
+							<section className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4 mb-6 shrink-0">
+								{/* Tarjeta: Saldo de Apertura */}
+								<div className="premium-card rounded-xl p-4 lg:p-5 flex flex-col justify-between">
+									<div className="flex items-center justify-between mb-2">
 										<span className="text-xs font-medium text-muted-foreground truncate">
-											Deuda
+											Apertura
 										</span>
-										<span
-											className="hidden lg:inline"
-											title="Préstamos: cuota calculada con TIN/TAE/CER más costes recurrentes/seguros. Fraccionamientos: cuotas pendientes vencidas o exigibles hasta el mes activo."
-										>
-											<Icons.Info className="text-muted-foreground" />
-										</span>
+										<div className="p-1.5 bg-muted rounded-md text-foreground">
+											<svg
+												className="w-3.5 h-3.5 text-muted-foreground"
+												fill="none"
+												viewBox="0 0 24 24"
+												stroke="currentColor"
+												strokeWidth={2}
+											>
+												<path
+													strokeLinecap="round"
+													strokeLinejoin="round"
+													d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l3-3m-3 3L9 8m-5 5h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293h3.172a1 1 0 00.707-.293l2.414-2.414a1 1 0 01.707-.293H20"
+												/>
+											</svg>
+										</div>
 									</div>
-									<div className="p-1.5 bg-amber-500/10 rounded-md text-amber-600 dark:text-amber-400">
-										<Icons.CreditCard className="w-4 h-4" />
+									<div>
+										<div className="text-lg lg:text-2xl font-semibold text-foreground font-mono tracking-tight truncate">
+											{formatAmount(currentOpeningBalance)}
+										</div>
+										<p className="text-[11px] text-muted-foreground mt-1 hidden lg:block">
+											Saldo inicial del periodo
+										</p>
 									</div>
 								</div>
-								<div className="text-base lg:text-2xl font-semibold text-amber-600 dark:text-amber-400 font-mono truncate">
-									{formatAmount(-totalMonthlyDebtPayments)}
-								</div>
-								<p className="text-[11px] text-muted-foreground mt-1 hidden lg:block">
-									Incluye cuotas activas y vencidas
-								</p>
-							</div>
 
-							{/* Tarjeta: Saldo al Cierre (Acumulado) */}
-							<div
-								className={`bg-card rounded-xl p-3.5 lg:p-5 col-span-2 lg:col-span-1 border shadow-sm ${currentClosingBalance >= 0 ? 'border-border' : 'border-rose-500/30'}`}
+								{/* Tarjeta: Ingresos */}
+								<div className="premium-card rounded-xl p-4 lg:p-5 flex flex-col justify-between">
+									<div className="flex items-center justify-between mb-2">
+										<span className="text-xs font-medium text-muted-foreground truncate">
+											Ingresos
+										</span>
+										<div className="p-1.5 bg-emerald-500/10 rounded-md text-emerald-600 dark:text-emerald-400">
+											<Icons.TrendingUp className="w-3.5 h-3.5" />
+										</div>
+									</div>
+									<div>
+										<div className="text-lg lg:text-2xl font-semibold text-emerald-600 dark:text-emerald-400 font-mono tracking-tight truncate">
+											{formatAmount(totalIncomes, { showSign: true })}
+										</div>
+										<p className="text-[11px] text-muted-foreground mt-1 hidden lg:block truncate">
+											{oneOffIncomes > 0
+												? `Fijos: ${formatAmount(recurringIncomes, { showSign: true })} · Puntuales: ${formatAmount(oneOffIncomes, { showSign: true })}`
+												: 'Registrados para este mes'}
+										</p>
+									</div>
+								</div>
+
+								{/* Tarjeta: Gastos de Flujo Diario */}
+								<div className="premium-card rounded-xl p-4 lg:p-5 flex flex-col justify-between">
+									<div className="flex items-center justify-between mb-2">
+										<span className="text-xs font-medium text-muted-foreground truncate">
+											Gastos
+										</span>
+										<div className="p-1.5 bg-rose-500/10 rounded-md text-rose-600 dark:text-rose-400">
+											<Icons.TrendingDown className="w-3.5 h-3.5" />
+										</div>
+									</div>
+									<div>
+										<div className="text-lg lg:text-2xl font-semibold text-rose-600 dark:text-rose-400 font-mono tracking-tight truncate">
+											{formatAmount(-totalExpenses)}
+										</div>
+										<p className="text-[11px] text-muted-foreground mt-1 hidden lg:block truncate">
+											{oneOffExpenses > 0
+												? `Fijos: ${formatAmount(-recurringExpenses)} · Puntuales: ${formatAmount(-oneOffExpenses)}`
+												: 'Sin contar amortización de deudas'}
+										</p>
+									</div>
+								</div>
+
+								{/* Tarjeta: Amortización de Deudas */}
+								<div className="premium-card rounded-xl p-4 lg:p-5 flex flex-col justify-between">
+									<div className="flex items-center justify-between mb-2">
+										<div className="flex items-center space-x-1">
+											<span className="text-xs font-medium text-muted-foreground truncate">
+												Deuda
+											</span>
+											<span
+												className="hidden lg:inline"
+												title="Préstamos: cuota calculada con TIN/TAE/CER más costes recurrentes/seguros. Fraccionamientos: cuotas pendientes vencidas o exigibles hasta el mes activo."
+											>
+												<Icons.Info className="text-muted-foreground" />
+											</span>
+										</div>
+										<div className="p-1.5 bg-amber-500/10 rounded-md text-amber-600 dark:text-amber-400">
+											<Icons.CreditCard className="w-3.5 h-3.5" />
+										</div>
+									</div>
+									<div>
+										<div className="text-lg lg:text-2xl font-semibold text-amber-600 dark:text-amber-400 font-mono tracking-tight truncate">
+											{formatAmount(-totalMonthlyDebtPayments)}
+										</div>
+										<p className="text-[11px] text-muted-foreground mt-1 hidden lg:block">
+											Incluye cuotas activas y vencidas
+										</p>
+									</div>
+								</div>
+
+								{/* Tarjeta: Saldo al Cierre (Acumulado) */}
+								<div
+									className={`premium-card rounded-xl p-4 lg:p-5 col-span-2 lg:col-span-1 flex flex-col justify-between ${
+										currentClosingBalance >= 0
+											? 'bg-muted/30 border-foreground/20'
+											: 'border-rose-500/40 bg-rose-500/5'
+									}`}
+								>
+									<div className="flex items-center justify-between mb-2">
+										<span className="text-xs font-semibold text-foreground">
+											Cierre ({selectedMonth})
+										</span>
+										<div className="p-1.5 bg-muted rounded-md text-foreground">
+											<Icons.Scale className="w-3.5 h-3.5 text-foreground" />
+										</div>
+									</div>
+									<div>
+										<div
+											className={`text-xl lg:text-2xl font-bold font-mono tracking-tight truncate ${
+												currentClosingBalance >= 0
+													? 'text-foreground'
+													: 'text-rose-600 dark:text-rose-400'
+											}`}
+										>
+											{formatAmount(currentClosingBalance)}
+										</div>
+										<p className="text-[11px] text-muted-foreground mt-1">
+											{currentClosingBalance >= 0
+												? 'Saldo neto acumulado positivo'
+												: 'Déficit acumulado al cierre'}
+										</p>
+									</div>
+								</div>
+							</section>
+						) : (
+							<section
+								aria-label="Resumen financiero del mes"
+								className="hidden lg:grid lg:grid-cols-5 gap-3 mb-4 p-3 bg-card/70 border border-border rounded-xl shrink-0"
 							>
-								<div className="flex items-center justify-between mb-2 lg:mb-3">
-									<span className="text-xs font-medium text-foreground">
+								<div className="flex items-center justify-between px-3 py-1 border-r border-border last:border-r-0">
+									<span className="text-xs text-muted-foreground font-medium">Apertura</span>
+									<span className="text-xs font-semibold font-mono text-foreground">
+										{formatAmount(currentOpeningBalance)}
+									</span>
+								</div>
+								<div className="flex items-center justify-between px-3 py-1 border-r border-border last:border-r-0">
+									<span className="text-xs text-muted-foreground font-medium">Ingresos</span>
+									<span className="text-xs font-semibold font-mono text-emerald-600 dark:text-emerald-400">
+										{formatAmount(totalIncomes, { showSign: true })}
+									</span>
+								</div>
+								<div className="flex items-center justify-between px-3 py-1 border-r border-border last:border-r-0">
+									<span className="text-xs text-muted-foreground font-medium">Gastos</span>
+									<span className="text-xs font-semibold font-mono text-rose-600 dark:text-rose-400">
+										{formatAmount(-totalExpenses)}
+									</span>
+								</div>
+								<div className="flex items-center justify-between px-3 py-1 border-r border-border last:border-r-0">
+									<span className="text-xs text-muted-foreground font-medium">Deuda</span>
+									<span className="text-xs font-semibold font-mono text-amber-600 dark:text-amber-400">
+										{formatAmount(-totalMonthlyDebtPayments)}
+									</span>
+								</div>
+								<div className="flex items-center justify-between px-3 py-1">
+									<span className="text-xs text-foreground font-semibold">
 										Cierre ({selectedMonth})
 									</span>
-									<div className="p-1.5 bg-muted rounded-md text-foreground">
-										<Icons.Scale className="w-4 h-4 text-muted-foreground" />
-									</div>
+									<span
+										className={`text-sm font-bold font-mono ${
+											currentClosingBalance >= 0
+												? 'text-foreground'
+												: 'text-rose-600 dark:text-rose-400'
+										}`}
+									>
+										{formatAmount(currentClosingBalance)}
+									</span>
 								</div>
-								<div
-									className={`text-lg lg:text-2xl font-semibold font-mono truncate ${currentClosingBalance >= 0 ? 'text-foreground' : 'text-rose-600 dark:text-rose-400'}`}
-								>
-									{formatAmount(currentClosingBalance)}
-								</div>
-								<p className="text-[11px] text-muted-foreground mt-1">
-									{currentClosingBalance >= 0
-										? 'Saldo neto acumulado positivo'
-										: 'Déficit acumulado al cierre'}
-								</p>
-							</div>
-						</section>
+							</section>
+						)}
 
 						{/* CONTENIDOS DE PESTAÑAS */}
 						<div key={activeTab} className="tab-transition flex-1 flex flex-col min-h-0">

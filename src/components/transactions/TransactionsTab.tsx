@@ -120,18 +120,18 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 	};
 
 	return (
-		<div className="flex-1 min-h-0 flex flex-col lg:grid lg:grid-cols-12 gap-6 lg:gap-8">
+		<div className="flex-1 min-h-0 flex flex-col lg:grid lg:grid-cols-12 gap-6">
 			{/* Botón para desplegar formulario en móvil */}
 			<div className="lg:hidden shrink-0 grid grid-cols-2 gap-3">
 				<button
 					type="button"
 					onClick={() => setIsMobileFormOpen(!isMobileFormOpen)}
-					className="flex items-center justify-center gap-2 bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800/60 text-slate-200 hover:text-white px-4 py-3 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm active:scale-[0.98]"
+					className="flex items-center justify-center gap-2 bg-card hover:bg-muted border border-border text-foreground px-4 py-3 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm active:scale-[0.98]"
 				>
 					{isMobileFormOpen ? (
 						<>
 							<svg
-								className="w-4 h-4 text-rose-450"
+								className="w-4 h-4 text-rose-500"
 								fill="none"
 								viewBox="0 0 24 24"
 								stroke="currentColor"
@@ -152,7 +152,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 				<button
 					type="button"
 					onClick={() => setIsImportModalOpen(true)}
-					className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-3 rounded-lg text-xs sm:text-sm font-medium transition-all shadow-sm active:scale-[0.98]"
+					className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-3 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm active:scale-[0.98]"
 				>
 					<Upload className="w-4 h-4" />
 					<span>Importar Extracto</span>
@@ -161,12 +161,12 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 
 			{/* Formulario */}
 			<div
-				className={`${isMobileFormOpen ? 'block' : 'hidden'} lg:block lg:col-span-4 premium-card rounded-2xl p-6 h-fit lg:max-h-full lg:overflow-y-auto shrink-0 lg:shrink`}
+				className={`${isMobileFormOpen ? 'block' : 'hidden'} lg:block lg:col-span-4 premium-card rounded-2xl p-5 lg:p-6 h-fit lg:max-h-full lg:overflow-y-auto shrink-0 lg:shrink`}
 			>
-				<div className="flex flex-col gap-4 mb-6">
-					<h3 className="font-heading text-lg font-bold text-slate-100 flex items-center">
-						<span className="p-1.5 bg-muted text-foreground rounded-lg mr-2">
-							<Icons.Plus className="w-4 h-4" />
+				<div className="flex items-center justify-between gap-3 mb-5 pb-3.5 border-b border-border">
+					<h3 className="font-heading text-base font-bold text-foreground flex items-center tracking-tight">
+						<span className="p-1.5 bg-muted text-foreground rounded-lg mr-2 border border-border/60">
+							<Icons.Plus className="w-3.5 h-3.5" />
 						</span>
 						Nueva Transacción
 					</h3>
@@ -174,24 +174,25 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 					<button
 						type="button"
 						onClick={() => setIsImportModalOpen(true)}
-						className="w-full flex items-center justify-center gap-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border px-3 py-2 rounded-lg text-xs font-medium transition-all shadow-sm active:scale-[0.98] outline-none"
+						className="inline-flex items-center justify-center gap-1.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all shadow-sm active:scale-[0.98] outline-none"
+						title="Importar Extracto Bancario"
 					>
 						<Upload className="w-3.5 h-3.5" />
 						<span>Importar Extracto Bancario</span>
 					</button>
 				</div>
 
-				<form onSubmit={handleFormSubmit} className="space-y-4">
+				<form onSubmit={handleFormSubmit} className="space-y-3.5">
 					<div>
-						<label className="block text-xs font-medium text-slate-400 mb-1.5">Tipo de Movimiento</label>
-						<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+						<label className="block text-xs font-medium text-muted-foreground mb-1.5">Tipo de Movimiento</label>
+						<div className="grid grid-cols-3 gap-1.5 p-1 bg-muted/70 rounded-xl border border-border">
 							<button
 								type="button"
 								onClick={() => setTxForm({ ...txForm, type: 'expense', tag: DEFAULT_TAGS.expense[0] })}
 								className={`py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 									txForm.type === 'expense'
-										? 'bg-rose-500 text-white shadow-md'
-										: 'text-slate-400 hover:text-slate-200'
+										? 'bg-rose-600 text-white shadow-sm'
+										: 'text-muted-foreground hover:text-foreground'
 								}`}
 							>
 								Gasto
@@ -201,8 +202,8 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 								onClick={() => setTxForm({ ...txForm, type: 'income', tag: DEFAULT_TAGS.income[0] })}
 								className={`py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 									txForm.type === 'income'
-										? 'bg-emerald-500 text-white shadow-md'
-										: 'text-slate-400 hover:text-slate-200'
+										? 'bg-emerald-600 text-white shadow-sm'
+										: 'text-muted-foreground hover:text-foreground'
 								}`}
 							>
 								Ingreso
@@ -214,8 +215,8 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 								}
 								className={`py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 									txForm.type === 'transfer'
-										? 'bg-sky-500 text-white shadow-md'
-										: 'text-slate-400 hover:text-slate-200'
+										? 'bg-sky-600 text-white shadow-sm'
+										: 'text-muted-foreground hover:text-foreground'
 								}`}
 							>
 								Traspaso
@@ -224,15 +225,15 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 					</div>
 
 					<div>
-						<label className="block text-xs font-medium text-slate-400 mb-1.5">Recurrencia</label>
-						<div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+						<label className="block text-xs font-medium text-muted-foreground mb-1.5">Recurrencia</label>
+						<div className="grid grid-cols-2 gap-1.5 p-1 bg-muted/70 rounded-xl border border-border">
 							<button
 								type="button"
 								onClick={() => setTxForm({ ...txForm, recurrence: 'one-off' })}
-								className={`py-2 rounded-lg text-xs font-semibold transition-all ${
+								className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
 									txForm.recurrence === 'one-off' || !txForm.recurrence
-										? 'bg-background text-foreground shadow-sm font-semibold'
-										: 'text-slate-400 hover:text-slate-200'
+										? 'bg-card text-foreground shadow-sm font-semibold border border-border/60'
+										: 'text-muted-foreground hover:text-foreground'
 								}`}
 							>
 								Puntual
@@ -240,22 +241,22 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 							<button
 								type="button"
 								onClick={() => setTxForm({ ...txForm, recurrence: 'recurring' })}
-								className={`py-2 rounded-lg text-xs font-semibold transition-all ${
+								className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
 									txForm.recurrence === 'recurring'
-										? 'bg-background text-foreground shadow-sm font-semibold'
-										: 'text-slate-400 hover:text-slate-200'
+										? 'bg-card text-foreground shadow-sm font-semibold border border-border/60'
+										: 'text-muted-foreground hover:text-foreground'
 								}`}
 							>
 								Recurrente
 							</button>
 						</div>
-						<p className="text-[10px] text-slate-500 mt-1">
+						<p className="text-[10px] text-muted-foreground mt-1">
 							Los movimientos recurrentes se añadirán automáticamente a los meses siguientes.
 						</p>
 					</div>
 
 					<div>
-						<label htmlFor="tx-desc" className="block text-xs font-medium text-slate-400 mb-1.5">
+						<label htmlFor="tx-desc" className="block text-xs font-medium text-muted-foreground mb-1.5">
 							Concepto
 						</label>
 						<Input
@@ -276,34 +277,37 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 						/>
 					</div>
 
-					<div>
-						<label htmlFor="tx-amount" className="block text-xs font-medium text-slate-400 mb-1.5">
-							Importe (€)
-						</label>
-						<Input
-							id="tx-amount"
-							type="number"
-							step="0.01"
-							required
-							min="0.01"
-							placeholder="0.00"
-							value={txForm.amount}
-							onChange={(e) => setTxForm({ ...txForm, amount: e.target.value })}
-						/>
-					</div>
+					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+						<div>
+							<label htmlFor="tx-amount" className="block text-xs font-medium text-muted-foreground mb-1.5">
+								Importe (€)
+							</label>
+							<Input
+								id="tx-amount"
+								type="number"
+								step="0.01"
+								required
+								min="0.01"
+								placeholder="0.00"
+								value={txForm.amount}
+								onChange={(e) => setTxForm({ ...txForm, amount: e.target.value })}
+								className="font-mono"
+							/>
+						</div>
 
-					<div>
-						<label htmlFor="tx-date" className="block text-xs font-medium text-slate-400 mb-1.5">
-							Fecha del Movimiento
-						</label>
-						<Input
-							id="tx-date"
-							type="date"
-							required
-							value={txForm.date}
-							onChange={(e) => setTxForm({ ...txForm, date: e.target.value })}
-							className="font-mono"
-						/>
+						<div>
+							<label htmlFor="tx-date" className="block text-xs font-medium text-muted-foreground mb-1.5">
+								Fecha del Movimiento
+							</label>
+							<Input
+								id="tx-date"
+								type="date"
+								required
+								value={txForm.date}
+								onChange={(e) => setTxForm({ ...txForm, date: e.target.value })}
+								className="font-mono"
+							/>
+						</div>
 					</div>
 
 					{txForm.type === 'transfer' ? (
@@ -311,7 +315,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 							<div>
 								<label
 									htmlFor="tx-from-account"
-									className="block text-xs font-medium text-slate-400 mb-1.5"
+									className="block text-xs font-medium text-muted-foreground mb-1.5"
 								>
 									Cuenta de Origen
 								</label>
@@ -343,7 +347,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 							<div>
 								<label
 									htmlFor="tx-to-account"
-									className="block text-xs font-medium text-slate-400 mb-1.5"
+									className="block text-xs font-medium text-muted-foreground mb-1.5"
 								>
 									Cuenta de Destino
 								</label>
@@ -377,7 +381,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 					) : (
 						<>
 							<div>
-								<label htmlFor="tx-account" className="block text-xs font-medium text-slate-400 mb-1.5">
+								<label htmlFor="tx-account" className="block text-xs font-medium text-muted-foreground mb-1.5">
 									Cuenta Asociada
 								</label>
 								<Select
@@ -417,17 +421,17 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 							{profileCount === 2 && (
 								<>
 									<div>
-										<label className="block text-xs font-medium text-slate-400 mb-1.5">
+										<label className="block text-xs font-medium text-muted-foreground mb-1.5">
 											¿De quién es?
 										</label>
-										<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+										<div className="grid grid-cols-3 gap-1.5 p-1 bg-muted/70 rounded-xl border border-border">
 											<button
 												type="button"
 												onClick={() => setTxForm({ ...txForm, owner: 'userA' })}
 												className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
 													txForm.owner === 'userA'
-														? 'bg-background text-foreground shadow-sm font-semibold'
-														: 'text-slate-400 hover:text-slate-200'
+														? 'bg-card text-foreground shadow-sm font-semibold border border-border/60'
+														: 'text-muted-foreground hover:text-foreground'
 												}`}
 											>
 												{userAName}
@@ -437,8 +441,8 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 												onClick={() => setTxForm({ ...txForm, owner: 'userB' })}
 												className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
 													txForm.owner === 'userB'
-														? 'bg-background text-foreground shadow-sm font-semibold'
-														: 'text-slate-400 hover:text-slate-200'
+														? 'bg-card text-foreground shadow-sm font-semibold border border-border/60'
+														: 'text-muted-foreground hover:text-foreground'
 												}`}
 											>
 												{userBName}
@@ -448,8 +452,8 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 												onClick={() => setTxForm({ ...txForm, owner: 'joint' })}
 												className={`py-1.5 rounded-lg text-xs font-semibold transition-all ${
 													txForm.owner === 'joint' || !txForm.owner
-														? 'bg-background text-foreground shadow-sm font-semibold'
-														: 'text-slate-400 hover:text-slate-200'
+														? 'bg-card text-foreground shadow-sm font-semibold border border-border/60'
+														: 'text-muted-foreground hover:text-foreground'
 												}`}
 											>
 												Conjunto
@@ -459,17 +463,17 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 
 									{!txForm.accountId && txForm.owner === 'joint' && txForm.type === 'expense' && (
 										<div>
-											<label className="block text-xs font-medium text-slate-400 mb-1.5">
+											<label className="block text-xs font-medium text-muted-foreground mb-1.5">
 												Pagado por
 											</label>
-											<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+											<div className="grid grid-cols-3 gap-1.5 p-1 bg-muted/70 rounded-xl border border-border">
 												<button
 													type="button"
 													onClick={() => setTxForm({ ...txForm, paidBy: 'userA' })}
 													className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 														txForm.paidBy === 'userA'
-															? 'bg-background text-foreground shadow-sm font-semibold'
-															: 'text-slate-400 hover:text-slate-200'
+															? 'bg-card text-foreground shadow-sm font-semibold border border-border/60'
+															: 'text-muted-foreground hover:text-foreground'
 													}`}
 												>
 													{userAName}
@@ -479,8 +483,8 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 													onClick={() => setTxForm({ ...txForm, paidBy: 'userB' })}
 													className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 														txForm.paidBy === 'userB'
-															? 'bg-background text-foreground shadow-sm font-semibold'
-															: 'text-slate-400 hover:text-slate-200'
+															? 'bg-card text-foreground shadow-sm font-semibold border border-border/60'
+															: 'text-muted-foreground hover:text-foreground'
 													}`}
 												>
 													{userBName}
@@ -490,8 +494,8 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 													onClick={() => setTxForm({ ...txForm, paidBy: 'shared' })}
 													className={`py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 														txForm.paidBy === 'shared' || !txForm.paidBy
-															? 'bg-background text-foreground shadow-sm font-semibold'
-															: 'text-slate-400 hover:text-slate-200'
+															? 'bg-card text-foreground shadow-sm font-semibold border border-border/60'
+															: 'text-muted-foreground hover:text-foreground'
 													}`}
 												>
 													Cuenta Común
@@ -505,7 +509,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 					)}
 
 					<div>
-						<label htmlFor="tx-tag" className="block text-xs font-medium text-slate-400 mb-1.5">
+						<label htmlFor="tx-tag" className="block text-xs font-medium text-muted-foreground mb-1.5">
 							Etiqueta
 						</label>
 						<Input
@@ -522,17 +526,17 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 						</datalist>
 					</div>
 
-					<div className="flex gap-2">
+					<div className="flex gap-2 pt-1 lg:sticky lg:bottom-0 lg:z-10 lg:-mx-6 lg:px-6 lg:pt-3 lg:bg-card lg:border-t lg:border-border lg:shadow-[0_24px_0_0_hsl(var(--card))]">
 						<button
 							type="submit"
-							className="flex-1 mt-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 rounded-lg text-sm transition-all active:scale-[0.98]"
+							className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2.5 rounded-xl text-sm transition-all active:scale-[0.98]"
 						>
 							Agregar Transacción
 						</button>
 						<button
 							type="button"
 							onClick={() => setIsMobileFormOpen(false)}
-							className="lg:hidden flex-1 mt-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium py-2.5 rounded-lg text-sm transition-all border border-border active:scale-[0.98]"
+							className="lg:hidden flex-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-semibold py-2.5 rounded-xl text-sm transition-all border border-border active:scale-[0.98]"
 						>
 							Cancelar
 						</button>
@@ -541,19 +545,24 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 			</div>
 
 			{/* Listado de Historial */}
-			<div className="lg:col-span-8 premium-card rounded-2xl p-6 flex flex-col lg:h-full lg:max-h-full min-h-0">
-				<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 shrink-0">
-					<h3 className="font-heading text-lg font-bold text-slate-100">
-						Historial para el mes {selectedMonth}
-					</h3>
-					<div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800/80 text-xs font-semibold shrink-0">
+			<div className="lg:col-span-8 premium-card rounded-2xl p-5 lg:p-6 flex flex-col lg:h-full lg:max-h-full min-h-0">
+				<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 shrink-0 pb-3.5 border-b border-border">
+					<div className="flex items-center gap-2.5">
+						<h3 className="font-heading text-base font-bold text-foreground tracking-tight">
+							Historial para el mes {selectedMonth}
+						</h3>
+						<span className="px-2 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-muted text-muted-foreground border border-border">
+							{displayedTransactions.length}
+						</span>
+					</div>
+					<div className="flex bg-muted/70 p-1 rounded-xl border border-border text-xs font-semibold shrink-0">
 						<button
 							type="button"
 							onClick={() => setTypeFilter('all')}
 							className={`px-3 py-1.5 rounded-lg transition-all ${
 								typeFilter === 'all'
-									? 'bg-background text-foreground shadow-sm font-semibold'
-									: 'text-slate-400 hover:text-slate-200'
+									? 'bg-card text-foreground shadow-sm font-semibold border border-border/60'
+									: 'text-muted-foreground hover:text-foreground'
 							}`}
 						>
 							Todos
@@ -563,8 +572,8 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 							onClick={() => setTypeFilter('both')}
 							className={`px-3 py-1.5 rounded-lg transition-all ${
 								typeFilter === 'both'
-									? 'bg-background text-foreground shadow-sm font-semibold'
-									: 'text-slate-400 hover:text-slate-200'
+									? 'bg-card text-foreground shadow-sm font-semibold border border-border/60'
+									: 'text-muted-foreground hover:text-foreground'
 							}`}
 						>
 							Gastos/Ingresos
@@ -574,8 +583,8 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 							onClick={() => setTypeFilter('expense')}
 							className={`px-3 py-1.5 rounded-lg transition-all ${
 								typeFilter === 'expense'
-									? 'bg-background text-foreground shadow-sm font-semibold'
-									: 'text-slate-400 hover:text-slate-200'
+									? 'bg-card text-foreground shadow-sm font-semibold border border-border/60'
+									: 'text-muted-foreground hover:text-foreground'
 							}`}
 						>
 							Gastos
@@ -585,8 +594,8 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 							onClick={() => setTypeFilter('income')}
 							className={`px-3 py-1.5 rounded-lg transition-all ${
 								typeFilter === 'income'
-									? 'bg-background text-foreground shadow-sm font-semibold'
-									: 'text-slate-400 hover:text-slate-200'
+									? 'bg-card text-foreground shadow-sm font-semibold border border-border/60'
+									: 'text-muted-foreground hover:text-foreground'
 							}`}
 						>
 							Ingresos
@@ -595,9 +604,9 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 				</div>
 
 				{displayedTransactions.length === 0 ? (
-					<div className="text-center py-12 text-slate-500 flex-1 flex flex-col justify-center">
-						<p className="text-sm">No hay transacciones registradas este mes.</p>
-						<p className="text-xs">Usa el formulario para añadir ingresos o gastos corrientes.</p>
+					<div className="text-center py-12 text-muted-foreground flex-1 flex flex-col justify-center border border-dashed border-border rounded-xl">
+						<p className="text-sm font-medium text-foreground/80">No hay transacciones registradas este mes.</p>
+						<p className="text-xs mt-1">Usa el formulario para añadir ingresos o gastos corrientes.</p>
 					</div>
 				) : (
 					<div className="flex-1 lg:overflow-y-auto pr-1" style={{ WebkitOverflowScrolling: 'touch' }}>
@@ -660,12 +669,12 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 
 										<div className="text-right">
 											{t.type === 'transfer' ? (
-												<span className="text-sky-500 font-semibold text-sm">
+												<span className="text-sky-600 dark:text-sky-400 font-semibold font-mono tabular-nums text-sm">
 													{formatAmount(toNumber(t.money?.amount))}
 												</span>
 											) : (
 												<span
-													className={`font-semibold text-sm ${t.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}
+													className={`font-semibold font-mono tabular-nums text-sm ${t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
 												>
 													{formatAmount(toNumber(t.money?.amount), { showSign: true })}
 												</span>
@@ -678,10 +687,10 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 											<span
 												className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-medium ${
 													t.type === 'income'
-														? 'bg-emerald-500/10 text-emerald-500'
+														? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
 														: t.type === 'transfer'
-															? 'bg-sky-500/10 text-sky-500'
-															: 'bg-rose-500/10 text-rose-500'
+															? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
+															: 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
 												}`}
 											>
 												{t.tag}
@@ -723,18 +732,18 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 						{/* Vista de Tabla para Pantallas Grandes */}
 						<div className="hidden md:block overflow-x-auto">
 							<table className="w-full text-left border-collapse">
-								<thead>
-									<tr className="border-b border-slate-800/80 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-950/20">
-										<th className="pb-3 pt-2 pl-2 w-8"></th>
-										<th className="pb-3 pt-2 pl-2">Fecha</th>
-										<th className="pb-3 pt-2">Concepto</th>
-										{profileCount === 2 && <th className="pb-3 pt-2">Propietario</th>}
-										<th className="pb-3 pt-2">Etiqueta</th>
-										<th className="pb-3 pt-2 text-right">Importe</th>
-										<th className="pb-3 pt-2 text-center">Acciones</th>
+								<thead className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm">
+									<tr className="border-b border-border text-[11px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/40">
+										<th className="pb-2.5 pt-2.5 pl-2 w-8"></th>
+										<th className="pb-2.5 pt-2.5 pl-2">Fecha</th>
+										<th className="pb-2.5 pt-2.5">Concepto</th>
+										{profileCount === 2 && <th className="pb-2.5 pt-2.5">Propietario</th>}
+										<th className="pb-2.5 pt-2.5">Etiqueta</th>
+										<th className="pb-2.5 pt-2.5 text-right">Importe</th>
+										<th className="pb-2.5 pt-2.5 text-center pr-2">Acciones</th>
 									</tr>
 								</thead>
-								<tbody className="divide-y divide-slate-800/60 text-sm">
+								<tbody className="divide-y divide-border text-sm">
 									{displayedTransactions.map((t) => (
 										<tr
 											key={t.id}
@@ -754,7 +763,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 													: 'border-b border-border'
 											}`}
 										>
-											<td className="py-3.5 pl-2 text-center align-middle w-8">
+											<td className="py-3 pl-2 text-center align-middle w-8">
 												<div
 													className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded flex items-center justify-center text-muted-foreground"
 													title="Arrastrar para reordenar"
@@ -762,8 +771,8 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 													<Icons.GripVertical className="w-3.5 h-3.5" />
 												</div>
 											</td>
-											<td className="py-3.5 pl-2 text-muted-foreground font-mono text-xs">{t.date}</td>
-											<td className="py-3.5 font-medium text-foreground">
+											<td className="py-3 pl-2 text-muted-foreground font-mono text-xs whitespace-nowrap">{t.date}</td>
+											<td className="py-3 font-medium text-foreground">
 												<div className="flex flex-col">
 													<div className="flex items-center space-x-2">
 														<span>{t.desc}</span>
@@ -809,7 +818,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 												</div>
 											</td>
 											{profileCount === 2 && (
-												<td className="py-3.5">
+												<td className="py-3">
 													{t.type === 'transfer' ? (
 														<span className="inline-block px-2 py-0.5 rounded text-[10px] bg-muted text-muted-foreground font-medium">
 															Traspaso
@@ -830,20 +839,20 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 													)}
 												</td>
 											)}
-											<td className="py-3.5">
+											<td className="py-3">
 												<span
 													className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
 														t.type === 'income'
-															? 'bg-emerald-500/10 text-emerald-400'
+															? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
 															: t.type === 'transfer'
-																? 'bg-sky-500/10 text-sky-400'
-																: 'bg-rose-500/10 text-rose-400'
+																? 'bg-sky-500/15 text-sky-600 dark:text-sky-400'
+																: 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
 													}`}
 												>
 													{t.tag}
 												</span>
 											</td>
-											<td className="py-3.5 text-right">
+											<td className="py-3 text-right font-mono tabular-nums">
 												{(() => {
 													if (t.type === 'transfer') {
 														const getWeight = (owner: 'userA' | 'userB' | 'joint') => {
@@ -869,27 +878,27 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 															const netChange = (toW - fromW) * txAmount;
 															if (netChange > 0.001) {
 																return (
-																	<span className="text-emerald-500 font-semibold">
+																	<span className="text-emerald-600 dark:text-emerald-400 font-semibold">
 																		{formatAmount(txAmount, { showSign: true })}
 																	</span>
 																);
 															} else if (netChange < -0.001) {
 																return (
-																	<span className="text-rose-500 font-semibold">
+																	<span className="text-rose-600 dark:text-rose-400 font-semibold">
 																		{formatAmount(-txAmount)}
 																	</span>
 																);
 															}
 														}
 														return (
-															<span className="text-sky-500 font-semibold">
+															<span className="text-sky-600 dark:text-sky-400 font-semibold">
 																{formatAmount(toNumber(t.money?.amount))}
 															</span>
 														);
 													}
 													return (
 														<span
-															className={`font-semibold ${t.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}
+															className={`font-semibold ${t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}
 														>
 															{formatAmount(toNumber(t.money?.amount), {
 																showSign: t.type === 'income'
@@ -898,7 +907,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 													);
 												})()}
 											</td>
-											<td className="py-3.5 text-center font-medium">
+											<td className="py-3 text-center font-medium pr-2">
 												<button
 													onClick={() => handleStartEditTransaction(t)}
 													className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg transition-colors mr-1"
