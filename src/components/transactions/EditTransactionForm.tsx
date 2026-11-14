@@ -43,15 +43,15 @@ export function EditTransactionForm({
 	return (
 		<form onSubmit={handleSubmit} className="space-y-4">
 			<div>
-				<label className="block text-xs font-medium text-slate-400 mb-1.5">Tipo de Movimiento</label>
-				<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+				<label className="block text-xs font-medium text-muted-foreground mb-1.5">Tipo de Movimiento</label>
+				<div className="grid grid-cols-3 gap-1.5 p-1 bg-muted/70 rounded-xl border border-border">
 					<button
 						type="button"
 						onClick={() => setEditForm({ ...editForm, type: 'expense', tag: DEFAULT_TAGS.expense[0] })}
-						className={`py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-all \${
+						className={`py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 							editForm.type === 'expense'
-								? 'bg-rose-500 text-white shadow-md'
-								: 'text-slate-400 hover:text-slate-200'
+								? 'bg-rose-600 text-white shadow-sm'
+								: 'text-muted-foreground hover:text-foreground'
 						}`}
 					>
 						Gasto
@@ -59,10 +59,10 @@ export function EditTransactionForm({
 					<button
 						type="button"
 						onClick={() => setEditForm({ ...editForm, type: 'income', tag: DEFAULT_TAGS.income[0] })}
-						className={`py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-all \${
+						className={`py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 							editForm.type === 'income'
-								? 'bg-emerald-500 text-white shadow-md'
-								: 'text-slate-400 hover:text-slate-200'
+								? 'bg-emerald-600 text-white shadow-sm'
+								: 'text-muted-foreground hover:text-foreground'
 						}`}
 					>
 						Ingreso
@@ -70,10 +70,10 @@ export function EditTransactionForm({
 					<button
 						type="button"
 						onClick={() => setEditForm({ ...editForm, type: 'transfer', tag: DEFAULT_TAGS.transfer[0] })}
-						className={`py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-all \${
+						className={`py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-all ${
 							editForm.type === 'transfer'
-								? 'bg-sky-500 text-white shadow-md'
-								: 'text-slate-400 hover:text-slate-200'
+								? 'bg-sky-600 text-white shadow-sm'
+								: 'text-muted-foreground hover:text-foreground'
 						}`}
 					>
 						Traspaso
@@ -82,8 +82,8 @@ export function EditTransactionForm({
 			</div>
 
 			<div>
-				<label className="block text-xs font-medium text-slate-400 mb-1.5">Recurrencia</label>
-				<div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+				<label className="block text-xs font-medium text-muted-foreground mb-1.5">Recurrencia</label>
+				<div className="grid grid-cols-2 gap-1.5 p-1 bg-muted/70 rounded-xl border border-border">
 					<button
 						type="button"
 						onClick={() => setEditForm({ ...editForm, recurrence: 'one-off' })}
@@ -110,7 +110,7 @@ export function EditTransactionForm({
 			</div>
 
 			<div>
-				<label htmlFor="edit-desc" className="block text-xs font-medium text-slate-400 mb-1.5">
+				<label htmlFor="edit-desc" className="block text-xs font-medium text-muted-foreground mb-1.5">
 					Concepto
 				</label>
 				<Input
@@ -130,39 +130,42 @@ export function EditTransactionForm({
 				/>
 			</div>
 
-			<div>
-				<label htmlFor="edit-amount" className="block text-xs font-medium text-slate-400 mb-1.5">
-					Importe (€)
-				</label>
-				<Input
-					id="edit-amount"
-					type="number"
-					step="0.01"
-					required
-					min="0.01"
-					value={editForm.amount}
-					onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
-				/>
-			</div>
+			<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+				<div>
+					<label htmlFor="edit-amount" className="block text-xs font-medium text-muted-foreground mb-1.5">
+						Importe (€)
+					</label>
+					<Input
+						id="edit-amount"
+						type="number"
+						step="0.01"
+						required
+						min="0.01"
+						value={editForm.amount}
+						onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
+						className="font-mono"
+					/>
+				</div>
 
-			<div>
-				<label htmlFor="edit-date" className="block text-xs font-medium text-slate-400 mb-1.5">
-					Fecha
-				</label>
-				<Input
-					id="edit-date"
-					type="date"
-					required
-					value={editForm.date}
-					onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
-					className="font-mono"
-				/>
+				<div>
+					<label htmlFor="edit-date" className="block text-xs font-medium text-muted-foreground mb-1.5">
+						Fecha
+					</label>
+					<Input
+						id="edit-date"
+						type="date"
+						required
+						value={editForm.date}
+						onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+						className="font-mono"
+					/>
+				</div>
 			</div>
 
 			{editForm.type === 'transfer' ? (
 				<>
 					<div>
-						<label htmlFor="edit-from-account" className="block text-xs font-medium text-slate-400 mb-1.5">
+						<label htmlFor="edit-from-account" className="block text-xs font-medium text-muted-foreground mb-1.5">
 							Cuenta de Origen
 						</label>
 						<Select
@@ -189,7 +192,7 @@ export function EditTransactionForm({
 					</div>
 
 					<div>
-						<label htmlFor="edit-to-account" className="block text-xs font-medium text-slate-400 mb-1.5">
+						<label htmlFor="edit-to-account" className="block text-xs font-medium text-muted-foreground mb-1.5">
 							Cuenta de Destino
 						</label>
 						<Select
@@ -220,7 +223,7 @@ export function EditTransactionForm({
 			) : (
 				<>
 					<div>
-						<label htmlFor="edit-account" className="block text-xs font-medium text-slate-400 mb-1.5">
+						<label htmlFor="edit-account" className="block text-xs font-medium text-muted-foreground mb-1.5">
 							Cuenta Asociada
 						</label>
 						<Select
@@ -256,8 +259,8 @@ export function EditTransactionForm({
 					</div>
 
 					<div>
-						<label className="block text-xs font-medium text-slate-400 mb-1.5">¿De quién es?</label>
-						<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+						<label className="block text-xs font-medium text-muted-foreground mb-1.5">¿De quién es?</label>
+						<div className="grid grid-cols-3 gap-1.5 p-1 bg-muted/70 rounded-xl border border-border">
 							<button
 								type="button"
 								onClick={() => setEditForm({ ...editForm, owner: 'userA' })}
@@ -296,8 +299,8 @@ export function EditTransactionForm({
 
 					{!editForm.accountId && editForm.owner === 'joint' && editForm.type === 'expense' && (
 						<div>
-							<label className="block text-xs font-medium text-slate-400 mb-1.5">Pagado por</label>
-							<div className="grid grid-cols-3 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+							<label className="block text-xs font-medium text-muted-foreground mb-1.5">Pagado por</label>
+							<div className="grid grid-cols-3 gap-1.5 p-1 bg-muted/70 rounded-xl border border-border">
 								<button
 									type="button"
 									onClick={() => setEditForm({ ...editForm, paidBy: 'userA' })}
@@ -338,7 +341,7 @@ export function EditTransactionForm({
 			)}
 
 			<div>
-				<label htmlFor="edit-tag" className="block text-xs font-medium text-slate-400 mb-1.5">
+				<label htmlFor="edit-tag" className="block text-xs font-medium text-muted-foreground mb-1.5">
 					Etiqueta
 				</label>
 				<Input
@@ -357,41 +360,41 @@ export function EditTransactionForm({
 
 			{/* Rango de Edición para recurrentes */}
 			{editingTx.recurrence === 'recurring' && (
-				<div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
-					<label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
+				<div className="p-4 bg-muted/60 border border-border rounded-xl space-y-3">
+					<label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">
 						Alcance del cambio recurrente
 					</label>
 					<div className="space-y-2">
-						<label className="flex items-center space-x-3 text-xs text-slate-300 cursor-pointer">
+						<label className="flex items-center space-x-3 text-xs text-foreground cursor-pointer">
 							<input
 								type="radio"
 								name="editScope"
 								value="only-this"
 								checked={editScope === 'only-this'}
 								onChange={() => setEditScope('only-this')}
-								className="w-4 h-4 rounded-full border-slate-850 text-foreground focus:ring-0 bg-slate-900 accent-foreground"
+								className="w-4 h-4 rounded-full border-border text-foreground focus:ring-0 bg-background accent-foreground"
 							/>
 							<span>Solo este mes</span>
 						</label>
-						<label className="flex items-center space-x-3 text-xs text-slate-300 cursor-pointer">
+						<label className="flex items-center space-x-3 text-xs text-foreground cursor-pointer">
 							<input
 								type="radio"
 								name="editScope"
 								value="future"
 								checked={editScope === 'future'}
 								onChange={() => setEditScope('future')}
-								className="w-4 h-4 rounded-full border-slate-850 text-foreground focus:ring-0 bg-slate-900 accent-foreground"
+								className="w-4 h-4 rounded-full border-border text-foreground focus:ring-0 bg-background accent-foreground"
 							/>
 							<span>Este y todos los meses futuros</span>
 						</label>
-						<label className="flex items-center space-x-3 text-xs text-slate-300 cursor-pointer">
+						<label className="flex items-center space-x-3 text-xs text-foreground cursor-pointer">
 							<input
 								type="radio"
 								name="editScope"
 								value="all"
 								checked={editScope === 'all'}
 								onChange={() => setEditScope('all')}
-								className="w-4 h-4 rounded-full border-slate-850 text-foreground focus:ring-0 bg-slate-900 accent-foreground"
+								className="w-4 h-4 rounded-full border-border text-foreground focus:ring-0 bg-background accent-foreground"
 							/>
 							<span>Toda la serie (pasado y futuro)</span>
 						</label>

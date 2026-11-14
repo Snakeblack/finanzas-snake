@@ -202,13 +202,13 @@ export function AiTab() {
 
 				{/* Acciones Adicionales */}
 				{chatMessages.length > 0 && (
-					<div className="premium-card rounded-2xl p-6">
-						<h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider mb-3">
+					<div className="premium-card rounded-2xl p-5 lg:p-6">
+						<h3 className="text-xs font-bold text-foreground uppercase tracking-wider mb-3">
 							Opciones de Conversación
 						</h3>
 						<button
 							onClick={handleClearChat}
-							className="w-full py-2 bg-rose-950/20 hover:bg-rose-950/40 border border-rose-900/30 hover:border-rose-900/50 text-rose-400 hover:text-rose-350 font-semibold rounded-xl text-xs transition-all active:scale-95 flex items-center justify-center gap-1.5"
+							className="w-full py-2 bg-destructive/10 hover:bg-destructive/20 border border-destructive/20 text-destructive font-semibold rounded-xl text-xs transition-all active:scale-95 flex items-center justify-center gap-1.5"
 						>
 							<Icons.Trash />
 							<span>Borrar Historial</span>
@@ -222,13 +222,13 @@ export function AiTab() {
 				className={`lg:col-span-8 premium-card rounded-2xl flex flex-col overflow-hidden lg:h-full flex-1 min-h-0 ${activeMobileView === 'chat' ? 'flex' : 'hidden lg:flex'}`}
 			>
 				{/* Cabecera del Chat */}
-				<div className="p-4 bg-slate-950/40 border-b border-slate-800/40 flex justify-between items-center shrink-0">
+				<div className="p-4 bg-muted/40 border-b border-border flex justify-between items-center shrink-0">
 					<div>
-						<h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+						<h3 className="text-sm font-bold text-foreground flex items-center gap-2">
 							<Icons.Sparkles />
 							Asesor Gemini
 						</h3>
-						<p className="text-[10px] text-slate-500">
+						<p className="text-[10px] text-muted-foreground">
 							Análisis financiero avanzado en base a tus movimientos y deudas
 						</p>
 					</div>
@@ -237,7 +237,7 @@ export function AiTab() {
 							<>
 								<button
 									onClick={handleCopyChatPlaintext}
-									className="px-2.5 py-1 text-[11px] font-semibold bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white rounded-lg border border-slate-700 transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+									className="px-2.5 py-1 text-[11px] font-semibold bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-lg border border-border transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
 									title="Copiar chat como texto plano"
 								>
 									<svg

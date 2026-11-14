@@ -4,36 +4,43 @@
 
 @layer base {
   :root {
-    --background: 0 0% 4%;
+    --background: 240 6% 3.5%;
     --foreground: 0 0% 98%;
 
-    --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 60%;
+    --muted: 240 5% 11.5%;
+    --muted-foreground: 240 4% 62%;
 
-    --popover: 0 0% 7%;
+    --popover: 240 6% 8.5%;
     --popover-foreground: 0 0% 98%;
 
-    --card: 0 0% 7%;
+    --card: 240 6% 7.5%;
     --card-foreground: 0 0% 98%;
 
-    --border: 0 0% 16%;
-    --input: 0 0% 10%;
+    --border: 240 5% 16%;
+    --input: 240 5% 10%;
 
     --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 4%;
+    --primary-foreground: 240 6% 4%;
 
-    --secondary: 0 0% 14%;
+    --secondary: 240 5% 14%;
     --secondary-foreground: 0 0% 98%;
 
-    --accent: 0 0% 14%;
+    --accent: 240 5% 14%;
     --accent-foreground: 0 0% 98%;
 
     --destructive: 0 65% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    --ring: 0 0% 50%;
+    --ring: 240 4% 55%;
 
-    --radius: 0.625rem;
+    --radius: 0.75rem;
+
+    /* design-taste-frontend motion & rhythm tokens */
+    --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --m-ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
+    --m-in: 150ms;
+    --m-out: 120ms;
+    --m-press: 90ms;
 
     /* Scandinavian Neutral Slate variables for Dark Mode */
     --slate-50: 0 0% 98%;
@@ -41,64 +48,64 @@
     --slate-200: 0 0% 88%;
     --slate-300: 0 0% 76%;
     --slate-350: 0 0% 66%;
-    --slate-400: 0 0% 58%;
-    --slate-450: 0 0% 50%;
-    --slate-500: 0 0% 44%;
-    --slate-600: 0 0% 34%;
-    --slate-700: 0 0% 24%;
-    --slate-750: 0 0% 19%;
-    --slate-800: 0 0% 15%;
-    --slate-850: 0 0% 11%;
-    --slate-900: 0 0% 7%;
-    --slate-950: 0 0% 4%;
+    --slate-400: 240 4% 62%;
+    --slate-450: 240 4% 52%;
+    --slate-500: 240 4% 46%;
+    --slate-600: 240 4% 34%;
+    --slate-700: 240 5% 24%;
+    --slate-750: 240 5% 19%;
+    --slate-800: 240 5% 15%;
+    --slate-850: 240 5% 11%;
+    --slate-900: 240 6% 7.5%;
+    --slate-950: 240 6% 4.5%;
   }
 
   .light {
-    --background: 0 0% 98%;
-    --foreground: 0 0% 6%;
+    --background: 45 12% 96%;
+    --foreground: 240 6% 7%;
 
-    --muted: 0 0% 94%;
-    --muted-foreground: 0 0% 42%;
+    --muted: 45 8% 92%;
+    --muted-foreground: 240 4% 40%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 6%;
+    --popover-foreground: 240 6% 7%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 6%;
+    --card-foreground: 240 6% 7%;
 
-    --border: 0 0% 89%;
-    --input: 0 0% 97%;
+    --border: 45 6% 86%;
+    --input: 0 0% 100%;
 
-    --primary: 0 0% 6%;
+    --primary: 240 6% 7%;
     --primary-foreground: 0 0% 98%;
 
-    --secondary: 0 0% 94%;
-    --secondary-foreground: 0 0% 6%;
+    --secondary: 45 8% 92%;
+    --secondary-foreground: 240 6% 7%;
 
-    --accent: 0 0% 94%;
-    --accent-foreground: 0 0% 6%;
+    --accent: 45 8% 90%;
+    --accent-foreground: 240 6% 7%;
 
     --destructive: 0 70% 45%;
     --destructive-foreground: 0 0% 98%;
 
-    --ring: 0 0% 40%;
+    --ring: 240 5% 35%;
 
     /* Scandinavian Neutral Slate variables for Light Mode */
-    --slate-50: 0 0% 6%;
-    --slate-100: 0 0% 10%;
-    --slate-200: 0 0% 18%;
-    --slate-300: 0 0% 28%;
-    --slate-350: 0 0% 36%;
-    --slate-400: 0 0% 45%;
-    --slate-450: 0 0% 54%;
-    --slate-500: 0 0% 62%;
-    --slate-600: 0 0% 72%;
-    --slate-700: 0 0% 80%;
-    --slate-750: 0 0% 86%;
-    --slate-800: 0 0% 90%;
-    --slate-850: 0 0% 94%;
-    --slate-900: 0 0% 97%;
-    --slate-950: 0 0% 100%;
+    --slate-50: 240 6% 7%;
+    --slate-100: 240 6% 10%;
+    --slate-200: 240 5% 16%;
+    --slate-300: 240 4% 26%;
+    --slate-350: 240 4% 34%;
+    --slate-400: 240 4% 42%;
+    --slate-450: 240 4% 50%;
+    --slate-500: 240 4% 58%;
+    --slate-600: 45 6% 72%;
+    --slate-700: 45 6% 80%;
+    --slate-750: 45 6% 85%;
+    --slate-800: 45 6% 88%;
+    --slate-850: 45 8% 92%;
+    --slate-900: 45 10% 96%;
+    --slate-950: 45 10% 94%;
   }
 }
 
@@ -143,16 +150,16 @@ textarea {
   background: hsl(var(--muted-foreground));
 }
 
-/* Scandinavian Surface cards - calm, functional, subtle border */
+/* Surface cards - design-taste-frontend: one step off the page, 1px hairline, subtle inner top highlight */
 .premium-card {
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  transition: border-color 0.15s ease;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.045);
+  transition: border-color var(--m-in) var(--ease), transform var(--m-in) var(--ease);
 }
 
 .premium-card:hover {
-  border-color: hsl(var(--border) / 0.8);
+  border-color: hsl(var(--foreground) / 0.18);
 }
 
 .glass-panel {
@@ -160,7 +167,32 @@ textarea {
   border: 1px solid hsl(var(--border));
 }
 
-/* Ambient glows removed under Scandinavian Design */
+/* Tabular numbers for financial alignment */
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Micro-interactions from design-taste-frontend motion.md */
+@media (hover: hover) and (pointer: fine) {
+  .taste-lift {
+    transition: transform 180ms var(--ease), border-color 180ms var(--ease), box-shadow 180ms var(--ease);
+  }
+  .taste-lift:hover {
+    transform: translateY(-2px);
+    border-color: hsl(var(--foreground) / 0.22);
+    box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.25);
+  }
+  button:not(:disabled):hover {
+    transition: transform var(--m-in) var(--ease), background-color var(--m-in) var(--ease), border-color var(--m-in) var(--ease), color var(--m-in) var(--ease), opacity var(--m-in) var(--ease);
+  }
+}
+
+button:not(:disabled):active {
+  transform: translateY(1px) scale(0.985);
+  transition-duration: var(--m-press);
+}
+
+/* Ambient glows removed under Scandinavian / Taste Design */
 .bg-glow-indigo,
 .bg-glow-violet {
   display: none !important;
@@ -171,26 +203,36 @@ textarea {
   background: hsl(var(--input)) !important;
   border: 1px solid hsl(var(--border)) !important;
   color: hsl(var(--foreground)) !important;
-  transition: border-color 0.15s ease;
+  transition: border-color 140ms var(--ease), box-shadow 140ms var(--ease);
 }
 .premium-input:focus {
   border-color: hsl(var(--ring)) !important;
-  box-shadow: 0 0 0 1px hsl(var(--ring)) !important;
+  box-shadow: 0 0 0 2px hsl(var(--ring) / 0.25) !important;
 }
 
-/* Tab animations */
+/* Tab animations - m-ease-enter settling curve */
 .tab-transition {
-  animation: fadeIn 0.2s ease-out;
+  animation: fadeIn 220ms var(--m-ease-enter);
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-transition,
+  .taste-lift,
+  button {
+    animation: none !important;
+    transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease, opacity 120ms ease !important;
+    transform: none !important;
   }
 }
 
@@ -201,22 +243,26 @@ textarea {
 }
 
 .light ::-webkit-scrollbar-thumb {
-  background: #e2e2e2;
+  background: #d8d6d0;
 }
 
 .light ::-webkit-scrollbar-thumb:hover {
-  background: #b0b0b0;
+  background: #a8a6a0;
 }
 
 .light .premium-card {
   background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(24, 23, 21, 0.1);
+  box-shadow: 0 1px 2px 0 rgba(24, 23, 21, 0.03);
+}
+
+.light .premium-card:hover {
+  border-color: rgba(24, 23, 21, 0.18);
 }
 
 .light .glass-panel {
   background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(24, 23, 21, 0.1);
 }
 
 .light .premium-input {

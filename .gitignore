@@ -7,11 +7,15 @@ dist/
 # Local environment files
 .env
 .env.*
+.npmrc
 
-# Local Pi runtime state
+# Local Pi runtime state & project-scoped agent skills
 .atl/
 .pi/
 .pi-lens/
 .ospec/
+.agents/
+.taste-skill/
+skills-lock.json
 
 coverage/
