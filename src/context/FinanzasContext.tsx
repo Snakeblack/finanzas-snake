@@ -527,7 +527,8 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 				userAName,
 				userBName,
 				geminiApiKey,
-				chatMessages
+				chatMessages,
+				profileCount
 			}),
 			appliers: {
 				setAccounts,
@@ -538,7 +539,8 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 				setUserBName,
 				setGeminiApiKey,
 				setChatMessages,
-				setSelectedMonth
+				setSelectedMonth,
+				setProfileCount
 			}
 		});
 

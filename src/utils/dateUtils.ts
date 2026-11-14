@@ -41,6 +41,42 @@ export const getValidDateForMonth = (monthStr: string, preferredDayStr: string):
 };
 
 /**
+ * Clona los movimientos recurrentes de un mes en el mes destino.
+ *
+ * El identificador de cada clon es el de su serie más el mes destino, de modo que no crece con
+ * los meses. Si ese identificador ya está en uso (dos movimientos de la misma serie en el mes de
+ * origen), se deriva del movimiento clonado para no pisar a otro.
+ *
+ * @param transactions Lista actual de transacciones
+ * @param sourceMonth Mes del que se copian los recurrentes (YYYY-MM)
+ * @param targetMonth Mes en el que se crean los clones (YYYY-MM)
+ * @returns Los clones nuevos, sin incluir las transacciones existentes
+ */
+export const cloneRecurringForMonth = (
+	transactions: Transaction[],
+	sourceMonth: string,
+	targetMonth: string
+): Transaction[] => {
+	const usedIds = new Set(transactions.map((t) => t.id));
+	return transactions
+		.filter((t) => t.date.substring(0, 7) === sourceMonth && t.recurrence === 'recurring')
+		.map((t) => {
+			const seriesId = t.originId || t.id;
+			let id = `${seriesId}-${targetMonth}`;
+			if (usedIds.has(id)) {
+				id = `${t.id}-${targetMonth}`;
+			}
+			usedIds.add(id);
+			return {
+				...t,
+				id,
+				date: getValidDateForMonth(targetMonth, t.date.substring(8, 10)),
+				originId: seriesId
+			};
+		});
+};
+
+/**
  * Auto-genera los periodos faltantes y copia los movimientos recurrentes correspondientes.
  * Devuelve los arrays actualizados de periodos y transacciones sin mutar los originales.
  *
@@ -72,15 +108,7 @@ export const autoGenerateMissingPeriods = (
 			});
 
 			// Copiar movimientos recurrentes del mes previo al nuevo mes iterado
-			const recurringTxsInPrev = newTransactions.filter(
-				(t) => t.date.substring(0, 7) === prevMonth && t.recurrence === 'recurring'
-			);
-			const cloned = recurringTxsInPrev.map((t) => ({
-				...t,
-				id: `${t.id}-${iter}`,
-				date: getValidDateForMonth(iter, t.date.substring(8, 10)),
-				originId: t.originId || t.id
-			}));
+			const cloned = cloneRecurringForMonth(newTransactions, prevMonth, iter);
 			newTransactions = [...cloned, ...newTransactions];
 		}
 		return { periods: updatedPeriods, transactions: newTransactions };

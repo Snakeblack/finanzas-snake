@@ -1,7 +1,7 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import type { Period, Transaction } from '../types';
 import { getInitialData } from '../services/storageService';
-import { addMonthsToMonth, getValidDateForMonth } from '../utils/dateUtils';
+import { addMonthsToMonth, cloneRecurringForMonth } from '../utils/dateUtils';
 
 export interface UsePeriodsResult {
 	periods: Period[];
@@ -52,15 +52,7 @@ export const usePeriods = (): UsePeriodsResult => {
 		};
 
 		// Copiar movimientos recurrentes del último mes al nuevo
-		const recurringTxsInLatest = transactions.filter(
-			(t) => t.date.substring(0, 7) === latestMonth && t.recurrence === 'recurring'
-		);
-		const cloned = recurringTxsInLatest.map((t) => ({
-			...t,
-			id: `${t.id}-${nextMonth}`,
-			date: getValidDateForMonth(nextMonth, t.date.substring(8, 10)),
-			originId: t.originId || t.id
-		}));
+		const cloned = cloneRecurringForMonth(transactions, latestMonth, nextMonth);
 
 		setPeriods([...periods, newPeriod]);
 		if (cloned.length > 0) {

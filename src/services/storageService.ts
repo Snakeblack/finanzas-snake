@@ -10,7 +10,14 @@ import type {
 } from '../types';
 import { toNumber, decodeHtmlEntities } from '../utils/formatters';
 import { normalizeMonth, addMonthsToMonth } from '../utils/dateUtils';
-import { validateAndSanitizeBackup } from '../utils/backupValidator';
+import {
+	BACKUP_FORMAT_VERSION,
+	ESCAPED_TEXT_FIELDS,
+	decodeEscapedDebt,
+	decodeEscapedFields,
+	decodeEscapedText,
+	validateAndSanitizeBackup
+} from '../utils/backupValidator';
 import { encryptWithKey, decryptWithKey } from './cryptoService';
 import { IndexedDBProvider } from './db/idbProvider';
 import { TransactionSchema, DebtSchema, PeriodSchema, AccountSchema, ChatMessageSchema } from './schema';
@@ -24,7 +31,8 @@ const IDB_CONFIG_KEYS = {
 	migrationCompleted: 'migration:unified-idb:v5',
 	userAName: 'userAName',
 	userBName: 'userBName',
-	profileCount: 'profileCount'
+	profileCount: 'profileCount',
+	escapedTextRepaired: 'repair:escaped-text:v1'
 } as const;
 const DEFAULT_USER_NAMES = {
 	userAName: 'Usuario A',
@@ -38,6 +46,7 @@ const FINANCE_BACKUP_KEYS = [
 	STORAGE_KEYS.userAName,
 	STORAGE_KEYS.userBName,
 	STORAGE_KEYS.profileCount,
+	STORAGE_KEYS.backupFormat,
 	STORAGE_KEYS.aiChat,
 	STORAGE_KEYS.geminiKey
 ] as const;
@@ -56,7 +65,7 @@ export interface FinanceBackupSnapshot {
 	userBName: string;
 	geminiApiKey: string;
 	chatMessages: ChatMessage[];
-	profileCount?: number;
+	profileCount: number;
 }
 
 export interface ImportedFinanceBackupData {
@@ -69,7 +78,7 @@ export interface ImportedFinanceBackupData {
 	geminiApiKey?: string;
 	chatMessages?: ChatMessage[];
 	selectedMonth?: string;
-	profileCount?: number;
+	profileCount?: 1 | 2;
 }
 
 export type FinanceBackupPayload = Record<string, string | null>;
@@ -698,7 +707,7 @@ const readEntitiesFromIdb = async (storeName: string): Promise<unknown[]> => {
  * Realiza una migración única, transparente y transaccional de todas las entidades desde localStorage hacia IndexedDB.
  * Se invoca automáticamente tras el arranque de la aplicación o el descifrado exitoso inicial.
  */
-export const executeSilentMigrationIfRequired = async (decryptedTransactions?: Transaction[]): Promise<void> => {
+const migrateLegacyStorageToIdbIfRequired = async (decryptedTransactions?: Transaction[]): Promise<void> => {
 	try {
 		if (isStorageLocked()) {
 			console.info('Migración silenciosa pospuesta: el almacenamiento está cifrado y bloqueado.');
@@ -795,6 +804,60 @@ export const executeSilentMigrationIfRequired = async (decryptedTransactions?: T
 		console.info('Limpieza de claves obsoletas de LocalStorage finalizada.');
 	} catch (error) {
 		console.error('Error crítico no recuperable en el proceso de migración unificada:', error);
+	}
+};
+
+/**
+ * Repara, una sola vez por dispositivo, los textos que una importación o sincronización anterior
+ * dejó escapados como HTML. Solo reescribe los registros que cambian.
+ */
+const repairEscapedTextsIfRequired = async (): Promise<void> => {
+	if ((await readConfigValue(IDB_CONFIG_KEYS.escapedTextRepaired)) === 'true') return;
+
+	const [transactions, debts, accounts, userAName, userBName] = await Promise.all([
+		readStoredTransactions(),
+		readStoredDebts(),
+		readStoredAccounts(),
+		readConfigValue(IDB_CONFIG_KEYS.userAName),
+		readConfigValue(IDB_CONFIG_KEYS.userBName)
+	]);
+
+	const repairedTransactions = transactions.map((tx) => decodeEscapedFields(tx, ESCAPED_TEXT_FIELDS.transaction));
+	if (repairedTransactions.some((tx, index) => tx !== transactions[index])) {
+		await saveStoredTransactionsStrict(repairedTransactions);
+	}
+	const repairedDebts = debts.map(decodeEscapedDebt);
+	if (repairedDebts.some((debt, index) => debt !== debts[index])) {
+		await saveStoredDebtsStrict(repairedDebts);
+	}
+	const repairedAccounts = accounts.map((account) => decodeEscapedFields(account, ESCAPED_TEXT_FIELDS.account));
+	if (repairedAccounts.some((account, index) => account !== accounts[index])) {
+		await saveStoredAccountsStrict(repairedAccounts);
+	}
+	const repairedNames: Partial<UserNames> = {};
+	if (decodeEscapedText(userAName) !== userAName) {
+		repairedNames.userAName = decodeEscapedText(userAName);
+	}
+	if (decodeEscapedText(userBName) !== userBName) {
+		repairedNames.userBName = decodeEscapedText(userBName);
+	}
+	await saveUserNamesStrict(repairedNames);
+
+	await saveConfigValue(IDB_CONFIG_KEYS.escapedTextRepaired, 'true', { encrypt: false });
+};
+
+/**
+ * Pone al día los datos del dispositivo tras el arranque o el descifrado inicial: la migración
+ * única de localStorage a IndexedDB y la reparación única de textos escapados. Con el
+ * almacenamiento cifrado y bloqueado no hace nada; se repite al desbloquear.
+ */
+export const executeSilentMigrationIfRequired = async (decryptedTransactions?: Transaction[]): Promise<void> => {
+	await migrateLegacyStorageToIdbIfRequired(decryptedTransactions);
+	if (isStorageLocked()) return;
+	try {
+		await repairEscapedTextsIfRequired();
+	} catch (error) {
+		console.error('Error al reparar los textos escapados de los datos guardados:', error);
 	}
 };
 
@@ -1429,7 +1492,8 @@ export const buildFinanceBackupPayload = (snapshot: FinanceBackupSnapshot): Fina
 	[STORAGE_KEYS.accounts]: JSON.stringify(snapshot.accounts),
 	[STORAGE_KEYS.userAName]: snapshot.userAName.trim() || DEFAULT_USER_NAMES.userAName,
 	[STORAGE_KEYS.userBName]: snapshot.userBName.trim() || DEFAULT_USER_NAMES.userBName,
-	[STORAGE_KEYS.profileCount]: snapshot.profileCount !== undefined ? String(snapshot.profileCount) : '2',
+	[STORAGE_KEYS.profileCount]: String(snapshot.profileCount),
+	[STORAGE_KEYS.backupFormat]: BACKUP_FORMAT_VERSION,
 	[STORAGE_KEYS.aiChat]: JSON.stringify(snapshot.chatMessages),
 	[STORAGE_KEYS.geminiKey]: snapshot.geminiApiKey.trim() ? snapshot.geminiApiKey : null
 });

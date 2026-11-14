@@ -3,22 +3,69 @@ import type { Account, Transaction, Debt, Period, ChatMessage } from '../types';
 import {
 	buildFinanceBackupPayload,
 	importFinanceBackupPayload,
-	type FinanceBackupSnapshot
+	type FinanceBackupSnapshot,
+	type ImportedFinanceBackupData
 } from '../services/storageService';
 import { autoGenerateMissingPeriods } from '../utils/dateUtils';
 
 /** Setters del contexto que la importación de backup aplica al volcar los datos validados. */
 export interface BackupStateAppliers {
-	setAccounts: Dispatch<SetStateAction<Account[]>>;
-	setTransactions: Dispatch<SetStateAction<Transaction[]>>;
-	setDebts: Dispatch<SetStateAction<Debt[]>>;
-	setPeriods: Dispatch<SetStateAction<Period[]>>;
-	setUserAName: Dispatch<SetStateAction<string>>;
-	setUserBName: Dispatch<SetStateAction<string>>;
-	setGeminiApiKey: Dispatch<SetStateAction<string>>;
-	setChatMessages: Dispatch<SetStateAction<ChatMessage[]>>;
-	setSelectedMonth: Dispatch<SetStateAction<string>>;
+	setAccounts: (accounts: Account[]) => void;
+	setTransactions: (transactions: Transaction[]) => void;
+	setDebts: (debts: Debt[]) => void;
+	setPeriods: (periods: Period[]) => void;
+	setUserAName: (name: string) => void;
+	setUserBName: (name: string) => void;
+	setGeminiApiKey: (key: string) => void;
+	setChatMessages: (messages: ChatMessage[]) => void;
+	setSelectedMonth: (month: string) => void;
+	setProfileCount: (count: 1 | 2) => void;
 }
+
+/**
+ * Vuelca al estado lo que una copia o una sincronización ya validó y guardó. Solo toca lo que
+ * la copia trae: un dato ausente deja el estado actual como está.
+ */
+export const applyImportedBackup = (imported: ImportedFinanceBackupData, appliers: BackupStateAppliers): void => {
+	if (imported.userAName !== undefined) {
+		appliers.setUserAName(imported.userAName);
+	}
+	if (imported.userBName !== undefined) {
+		appliers.setUserBName(imported.userBName);
+	}
+	if (imported.profileCount !== undefined) {
+		appliers.setProfileCount(imported.profileCount);
+	}
+	if (imported.accounts !== undefined) {
+		appliers.setAccounts(imported.accounts);
+	}
+	let finalPeriods = imported.periods;
+	let finalTransactions = imported.transactions;
+	if (finalPeriods !== undefined && finalTransactions !== undefined) {
+		const generated = autoGenerateMissingPeriods(finalPeriods, finalTransactions);
+		finalPeriods = generated.periods;
+		finalTransactions = generated.transactions;
+	}
+
+	if (finalTransactions !== undefined) {
+		appliers.setTransactions(finalTransactions);
+	}
+	if (imported.debts !== undefined) {
+		appliers.setDebts(imported.debts);
+	}
+	if (finalPeriods !== undefined) {
+		appliers.setPeriods(finalPeriods);
+	}
+	if (imported.geminiApiKey !== undefined) {
+		appliers.setGeminiApiKey(imported.geminiApiKey);
+	}
+	if (imported.chatMessages !== undefined) {
+		appliers.setChatMessages(imported.chatMessages);
+	}
+	if (imported.selectedMonth) {
+		appliers.setSelectedMonth(imported.selectedMonth);
+	}
+};
 
 interface UseBackupSyncParams {
 	/** Lee el estado actual a serializar al exportar (thunk: se evalúa al pulsar exportar). */
@@ -81,43 +128,7 @@ export const useBackupSync = ({ getSnapshot, appliers }: UseBackupSyncParams): U
 
 		try {
 			const parsed = JSON.parse(jsonString);
-			const imported = await importFinanceBackupPayload(parsed);
-
-			if (imported.userAName !== undefined) {
-				appliers.setUserAName(imported.userAName);
-			}
-			if (imported.userBName !== undefined) {
-				appliers.setUserBName(imported.userBName);
-			}
-			if (imported.accounts !== undefined) {
-				appliers.setAccounts(imported.accounts);
-			}
-			let finalPeriods = imported.periods;
-			let finalTransactions = imported.transactions;
-			if (finalPeriods !== undefined && finalTransactions !== undefined) {
-				const generated = autoGenerateMissingPeriods(finalPeriods, finalTransactions);
-				finalPeriods = generated.periods;
-				finalTransactions = generated.transactions;
-			}
-
-			if (finalTransactions !== undefined) {
-				appliers.setTransactions(finalTransactions);
-			}
-			if (imported.debts !== undefined) {
-				appliers.setDebts(imported.debts);
-			}
-			if (finalPeriods !== undefined) {
-				appliers.setPeriods(finalPeriods);
-			}
-			if (imported.geminiApiKey !== undefined) {
-				appliers.setGeminiApiKey(imported.geminiApiKey);
-			}
-			if (imported.chatMessages !== undefined) {
-				appliers.setChatMessages(imported.chatMessages);
-			}
-			if (imported.selectedMonth) {
-				appliers.setSelectedMonth(imported.selectedMonth);
-			}
+			applyImportedBackup(await importFinanceBackupPayload(parsed), appliers);
 
 			setImportSuccess('Datos importados y validados con éxito.');
 		} catch (err) {
