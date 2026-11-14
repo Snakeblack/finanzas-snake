@@ -942,8 +942,9 @@ function MainAppContent() {
 													: 'text-muted-foreground hover:text-foreground'
 											}`}
 										>
-											<span className="hidden sm:inline">{userAName}</span>
-											<span className="sm:hidden">{userAName ? userAName.substring(0, 3) : 'A'}</span>
+											<span className="block max-w-[5.5rem] sm:max-w-none truncate" title={userAName}>
+												{userAName || 'A'}
+											</span>
 										</button>
 										<button
 											onClick={() => setViewMode('userB')}
@@ -953,8 +954,9 @@ function MainAppContent() {
 													: 'text-muted-foreground hover:text-foreground'
 											}`}
 										>
-											<span className="hidden sm:inline">{userBName}</span>
-											<span className="sm:hidden">{userBName ? userBName.substring(0, 3) : 'B'}</span>
+											<span className="block max-w-[5.5rem] sm:max-w-none truncate" title={userBName}>
+												{userBName || 'B'}
+											</span>
 										</button>
 									</div>
 								)}

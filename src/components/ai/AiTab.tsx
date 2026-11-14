@@ -480,14 +480,15 @@ export function AiTab() {
 							geminiApiKey ? 'Escribe tu consulta sobre finanzas...' : 'Configura tu API Key para empezar'
 						}
 						disabled={!geminiApiKey}
-						className="flex-1 rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-ring resize-none placeholder:text-muted-foreground max-h-32 overflow-y-auto disabled:opacity-40 disabled:cursor-not-allowed"
+						className="flex-1 rounded-lg border border-border bg-background px-4 py-2.5 text-sm text-foreground outline-none focus:ring-1 focus:ring-ring resize-none placeholder:text-muted-foreground placeholder:whitespace-nowrap placeholder:overflow-hidden placeholder:text-ellipsis max-h-32 overflow-y-auto disabled:opacity-40 disabled:cursor-not-allowed"
 					/>
 					<button
 						type="submit"
 						disabled={aiLoading || !customQuestion.trim() || !geminiApiKey}
+						aria-label="Enviar"
 						className="bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground font-medium px-4 py-2.5 rounded-lg text-sm transition-all flex items-center justify-center gap-1.5 active:scale-[0.98]"
 					>
-						<Icons.Sparkles />
+						<Icons.Sparkles className="w-4 h-4" />
 						<span className="hidden sm:inline">Enviar</span>
 					</button>
 				</form>

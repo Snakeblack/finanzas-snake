@@ -1,0 +1,414 @@
+{
+  "schema": "idd-state/v1",
+  "change": "ui-visual-review-fixes",
+  "mode": "idd",
+  "status": "closed",
+  "intent": {
+    "kind": "bug",
+    "summary": "Corregir cinco fallos de usabilidad detectados en la revision visual: color-scheme en tema claro, etiquetas de perfil en movil, boton de enviar del asesor en movil, campos recortados en Deudas y boton de guardar fuera de vista en Gastos e Ingresos",
+    "acceptance": "En tema claro el icono de calendario es visible; en movil los perfiles se distinguen y el boton de enviar del asesor tiene nombre accesible; los campos TIN, TAE/CER y Fecha de Inicio no se recortan; el boton de guardar transaccion queda visible a 1440x900; todos los tests pasan"
+  },
+  "facts": {
+    "basis": "El usuario aprobo corregir los cinco fallos listados con archivo y linea; son ajustes de presentacion sin cambios de logica, datos ni API"
+  },
+  "plan": {
+    "paths": [
+      "src/__tests__/visualReviewFixes.test.tsx",
+      "src/components/App.tsx",
+      "src/components/ai/AiTab.tsx",
+      "src/components/debts/DebtsTab.tsx",
+      "src/components/transactions/TransactionsTab.tsx",
+      "styles.css"
+    ],
+    "work_units": 1,
+    "decision": true,
+    "operations": [],
+    "decisions": [
+      "El boton de guardar transaccion se fija al pie de la tarjeta con position sticky y una sombra del color de la tarjeta que cubre su relleno inferior, porque el margen negativo deja un hueco doble al final del scroll",
+      "En movil el selector de perfil muestra el nombre completo truncado con puntos suspensivos en lugar de sus tres primeras letras, que coinciden cuando los nombres comparten prefijo"
+    ]
+  },
+  "signals": [
+    {
+      "id": "always",
+      "reason": "every change with a resolved intent",
+      "source": "declaration"
+    },
+    {
+      "id": "bug-fix",
+      "reason": "the intent is a bug fix",
+      "source": "declaration"
+    },
+    {
+      "id": "multi-unit-or-decision",
+      "reason": "declared a non-obvious decision",
+      "source": "declaration"
+    },
+    {
+      "id": "persistent-data",
+      "reason": "persistent data: src/components/sync/SyncModal.tsx uses localStorage",
+      "source": "diff"
+    }
+  ],
+  "obligations": [
+    {
+      "id": "checks-pass",
+      "signal": "always",
+      "status": "satisfied",
+      "evidence": [
+        "ev-4"
+      ]
+    },
+    {
+      "id": "repro-test",
+      "signal": "bug-fix",
+      "status": "satisfied",
+      "evidence": [
+        "ev-1"
+      ]
+    },
+    {
+      "id": "living-doc",
+      "signal": "multi-unit-or-decision",
+      "status": "satisfied",
+      "evidence": [
+        "ev-5"
+      ]
+    },
+    {
+      "id": "migration-compat-and-test",
+      "signal": "persistent-data",
+      "status": "satisfied",
+      "evidence": [
+        "ev-3"
+      ]
+    }
+  ],
+  "gates": [
+    {
+      "id": "checks-changed",
+      "status": "resolved",
+      "reason": "idd/config.yaml declares test: pnpm test, and the base declares no checks",
+      "checks": [
+        {
+          "name": "test",
+          "command": "pnpm test"
+        }
+      ],
+      "config": {
+        "strict_tdd": false,
+        "impact": {},
+        "contracts": {}
+      },
+      "opened_turn": 4,
+      "answer": "sí, apruebo",
+      "source": "user",
+      "resolved_turn": 5
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-1",
+      "kind": "repro-run-pair",
+      "obligation": "repro-test",
+      "recorded_at": "2026-11-14T08:10:30.782Z",
+      "detail": {
+        "red": "run-16",
+        "green": "run-17",
+        "counterproof": [
+          "run-18",
+          "run-19"
+        ]
+      }
+    },
+    {
+      "id": "ev-2",
+      "kind": "check-run",
+      "obligation": "checks-pass",
+      "recorded_at": "2026-11-14T08:43:00.565Z",
+      "detail": {
+        "tree": "sha256:b78c6e0eb4f257ac9bd87ac4076242b4c0abe4d9c25c6d8c1eebb9e303535d3d",
+        "runs": [
+          "run-20"
+        ]
+      }
+    },
+    {
+      "id": "ev-3",
+      "kind": "migration-test",
+      "obligation": "migration-compat-and-test",
+      "recorded_at": "2026-11-14T08:43:15.939Z",
+      "detail": {
+        "run": "run-21",
+        "tree": "sha256:392a3df27e7dca182a5381c3b668c385a313c3abeb82d2ed6b18c8da202bf838",
+        "plan": "Sin cambios de esquema ni de claves de almacenamiento: el diff solo cambia clases de presentacion, placeholders y un selector CSS; los datos existentes en localStorage e IndexedDB se leen igual. Rollback: revertir el commit, sin migracion de datos"
+      }
+    },
+    {
+      "id": "ev-4",
+      "kind": "check-run",
+      "obligation": "checks-pass",
+      "recorded_at": "2026-11-14T08:43:19.091Z",
+      "detail": {
+        "tree": "sha256:b78c6e0eb4f257ac9bd87ac4076242b4c0abe4d9c25c6d8c1eebb9e303535d3d",
+        "runs": [
+          "run-22"
+        ]
+      }
+    },
+    {
+      "id": "ev-5",
+      "kind": "living-doc-current",
+      "obligation": "living-doc",
+      "recorded_at": "2026-11-14T08:43:19.144Z"
+    }
+  ],
+  "base": "b9e3fe10ae7c269df0a632f4c431566bd88aa2c3",
+  "runs": [
+    {
+      "id": "run-1",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run src/__tests__/visualReviewFixes.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:32b2cd7cb5f9ed5ee07f1756ac055accf2d967216f1d89cec70da3827e3f48cc",
+      "tree": "sha256:bd2b6bc41801ece5e5e705a6c35b44b6e301e5a1e54753830fc71ccbd1347b11",
+      "recorded_at": "2026-11-14T08:07:00.067Z"
+    },
+    {
+      "id": "run-2",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run src/__tests__/visualReviewFixes.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:17468fb87c7774a403889f1b7284eb3ed090b5eec0975b875c6bd4c35821025a",
+      "tree": "sha256:34b9d9ef2564c3390dad8bbe2d07f935ce5c7f3d92b4292a852f5421821a7518",
+      "recorded_at": "2026-11-14T08:07:13.209Z"
+    },
+    {
+      "id": "run-3",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run src/__tests__/visualReviewFixes.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:84c6078739fd0a6e9ca871d00833718a3c309e8d35103a098acea2d0e54fac61",
+      "tree": "sha256:392a3df27e7dca182a5381c3b668c385a313c3abeb82d2ed6b18c8da202bf838",
+      "recorded_at": "2026-11-14T08:08:52.433Z",
+      "counterproof": [
+        "run-4",
+        "run-5"
+      ]
+    },
+    {
+      "id": "run-4",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "b9e3fe10ae7c269df0a632f4c431566bd88aa2c3",
+      "mount": "sha256:7939522080ca54fd58bcae68e64077e878092d763ccfef7ff388e0b44e74ed3a",
+      "command": "pnpm vitest run src/__tests__/visualReviewFixes.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:70980928d382e596e151255af0164cf0bc5db4e4fb10b66cf0fb4989e235240c",
+      "tree": "sha256:392a3df27e7dca182a5381c3b668c385a313c3abeb82d2ed6b18c8da202bf838",
+      "recorded_at": "2026-11-14T08:08:52.433Z"
+    },
+    {
+      "id": "run-5",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "b9e3fe10ae7c269df0a632f4c431566bd88aa2c3",
+      "mount": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "control": true,
+      "command": "pnpm vitest run src/__tests__/visualReviewFixes.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:70980928d382e596e151255af0164cf0bc5db4e4fb10b66cf0fb4989e235240c",
+      "tree": "sha256:392a3df27e7dca182a5381c3b668c385a313c3abeb82d2ed6b18c8da202bf838",
+      "recorded_at": "2026-11-14T08:08:52.433Z"
+    },
+    {
+      "id": "run-6",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run --passWithNoTests src/__tests__/visualReviewFixes.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:8eb72e8b06e19f5081f1090779aa2769bcd9ca435be4f2a5918ad0b7af97cb06",
+      "tree": "sha256:392a3df27e7dca182a5381c3b668c385a313c3abeb82d2ed6b18c8da202bf838",
+      "recorded_at": "2026-11-14T08:09:10.247Z"
+    },
+    {
+      "id": "run-7",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run --passWithNoTests src/__tests__/visualReviewFixes.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:fb92a42e93583f3f6df0b94339a1a5a46ebe7a7fa6f0f2259aea649f23210932",
+      "tree": "sha256:314388b6947f513a33b7a8958a6f6876722ccb340c0477560b2ba1b5739dce75",
+      "recorded_at": "2026-11-14T08:09:20.834Z"
+    },
+    {
+      "id": "run-8",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run --passWithNoTests src/__tests__/visualReviewFixes.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:63093cb8372ca43c58081efe6cc8f5a08d226ba1b7fed91b7cd3e3c5ba35107f",
+      "tree": "sha256:392a3df27e7dca182a5381c3b668c385a313c3abeb82d2ed6b18c8da202bf838",
+      "recorded_at": "2026-11-14T08:09:22.382Z",
+      "counterproof": [
+        "run-9",
+        "run-10"
+      ]
+    },
+    {
+      "id": "run-9",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "b9e3fe10ae7c269df0a632f4c431566bd88aa2c3",
+      "mount": "sha256:7939522080ca54fd58bcae68e64077e878092d763ccfef7ff388e0b44e74ed3a",
+      "command": "pnpm vitest run --passWithNoTests src/__tests__/visualReviewFixes.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:70980928d382e596e151255af0164cf0bc5db4e4fb10b66cf0fb4989e235240c",
+      "tree": "sha256:392a3df27e7dca182a5381c3b668c385a313c3abeb82d2ed6b18c8da202bf838",
+      "recorded_at": "2026-11-14T08:09:22.382Z"
+    },
+    {
+      "id": "run-10",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "b9e3fe10ae7c269df0a632f4c431566bd88aa2c3",
+      "mount": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "control": true,
+      "command": "pnpm vitest run --passWithNoTests src/__tests__/visualReviewFixes.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:70980928d382e596e151255af0164cf0bc5db4e4fb10b66cf0fb4989e235240c",
+      "tree": "sha256:392a3df27e7dca182a5381c3b668c385a313c3abeb82d2ed6b18c8da202bf838",
+      "recorded_at": "2026-11-14T08:09:22.382Z"
+    },
+    {
+      "id": "run-11",
+      "purpose": "repro-test",
+      "command": "/tmp/claude-1000/-home-sn4ke-dev-repositorios-activos-finanzas-snake/b463de25-094a-41ee-9b87-702203ce62e9/scratchpad/dbg.sh",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:392a3df27e7dca182a5381c3b668c385a313c3abeb82d2ed6b18c8da202bf838",
+      "recorded_at": "2026-11-14T08:09:56.815Z"
+    },
+    {
+      "id": "run-12",
+      "purpose": "repro-test",
+      "command": "/tmp/claude-1000/-home-sn4ke-dev-repositorios-activos-finanzas-snake/b463de25-094a-41ee-9b87-702203ce62e9/scratchpad/dbg.sh",
+      "exit_code": 1,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:314388b6947f513a33b7a8958a6f6876722ccb340c0477560b2ba1b5739dce75",
+      "recorded_at": "2026-11-14T08:10:07.281Z"
+    },
+    {
+      "id": "run-13",
+      "purpose": "repro-test",
+      "command": "/tmp/claude-1000/-home-sn4ke-dev-repositorios-activos-finanzas-snake/b463de25-094a-41ee-9b87-702203ce62e9/scratchpad/dbg.sh",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:392a3df27e7dca182a5381c3b668c385a313c3abeb82d2ed6b18c8da202bf838",
+      "recorded_at": "2026-11-14T08:10:08.832Z",
+      "counterproof": [
+        "run-14",
+        "run-15"
+      ]
+    },
+    {
+      "id": "run-14",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "b9e3fe10ae7c269df0a632f4c431566bd88aa2c3",
+      "mount": "sha256:7939522080ca54fd58bcae68e64077e878092d763ccfef7ff388e0b44e74ed3a",
+      "command": "/tmp/claude-1000/-home-sn4ke-dev-repositorios-activos-finanzas-snake/b463de25-094a-41ee-9b87-702203ce62e9/scratchpad/dbg.sh",
+      "exit_code": 1,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:392a3df27e7dca182a5381c3b668c385a313c3abeb82d2ed6b18c8da202bf838",
+      "recorded_at": "2026-11-14T08:10:08.832Z"
+    },
+    {
+      "id": "run-15",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "b9e3fe10ae7c269df0a632f4c431566bd88aa2c3",
+      "mount": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "control": true,
+      "command": "/tmp/claude-1000/-home-sn4ke-dev-repositorios-activos-finanzas-snake/b463de25-094a-41ee-9b87-702203ce62e9/scratchpad/dbg.sh",
+      "exit_code": 1,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:392a3df27e7dca182a5381c3b668c385a313c3abeb82d2ed6b18c8da202bf838",
+      "recorded_at": "2026-11-14T08:10:08.832Z"
+    },
+    {
+      "id": "run-16",
+      "purpose": "repro-test",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/visualReviewFixes.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:e389847279bac4b743e7d0372a7667c94aea6fab9265596cdc62c6261b291d29",
+      "tree": "sha256:314388b6947f513a33b7a8958a6f6876722ccb340c0477560b2ba1b5739dce75",
+      "recorded_at": "2026-11-14T08:10:29.519Z"
+    },
+    {
+      "id": "run-17",
+      "purpose": "repro-test",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/visualReviewFixes.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:394e79de392baffe85c714a2a79666f4e22af93b98a5c9973c90ca1aa8ef2f74",
+      "tree": "sha256:392a3df27e7dca182a5381c3b668c385a313c3abeb82d2ed6b18c8da202bf838",
+      "recorded_at": "2026-11-14T08:10:30.782Z",
+      "counterproof": [
+        "run-18",
+        "run-19"
+      ]
+    },
+    {
+      "id": "run-18",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "b9e3fe10ae7c269df0a632f4c431566bd88aa2c3",
+      "mount": "sha256:7939522080ca54fd58bcae68e64077e878092d763ccfef7ff388e0b44e74ed3a",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/visualReviewFixes.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:eadb0164e2448f3e3dcb17e4d0961ec551f55b128e1ba4573ab4dde7d8f45645",
+      "tree": "sha256:392a3df27e7dca182a5381c3b668c385a313c3abeb82d2ed6b18c8da202bf838",
+      "recorded_at": "2026-11-14T08:10:30.782Z"
+    },
+    {
+      "id": "run-19",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "b9e3fe10ae7c269df0a632f4c431566bd88aa2c3",
+      "mount": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "control": true,
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/visualReviewFixes.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:ecdb03024ae740e1ea1e8483c8741f90e83e830f4885709908cbdf5cc0fdf6a2",
+      "tree": "sha256:392a3df27e7dca182a5381c3b668c385a313c3abeb82d2ed6b18c8da202bf838",
+      "recorded_at": "2026-11-14T08:10:30.782Z"
+    },
+    {
+      "id": "run-20",
+      "purpose": "checks",
+      "name": "test",
+      "command": "pnpm test",
+      "exit_code": 0,
+      "output_sha256": "sha256:be0f6ee26e9011f6e67a7c9a2e3c4963baabdbd5a7bcf407c1d0e0bbb0461d08",
+      "tree": "sha256:b78c6e0eb4f257ac9bd87ac4076242b4c0abe4d9c25c6d8c1eebb9e303535d3d",
+      "recorded_at": "2026-11-14T08:43:00.565Z"
+    },
+    {
+      "id": "run-21",
+      "purpose": "migration-test",
+      "command": "node_modules/.bin/vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts src/__tests__/syncService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:b278dd1ca74c77e0a0b818bf6c7308457944819771897092849699e58b8e6938",
+      "tree": "sha256:392a3df27e7dca182a5381c3b668c385a313c3abeb82d2ed6b18c8da202bf838",
+      "recorded_at": "2026-11-14T08:43:15.939Z"
+    },
+    {
+      "id": "run-22",
+      "purpose": "checks",
+      "name": "test",
+      "command": "pnpm test",
+      "exit_code": 0,
+      "output_sha256": "sha256:684c29d97dc7407897cd078305cde0ae04a27d6e1f83f31cbf396c747700d7c3",
+      "tree": "sha256:b78c6e0eb4f257ac9bd87ac4076242b4c0abe4d9c25c6d8c1eebb9e303535d3d",
+      "recorded_at": "2026-11-14T08:43:19.091Z"
+    }
+  ],
+  "closed_at": "2026-11-14T08:43:19.144Z"
+}

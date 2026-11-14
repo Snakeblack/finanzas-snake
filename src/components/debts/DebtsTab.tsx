@@ -333,7 +333,7 @@ export function DebtsTab() {
 										type="number"
 										step="0.01"
 										min="0"
-										placeholder="Ej. 5.95"
+										placeholder="5.95"
 										value={debtForm.tin}
 										onChange={(e) => setDebtForm({ ...debtForm, tin: e.target.value })}
 										className="font-mono"
@@ -353,7 +353,7 @@ export function DebtsTab() {
 										step="0.01"
 										required={debtForm.kind === 'classic'}
 										min="0"
-										placeholder="Ej. 6.5"
+										placeholder="6.5"
 										value={debtForm.tae}
 										onChange={(e) => setDebtForm({ ...debtForm, tae: e.target.value })}
 										className="font-mono"
@@ -372,7 +372,7 @@ export function DebtsTab() {
 										type="number"
 										required={debtForm.kind === 'classic'}
 										min="1"
-										placeholder="Ej. 36"
+										placeholder="36"
 										value={debtForm.termMonths}
 										onChange={(e) => setDebtForm({ ...debtForm, termMonths: e.target.value })}
 										className="font-mono"
@@ -532,7 +532,7 @@ export function DebtsTab() {
 						</>
 					)}
 
-					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
 						<div>
 							<label htmlFor="debt-date" className="block text-xs font-medium text-muted-foreground mb-1.5">
 								Fecha de Inicio

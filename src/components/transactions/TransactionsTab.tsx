@@ -526,7 +526,7 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 						</datalist>
 					</div>
 
-					<div className="flex gap-2 pt-1">
+					<div className="flex gap-2 pt-1 lg:sticky lg:bottom-0 lg:z-10 lg:-mx-6 lg:px-6 lg:pt-3 lg:bg-card lg:border-t lg:border-border lg:shadow-[0_24px_0_0_hsl(var(--card))]">
 						<button
 							type="submit"
 							className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-2.5 rounded-xl text-sm transition-all active:scale-[0.98]"
