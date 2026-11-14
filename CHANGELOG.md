@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-11-14
+
+### Fixed
+- Una copia exportada o una sincronización se reimporta siempre y conserva todos los datos (backup-roundtrip)
+
 ## [0.2.2] - 2026-11-14
 
 ### Fixed

@@ -1,12 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { validateAndSanitizeBackup, sanitizeString } from '../utils/backupValidator';
+import { validateAndSanitizeBackup, decodeEscapedText } from '../utils/backupValidator';
 
 describe('Validador de Copias de Seguridad (backupValidator)', () => {
-	describe('Sanitización de Strings', () => {
-		it('debe escapar caracteres HTML correctamente', () => {
-			const dirty = '<script>alert("xss")</script> & hello';
-			const clean = '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt; &amp; hello';
-			expect(sanitizeString(dirty)).toBe(clean);
+	describe('Reparación de textos escapados', () => {
+		it('debe deshacer el escapado HTML acumulado en varias rondas', () => {
+			const escaped =
+				'&amp;amp;lt;b&amp;amp;gt; Ana &amp;amp;amp; &amp;amp;quot;Cía&amp;amp;quot; d&amp;amp;#039;Or';
+			expect(decodeEscapedText(escaped)).toBe('<b> Ana & "Cía" d\'Or');
+		});
+
+		it('debe dejar igual un texto sin entidades', () => {
+			expect(decodeEscapedText('Café & Té <3')).toBe('Café & Té <3');
 		});
 	});
 
@@ -77,9 +81,10 @@ describe('Validador de Copias de Seguridad (backupValidator)', () => {
 			expect(result.finanzas_v3_ai_chat[0].content).toBe('Hola');
 		});
 
-		it('debe sanitizar XSS de los campos del backup', () => {
+		it('debe conservar el texto tal como llegó, sin escaparlo (se escapa al presentarlo)', () => {
 			const maliciousBackup = {
 				...validBackup,
+				finanzas_backup_format: '2',
 				finanzas_v3_userA_name: 'Ana <script>alert(1)</script>',
 				finanzas_v3_transactions: [
 					{
@@ -90,10 +95,8 @@ describe('Validador de Copias de Seguridad (backupValidator)', () => {
 			};
 
 			const result = validateAndSanitizeBackup(maliciousBackup);
-			expect(result.finanzas_v3_userA_name).toBe('Ana &lt;script&gt;alert(1)&lt;/script&gt;');
-			expect(result.finanzas_v3_transactions[0].desc).toBe(
-				'Gasto &lt;iframe src=&quot;javascript:alert(1)&quot;&gt;&lt;/iframe&gt;'
-			);
+			expect(result.finanzas_v3_userA_name).toBe('Ana <script>alert(1)</script>');
+			expect(result.finanzas_v3_transactions[0].desc).toBe('Gasto <iframe src="javascript:alert(1)"></iframe>');
 		});
 
 		it('debe fallar si los tipos de datos no son correctos', () => {

@@ -552,7 +552,8 @@ describe('Payload canónico de backup/sync', () => {
 			userAName: 'Ana',
 			userBName: 'Bruno',
 			geminiApiKey: 'gemini-idb',
-			chatMessages: canonicalChat
+			chatMessages: canonicalChat,
+			profileCount: 2
 		});
 
 		const imported = await importFinanceBackupPayload(payload);
@@ -590,7 +591,8 @@ describe('Payload canónico de backup/sync', () => {
 			userAName: 'Ana',
 			userBName: 'Bruno',
 			geminiApiKey: 'gemini-idb',
-			chatMessages: canonicalChat
+			chatMessages: canonicalChat,
+			profileCount: 2
 		});
 		const existingLegacyTransactions = '[{"id":"legacy-still-present"}]';
 		const existingLegacyAccounts = JSON.stringify(canonicalAccounts);

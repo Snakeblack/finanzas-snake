@@ -3,21 +3,78 @@ import { STORAGE_KEYS } from '../constants';
 import type { Account, Transaction, Debt, Period, ChatMessage } from '../types';
 
 /**
- * Escapa los caracteres HTML básicos de una cadena para mitigar XSS.
+ * Versión del formato de copia que escribe esta aplicación. Una copia sin marca es anterior:
+ * sus textos pudieron quedar escapados como HTML por la validación de entonces.
  */
-export const sanitizeString = (str: string): string => {
-	return str
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&#039;');
+export const BACKUP_FORMAT_VERSION = '2';
+
+/**
+ * Longitud máxima de un identificador de movimiento. Los clones de recurrentes encadenaban el
+ * identificador del clon anterior y crecían cada mes; esos identificadores siguen siendo válidos.
+ */
+const MAX_TRANSACTION_ID_LENGTH = 2000;
+
+/**
+ * Deshace el escapado HTML que la validación aplicaba antes a los textos, tantas veces como
+ * rondas de importación lo hubieran acumulado (`&amp;amp;` vuelve a `&`).
+ */
+export const decodeEscapedText = (str: string): string => {
+	let decoded = str;
+	for (;;) {
+		const next = decoded
+			.replace(/&lt;/g, '<')
+			.replace(/&gt;/g, '>')
+			.replace(/&quot;/g, '"')
+			.replace(/&#039;/g, "'")
+			.replace(/&amp;/g, '&');
+		if (next === decoded) return decoded;
+		decoded = next;
+	}
 };
 
 /**
- * Helper para validar y sanitizar cadenas de texto utilizando Zod.
+ * Devuelve el registro con los campos de texto indicados sin escapar; el mismo registro si no
+ * había nada que reparar.
  */
-const zString = (fieldName: string, maxLength = 200, required = true, escapeHtml = true) => {
+export const decodeEscapedFields = <T extends object>(record: T, fields: readonly string[]): T => {
+	const source = record as Record<string, unknown>;
+	let repaired: Record<string, unknown> | null = null;
+	for (const field of fields) {
+		const value = source[field];
+		if (typeof value !== 'string') continue;
+		const decoded = decodeEscapedText(value);
+		if (decoded !== value) {
+			repaired = repaired ?? { ...source };
+			repaired[field] = decoded;
+		}
+	}
+	return (repaired ?? record) as T;
+};
+
+export const ESCAPED_TEXT_FIELDS = {
+	account: ['name'],
+	transaction: ['desc', 'tag'],
+	debt: ['desc', 'tag'],
+	installment: ['label']
+} as const;
+
+/** Repara los textos de una deuda y de sus cuotas. */
+export const decodeEscapedDebt = <T extends object>(debt: T): T => {
+	const repaired = decodeEscapedFields(debt, ESCAPED_TEXT_FIELDS.debt);
+	const installments = (repaired as { installments?: unknown }).installments;
+	if (!Array.isArray(installments)) return repaired;
+	const repairedInstallments = installments.map((inst) =>
+		typeof inst === 'object' && inst !== null ? decodeEscapedFields(inst, ESCAPED_TEXT_FIELDS.installment) : inst
+	);
+	if (repairedInstallments.every((inst, index) => inst === installments[index])) return repaired;
+	return { ...repaired, installments: repairedInstallments };
+};
+
+/**
+ * Helper para validar cadenas de texto utilizando Zod. No altera el contenido salvo los espacios
+ * de los extremos: el texto se guarda como llegó y se escapa al presentarlo.
+ */
+const zString = (fieldName: string, maxLength = 200, required = true) => {
 	return z
 		.unknown()
 		.superRefine((val, ctx) => {
@@ -56,8 +113,7 @@ const zString = (fieldName: string, maxLength = 200, required = true, escapeHtml
 			if (val === undefined || val === null) {
 				return '';
 			}
-			const trimmed = (val as string).trim();
-			return escapeHtml ? sanitizeString(trimmed) : trimmed;
+			return (val as string).trim();
 		});
 };
 
@@ -127,9 +183,9 @@ const parseWithZod = <T>(schema: z.Schema<T>, data: unknown): T => {
 };
 
 /**
- * Valida y sanitiza una lista de cuentas.
+ * Valida una lista de cuentas.
  */
-const validateAccounts = (accounts: unknown): Account[] => {
+const validateAccounts = (accounts: unknown, legacy: boolean): Account[] => {
 	if (!Array.isArray(accounts)) {
 		throw new Error("El campo de cuentas ('accounts') debe ser un array.");
 	}
@@ -157,14 +213,17 @@ const validateAccounts = (accounts: unknown): Account[] => {
 			initialBalance: zNumber(`${prefix}.initialBalance`)
 		});
 
-		return parseWithZod(AccountItemSchema, acc) as Account;
+		return parseWithZod(
+			AccountItemSchema,
+			legacy ? decodeEscapedFields(acc, ESCAPED_TEXT_FIELDS.account) : acc
+		) as Account;
 	});
 };
 
 /**
- * Valida y sanitiza una lista de transacciones.
+ * Valida una lista de transacciones.
  */
-const validateTransactions = (transactions: unknown): Transaction[] => {
+const validateTransactions = (transactions: unknown, legacy: boolean): Transaction[] => {
 	if (!Array.isArray(transactions)) {
 		throw new Error("El campo de transacciones ('transactions') debe ser un array.");
 	}
@@ -176,7 +235,7 @@ const validateTransactions = (transactions: unknown): Transaction[] => {
 		}
 
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const rawTx = tx as Record<string, any>;
+		const rawTx = (legacy ? decodeEscapedFields(tx, ESCAPED_TEXT_FIELDS.transaction) : tx) as Record<string, any>;
 
 		const moneyObj = rawTx.money as Record<string, unknown> | undefined;
 		let moneyAmountStr: string;
@@ -204,7 +263,7 @@ const validateTransactions = (transactions: unknown): Transaction[] => {
 		};
 
 		const TransactionItemSchema = z.object({
-			id: zString(`${prefix}.id`, 50),
+			id: zString(`${prefix}.id`, MAX_TRANSACTION_ID_LENGTH),
 			desc: zString(`${prefix}.desc`, 150),
 			type: z
 				.string()
@@ -261,7 +320,8 @@ const validateTransactions = (transactions: unknown): Transaction[] => {
 				.transform((val) => val as 'userA' | 'userB' | 'shared'),
 			accountId: zString(`${prefix}.accountId`, 50, false).optional(),
 			fromAccountId: zString(`${prefix}.fromAccountId`, 50, false).optional(),
-			toAccountId: zString(`${prefix}.toAccountId`, 50, false).optional()
+			toAccountId: zString(`${prefix}.toAccountId`, 50, false).optional(),
+			originId: zString(`${prefix}.originId`, MAX_TRANSACTION_ID_LENGTH, false).optional()
 		});
 
 		const parsedFields = parseWithZod(TransactionItemSchema, rawTx);
@@ -271,15 +331,16 @@ const validateTransactions = (transactions: unknown): Transaction[] => {
 			money,
 			accountId: parsedFields.accountId || undefined,
 			fromAccountId: parsedFields.fromAccountId || undefined,
-			toAccountId: parsedFields.toAccountId || undefined
+			toAccountId: parsedFields.toAccountId || undefined,
+			originId: parsedFields.originId || undefined
 		} as Transaction;
 	});
 };
 
 /**
- * Valida y sanitiza una lista de deudas.
+ * Valida una lista de deudas.
  */
-const validateDebts = (debts: unknown): Debt[] => {
+const validateDebts = (debts: unknown, legacy: boolean): Debt[] => {
 	if (!Array.isArray(debts)) {
 		throw new Error("El campo de deudas ('debts') debe ser un array.");
 	}
@@ -291,7 +352,7 @@ const validateDebts = (debts: unknown): Debt[] => {
 		}
 
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const rawDebt = d as Record<string, any>;
+		const rawDebt = (legacy ? decodeEscapedDebt(d) : d) as Record<string, any>;
 		const id = parseWithZod(zString(`${prefix}.id`, 50), rawDebt.id);
 
 		const kind = rawDebt.kind;
@@ -444,7 +505,7 @@ const validateDebts = (debts: unknown): Debt[] => {
 };
 
 /**
- * Valida y sanitiza una lista de períodos contables.
+ * Valida una lista de períodos contables.
  */
 const validatePeriods = (periods: unknown): Period[] => {
 	if (!Array.isArray(periods)) {
@@ -490,7 +551,7 @@ const validatePeriods = (periods: unknown): Period[] => {
 };
 
 /**
- * Valida y sanitiza el historial de chat de IA.
+ * Valida el historial de chat de IA.
  */
 const validateAiChat = (chat: unknown): ChatMessage[] => {
 	if (chat === undefined || chat === null) return [];
@@ -518,7 +579,7 @@ const validateAiChat = (chat: unknown): ChatMessage[] => {
 					}
 				})
 				.transform((val) => val as 'user' | 'model'),
-			content: zString(`${prefix}.content`, 10000, true, false),
+			content: zString(`${prefix}.content`, 10000),
 			timestamp: zString(`${prefix}.timestamp`, 30)
 		});
 
@@ -539,7 +600,8 @@ const tryParseJSONField = (fieldValue: unknown, fieldName: string): unknown => {
 
 /**
  * Valida de forma estricta todo el contenido de una copia de seguridad JSON.
- * Si es válido, devuelve el objeto sanitizado listo para ser guardado.
+ * Si es válido, devuelve el objeto validado listo para ser guardado, con el contenido tal como
+ * llegó. Una copia sin marca de formato es anterior y sus textos se reparan antes de validarlos.
  */
 export const validateAndSanitizeBackup = (parsedJson: unknown): Record<string, unknown> => {
 	if (typeof parsedJson !== 'object' || parsedJson === null) {
@@ -548,18 +610,21 @@ export const validateAndSanitizeBackup = (parsedJson: unknown): Record<string, u
 
 	const rawRecord = parsedJson as Record<string, unknown>;
 	const validatedBackup: Record<string, unknown> = {};
+	const legacy = rawRecord[STORAGE_KEYS.backupFormat] === undefined || rawRecord[STORAGE_KEYS.backupFormat] === null;
+	const readName = (value: unknown): unknown =>
+		legacy && typeof value === 'string' ? decodeEscapedText(value) : value;
 
 	// 1. Nombres de usuarios (Opcionales, pero validados si existen)
 	if (STORAGE_KEYS.userAName in rawRecord && rawRecord[STORAGE_KEYS.userAName] !== null) {
 		validatedBackup[STORAGE_KEYS.userAName] = parseWithZod(
 			zString('userAName', 50),
-			rawRecord[STORAGE_KEYS.userAName]
+			readName(rawRecord[STORAGE_KEYS.userAName])
 		);
 	}
 	if (STORAGE_KEYS.userBName in rawRecord && rawRecord[STORAGE_KEYS.userBName] !== null) {
 		validatedBackup[STORAGE_KEYS.userBName] = parseWithZod(
 			zString('userBName', 50),
-			rawRecord[STORAGE_KEYS.userBName]
+			readName(rawRecord[STORAGE_KEYS.userBName])
 		);
 	}
 
@@ -582,19 +647,19 @@ export const validateAndSanitizeBackup = (parsedJson: unknown): Record<string, u
 	// 3. Cuentas (Obligatorias o opcionales. Validamos si la clave está presente)
 	if (STORAGE_KEYS.accounts in rawRecord) {
 		const rawAccounts = tryParseJSONField(rawRecord[STORAGE_KEYS.accounts], 'cuentas');
-		validatedBackup[STORAGE_KEYS.accounts] = validateAccounts(rawAccounts);
+		validatedBackup[STORAGE_KEYS.accounts] = validateAccounts(rawAccounts, legacy);
 	}
 
 	// 4. Transacciones
 	if (STORAGE_KEYS.transactions in rawRecord) {
 		const rawTx = tryParseJSONField(rawRecord[STORAGE_KEYS.transactions], 'transacciones');
-		validatedBackup[STORAGE_KEYS.transactions] = validateTransactions(rawTx);
+		validatedBackup[STORAGE_KEYS.transactions] = validateTransactions(rawTx, legacy);
 	}
 
 	// 5. Deudas
 	if (STORAGE_KEYS.debts in rawRecord) {
 		const rawDebts = tryParseJSONField(rawRecord[STORAGE_KEYS.debts], 'deudas');
-		validatedBackup[STORAGE_KEYS.debts] = validateDebts(rawDebts);
+		validatedBackup[STORAGE_KEYS.debts] = validateDebts(rawDebts, legacy);
 	}
 
 	// 6. Periodos

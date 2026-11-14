@@ -5,7 +5,7 @@ import { startSyncHost, connectToSyncHost, type SyncData } from '../../services/
 import { Input } from '../ui/input';
 import { STORAGE_KEYS } from '../../constants';
 import { buildFinanceBackupPayload, importFinanceBackupPayload } from '../../services/storageService';
-import { autoGenerateMissingPeriods } from '../../utils/dateUtils';
+import { applyImportedBackup } from '../../hooks/useBackupSync';
 
 interface SyncModalProps {
 	isOpen: boolean;
@@ -22,6 +22,8 @@ const SYNC_DOMAIN_KEYS = [
 	STORAGE_KEYS.accounts,
 	STORAGE_KEYS.userAName,
 	STORAGE_KEYS.userBName,
+	STORAGE_KEYS.profileCount,
+	STORAGE_KEYS.backupFormat,
 	STORAGE_KEYS.geminiKey,
 	STORAGE_KEYS.aiChat
 ] as const;
@@ -46,7 +48,9 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 		setGeminiApiKey,
 		chatMessages,
 		setChatMessages,
-		setSelectedMonth
+		setSelectedMonth,
+		profileCount,
+		setProfileCount
 	} = useFinanzas();
 
 	const [mode, setMode] = useState<SyncMode>('select');
@@ -179,7 +183,8 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 						userAName,
 						userBName,
 						geminiApiKey,
-						chatMessages
+						chatMessages,
+						profileCount
 					})
 			};
 
@@ -331,43 +336,18 @@ export function SyncModal({ isOpen, onClose }: SyncModalProps) {
 			}
 		});
 
-		const imported = await importFinanceBackupPayload(filteredData);
-
-		if (imported.userAName !== undefined) {
-			setUserAName(imported.userAName);
-		}
-		if (imported.userBName !== undefined) {
-			setUserBName(imported.userBName);
-		}
-		if (imported.accounts !== undefined) {
-			setAccounts(imported.accounts);
-		}
-		let finalPeriods = imported.periods;
-		let finalTransactions = imported.transactions;
-		if (finalPeriods !== undefined && finalTransactions !== undefined) {
-			const generated = autoGenerateMissingPeriods(finalPeriods, finalTransactions);
-			finalPeriods = generated.periods;
-			finalTransactions = generated.transactions;
-		}
-
-		if (finalTransactions !== undefined) {
-			setTransactions(finalTransactions);
-		}
-		if (imported.debts !== undefined) {
-			setDebts(imported.debts);
-		}
-		if (finalPeriods !== undefined) {
-			setPeriods(finalPeriods);
-		}
-		if (imported.geminiApiKey !== undefined) {
-			setGeminiApiKey(imported.geminiApiKey);
-		}
-		if (imported.chatMessages !== undefined) {
-			setChatMessages(imported.chatMessages);
-		}
-		if (imported.selectedMonth) {
-			setSelectedMonth(imported.selectedMonth);
-		}
+		applyImportedBackup(await importFinanceBackupPayload(filteredData), {
+			setAccounts,
+			setTransactions,
+			setDebts,
+			setPeriods,
+			setUserAName,
+			setUserBName,
+			setGeminiApiKey,
+			setChatMessages,
+			setSelectedMonth,
+			setProfileCount
+		});
 	};
 
 	if (!isOpen) return null;

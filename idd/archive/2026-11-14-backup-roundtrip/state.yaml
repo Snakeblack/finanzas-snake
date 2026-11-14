@@ -1,0 +1,635 @@
+{
+  "schema": "idd-state/v1",
+  "change": "backup-roundtrip",
+  "mode": "idd",
+  "status": "closed",
+  "intent": {
+    "request": "que todo este cableado y funcione",
+    "kind": "bug",
+    "summary": "Una copia exportada o una sincronización se reimporta siempre y conserva todos los datos",
+    "acceptance": "Exportar e importar (o sincronizar) devuelve exactamente los mismos movimientos, incluido el vínculo de serie recurrente, los mismos textos sin escapar y el mismo número de perfiles; un recurrente clonado durante muchos meses sigue teniendo un identificador que el validador acepta, y las copias con identificadores largos ya existentes se importan"
+  },
+  "facts": {
+    "open": [
+      "Los textos que una importación o sincronización anterior ya dejó escapados (por ejemplo &amp; en un nombre), ¿se reparan (al importar copias antiguas y una vez en los datos guardados en el dispositivo) o solo se deja de corromper a partir de ahora?"
+    ]
+  },
+  "plan": {
+    "paths": [
+      "docs/api/backup-format.md",
+      "src/__tests__/backupRoundtrip.test.ts",
+      "src/__tests__/backupValidator.test.ts",
+      "src/__tests__/storageService.test.ts",
+      "src/components/sync/SyncModal.tsx",
+      "src/constants/index.ts",
+      "src/context/FinanzasContext.tsx",
+      "src/hooks/useBackupSync.ts",
+      "src/hooks/usePeriods.ts",
+      "src/services/storageService.ts",
+      "src/utils/backupValidator.ts",
+      "src/utils/dateUtils.ts"
+    ],
+    "work_units": 1,
+    "decision": true,
+    "operations": [],
+    "decisions": [
+      "Los clones de recurrentes usan el identificador de la serie más el mes, de longitud acotada, en lugar de encadenar el del clon anterior",
+      "El validador acepta los identificadores largos ya existentes en lugar de reescribirlos: el formato solo añade (ADR 0005)",
+      "La validación deja de escapar HTML: el texto se guarda como llegó y se escapa al presentarlo (ADR 0008)",
+      "Las copias y la sincronización llevan una marca de formato (finanzas_backup_format); una carga sin marca es anterior y sus textos se decodifican antes de validarla",
+      "Los datos guardados en el dispositivo se reparan una sola vez al arrancar o desbloquear, con una bandera en la configuración de IndexedDB",
+      "El volcado de lo importado al estado es una sola función (applyImportedBackup) que comparten la copia en archivo y la sincronización"
+    ]
+  },
+  "signals": [
+    {
+      "id": "always",
+      "reason": "every change with a resolved intent",
+      "source": "declaration"
+    },
+    {
+      "id": "bug-fix",
+      "reason": "the intent is a bug fix",
+      "source": "declaration"
+    },
+    {
+      "id": "multi-unit-or-decision",
+      "reason": "declared a non-obvious decision",
+      "source": "declaration"
+    },
+    {
+      "id": "public-contract",
+      "reason": "public contract: touches src/utils/backupValidator.ts (matches src/utils/backupValidator.ts)",
+      "source": "declaration"
+    },
+    {
+      "id": "persistent-data",
+      "reason": "persistent data: touches src/services/storageService.ts and 1 more (matches src/services/storageService.ts)",
+      "source": "declaration"
+    },
+    {
+      "id": "adr-or-quality-attribute",
+      "reason": "declared ADR 0005, 0006, 0008 and quality scenario integridad-datos",
+      "source": "declaration"
+    }
+  ],
+  "impacts": [
+    {
+      "kind": "adr",
+      "id": "0002",
+      "impact": "conforms",
+      "reason": "El volcado de lo importado vive en un hook que la interfaz consume; servicios y utilidades siguen sin depender de React"
+    },
+    {
+      "kind": "adr",
+      "id": "0003",
+      "impact": "conforms",
+      "reason": "La reparación única de textos escribe solo a través de los escritores de storageService"
+    },
+    {
+      "kind": "adr",
+      "id": "0004",
+      "impact": "none",
+      "reason": "No cambia importes ni la inmutabilidad de los movimientos; solo identificadores de clones y textos"
+    },
+    {
+      "kind": "adr",
+      "id": "0005",
+      "impact": "conforms",
+      "reason": "La carga lleva ahora una marca de formato explícita; el formato solo añade (originId, marca) y las cargas sin marca y con identificadores largos se siguen leyendo y se convierten al leer, con pruebas"
+    },
+    {
+      "kind": "adr",
+      "id": "0006",
+      "impact": "conforms",
+      "reason": "La sincronización sigue enviando la instantánea completa validada; ahora incluye el número de perfiles y la marca de formato"
+    },
+    {
+      "kind": "adr",
+      "id": "0008",
+      "impact": "conforms",
+      "reason": "La validación deja de escapar HTML: el texto se guarda como llegó; el desescapado de cargas del formato 1 es la conversión al leer de ADR 0005"
+    },
+    {
+      "kind": "adr",
+      "id": "0009",
+      "impact": "conforms",
+      "reason": "La reparación se pospone con el almacenamiento bloqueado y reescribe con los escritores cifrados; la bandera no contiene datos personales"
+    },
+    {
+      "kind": "scenario",
+      "id": "confidencialidad",
+      "impact": "none",
+      "reason": "No cambia el cifrado ni lo que sale del dispositivo, salvo dos claves sin datos personales nuevos en la carga ya cifrada"
+    },
+    {
+      "kind": "scenario",
+      "id": "exactitud-contable",
+      "impact": "none",
+      "reason": "No toca cálculos ni importes"
+    },
+    {
+      "kind": "scenario",
+      "id": "integridad-datos",
+      "impact": "conforms",
+      "reason": "Exportar e importar o sincronizar conserva serie recurrente, textos y número de perfiles; las copias anteriores se siguen importando"
+    },
+    {
+      "kind": "scenario",
+      "id": "modificabilidad",
+      "impact": "conforms",
+      "reason": "Una sola función vuelca lo importado y una sola clona recurrentes, en lugar de dos copias de cada una"
+    },
+    {
+      "kind": "scenario",
+      "id": "rendimiento-historial",
+      "impact": "none",
+      "reason": "La reparación lee los datos una vez por dispositivo y reescribe solo los registros que cambian; el guardado incremental no cambia"
+    },
+    {
+      "kind": "scenario",
+      "id": "usabilidad",
+      "impact": "none",
+      "reason": "No cambia la interfaz"
+    }
+  ],
+  "obligations": [
+    {
+      "id": "checks-pass",
+      "signal": "always",
+      "status": "satisfied",
+      "evidence": [
+        "ev-3"
+      ]
+    },
+    {
+      "id": "repro-test",
+      "signal": "bug-fix",
+      "status": "satisfied",
+      "evidence": [
+        "ev-1"
+      ]
+    },
+    {
+      "id": "living-doc",
+      "signal": "multi-unit-or-decision",
+      "status": "satisfied",
+      "evidence": [
+        "ev-6"
+      ]
+    },
+    {
+      "id": "contract-spec-and-test",
+      "signal": "public-contract",
+      "status": "satisfied",
+      "evidence": [
+        "ev-4"
+      ]
+    },
+    {
+      "id": "migration-compat-and-test",
+      "signal": "persistent-data",
+      "status": "satisfied",
+      "evidence": [
+        "ev-2"
+      ]
+    },
+    {
+      "id": "adr-impact-declaration",
+      "signal": "adr-or-quality-attribute",
+      "status": "satisfied",
+      "evidence": [
+        "ev-5"
+      ]
+    }
+  ],
+  "gates": [
+    {
+      "id": "open-facts",
+      "status": "resolved",
+      "opened_turn": 16,
+      "answer": "continua con lo recomendado (opción recomendada: Reparar — decodificar al importar copias antiguas y una sola vez en los datos guardados en el dispositivo)",
+      "source": "user",
+      "resolved_turn": 17
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-1",
+      "kind": "repro-run-pair",
+      "obligation": "repro-test",
+      "recorded_at": "2026-11-14T19:18:45.351Z",
+      "detail": {
+        "red": "run-11",
+        "green": "run-12",
+        "counterproof": [
+          "run-13",
+          "run-14"
+        ]
+      }
+    },
+    {
+      "id": "ev-2",
+      "kind": "migration-test",
+      "obligation": "migration-compat-and-test",
+      "recorded_at": "2026-11-14T19:20:36.046Z",
+      "detail": {
+        "run": "run-15",
+        "tree": "sha256:56ce54ff96b08197ceb0208404861a8be48764b39f21a4eec44a4dc16ded1b53",
+        "plan": "Compatibilidad: el formato solo añade (marca finanzas_backup_format y originId); las copias sin marca y con identificadores largos se siguen importando y sus textos se desescapan al leer. Los datos del dispositivo se reparan una vez (bandera repair:escaped-text:v1), reescribiendo solo registros cambiados. Vuelta atrás: revertir el commit; una versión anterior ignora la marca y la bandera, y originId ya existía en disco, así que lee los datos sin conversión"
+      }
+    },
+    {
+      "id": "ev-3",
+      "kind": "check-run",
+      "obligation": "checks-pass",
+      "recorded_at": "2026-11-14T19:21:07.637Z",
+      "detail": {
+        "tree": "sha256:cdde40da04de1f2c7e79d10723f3a44118905d672b2972e97a5cdb34f1585a44",
+        "runs": [
+          "run-16",
+          "run-17",
+          "run-18"
+        ]
+      }
+    },
+    {
+      "id": "ev-4",
+      "kind": "contract-spec-and-test",
+      "obligation": "contract-spec-and-test",
+      "recorded_at": "2026-11-14T19:21:07.637Z",
+      "detail": {
+        "tree": "sha256:cdde40da04de1f2c7e79d10723f3a44118905d672b2972e97a5cdb34f1585a44",
+        "check": "ev-3",
+        "documents": [
+          "docs/api/backup-format.md"
+        ],
+        "tests": [
+          "src/__tests__/backupRoundtrip.test.ts",
+          "src/__tests__/backupValidator.test.ts",
+          "src/__tests__/storageService.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "ev-5",
+      "kind": "adr-impact-declaration",
+      "obligation": "adr-impact-declaration",
+      "recorded_at": "2026-11-14T19:21:07.637Z",
+      "detail": {
+        "refs": [
+          "adr:0002 conforms",
+          "adr:0003 conforms",
+          "adr:0004 none",
+          "adr:0005 conforms",
+          "adr:0006 conforms",
+          "adr:0008 conforms",
+          "adr:0009 conforms",
+          "scenario:confidencialidad none",
+          "scenario:exactitud-contable none",
+          "scenario:integridad-datos conforms",
+          "scenario:modificabilidad conforms",
+          "scenario:rendimiento-historial none",
+          "scenario:usabilidad none"
+        ],
+        "records": [],
+        "tree": "sha256:cdde40da04de1f2c7e79d10723f3a44118905d672b2972e97a5cdb34f1585a44",
+        "fitness": [
+          "run-19",
+          "run-20",
+          "run-21",
+          "run-22",
+          "run-23",
+          "run-24",
+          "run-25",
+          "run-26",
+          "run-27",
+          "run-28",
+          "run-29"
+        ]
+      }
+    },
+    {
+      "id": "ev-6",
+      "kind": "living-doc-current",
+      "obligation": "living-doc",
+      "recorded_at": "2026-11-14T19:21:42.945Z"
+    }
+  ],
+  "base": "380b8289005532b9e53e36338eab771197256f6d",
+  "runs": [
+    {
+      "id": "run-1",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run src/__tests__/backupRoundtrip.test.ts",
+      "exit_code": 1,
+      "output_sha256": "sha256:5e09ee6b954c0ffb4c0dba395d3a48638042ea52d8f5e1b47ccded95c98156b9",
+      "tree": "sha256:a44704c6d79dd0a835f4503059e3b16f6988d90f828d5ec4283f239099e83c19",
+      "recorded_at": "2026-11-14T19:15:21.662Z"
+    },
+    {
+      "id": "run-2",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run src/__tests__/backupRoundtrip.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:2642ccfb1ceed511e1c35c91639afa65c75e08119929b81ed651f2b1725ee7b7",
+      "tree": "sha256:9bdfa880753d395cbe570080b84de003504ea3c98fe634c8f4964d31476dc2bd",
+      "recorded_at": "2026-11-14T19:17:50.946Z",
+      "counterproof": [
+        "run-3",
+        "run-4"
+      ]
+    },
+    {
+      "id": "run-3",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "380b8289005532b9e53e36338eab771197256f6d",
+      "mount": "sha256:b59335e82b51ee3ad6a6cb8dc6d8a8d363e95095b92ce03d4b1740b09eb72876",
+      "command": "pnpm vitest run src/__tests__/backupRoundtrip.test.ts",
+      "exit_code": 1,
+      "output_sha256": "sha256:70980928d382e596e151255af0164cf0bc5db4e4fb10b66cf0fb4989e235240c",
+      "tree": "sha256:9bdfa880753d395cbe570080b84de003504ea3c98fe634c8f4964d31476dc2bd",
+      "recorded_at": "2026-11-14T19:17:50.946Z"
+    },
+    {
+      "id": "run-4",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "380b8289005532b9e53e36338eab771197256f6d",
+      "mount": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "control": true,
+      "command": "pnpm vitest run src/__tests__/backupRoundtrip.test.ts",
+      "exit_code": 1,
+      "output_sha256": "sha256:70980928d382e596e151255af0164cf0bc5db4e4fb10b66cf0fb4989e235240c",
+      "tree": "sha256:9bdfa880753d395cbe570080b84de003504ea3c98fe634c8f4964d31476dc2bd",
+      "recorded_at": "2026-11-14T19:17:50.946Z"
+    },
+    {
+      "id": "run-5",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run src/__tests__/backupRoundtrip.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:b08a21f0b81345cded7bb5c35a0bf3e68b358a5a310fbfe6ced1ad89289c84e3",
+      "tree": "sha256:9bdfa880753d395cbe570080b84de003504ea3c98fe634c8f4964d31476dc2bd",
+      "recorded_at": "2026-11-14T19:17:58.908Z",
+      "counterproof": [
+        "run-3",
+        "run-4"
+      ]
+    },
+    {
+      "id": "run-6",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run --passWithNoTests src/__tests__/backupRoundtrip.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:d74ef41afa50b792bf9fa16a42fe3c58390c707f212737dd34c1edaf7bd7bdea",
+      "tree": "sha256:9bdfa880753d395cbe570080b84de003504ea3c98fe634c8f4964d31476dc2bd",
+      "recorded_at": "2026-11-14T19:18:09.530Z"
+    },
+    {
+      "id": "run-7",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run --passWithNoTests src/__tests__/backupRoundtrip.test.ts",
+      "exit_code": 1,
+      "output_sha256": "sha256:53a9ebed8e1d914e8659992767b367039c664e3e08204737d76a15377320a12d",
+      "tree": "sha256:c3d1fe8b92c6e7cac23d80f7a41c2e08340d02c050fb650a785052e3381ed311",
+      "recorded_at": "2026-11-14T19:18:20.749Z"
+    },
+    {
+      "id": "run-8",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run --passWithNoTests src/__tests__/backupRoundtrip.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:9594dc1fcb41229ff857ec552e813b715eb6e8ee8788e296abefad37d38b58d7",
+      "tree": "sha256:9bdfa880753d395cbe570080b84de003504ea3c98fe634c8f4964d31476dc2bd",
+      "recorded_at": "2026-11-14T19:18:21.680Z",
+      "counterproof": [
+        "run-9",
+        "run-10"
+      ]
+    },
+    {
+      "id": "run-9",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "380b8289005532b9e53e36338eab771197256f6d",
+      "mount": "sha256:b59335e82b51ee3ad6a6cb8dc6d8a8d363e95095b92ce03d4b1740b09eb72876",
+      "command": "pnpm vitest run --passWithNoTests src/__tests__/backupRoundtrip.test.ts",
+      "exit_code": 1,
+      "output_sha256": "sha256:70980928d382e596e151255af0164cf0bc5db4e4fb10b66cf0fb4989e235240c",
+      "tree": "sha256:9bdfa880753d395cbe570080b84de003504ea3c98fe634c8f4964d31476dc2bd",
+      "recorded_at": "2026-11-14T19:18:21.680Z"
+    },
+    {
+      "id": "run-10",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "380b8289005532b9e53e36338eab771197256f6d",
+      "mount": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "control": true,
+      "command": "pnpm vitest run --passWithNoTests src/__tests__/backupRoundtrip.test.ts",
+      "exit_code": 1,
+      "output_sha256": "sha256:70980928d382e596e151255af0164cf0bc5db4e4fb10b66cf0fb4989e235240c",
+      "tree": "sha256:9bdfa880753d395cbe570080b84de003504ea3c98fe634c8f4964d31476dc2bd",
+      "recorded_at": "2026-11-14T19:18:21.680Z"
+    },
+    {
+      "id": "run-11",
+      "purpose": "repro-test",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/backupRoundtrip.test.ts",
+      "exit_code": 1,
+      "output_sha256": "sha256:a6eaec2388a2da5987e452c8308ef813522ac21c8016d9105a044f697b795503",
+      "tree": "sha256:c3d1fe8b92c6e7cac23d80f7a41c2e08340d02c050fb650a785052e3381ed311",
+      "recorded_at": "2026-11-14T19:18:44.758Z"
+    },
+    {
+      "id": "run-12",
+      "purpose": "repro-test",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/backupRoundtrip.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:fde034df213354df0e50aaee7473e359e06cff1155113dead1916c2586d36463",
+      "tree": "sha256:9bdfa880753d395cbe570080b84de003504ea3c98fe634c8f4964d31476dc2bd",
+      "recorded_at": "2026-11-14T19:18:45.351Z",
+      "counterproof": [
+        "run-13",
+        "run-14"
+      ]
+    },
+    {
+      "id": "run-13",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "380b8289005532b9e53e36338eab771197256f6d",
+      "mount": "sha256:b59335e82b51ee3ad6a6cb8dc6d8a8d363e95095b92ce03d4b1740b09eb72876",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/backupRoundtrip.test.ts",
+      "exit_code": 1,
+      "output_sha256": "sha256:ca03975cf382f3f8a5dfd775b1d2b2c3baefff7d08255001428a0378bda9840f",
+      "tree": "sha256:9bdfa880753d395cbe570080b84de003504ea3c98fe634c8f4964d31476dc2bd",
+      "recorded_at": "2026-11-14T19:18:45.351Z"
+    },
+    {
+      "id": "run-14",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "380b8289005532b9e53e36338eab771197256f6d",
+      "mount": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "control": true,
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/backupRoundtrip.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:364bafa4ca8ebcf9b50d7e6cfbb336755ea1919cb48aab4d69a79dd0c77fdfe5",
+      "tree": "sha256:9bdfa880753d395cbe570080b84de003504ea3c98fe634c8f4964d31476dc2bd",
+      "recorded_at": "2026-11-14T19:18:45.351Z"
+    },
+    {
+      "id": "run-15",
+      "purpose": "migration-test",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/backupRoundtrip.test.ts src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:0f449f7ae562c261d3e48881fa69373e4a1be45c6523b37ed2c134cd33ec94b3",
+      "tree": "sha256:56ce54ff96b08197ceb0208404861a8be48764b39f21a4eec44a4dc16ded1b53",
+      "recorded_at": "2026-11-14T19:20:36.046Z"
+    },
+    {
+      "id": "run-16",
+      "purpose": "checks",
+      "name": "test",
+      "command": "pnpm vitest run",
+      "exit_code": 0,
+      "output_sha256": "sha256:9533d49836d83fc16cb9649b37360ef5932d436c33b2f850d784490ebe2b21ac",
+      "tree": "sha256:cdde40da04de1f2c7e79d10723f3a44118905d672b2972e97a5cdb34f1585a44",
+      "recorded_at": "2026-11-14T19:21:07.637Z"
+    },
+    {
+      "id": "run-17",
+      "purpose": "checks",
+      "name": "lint",
+      "command": "pnpm lint",
+      "exit_code": 0,
+      "output_sha256": "sha256:a8a0f83a2e2140fc71214cd1e268734f4fcf101d8b8e3905f9c5fdc7352b1157",
+      "tree": "sha256:cdde40da04de1f2c7e79d10723f3a44118905d672b2972e97a5cdb34f1585a44",
+      "recorded_at": "2026-11-14T19:21:07.637Z"
+    },
+    {
+      "id": "run-18",
+      "purpose": "checks",
+      "name": "typecheck",
+      "command": "pnpm typecheck",
+      "exit_code": 0,
+      "output_sha256": "sha256:8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+      "tree": "sha256:cdde40da04de1f2c7e79d10723f3a44118905d672b2972e97a5cdb34f1585a44",
+      "recorded_at": "2026-11-14T19:21:07.637Z"
+    },
+    {
+      "id": "run-19",
+      "purpose": "fitness",
+      "ref": "adr:0002",
+      "command": "sh -c '! grep -rqsE \"from .(react|react-dom).|/(hooks|components|context)/\" src/services src/utils src/domain src/adapters'",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:cdde40da04de1f2c7e79d10723f3a44118905d672b2972e97a5cdb34f1585a44",
+      "recorded_at": "2026-11-14T19:21:07.637Z"
+    },
+    {
+      "id": "run-20",
+      "purpose": "fitness",
+      "ref": "adr:0003",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:5cc5fb28040a81f7adab4c8b9f54e9fa073b73393d5e04c337448e72dd6cad55",
+      "tree": "sha256:cdde40da04de1f2c7e79d10723f3a44118905d672b2972e97a5cdb34f1585a44",
+      "recorded_at": "2026-11-14T19:21:07.637Z"
+    },
+    {
+      "id": "run-21",
+      "purpose": "fitness",
+      "ref": "adr:0004",
+      "command": "pnpm vitest run src/__tests__/ledgerEngine.test.ts src/__tests__/financeService.test.ts src/__tests__/openingBalance.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:88746087515cd66be8fbad172113106ba829f75e219303661c114ead444b6bee",
+      "tree": "sha256:cdde40da04de1f2c7e79d10723f3a44118905d672b2972e97a5cdb34f1585a44",
+      "recorded_at": "2026-11-14T19:21:07.637Z"
+    },
+    {
+      "id": "run-22",
+      "purpose": "fitness",
+      "ref": "adr:0005",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:ecb6659db77b0baf098f61549efe0dba7e91c0e62c03132f561b23b0c7a939c3",
+      "tree": "sha256:cdde40da04de1f2c7e79d10723f3a44118905d672b2972e97a5cdb34f1585a44",
+      "recorded_at": "2026-11-14T19:21:07.637Z"
+    },
+    {
+      "id": "run-23",
+      "purpose": "fitness",
+      "ref": "adr:0006",
+      "command": "pnpm vitest run src/__tests__/syncService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:2afe3d108b194d5139b06d7b904d14314ba762352153b8325a6a180ca69ea812",
+      "tree": "sha256:cdde40da04de1f2c7e79d10723f3a44118905d672b2972e97a5cdb34f1585a44",
+      "recorded_at": "2026-11-14T19:21:07.637Z"
+    },
+    {
+      "id": "run-24",
+      "purpose": "fitness",
+      "ref": "adr:0008",
+      "command": "pnpm vitest run src/__tests__/backupValidator.test.ts src/__tests__/storageService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:997c50084e9b4b215785947252cc297e4cac5cff44a835e0b73de8c6d3a2e643",
+      "tree": "sha256:cdde40da04de1f2c7e79d10723f3a44118905d672b2972e97a5cdb34f1585a44",
+      "recorded_at": "2026-11-14T19:21:07.637Z"
+    },
+    {
+      "id": "run-25",
+      "purpose": "fitness",
+      "ref": "adr:0009",
+      "command": "pnpm vitest run src/__tests__/cryptoService.test.ts src/__tests__/useSecurity.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:84bd930fd8af70c36edc9f9ddcb4a30ecaa95a2cc12f61532765e92fee690331",
+      "tree": "sha256:cdde40da04de1f2c7e79d10723f3a44118905d672b2972e97a5cdb34f1585a44",
+      "recorded_at": "2026-11-14T19:21:07.637Z"
+    },
+    {
+      "id": "run-26",
+      "purpose": "fitness",
+      "ref": "scenario:confidencialidad",
+      "command": "pnpm vitest run src/__tests__/cryptoService.test.ts src/__tests__/useSecurity.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:bbcb1e9d07b809b9991a56eec500fca352af1889b2aa551e9334bea16d364e33",
+      "tree": "sha256:cdde40da04de1f2c7e79d10723f3a44118905d672b2972e97a5cdb34f1585a44",
+      "recorded_at": "2026-11-14T19:21:07.637Z"
+    },
+    {
+      "id": "run-27",
+      "purpose": "fitness",
+      "ref": "scenario:exactitud-contable",
+      "command": "pnpm vitest run src/__tests__/ledgerEngine.test.ts src/__tests__/financeService.test.ts src/__tests__/openingBalance.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:faad80ee51aee243b0ca6b688e20840c5734d98c9eb8542371a1ec85167204c5",
+      "tree": "sha256:cdde40da04de1f2c7e79d10723f3a44118905d672b2972e97a5cdb34f1585a44",
+      "recorded_at": "2026-11-14T19:21:07.637Z"
+    },
+    {
+      "id": "run-28",
+      "purpose": "fitness",
+      "ref": "scenario:integridad-datos",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts src/__tests__/syncService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:c76c5a6b7adb7d2551cf708940c5cae140d2523f031b4e69abe726482936c2c5",
+      "tree": "sha256:cdde40da04de1f2c7e79d10723f3a44118905d672b2972e97a5cdb34f1585a44",
+      "recorded_at": "2026-11-14T19:21:07.637Z"
+    },
+    {
+      "id": "run-29",
+      "purpose": "fitness",
+      "ref": "scenario:modificabilidad",
+      "command": "sh -c \"! grep -rnE \\\"from .(react|react-dom).|/(hooks|components|context)/\\\" src/services src/utils\"",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:cdde40da04de1f2c7e79d10723f3a44118905d672b2972e97a5cdb34f1585a44",
+      "recorded_at": "2026-11-14T19:21:07.637Z"
+    }
+  ],
+  "closed_at": "2026-11-14T19:21:42.945Z"
+}
