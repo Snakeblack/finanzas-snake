@@ -1,2 +1,28 @@
 checks:
-  test: pnpm test
+  test: pnpm vitest run
+  lint: pnpm lint
+  typecheck: pnpm typecheck
+team:
+  size: solo
+  experience: senior
+impact:
+  public_contract:
+    - src/utils/backupValidator.ts
+    - src/services/schema.ts
+    - api/**
+  persistent_data:
+    - src/services/storageService.ts
+    - src/services/db/**
+    - src/services/schema.ts
+    - src/utils/backupValidator.ts
+  security_boundary:
+    - src/services/cryptoService.ts
+    - src/services/syncService.ts
+    - src/hooks/useSecurity.ts
+    - src/services/geminiService.ts
+    - api/**
+    - vercel.json
+delivery:
+  branching: serial
+  changelog: CHANGELOG.md
+  release: per-change

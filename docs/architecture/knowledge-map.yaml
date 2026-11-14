@@ -1,0 +1,341 @@
+{
+  "schema": "ospec-knowledge-map/v2",
+  "profile": "product",
+  "slots": [
+    {
+      "id": "business.problem",
+      "dimension": "business",
+      "state": "confirmed",
+      "decisions": [
+        "system-boundaries"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 1 (2026-11-14): uso propio en pareja. Llevar las finanzas de dos personas y lo compartido (saldos por cuenta, movimientos, deudas, cierre mensual); desplegada públicamente sin soporte a terceros"
+      }
+    },
+    {
+      "id": "business.goals",
+      "dimension": "business",
+      "state": "confirmed",
+      "decisions": [
+        "test-strategy"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 1 (2026-11-14): exactitud contable; flujos cableados de extremo a extremo; interfaz propia y usable en móvil y escritorio"
+      }
+    },
+    {
+      "id": "business.constraints",
+      "dimension": "business",
+      "state": "confirmed",
+      "decisions": [
+        "trust-boundaries",
+        "technology-choice"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 1 (2026-11-14): local-first con IA opcional. Sin backend de datos ni cuentas; hosting estático de coste cero; los datos solo salen del dispositivo por sync P2P cifrado o hacia Gemini con la API key del usuario y a petición explícita"
+      }
+    },
+    {
+      "id": "functional.actors",
+      "dimension": "functional",
+      "state": "confirmed",
+      "decisions": [
+        "system-boundaries"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 6 (2026-11-14): una o dos personas (A y, opcionalmente, B) sin roles ni cuentas de usuario; el modo de un solo perfil es de primera clase. Externos: proveedor de IA, servidor de señalización y retransmisor"
+      }
+    },
+    {
+      "id": "functional.capabilities",
+      "dimension": "functional",
+      "state": "confirmed",
+      "decisions": [
+        "system-boundaries"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 6 (2026-11-14): núcleo contable; deudas y reunificación; importación de extractos, backup, sincronización y PIN; asesor de IA con exportación a PDF. Todo debe quedar funcionando de extremo a extremo"
+      }
+    },
+    {
+      "id": "functional.exclusions",
+      "dimension": "functional",
+      "state": "confirmed",
+      "decisions": [
+        "system-boundaries"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 6 (2026-11-14): no se empiezan funciones nuevas (presupuestos, metas de ahorro, reglas de categorización, conciliación) hasta estabilizar lo existente y rehacer la interfaz. Conexión bancaria, nube propia y tipos de cambio reales no se excluyeron: quedan como futuro sin fecha"
+      }
+    },
+    {
+      "id": "team.shape",
+      "dimension": "team",
+      "state": "confirmed",
+      "decisions": [
+        "deployment-topology",
+        "technology-choice"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 2 (2026-11-14): una sola persona, sénior, apoyada por agentes"
+      }
+    },
+    {
+      "id": "team.production-owner",
+      "dimension": "team",
+      "state": "confirmed",
+      "decisions": [
+        "operability"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 2 (2026-11-14): el propio desarrollador, sin guardia ni compromiso de disponibilidad; los datos viven en el dispositivo"
+      }
+    },
+    {
+      "id": "quality.drivers",
+      "dimension": "quality",
+      "state": "confirmed",
+      "decisions": [
+        "system-boundaries",
+        "deployment-topology"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 3 (2026-11-14): integridad y exactitud, confidencialidad, usabilidad, modificabilidad, uso sin conexión, rendimiento con historial; sin medidas numéricas, verificación con pruebas"
+      }
+    },
+    {
+      "id": "architecture.boundaries",
+      "dimension": "architecture",
+      "state": "confirmed",
+      "decisions": [
+        "system-boundaries",
+        "integration-style"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 4 (2026-11-14): sin backend de datos; capas en un solo sentido (interfaz → estado de aplicación → dominio y adaptadores); separar reglas de dominio puras de adaptadores, y la interfaz solo habla con el estado de aplicación"
+      }
+    },
+    {
+      "id": "architecture.data",
+      "dimension": "architecture",
+      "state": "confirmed",
+      "decisions": [
+        "data-ownership"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 4 (2026-11-14): un único escritor a disco (adaptador de almacenamiento) y un solo camino de escritura por cambio; importes decimales exactos en texto y movimientos inmutables, incluidos saldo inicial y de apertura; migración al leer"
+      }
+    },
+    {
+      "id": "architecture.integration",
+      "dimension": "architecture",
+      "state": "confirmed",
+      "decisions": [
+        "integration-style",
+        "contract-evolution"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 4 (2026-11-14): sincronización P2P por instantánea completa cifrada con código de un solo uso, sin fusión; IA llamada directa desde el navegador con la clave del usuario; validar contra esquema toda entrada externa"
+      }
+    },
+    {
+      "id": "architecture.deployment",
+      "dimension": "architecture",
+      "state": "confirmed",
+      "decisions": [
+        "deployment-topology"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 4 (2026-11-14): un desplegable estático más una función sin estado de credenciales de retransmisión, endurecida; se añade arranque sin conexión"
+      }
+    },
+    {
+      "id": "architecture.trust",
+      "dimension": "architecture",
+      "state": "confirmed",
+      "decisions": [
+        "trust-boundaries"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 9 (2026-11-14): cifrado en reposo opcional con clave derivada del PIN solo en memoria; solo el dispositivo es de confianza; clave de sincronización derivada aparte del identificador público y con derivación lenta; secretos fuera de URLs y errores sin detalles internos"
+      }
+    },
+    {
+      "id": "technology.stack",
+      "dimension": "technology",
+      "state": "confirmed",
+      "decisions": [
+        "technology-choice"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 7 (2026-11-14): se mantiene la pila (React, TypeScript, Vite, Tailwind con Radix, big.js, Zod, PeerJS, Vitest, pnpm); modo estricto de TypeScript de forma gradual; se migra a la versión mayor siguiente de Tailwind con el rediseño y un sistema de tokens propio"
+      }
+    },
+    {
+      "id": "technology.licenses",
+      "dimension": "technology",
+      "state": "confirmed",
+      "decisions": [
+        "technology-choice"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 7 (2026-11-14): código propio sin licencia pública; solo dependencias de licencia permisiva (MIT, Apache-2.0, BSD, ISC, OFL); una copyleft requiere aprobación expresa"
+      }
+    },
+    {
+      "id": "operation.observability",
+      "dimension": "operation",
+      "state": "confirmed",
+      "decisions": [
+        "operability"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 8 (2026-11-14): sin telemetría; todo fallo de guardado, importación, sincronización o IA se muestra en la interfaz con un mensaje accionable y queda en un registro local de diagnóstico copiable"
+      }
+    },
+    {
+      "id": "operation.backup",
+      "dimension": "operation",
+      "state": "confirmed",
+      "decisions": [
+        "data-ownership",
+        "operability"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 8 (2026-11-14): copia de seguridad manual exportada por la persona, con recordatorio cuando lleva tiempo sin exportar, solicitud de almacenamiento persistente al navegador y garantía de que todo backup exportado se puede reimportar"
+      }
+    },
+    {
+      "id": "delivery.environments",
+      "dimension": "delivery",
+      "state": "confirmed",
+      "decisions": [
+        "delivery-target",
+        "deployment-topology"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 5 (2026-11-14): local y producción publicada al fusionar en main, con previsualización por pull request; comprobaciones en local antes de fusionar, sin integración continua"
+      }
+    },
+    {
+      "id": "delivery.versioning",
+      "dimension": "delivery",
+      "state": "confirmed",
+      "decisions": [
+        "contract-evolution",
+        "delivery-target"
+      ],
+      "source": {
+        "kind": "user",
+        "ref": "Ronda 5 (2026-11-14): versión semántica con etiqueta y entrada en CHANGELOG.md por entrega; formato de datos y de backup compatible hacia atrás"
+      }
+    }
+  ],
+  "quality_scenarios": [
+    {
+      "id": "integridad-datos",
+      "origin": "Una persona de la pareja",
+      "stimulus": "Confirma un alta, edición o borrado y después recarga la página, bloquea y desbloquea con el PIN, importa un backup o recibe una sincronización",
+      "environment": "Uso normal en un navegador, con o sin PIN activo",
+      "artifact": "Almacén local (IndexedDB), copias de seguridad y carga recibida por sincronización",
+      "response": "El estado tras la operación contiene exactamente los cambios confirmados: nada se pierde, se duplica ni queda a medias, y una carga no válida se rechaza entera sin tocar los datos existentes",
+      "fitness": {
+        "checks": [
+          "pnpm vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts src/__tests__/syncService.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "exactitud-contable",
+      "origin": "Una persona de la pareja",
+      "stimulus": "Consulta el saldo de una cuenta, el cierre de un mes o el estado de una deuda desde cualquier pestaña",
+      "environment": "Cualquier volumen de movimientos, con transferencias, recurrentes y varias divisas",
+      "artifact": "Motor contable (saldos, periodos, amortizaciones)",
+      "response": "Los mismos datos producen el mismo importe en todas las vistas, calculado con aritmética decimal exacta y nunca con coma flotante binaria",
+      "fitness": {
+        "checks": [
+          "pnpm vitest run src/__tests__/ledgerEngine.test.ts src/__tests__/financeService.test.ts src/__tests__/openingBalance.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "confidencialidad",
+      "origin": "Alguien con acceso al dispositivo o a la red, sin el PIN",
+      "stimulus": "Inspecciona el almacenamiento del navegador o el tráfico de la aplicación",
+      "environment": "PIN activo y aplicación bloqueada o en uso",
+      "artifact": "Almacén local, clave del asesor, canal de sincronización y llamadas al servicio de IA",
+      "response": "No encuentra datos financieros ni la clave del asesor en claro en el dispositivo, y ningún dato sale de él salvo por una acción explícita del usuario (sincronizar, preguntar al asesor, importar un PDF con IA)",
+      "fitness": {
+        "checks": [
+          "pnpm vitest run src/__tests__/cryptoService.test.ts src/__tests__/useSecurity.test.tsx"
+        ]
+      }
+    },
+    {
+      "id": "usabilidad",
+      "origin": "Una persona de la pareja",
+      "stimulus": "Anota un movimiento, revisa el mes en curso o importa un extracto",
+      "environment": "Móvil y escritorio, tema claro u oscuro",
+      "artifact": "Interfaz de usuario",
+      "response": "Completa la tarea sin ayuda ni pasos muertos, con una jerarquía visual clara, controles alcanzables con teclado y táctil, y un lenguaje visual coherente entre pantallas",
+      "fitness": {
+        "description": "Revisión manual de cada cambio de interfaz en móvil y escritorio, en claro y oscuro, recorriendo las tres tareas frecuentes"
+      }
+    },
+    {
+      "id": "modificabilidad",
+      "origin": "El desarrollador",
+      "stimulus": "Rediseña una pantalla o cambia una regla contable",
+      "environment": "Desarrollo, con la batería de pruebas disponible",
+      "artifact": "Código fuente: interfaz, estado de aplicación, reglas de dominio y adaptadores",
+      "response": "El cambio toca una sola capa: las reglas de dominio y los adaptadores no dependen de la biblioteca de interfaz ni del estado de aplicación, y la interfaz no reimplementa reglas",
+      "fitness": {
+        "checks": [
+          "sh -c \"! grep -rnE \\\"from .(react|react-dom).|/(hooks|components|context)/\\\" src/services src/utils\""
+        ]
+      }
+    },
+    {
+      "id": "uso-sin-conexion",
+      "origin": "Una persona de la pareja",
+      "stimulus": "Abre la aplicación sin conexión a internet tras haberla usado antes en ese dispositivo",
+      "environment": "Sin red",
+      "artifact": "Carga de la aplicación y funciones locales",
+      "response": "La aplicación arranca y permite consultar y anotar; solo el asesor, la importación con IA y la sincronización avisan de que necesitan red",
+      "fitness": {
+        "description": "Prueba manual: cargar la aplicación desplegada, cortar la red, recargar y anotar un movimiento. Hoy no se cumple: no hay caché de arranque sin conexión"
+      }
+    },
+    {
+      "id": "rendimiento-historial",
+      "origin": "Una persona de la pareja",
+      "stimulus": "Anota o edita un movimiento, o cambia de mes",
+      "environment": "Varios años de movimientos acumulados",
+      "artifact": "Persistencia local y cálculo de saldos",
+      "response": "La interacción sigue siendo inmediata: el coste de guardar un cambio no crece con el tamaño del historial",
+      "fitness": {
+        "description": "Prueba manual con un backup de varios años: anotar un movimiento y cambiar de mes sin retraso perceptible; revisar que guardar un cambio no reescribe la tabla entera"
+      }
+    }
+  ]
+}

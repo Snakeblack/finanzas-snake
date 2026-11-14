@@ -1,0 +1,543 @@
+{
+  "schema": "ospec-component-map/v2",
+  "components": [
+    {
+      "id": "ui",
+      "summary": "Interfaz: pantallas por pestaña, diálogos, primitivas visuales, estilos y punto de entrada",
+      "evidence": [
+        "src/components/App.tsx:3",
+        "main.tsx:5"
+      ],
+      "paths": [
+        "src/components/**",
+        "src/lib/**",
+        "main.tsx",
+        "index.html",
+        "styles.css",
+        "tailwind.config.js",
+        "postcss.config.js",
+        "components.json"
+      ],
+      "knowledge": {
+        "adrs": [
+          "0002"
+        ],
+        "scenarios": [
+          "usabilidad",
+          "modificabilidad"
+        ],
+        "terms": [
+          "Perfil",
+          "Pestaña"
+        ],
+        "constraints": [
+          "technology.stack"
+        ]
+      }
+    },
+    {
+      "id": "app-state",
+      "summary": "Estado de aplicación: contexto que compone los hooks por dominio, orquesta mutaciones y dispara la persistencia",
+      "evidence": [
+        "src/context/FinanzasContext.tsx:650",
+        "src/hooks/useFinanzas.ts:10"
+      ],
+      "paths": [
+        "src/context/**",
+        "src/hooks/**"
+      ],
+      "knowledge": {
+        "adrs": [
+          "0002",
+          "0003"
+        ],
+        "scenarios": [
+          "integridad-datos",
+          "modificabilidad"
+        ],
+        "terms": [
+          "Periodo",
+          "Movimiento recurrente"
+        ]
+      }
+    },
+    {
+      "id": "domain",
+      "summary": "Dominio contable: tipos, constantes, motor de saldos y periodos, amortización de deudas y utilidades puras de fecha y formato",
+      "evidence": [
+        "src/services/financeService.ts:21",
+        "src/services/ledgerEngine.ts:16",
+        "src/types/index.ts:68"
+      ],
+      "paths": [
+        "src/services/financeService.ts",
+        "src/services/ledgerEngine.ts",
+        "src/types/**",
+        "src/constants/**",
+        "src/utils/dateUtils.ts",
+        "src/utils/formatters.ts",
+        "src/utils/openingBalance.ts"
+      ],
+      "knowledge": {
+        "adrs": [
+          "0002",
+          "0004"
+        ],
+        "scenarios": [
+          "exactitud-contable",
+          "modificabilidad"
+        ],
+        "terms": [
+          "Importe",
+          "Movimiento",
+          "Cuenta",
+          "Periodo",
+          "Deuda",
+          "Reunificación"
+        ]
+      }
+    },
+    {
+      "id": "storage",
+      "summary": "Adaptador de almacenamiento: base de datos del navegador, migraciones, esquemas, copias de seguridad y su validación",
+      "evidence": [
+        "src/services/db/idbProvider.ts:18",
+        "src/services/storageService.ts:590",
+        "src/services/schema.ts:8",
+        "src/utils/backupValidator.ts:206"
+      ],
+      "paths": [
+        "src/services/storageService.ts",
+        "src/services/db/**",
+        "src/services/schema.ts",
+        "src/utils/backupValidator.ts"
+      ],
+      "knowledge": {
+        "adrs": [
+          "0003",
+          "0005",
+          "0008",
+          "0009"
+        ],
+        "scenarios": [
+          "integridad-datos",
+          "rendimiento-historial",
+          "confidencialidad"
+        ],
+        "terms": [
+          "Copia de seguridad",
+          "Instantánea"
+        ],
+        "constraints": [
+          "operation.backup",
+          "delivery.versioning"
+        ]
+      }
+    },
+    {
+      "id": "crypto",
+      "summary": "Adaptador de cifrado: derivación de clave desde el PIN, cifrado autenticado y codificación hexadecimal",
+      "evidence": [
+        "src/services/cryptoService.ts:44",
+        "src/utils/hexEncoding.ts:1"
+      ],
+      "paths": [
+        "src/services/cryptoService.ts",
+        "src/utils/hexEncoding.ts"
+      ],
+      "knowledge": {
+        "adrs": [
+          "0009",
+          "0010"
+        ],
+        "scenarios": [
+          "confidencialidad"
+        ],
+        "terms": [
+          "PIN"
+        ]
+      }
+    },
+    {
+      "id": "sync",
+      "summary": "Adaptador de sincronización: conexión directa entre dos dispositivos y envío de la instantánea cifrada con un código de un solo uso",
+      "evidence": [
+        "src/services/syncService.ts:84",
+        "src/services/syncService.ts:144"
+      ],
+      "paths": [
+        "src/services/syncService.ts"
+      ],
+      "knowledge": {
+        "adrs": [
+          "0006",
+          "0010"
+        ],
+        "scenarios": [
+          "integridad-datos",
+          "confidencialidad"
+        ],
+        "terms": [
+          "Instantánea",
+          "Código de sincronización"
+        ]
+      }
+    },
+    {
+      "id": "ai-advisor",
+      "summary": "Adaptador del asistente de IA: llamada al proveedor, clasificación de errores, texto plano y exportación del chat a PDF",
+      "evidence": [
+        "src/services/geminiService.ts:199",
+        "src/services/chatPdfExport.ts:2"
+      ],
+      "paths": [
+        "src/services/geminiService.ts",
+        "src/services/chatPdfExport.ts",
+        "src/utils/chatPlaintext.ts",
+        "src/utils/markdownToHtml.ts"
+      ],
+      "knowledge": {
+        "adrs": [
+          "0007",
+          "0010"
+        ],
+        "scenarios": [
+          "confidencialidad"
+        ],
+        "terms": [
+          "Asesor"
+        ]
+      }
+    },
+    {
+      "id": "statement-import",
+      "summary": "Importación de extractos: lectura de CSV y PDF, extracción con IA, detección de duplicados y emparejado de traspasos",
+      "evidence": [
+        "src/services/statementImportService.ts:932",
+        "src/services/statementImportService.ts:555"
+      ],
+      "paths": [
+        "src/services/statementImportService.ts"
+      ],
+      "knowledge": {
+        "adrs": [
+          "0007",
+          "0008"
+        ],
+        "scenarios": [
+          "integridad-datos",
+          "exactitud-contable"
+        ],
+        "terms": [
+          "Extracto",
+          "Duplicado",
+          "Traspaso"
+        ]
+      }
+    },
+    {
+      "id": "credentials-function",
+      "summary": "Función sin estado del alojamiento que entrega credenciales temporales del retransmisor de sincronización",
+      "evidence": [
+        "api/get-turn-credentials.js:1"
+      ],
+      "paths": [
+        "api/**"
+      ],
+      "knowledge": {
+        "adrs": [
+          "0010",
+          "0011"
+        ],
+        "scenarios": [
+          "confidencialidad"
+        ]
+      }
+    },
+    {
+      "id": "delivery",
+      "summary": "Configuración de despliegue y archivos públicos: cabeceras de seguridad, reescrituras y manifiesto",
+      "evidence": [
+        "vercel.json:7",
+        "vercel.json:33"
+      ],
+      "paths": [
+        "vercel.json",
+        "public/**",
+        "vite.config.ts",
+        "package.json"
+      ],
+      "knowledge": {
+        "adrs": [
+          "0001",
+          "0011"
+        ],
+        "scenarios": [
+          "uso-sin-conexion"
+        ],
+        "constraints": [
+          "delivery.environments",
+          "delivery.versioning",
+          "technology.licenses"
+        ]
+      }
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "dispositivo",
+      "summary": "Zona de confianza: todo lo que se ejecuta en el navegador de la persona y es dueño de los datos",
+      "components": [
+        "ui",
+        "app-state",
+        "domain",
+        "storage",
+        "crypto",
+        "sync",
+        "ai-advisor",
+        "statement-import"
+      ],
+      "evidence": [
+        "src/services/db/idbProvider.ts:18",
+        "src/services/storageService.ts:95"
+      ]
+    },
+    {
+      "id": "alojamiento",
+      "summary": "Servidor de alojamiento: entrega código estático y una función sin estado; no ve datos financieros",
+      "components": [
+        "delivery",
+        "credentials-function"
+      ],
+      "evidence": [
+        "vercel.json:33",
+        "api/get-turn-credentials.js:1"
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "from": "ui",
+      "to": "app-state",
+      "evidence": [
+        "src/components/App.tsx:3"
+      ]
+    },
+    {
+      "from": "ui",
+      "to": "domain",
+      "evidence": [
+        "src/components/transactions/TransactionsTab.tsx:3"
+      ]
+    },
+    {
+      "from": "ui",
+      "to": "storage",
+      "evidence": [
+        "src/components/sync/SyncModal.tsx:7"
+      ]
+    },
+    {
+      "from": "ui",
+      "to": "sync",
+      "evidence": [
+        "src/components/sync/SyncModal.tsx:4"
+      ]
+    },
+    {
+      "from": "ui",
+      "to": "ai-advisor",
+      "evidence": [
+        "src/components/ai/AiTab.tsx:6"
+      ]
+    },
+    {
+      "from": "ui",
+      "to": "statement-import",
+      "evidence": [
+        "src/components/transactions/ImportStatementModal.tsx:17"
+      ]
+    },
+    {
+      "from": "ui",
+      "to": "credentials-function",
+      "evidence": [
+        "src/components/sync/SyncModal.tsx:139"
+      ]
+    },
+    {
+      "from": "app-state",
+      "to": "domain",
+      "evidence": [
+        "src/context/FinanzasContext.tsx:43"
+      ]
+    },
+    {
+      "from": "app-state",
+      "to": "storage",
+      "evidence": [
+        "src/hooks/useAccounts.ts:3"
+      ]
+    },
+    {
+      "from": "app-state",
+      "to": "crypto",
+      "evidence": [
+        "src/hooks/useSecurity.ts:3"
+      ]
+    },
+    {
+      "from": "app-state",
+      "to": "ai-advisor",
+      "evidence": [
+        "src/context/FinanzasContext.tsx:44"
+      ]
+    },
+    {
+      "from": "storage",
+      "to": "crypto",
+      "evidence": [
+        "src/services/storageService.ts:14"
+      ]
+    },
+    {
+      "from": "storage",
+      "to": "domain",
+      "evidence": [
+        "src/services/storageService.ts:1"
+      ]
+    },
+    {
+      "from": "sync",
+      "to": "crypto",
+      "evidence": [
+        "src/services/syncService.ts:2"
+      ]
+    },
+    {
+      "from": "ai-advisor",
+      "to": "domain",
+      "evidence": [
+        "src/services/chatPdfExport.ts:2"
+      ]
+    },
+    {
+      "from": "statement-import",
+      "to": "domain",
+      "evidence": [
+        "src/services/statementImportService.ts:8"
+      ]
+    },
+    {
+      "from": "statement-import",
+      "to": "ai-advisor",
+      "evidence": [
+        "src/services/statementImportService.ts:9"
+      ]
+    }
+  ],
+  "divergences": [
+    {
+      "id": "ia-envia-datos-a-un-tercero",
+      "summary": "La documentación afirma que ningún dato va a servidores, pero el asesor y la importación de PDF envían datos financieros al proveedor de IA. Resuelto por decisión: IA opcional y explícita (ADR 0007)",
+      "documented": "docs/ARCHITECTURE.md:104",
+      "evidence": [
+        "src/services/geminiService.ts:199",
+        "src/services/statementImportService.ts:932"
+      ]
+    },
+    {
+      "id": "sync-usa-intermediarios",
+      "summary": "La documentación dice que la sincronización no tiene servidor intermediario, pero usa un servicio de contacto y retransmisores de terceros, con credenciales públicas fijas como alternativa",
+      "documented": "docs/ARCHITECTURE.md:15",
+      "evidence": [
+        "src/services/syncService.ts:144",
+        "src/services/syncService.ts:18"
+      ]
+    },
+    {
+      "id": "segundo-motor-de-saldos-sin-uso",
+      "summary": "La documentación dice que dos motores derivan los saldos de las pestañas; uno de ellos solo lo usan las pruebas y, de usarse, daría saldos distintos (ignora cuotas de deuda y periodos)",
+      "documented": "docs/ARCHITECTURE.md:72",
+      "evidence": [
+        "src/services/ledgerEngine.ts:16",
+        "src/services/financeService.ts:21"
+      ]
+    },
+    {
+      "id": "saldos-en-coma-flotante",
+      "summary": "La documentación fija el dinero como texto decimal exacto, pero el saldo inicial de cuenta y el de apertura de periodo son números de coma flotante",
+      "documented": "docs/ARCHITECTURE.md:23",
+      "evidence": [
+        "src/types/index.ts:52",
+        "src/types/index.ts:60"
+      ]
+    },
+    {
+      "id": "pin-inalcanzable-desde-la-interfaz",
+      "summary": "La documentación ofrece cifrado opcional con PIN, pero el botón de configurarlo llama al bloqueo y el arranque lo revierte al no existir sal: un usuario nuevo no puede activar el cifrado",
+      "documented": "README.md:10",
+      "evidence": [
+        "src/components/App.tsx:351",
+        "src/hooks/useSecurity.ts:251"
+      ]
+    },
+    {
+      "id": "cambio-sdd-verificado-con-revision-pendiente",
+      "summary": "El cambio de optimización de almacenamiento figura como verificado, pero su puerta de revisión sigue pendiente y dejó escrituras por entidad exportadas sin uso",
+      "documented": "openspec/changes/optimize-storage-and-matching/state.yaml:2",
+      "evidence": [
+        "openspec/changes/optimize-storage-and-matching/state.yaml:9",
+        "src/services/storageService.ts:839"
+      ]
+    },
+    {
+      "id": "interfaz-llama-a-adaptadores",
+      "summary": "La interfaz importa almacenamiento, sincronización, IA e importación directamente en lugar de pasar por el estado de aplicación (contra ADR 0002)",
+      "evidence": [
+        "src/components/sync/SyncModal.tsx:7",
+        "src/components/sync/SyncModal.tsx:4",
+        "src/components/transactions/ImportStatementModal.tsx:17"
+      ]
+    },
+    {
+      "id": "esquemas-de-entidad-duplicados",
+      "summary": "Existen dos esquemas del mismo movimiento; el de copias no reconoce el vínculo de serie recurrente y lo descarta al importar o sincronizar (contra ADR 0008)",
+      "evidence": [
+        "src/utils/backupValidator.ts:206",
+        "src/services/schema.ts:8"
+      ]
+    },
+    {
+      "id": "escritura-en-dos-pasos",
+      "summary": "Cuentas y periodos se guardan vaciando la colección y reescribiéndola en dos operaciones separadas; cerrar la pestaña entre ambas la deja vacía (contra ADR 0003)",
+      "evidence": [
+        "src/services/storageService.ts:472",
+        "src/context/FinanzasContext.tsx:650"
+      ]
+    },
+    {
+      "id": "clave-de-sync-igual-al-identificador",
+      "summary": "El identificador público de la sesión de sincronización y la clave de cifrado salen del mismo resumen del código: el servicio de contacto conoce la clave (contra ADR 0010)",
+      "evidence": [
+        "src/services/syncService.ts:76",
+        "src/services/syncService.ts:84"
+      ]
+    },
+    {
+      "id": "secretos-en-direcciones-y-errores",
+      "summary": "La clave del asesor viaja en la dirección de la llamada y la función de credenciales devuelve trazas y nombres de variables de entorno (contra ADR 0010)",
+      "evidence": [
+        "src/services/geminiService.ts:199",
+        "api/get-turn-credentials.js:23"
+      ]
+    },
+    {
+      "id": "comprobacion-de-tipos-no-estricta",
+      "summary": "El compilador no está en modo estricto, así que nulos y tipos implícitos no se detectan pese a que la comprobación de tipos pasa",
+      "evidence": [
+        "tsconfig.json:10"
+      ]
+    }
+  ]
+}
