@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-11-14
+
 ### Fixed
 - El PIN se puede activar desde la interfaz y el modo de un perfil sobrevive a recargar con PIN activo (pin-setup-and-profile-count)
 
