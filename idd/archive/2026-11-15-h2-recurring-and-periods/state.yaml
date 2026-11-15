@@ -1,0 +1,886 @@
+{
+  "schema": "idd-state/v1",
+  "change": "h2-recurring-and-periods",
+  "mode": "idd",
+  "status": "closed",
+  "intent": {
+    "kind": "bug",
+    "summary": "H2-A recurrentes y periodos: los movimientos de meses sin periodo se ven y cuentan, la proyección cuenta cada recurrente una vez y «solo este» no corta la serie",
+    "acceptance": "(1) Importar, anotar o editar un movimiento con fecha en un mes sin periodo deja ese mes en la lista y el movimiento cuenta en ingresos, gastos y saldos; (2) con un recurrente de 100 € repetido seis meses, cada mes proyectado suma 100 €, no 600 €; (3) tras editar o borrar «solo este» en el último mes, al crear el mes siguiente (a mano o al abrir la aplicación) la serie sigue"
+  },
+  "facts": {
+    "open": [
+      "Movimientos con fecha anterior al primer mes (importar extracto, anotar o editar a mano): (a) se añaden los meses que faltan, vacíos y sin copiar recurrentes; el saldo escrito en «Configurar cuenta» sigue siendo el de su mes y los meses anteriores se calculan hacia atrás desde él; (b) se añaden los meses y el saldo inicial pasa al nuevo primer mes, con lo que cambian los saldos de los meses existentes; (c) se rechazan con un aviso",
+      "Movimientos con fecha posterior al último mes: (a) se crean los meses que faltan hasta ese, copiando los recurrentes como «Crear mes siguiente»; (b) se crean vacíos, sin recurrentes; (c) se rechazan con un aviso",
+      "En la proyección, ¿cuánto aporta cada recurrente por mes? (a) lo que se copiaría al crear el mes siguiente: una vez por serie, con el importe de la serie (sin las excepciones de «solo este»); (b) el importe de su último mes, aunque sea una excepción; (c) la media de los últimos meses",
+      "Tras editar «solo este» en el último mes, al crear el mes siguiente la serie sigue con: (a) los datos de la serie antes de la edición (la edición queda solo en su mes); (b) los datos editados"
+    ]
+  },
+  "plan": {
+    "paths": [
+      "docs/api/backup-format.md",
+      "docs/roadmap.md",
+      "src/__tests__/backupRoundtrip.test.ts",
+      "src/__tests__/h2RecurringPeriods.test.ts",
+      "src/__tests__/h2RecurringPeriods.test.tsx",
+      "src/components/transactions/ImportStatementModal.tsx",
+      "src/context/FinanzasContext.tsx",
+      "src/hooks/usePeriods.ts",
+      "src/hooks/useTransactions.ts",
+      "src/services/financeService.ts",
+      "src/services/schema.ts",
+      "src/services/storageService.ts",
+      "src/types/index.ts",
+      "src/utils/backupValidator.ts",
+      "src/utils/dateUtils.ts"
+    ],
+    "work_units": 3,
+    "decision": true,
+    "operations": [],
+    "decisions": [
+      "Los meses que faltan para los movimientos los crea una única función pura (ensurePeriodsForTransactions en dateUtils) que el contexto aplica cada vez que cambian movimientos o periodos: cubre importar, anotar, editar, copias y sincronización sin tocar cada camino. Meses anteriores e intermedios vacíos; posteriores con los recurrentes clonados mes a mes",
+      "El saldo inicial de las cuentas se ancla en el mes con apertura manual; al añadir meses por delante sin ninguno marcado, el antiguo primer mes pasa a ser la apertura manual para que el ancla no se mueva",
+      "El motor de saldos calcula hacia atrás los meses anteriores al ancla restando su efecto neto al saldo inicial antes del recorrido hacia delante, que no cambia: sigue habiendo un solo motor (ADR 0004)",
+      "La proyección suma una vez por mes los clones que cloneRecurringForMonth produciría para el mes siguiente al último, en lugar de todas las instancias de recurrentes del historial",
+      "«Solo este» (editar o borrar) en el último mes guarda la instancia tal como estaba en el campo opcional Period.skippedRecurring; cloneRecurringForMonth la usa para seguir la serie cuando el mes no tiene otra instancia de ella. «Este y los siguientes» y «todos» la actualizan o la quitan. Viaja en copia y sincronización sin cambiar la versión 2 del formato",
+      "Descartado guardar los borrados como movimientos ocultos: obligaría a filtrarlos en saldos, listas, asistente de IA, importación y sincronización",
+      "Un movimiento solo crea meses dentro de diez años antes o después del actual, el mismo margen que ya usa readStoredPeriods al generar periodos: una fecha absurda (1970 de un dato antiguo sin fecha, un año mal tecleado) no genera cientos de meses"
+    ]
+  },
+  "signals": [
+    {
+      "id": "always",
+      "reason": "every change with a resolved intent",
+      "source": "declaration"
+    },
+    {
+      "id": "bug-fix",
+      "reason": "the intent is a bug fix",
+      "source": "declaration"
+    },
+    {
+      "id": "multi-unit-or-decision",
+      "reason": "declared 3 work units",
+      "source": "declaration"
+    },
+    {
+      "id": "public-contract",
+      "reason": "public contract: touches src/services/schema.ts and 1 more (matches src/services/schema.ts)",
+      "source": "declaration"
+    },
+    {
+      "id": "persistent-data",
+      "reason": "persistent data: touches src/services/schema.ts and 2 more (matches src/services/schema.ts)",
+      "source": "declaration"
+    },
+    {
+      "id": "adr-or-quality-attribute",
+      "reason": "declared ADR 0002, 0003, 0004, 0005, 0008 and quality scenario exactitud-contable, integridad-datos",
+      "source": "declaration"
+    }
+  ],
+  "impacts": [
+    {
+      "kind": "adr",
+      "id": "0002",
+      "impact": "conforms",
+      "reason": "La lógica nueva (ensurePeriodsForTransactions, recordSkippedRecurring, updateSkippedRecurring, el ancla del motor y la proyección por series) son funciones puras en src/utils y src/services/financeService sin entrada ni salida; el contexto y los hooks solo las llaman"
+    },
+    {
+      "kind": "adr",
+      "id": "0003",
+      "impact": "conforms",
+      "reason": "No añade escritores: los meses creados y las instancias saltadas pasan por el mismo estado y los mismos efectos de guardado de periodos y movimientos; la escritura por entidad sigue planificada en H6"
+    },
+    {
+      "kind": "adr",
+      "id": "0004",
+      "impact": "conforms",
+      "reason": "El cálculo hacia atrás usa Big como el resto del motor y sigue habiendo un solo motor de saldos; editar «solo este» sigue sustituyendo el movimiento por uno nuevo y la copia guardada es inmutable"
+    },
+    {
+      "kind": "adr",
+      "id": "0005",
+      "impact": "conforms",
+      "reason": "El formato solo añade el campo opcional Period.skippedRecurring sin cambiar la versión 2; los periodos y copias anteriores se leen sin él, la lectura con migración normaliza sus instancias, y hay prueba de ambos"
+    },
+    {
+      "kind": "adr",
+      "id": "0008",
+      "impact": "conforms",
+      "reason": "Las instancias saltadas se validan con el mismo esquema de movimiento al leer del disco (PeriodSchema con TransactionSchema) y al importar (validateTransactions); una inválida rechaza la copia entera"
+    },
+    {
+      "kind": "adr",
+      "id": "0009",
+      "impact": "none",
+      "reason": "Los periodos se cifran igual que antes con el campo nuevo dentro; no cambia qué se cifra ni cuándo"
+    },
+    {
+      "kind": "scenario",
+      "id": "confidencialidad",
+      "impact": "none",
+      "reason": "No cambia qué se cifra ni qué sale del dispositivo"
+    },
+    {
+      "kind": "scenario",
+      "id": "exactitud-contable",
+      "impact": "conforms",
+      "reason": "Los movimientos de cualquier mes cuentan, el saldo del mes configurado no cambia al añadir meses anteriores y la proyección deja de multiplicar los recurrentes por su historial"
+    },
+    {
+      "kind": "scenario",
+      "id": "integridad-datos",
+      "impact": "conforms",
+      "reason": "Un movimiento fuera de rango ya no queda guardado sin verse, y «solo este» ya no corta la serie al crear el mes siguiente ni tras recargar, restaurar o sincronizar"
+    },
+    {
+      "kind": "scenario",
+      "id": "modificabilidad",
+      "impact": "conforms",
+      "reason": "Reglas en funciones puras con pruebas; un único punto (efecto del contexto) crea los meses para todos los caminos que escriben movimientos"
+    },
+    {
+      "kind": "scenario",
+      "id": "rendimiento-historial",
+      "impact": "conforms",
+      "reason": "La reconciliación de meses es un recorrido lineal de los movimientos que no cambia nada si no falta ningún mes; el motor recorre los mismos meses y la proyección clona solo el último mes en vez de filtrar todo el historial"
+    },
+    {
+      "kind": "scenario",
+      "id": "usabilidad",
+      "impact": "none",
+      "reason": "Sin cambios de marcado, estilos ni textos"
+    }
+  ],
+  "obligations": [
+    {
+      "id": "checks-pass",
+      "signal": "always",
+      "status": "satisfied",
+      "evidence": [
+        "ev-9"
+      ]
+    },
+    {
+      "id": "repro-test",
+      "signal": "bug-fix",
+      "status": "satisfied",
+      "evidence": [
+        "ev-1"
+      ]
+    },
+    {
+      "id": "living-doc",
+      "signal": "multi-unit-or-decision",
+      "status": "satisfied",
+      "evidence": [
+        "ev-12"
+      ]
+    },
+    {
+      "id": "contract-spec-and-test",
+      "signal": "public-contract",
+      "status": "satisfied",
+      "evidence": [
+        "ev-10"
+      ]
+    },
+    {
+      "id": "migration-compat-and-test",
+      "signal": "persistent-data",
+      "status": "satisfied",
+      "evidence": [
+        "ev-8"
+      ]
+    },
+    {
+      "id": "adr-impact-declaration",
+      "signal": "adr-or-quality-attribute",
+      "status": "satisfied",
+      "evidence": [
+        "ev-11"
+      ]
+    }
+  ],
+  "gates": [
+    {
+      "id": "open-facts",
+      "status": "resolved",
+      "opened_turn": 21,
+      "answer": "todos las recomendadas: (1a) meses anteriores vacíos, sin recurrentes, saldo de «Configurar cuenta» fijo en su mes y meses anteriores calculados hacia atrás; (2a) meses posteriores creados copiando recurrentes como «Crear mes siguiente»; (3a) la proyección suma lo que se copiaría al crear el mes siguiente, una vez por serie con su importe de serie; (4a) tras «solo este» la serie sigue con los datos anteriores a la edición",
+      "source": "user",
+      "resolved_turn": 22
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-1",
+      "kind": "repro-run-pair",
+      "obligation": "repro-test",
+      "recorded_at": "2026-11-15T13:24:05.032Z",
+      "detail": {
+        "red": "run-1",
+        "green": "run-2",
+        "counterproof": [
+          "run-3",
+          "run-4"
+        ]
+      }
+    },
+    {
+      "id": "ev-2",
+      "kind": "check-run",
+      "obligation": "checks-pass",
+      "recorded_at": "2026-11-15T13:24:42.568Z",
+      "detail": {
+        "tree": "sha256:bb5ed432efdd4cd61f7e2c46e5fa81a41d2a1b8facefa3754f5442e1ba66abdb",
+        "runs": [
+          "run-5",
+          "run-6",
+          "run-7"
+        ]
+      }
+    },
+    {
+      "id": "ev-3",
+      "kind": "contract-spec-and-test",
+      "obligation": "contract-spec-and-test",
+      "recorded_at": "2026-11-15T13:24:42.568Z",
+      "detail": {
+        "tree": "sha256:bb5ed432efdd4cd61f7e2c46e5fa81a41d2a1b8facefa3754f5442e1ba66abdb",
+        "check": "ev-2",
+        "documents": [
+          "docs/api/backup-format.md"
+        ],
+        "tests": [
+          "src/__tests__/h2RecurringPeriods.test.tsx"
+        ]
+      }
+    },
+    {
+      "id": "ev-4",
+      "kind": "migration-test",
+      "obligation": "migration-compat-and-test",
+      "recorded_at": "2026-11-15T13:25:30.954Z",
+      "detail": {
+        "run": "run-18",
+        "tree": "sha256:91b3b9a529cf02a77c845c8ede594c84098670832a5aa236ad507a6c8510d6b3",
+        "plan": "Compatibilidad hacia atrás: Period.skippedRecurring es opcional; los periodos y copias sin él se leen y se importan igual, y la lectura con migración normaliza sus instancias con migrateTransaction. No cambia la versión 2 del formato. Vuelta atrás: una versión anterior ignora el campo (el esquema zod lo descarta al leer) y solo pierde la continuidad de las series saltadas, sin perder movimientos ni periodos."
+      }
+    },
+    {
+      "id": "ev-5",
+      "kind": "check-run",
+      "obligation": "checks-pass",
+      "recorded_at": "2026-11-15T13:27:04.191Z",
+      "detail": {
+        "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+        "runs": [
+          "run-19",
+          "run-20",
+          "run-21"
+        ]
+      }
+    },
+    {
+      "id": "ev-6",
+      "kind": "contract-spec-and-test",
+      "obligation": "contract-spec-and-test",
+      "recorded_at": "2026-11-15T13:27:04.191Z",
+      "detail": {
+        "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+        "check": "ev-5",
+        "documents": [
+          "docs/api/backup-format.md"
+        ],
+        "tests": [
+          "src/__tests__/h2RecurringPeriods.test.tsx"
+        ]
+      }
+    },
+    {
+      "id": "ev-7",
+      "kind": "adr-impact-declaration",
+      "obligation": "adr-impact-declaration",
+      "recorded_at": "2026-11-15T13:27:04.191Z",
+      "detail": {
+        "refs": [
+          "adr:0002 conforms",
+          "adr:0003 conforms",
+          "adr:0004 conforms",
+          "adr:0005 conforms",
+          "adr:0008 conforms",
+          "adr:0009 none",
+          "scenario:confidencialidad none",
+          "scenario:exactitud-contable conforms",
+          "scenario:integridad-datos conforms",
+          "scenario:modificabilidad conforms",
+          "scenario:rendimiento-historial conforms",
+          "scenario:usabilidad none"
+        ],
+        "records": [],
+        "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+        "fitness": [
+          "run-22",
+          "run-23",
+          "run-24",
+          "run-25",
+          "run-26",
+          "run-27",
+          "run-28",
+          "run-29",
+          "run-30",
+          "run-31"
+        ]
+      }
+    },
+    {
+      "id": "ev-8",
+      "kind": "migration-test",
+      "obligation": "migration-compat-and-test",
+      "recorded_at": "2026-11-15T13:27:12.841Z",
+      "detail": {
+        "run": "run-32",
+        "tree": "sha256:d0ac5d442c4ff2121592764ac23714a034fec510a44dfe2d226625ae3bc8ffd9",
+        "plan": "Compatibilidad hacia atrás: Period.skippedRecurring es opcional; los periodos y copias sin él se leen y se importan igual, y la lectura con migración normaliza sus instancias con migrateTransaction. No cambia la versión 2 del formato. Vuelta atrás: una versión anterior ignora el campo (el esquema zod lo descarta al leer) y solo pierde la continuidad de las series saltadas, sin perder movimientos ni periodos."
+      }
+    },
+    {
+      "id": "ev-9",
+      "kind": "check-run",
+      "obligation": "checks-pass",
+      "recorded_at": "2026-11-15T13:27:30.002Z",
+      "detail": {
+        "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+        "runs": [
+          "run-33",
+          "run-34",
+          "run-35"
+        ]
+      }
+    },
+    {
+      "id": "ev-10",
+      "kind": "contract-spec-and-test",
+      "obligation": "contract-spec-and-test",
+      "recorded_at": "2026-11-15T13:27:30.002Z",
+      "detail": {
+        "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+        "check": "ev-9",
+        "documents": [
+          "docs/api/backup-format.md"
+        ],
+        "tests": [
+          "src/__tests__/h2RecurringPeriods.test.tsx"
+        ]
+      }
+    },
+    {
+      "id": "ev-11",
+      "kind": "adr-impact-declaration",
+      "obligation": "adr-impact-declaration",
+      "recorded_at": "2026-11-15T13:27:30.002Z",
+      "detail": {
+        "refs": [
+          "adr:0002 conforms",
+          "adr:0003 conforms",
+          "adr:0004 conforms",
+          "adr:0005 conforms",
+          "adr:0008 conforms",
+          "adr:0009 none",
+          "scenario:confidencialidad none",
+          "scenario:exactitud-contable conforms",
+          "scenario:integridad-datos conforms",
+          "scenario:modificabilidad conforms",
+          "scenario:rendimiento-historial conforms",
+          "scenario:usabilidad none"
+        ],
+        "records": [],
+        "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+        "fitness": [
+          "run-36",
+          "run-37",
+          "run-38",
+          "run-39",
+          "run-40",
+          "run-41",
+          "run-42",
+          "run-43",
+          "run-44",
+          "run-45"
+        ]
+      }
+    },
+    {
+      "id": "ev-12",
+      "kind": "living-doc-current",
+      "obligation": "living-doc",
+      "recorded_at": "2026-11-15T13:27:30.100Z"
+    }
+  ],
+  "base": "f9bfe676ec1c5761a96840ddb1250ecd080b167c",
+  "runs": [
+    {
+      "id": "run-1",
+      "purpose": "repro-test",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/h2RecurringPeriods.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:039cae7b166e8b56441bae35397568da95be0a14a73cfd43b22600e25b98cf46",
+      "tree": "sha256:502f6037cdfce0ac02b5306381aef82a95b607b0e914bd688a08e2eee2f35fa4",
+      "recorded_at": "2026-11-15T13:19:57.644Z"
+    },
+    {
+      "id": "run-2",
+      "purpose": "repro-test",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/h2RecurringPeriods.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:97fa3111cc7e60041db97780ea6380de876da7db78a02d809f011df01d9596ff",
+      "tree": "sha256:243755b86d5c1f95a2743ff3d2780809388961795f04415765969eadfcc50d14",
+      "recorded_at": "2026-11-15T13:24:05.032Z",
+      "counterproof": [
+        "run-3",
+        "run-4"
+      ]
+    },
+    {
+      "id": "run-3",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "f9bfe676ec1c5761a96840ddb1250ecd080b167c",
+      "mount": "sha256:347dd2388f84395d5825c4bda77ed248c0df0554190996ff6d720d5a8dfb59fc",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/h2RecurringPeriods.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:1464549eabfacebcdf9ff9d46c660c8721bce69d4c3662a625c7102110b629d1",
+      "tree": "sha256:243755b86d5c1f95a2743ff3d2780809388961795f04415765969eadfcc50d14",
+      "recorded_at": "2026-11-15T13:24:05.032Z"
+    },
+    {
+      "id": "run-4",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "f9bfe676ec1c5761a96840ddb1250ecd080b167c",
+      "mount": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "control": true,
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/h2RecurringPeriods.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:688535faebe1ef0723a2ba88a0f0dfaa4abf1fd22d386dd1659f4e4411d3a917",
+      "tree": "sha256:243755b86d5c1f95a2743ff3d2780809388961795f04415765969eadfcc50d14",
+      "recorded_at": "2026-11-15T13:24:05.032Z"
+    },
+    {
+      "id": "run-5",
+      "purpose": "checks",
+      "name": "test",
+      "command": "pnpm vitest run",
+      "exit_code": 0,
+      "output_sha256": "sha256:4f40f45e8a34cee760fc54f2da3328fd5534d1ca58278673c82eb8d4ab64c89f",
+      "tree": "sha256:bb5ed432efdd4cd61f7e2c46e5fa81a41d2a1b8facefa3754f5442e1ba66abdb",
+      "recorded_at": "2026-11-15T13:24:42.568Z"
+    },
+    {
+      "id": "run-6",
+      "purpose": "checks",
+      "name": "lint",
+      "command": "pnpm lint",
+      "exit_code": 0,
+      "output_sha256": "sha256:698f35b3067fc8c9494d1803a24cbbdc399d82ad3b53d48d8bf5e20e1601e426",
+      "tree": "sha256:bb5ed432efdd4cd61f7e2c46e5fa81a41d2a1b8facefa3754f5442e1ba66abdb",
+      "recorded_at": "2026-11-15T13:24:42.568Z"
+    },
+    {
+      "id": "run-7",
+      "purpose": "checks",
+      "name": "typecheck",
+      "command": "pnpm typecheck",
+      "exit_code": 0,
+      "output_sha256": "sha256:8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+      "tree": "sha256:bb5ed432efdd4cd61f7e2c46e5fa81a41d2a1b8facefa3754f5442e1ba66abdb",
+      "recorded_at": "2026-11-15T13:24:42.568Z"
+    },
+    {
+      "id": "run-8",
+      "purpose": "fitness",
+      "ref": "adr:0002",
+      "command": "sh -c '! grep -rqsE \"from .(react|react-dom).|/(hooks|components|context)/\" src/services src/utils src/domain src/adapters'",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:bb5ed432efdd4cd61f7e2c46e5fa81a41d2a1b8facefa3754f5442e1ba66abdb",
+      "recorded_at": "2026-11-15T13:24:42.568Z"
+    },
+    {
+      "id": "run-9",
+      "purpose": "fitness",
+      "ref": "adr:0003",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:fd032df9c225f2c08e0a03e18f4524d4602fd7a6d8dee59acea35e4b47e480c5",
+      "tree": "sha256:bb5ed432efdd4cd61f7e2c46e5fa81a41d2a1b8facefa3754f5442e1ba66abdb",
+      "recorded_at": "2026-11-15T13:24:42.568Z"
+    },
+    {
+      "id": "run-10",
+      "purpose": "fitness",
+      "ref": "adr:0004",
+      "command": "pnpm vitest run src/__tests__/ledgerEngine.test.ts src/__tests__/financeService.test.ts src/__tests__/openingBalance.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:1be3e0584d4787e5c2e8095042628ad5b1c9bbc32f18e6bd0f09e78808e01815",
+      "tree": "sha256:bb5ed432efdd4cd61f7e2c46e5fa81a41d2a1b8facefa3754f5442e1ba66abdb",
+      "recorded_at": "2026-11-15T13:24:42.568Z"
+    },
+    {
+      "id": "run-11",
+      "purpose": "fitness",
+      "ref": "adr:0005",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:e301363039c547ab1482a7078e62aa5c655490f28e24d531613c17b20eb6d5cb",
+      "tree": "sha256:bb5ed432efdd4cd61f7e2c46e5fa81a41d2a1b8facefa3754f5442e1ba66abdb",
+      "recorded_at": "2026-11-15T13:24:42.568Z"
+    },
+    {
+      "id": "run-12",
+      "purpose": "fitness",
+      "ref": "adr:0008",
+      "command": "pnpm vitest run src/__tests__/backupValidator.test.ts src/__tests__/storageService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:c124f6c3d8388fd3b9635c3c35c0fbff8cf53aaa197af150100bb9df4b52dc57",
+      "tree": "sha256:bb5ed432efdd4cd61f7e2c46e5fa81a41d2a1b8facefa3754f5442e1ba66abdb",
+      "recorded_at": "2026-11-15T13:24:42.568Z"
+    },
+    {
+      "id": "run-13",
+      "purpose": "fitness",
+      "ref": "adr:0009",
+      "command": "pnpm vitest run src/__tests__/cryptoService.test.ts src/__tests__/useSecurity.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:b5256bf34bece47c5099f33bbdd16b95862ec14f1c359494a736a19aae664b77",
+      "tree": "sha256:bb5ed432efdd4cd61f7e2c46e5fa81a41d2a1b8facefa3754f5442e1ba66abdb",
+      "recorded_at": "2026-11-15T13:24:42.568Z"
+    },
+    {
+      "id": "run-14",
+      "purpose": "fitness",
+      "ref": "scenario:confidencialidad",
+      "command": "pnpm vitest run src/__tests__/cryptoService.test.ts src/__tests__/useSecurity.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:37828bb7e228e3a26a826fced5af1f0f1c5fc163a674fe0c286f04f2853ee275",
+      "tree": "sha256:bb5ed432efdd4cd61f7e2c46e5fa81a41d2a1b8facefa3754f5442e1ba66abdb",
+      "recorded_at": "2026-11-15T13:24:42.568Z"
+    },
+    {
+      "id": "run-15",
+      "purpose": "fitness",
+      "ref": "scenario:exactitud-contable",
+      "command": "pnpm vitest run src/__tests__/ledgerEngine.test.ts src/__tests__/financeService.test.ts src/__tests__/openingBalance.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:4b4ae27850937b4c2c1de59ec8d30ecfba8b4e20de1dce1782b5f0c47dfacd21",
+      "tree": "sha256:bb5ed432efdd4cd61f7e2c46e5fa81a41d2a1b8facefa3754f5442e1ba66abdb",
+      "recorded_at": "2026-11-15T13:24:42.568Z"
+    },
+    {
+      "id": "run-16",
+      "purpose": "fitness",
+      "ref": "scenario:integridad-datos",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts src/__tests__/syncService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:4b785c220e17844731026c8f811688b1edb861b2c98ee7e89eef96ce95cd586a",
+      "tree": "sha256:bb5ed432efdd4cd61f7e2c46e5fa81a41d2a1b8facefa3754f5442e1ba66abdb",
+      "recorded_at": "2026-11-15T13:24:42.568Z"
+    },
+    {
+      "id": "run-17",
+      "purpose": "fitness",
+      "ref": "scenario:modificabilidad",
+      "command": "sh -c \"! grep -rnE \\\"from .(react|react-dom).|/(hooks|components|context)/\\\" src/services src/utils\"",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:bb5ed432efdd4cd61f7e2c46e5fa81a41d2a1b8facefa3754f5442e1ba66abdb",
+      "recorded_at": "2026-11-15T13:24:42.568Z"
+    },
+    {
+      "id": "run-18",
+      "purpose": "migration-test",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/h2RecurringPeriods.test.tsx src/__tests__/storageService.test.ts src/__tests__/backupRoundtrip.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:a838980da21d5f6c1923fefcb23a2dfeea9bb68a1fe981e684bb995489d4cc0a",
+      "tree": "sha256:91b3b9a529cf02a77c845c8ede594c84098670832a5aa236ad507a6c8510d6b3",
+      "recorded_at": "2026-11-15T13:25:30.954Z"
+    },
+    {
+      "id": "run-19",
+      "purpose": "checks",
+      "name": "test",
+      "command": "pnpm vitest run",
+      "exit_code": 0,
+      "output_sha256": "sha256:2c1688ad8c1cd1655816e6e1a5874e76dd738c13e1f340d4d12698f4cabc6273",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:04.191Z"
+    },
+    {
+      "id": "run-20",
+      "purpose": "checks",
+      "name": "lint",
+      "command": "pnpm lint",
+      "exit_code": 0,
+      "output_sha256": "sha256:698f35b3067fc8c9494d1803a24cbbdc399d82ad3b53d48d8bf5e20e1601e426",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:04.191Z"
+    },
+    {
+      "id": "run-21",
+      "purpose": "checks",
+      "name": "typecheck",
+      "command": "pnpm typecheck",
+      "exit_code": 0,
+      "output_sha256": "sha256:8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:04.191Z"
+    },
+    {
+      "id": "run-22",
+      "purpose": "fitness",
+      "ref": "adr:0002",
+      "command": "sh -c '! grep -rqsE \"from .(react|react-dom).|/(hooks|components|context)/\" src/services src/utils src/domain src/adapters'",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:04.191Z"
+    },
+    {
+      "id": "run-23",
+      "purpose": "fitness",
+      "ref": "adr:0003",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:970b03c6fdaed8471648929082c3e46ad53b4ac535b3ea31b435dff905cad9de",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:04.191Z"
+    },
+    {
+      "id": "run-24",
+      "purpose": "fitness",
+      "ref": "adr:0004",
+      "command": "pnpm vitest run src/__tests__/ledgerEngine.test.ts src/__tests__/financeService.test.ts src/__tests__/openingBalance.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:7941b66d3ea9e73f39990ff7333a6c2106a812281b223112f40e12263a0afcc3",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:04.191Z"
+    },
+    {
+      "id": "run-25",
+      "purpose": "fitness",
+      "ref": "adr:0005",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:dfbf8babf7730d0eba796a216548667f9f4e3ab043be852d55638c057eb90606",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:04.191Z"
+    },
+    {
+      "id": "run-26",
+      "purpose": "fitness",
+      "ref": "adr:0008",
+      "command": "pnpm vitest run src/__tests__/backupValidator.test.ts src/__tests__/storageService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:3a7c6049f1a62a239eb0493b455c13e0d26c40b0395d8f121b489b90bfc00e82",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:04.191Z"
+    },
+    {
+      "id": "run-27",
+      "purpose": "fitness",
+      "ref": "adr:0009",
+      "command": "pnpm vitest run src/__tests__/cryptoService.test.ts src/__tests__/useSecurity.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:3c02402cd4e5689d128c060335200f8544de36a85ff709a2f6e4b921455d7ad3",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:04.191Z"
+    },
+    {
+      "id": "run-28",
+      "purpose": "fitness",
+      "ref": "scenario:confidencialidad",
+      "command": "pnpm vitest run src/__tests__/cryptoService.test.ts src/__tests__/useSecurity.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:ed2ad79227508d31b5a413be9d11cfa49f50524dfc40c6265f5d5b9b654ebc48",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:04.191Z"
+    },
+    {
+      "id": "run-29",
+      "purpose": "fitness",
+      "ref": "scenario:exactitud-contable",
+      "command": "pnpm vitest run src/__tests__/ledgerEngine.test.ts src/__tests__/financeService.test.ts src/__tests__/openingBalance.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:c568acde10e2c63905be95a67df12f02eeb2d00997911484976e9a099dedafef",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:04.191Z"
+    },
+    {
+      "id": "run-30",
+      "purpose": "fitness",
+      "ref": "scenario:integridad-datos",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts src/__tests__/syncService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:09a9c0d3ea142e30394ce92b028584cea7a91096f7241d09360ad19fcbccece5",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:04.191Z"
+    },
+    {
+      "id": "run-31",
+      "purpose": "fitness",
+      "ref": "scenario:modificabilidad",
+      "command": "sh -c \"! grep -rnE \\\"from .(react|react-dom).|/(hooks|components|context)/\\\" src/services src/utils\"",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:04.191Z"
+    },
+    {
+      "id": "run-32",
+      "purpose": "migration-test",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/h2RecurringPeriods.test.tsx src/__tests__/storageService.test.ts src/__tests__/backupRoundtrip.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:9c5927fff9734fb34fca35e97868ea1342984d7f6728d29808f5ba2f2ad44afe",
+      "tree": "sha256:d0ac5d442c4ff2121592764ac23714a034fec510a44dfe2d226625ae3bc8ffd9",
+      "recorded_at": "2026-11-15T13:27:12.841Z"
+    },
+    {
+      "id": "run-33",
+      "purpose": "checks",
+      "name": "test",
+      "command": "pnpm vitest run",
+      "exit_code": 0,
+      "output_sha256": "sha256:2858082aa803536b5640f65eb1f1318e6cb01a5c43e1d151dafdb75eb9b8bac6",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:30.002Z"
+    },
+    {
+      "id": "run-34",
+      "purpose": "checks",
+      "name": "lint",
+      "command": "pnpm lint",
+      "exit_code": 0,
+      "output_sha256": "sha256:698f35b3067fc8c9494d1803a24cbbdc399d82ad3b53d48d8bf5e20e1601e426",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:30.002Z"
+    },
+    {
+      "id": "run-35",
+      "purpose": "checks",
+      "name": "typecheck",
+      "command": "pnpm typecheck",
+      "exit_code": 0,
+      "output_sha256": "sha256:8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:30.002Z"
+    },
+    {
+      "id": "run-36",
+      "purpose": "fitness",
+      "ref": "adr:0002",
+      "command": "sh -c '! grep -rqsE \"from .(react|react-dom).|/(hooks|components|context)/\" src/services src/utils src/domain src/adapters'",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:30.002Z"
+    },
+    {
+      "id": "run-37",
+      "purpose": "fitness",
+      "ref": "adr:0003",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:54ac0fd208182dc39d042a42b0a9157c83e3a7058ad8f3f05ebd170f9a5fe5bb",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:30.002Z"
+    },
+    {
+      "id": "run-38",
+      "purpose": "fitness",
+      "ref": "adr:0004",
+      "command": "pnpm vitest run src/__tests__/ledgerEngine.test.ts src/__tests__/financeService.test.ts src/__tests__/openingBalance.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:c5aa0480e72e7d12eb0917f5b3452ae680c3453f4ac0b57840aeabf6a2447b5f",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:30.002Z"
+    },
+    {
+      "id": "run-39",
+      "purpose": "fitness",
+      "ref": "adr:0005",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:5bcc264aac111eff5b37aff92cd0bf6284a59d4ffee46fb0c790d41d503fb52f",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:30.002Z"
+    },
+    {
+      "id": "run-40",
+      "purpose": "fitness",
+      "ref": "adr:0008",
+      "command": "pnpm vitest run src/__tests__/backupValidator.test.ts src/__tests__/storageService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:26b9f8bfd5105e658736ca338a282cfcd977f4f841ff754a5393764573be27f9",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:30.002Z"
+    },
+    {
+      "id": "run-41",
+      "purpose": "fitness",
+      "ref": "adr:0009",
+      "command": "pnpm vitest run src/__tests__/cryptoService.test.ts src/__tests__/useSecurity.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:7b98a539e20ce8cfd88eaf2870ea8261379ae7b3ffa0a6f18c7d96b2d501de07",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:30.002Z"
+    },
+    {
+      "id": "run-42",
+      "purpose": "fitness",
+      "ref": "scenario:confidencialidad",
+      "command": "pnpm vitest run src/__tests__/cryptoService.test.ts src/__tests__/useSecurity.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:01df2cb63f09c4a62f22dbb79fc34ac9e3c1a139c66d8b6f080a3b9d759beb67",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:30.002Z"
+    },
+    {
+      "id": "run-43",
+      "purpose": "fitness",
+      "ref": "scenario:exactitud-contable",
+      "command": "pnpm vitest run src/__tests__/ledgerEngine.test.ts src/__tests__/financeService.test.ts src/__tests__/openingBalance.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:e664d17f54f31ad084026776ce8faaefe5ff6a0f738cc7571a1ce6a2919c2b65",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:30.002Z"
+    },
+    {
+      "id": "run-44",
+      "purpose": "fitness",
+      "ref": "scenario:integridad-datos",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts src/__tests__/syncService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:7ff3f52a3604c8ce1fff81aeae5e796fcec4601509d658fb08574b09db82868c",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:30.002Z"
+    },
+    {
+      "id": "run-45",
+      "purpose": "fitness",
+      "ref": "scenario:modificabilidad",
+      "command": "sh -c \"! grep -rnE \\\"from .(react|react-dom).|/(hooks|components|context)/\\\" src/services src/utils\"",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:79c573c1888165462dfb9a16c46b5b3916b0b8650e421023f1346eb0bc42f620",
+      "recorded_at": "2026-11-15T13:27:30.002Z"
+    }
+  ],
+  "assumptions": [
+    "Las series que ya cortó un «solo este» anterior a este cambio no se recuperan: el movimiento editado perdió su vínculo con la serie y no hay forma fiable de reconstruirlo",
+    "La marca de que una serie sigue tras «solo este» viaja en la copia y la sincronización como campo opcional, sin cambiar la versión 2 del formato, igual que sortIndex en 0.2.4",
+    "Los meses que se crean por un movimiento fuera de rango se quedan aunque después se borre ese movimiento, como cualquier otro mes"
+  ],
+  "closed_at": "2026-11-15T13:27:30.100Z"
+}

@@ -17,7 +17,7 @@ import type {
 	CurrencyCode
 } from '../types';
 import { toNumber } from '../utils/formatters';
-import { normalizeMonth, addMonthsToMonth } from '../utils/dateUtils';
+import { normalizeMonth, addMonthsToMonth, cloneRecurringForMonth } from '../utils/dateUtils';
 import { STATIC_EXCHANGE_RATES } from './ledgerEngine';
 
 /**
@@ -582,30 +582,13 @@ export const calculateTimelineBalances = (
 	const timelineBalances: Record<string, MonthBalanceData> = {};
 	const sortedPeriods = [...periods].sort((a, b) => a.month.localeCompare(b.month));
 
-	// Saldos de cuentas que se arrastran y propagan acumulativamente periodo a periodo
-	const runningAccountBalances: Record<string, Big> = {};
-	accounts.forEach((acc) => {
-		runningAccountBalances[acc.id] = new Big(acc.initialBalance.toString());
-	});
-
-	// Saldos contables sin cuenta asignada (efectivo libre o transacciones sin id de cuenta)
-	const runningUnassignedBalances: Record<'userA' | 'userB' | 'joint', Big> = {
-		userA: new Big(0),
-		userB: new Big(0),
-		joint: new Big(0)
-	};
-
-	sortedPeriods.forEach((period) => {
-		const m = period.month;
-
-		// Capturar saldos de apertura al iniciar este mes
-		const openingAccBalances = { ...runningAccountBalances };
-		const openingUnassigned = { ...runningUnassignedBalances };
-
-		// Filtrar movimientos del mes activo
-		const mTx = transactions.filter((t) => t.date.substring(0, 7) === m);
-
-		// Aplicar movimientos del mes sobre saldos correspondientes
+	// Aplica los movimientos y las cuotas de deuda de un mes sobre unos saldos dados
+	const applyMonth = (
+		m: string,
+		mTx: Transaction[],
+		runningAccountBalances: Record<string, Big>,
+		runningUnassignedBalances: Record<'userA' | 'userB' | 'joint', Big>
+	): void => {
 		mTx.forEach((t) => {
 			const amount = new Big(t.money?.amount ?? '0');
 			let amtInEur = amount;
@@ -671,6 +654,50 @@ export const calculateTimelineBalances = (
 				}
 			}
 		});
+	};
+
+	const transactionsInMonth = (m: string): Transaction[] => transactions.filter((t) => t.date.substring(0, 7) === m);
+	const zeroUnassigned = (): Record<'userA' | 'userB' | 'joint', Big> => ({
+		userA: new Big(0),
+		userB: new Big(0),
+		joint: new Big(0)
+	});
+
+	// El saldo inicial de las cuentas es el de apertura del mes con apertura manual (o del primero, si
+	// ninguno lo es). Los meses anteriores a ese ancla se calculan hacia atrás: su efecto neto se resta
+	// del saldo inicial, de modo que el saldo del mes configurado no cambia.
+	const anchorMonth = (sortedPeriods.find((p) => p.isManualInit) ?? sortedPeriods[0])?.month;
+	const preAnchorAccounts: Record<string, Big> = {};
+	accounts.forEach((acc) => {
+		preAnchorAccounts[acc.id] = new Big(0);
+	});
+	const preAnchorUnassigned = zeroUnassigned();
+	sortedPeriods
+		.filter((p) => anchorMonth !== undefined && p.month < anchorMonth)
+		.forEach((p) => applyMonth(p.month, transactionsInMonth(p.month), preAnchorAccounts, preAnchorUnassigned));
+
+	// Saldos de cuentas que se arrastran y propagan acumulativamente periodo a periodo
+	const runningAccountBalances: Record<string, Big> = {};
+	accounts.forEach((acc) => {
+		runningAccountBalances[acc.id] = new Big(acc.initialBalance.toString()).minus(preAnchorAccounts[acc.id]);
+	});
+
+	// Saldos contables sin cuenta asignada (efectivo libre o transacciones sin id de cuenta)
+	const runningUnassignedBalances = zeroUnassigned();
+	(['userA', 'userB', 'joint'] as const).forEach((owner) => {
+		runningUnassignedBalances[owner] = runningUnassignedBalances[owner].minus(preAnchorUnassigned[owner]);
+	});
+
+	sortedPeriods.forEach((period) => {
+		const m = period.month;
+
+		// Capturar saldos de apertura al iniciar este mes
+		const openingAccBalances = { ...runningAccountBalances };
+		const openingUnassigned = { ...runningUnassignedBalances };
+
+		// Aplicar movimientos y cuotas del mes activo sobre los saldos que se arrastran
+		const mTx = transactionsInMonth(m);
+		applyMonth(m, mTx, runningAccountBalances, runningUnassignedBalances);
 
 		// Función interna auxiliar para ponderar la vista activa
 		const getModeBalance = (
@@ -928,7 +955,14 @@ export const calculateProjections = (
 	let runningBalance = new Big(latestBalData.closingBalance.toString());
 	let runningMonth = latestMonth;
 
-	const recurringTxs = transactions.filter((t) => t.recurrence === 'recurring');
+	// Cada serie aporta una vez al mes lo que se copiaría al crear el mes siguiente al último: su
+	// instancia de ese mes o, si se quitó con «solo este», la guardada; nunca todo su historial
+	const recurringTxs = cloneRecurringForMonth(
+		transactions,
+		latestMonth,
+		addMonthsToMonth(latestMonth, 1),
+		sortedPeriods[sortedPeriods.length - 1].skippedRecurring
+	);
 
 	const recurringInflow = recurringTxs
 		.filter((t) => t.type === 'income')

@@ -61,6 +61,12 @@ export type Period = {
 	openingBalanceA?: number;
 	openingBalanceB?: number;
 	isManualInit?: boolean;
+	/**
+	 * Instancias de series recurrentes que se quitaron de este mes con «solo este» (borradas o
+	 * convertidas en puntuales), tal como estaban. Al crear el mes siguiente, la serie sigue a partir
+	 * de ellas si el mes no tiene otra instancia suya.
+	 */
+	skippedRecurring?: Transaction[];
 };
 
 export type CurrencyCode = 'EUR' | 'USD' | 'GBP';

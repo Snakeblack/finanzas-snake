@@ -1069,7 +1069,10 @@ export const readStoredPeriods = async (existingTx: Transaction[], existingDebts
 						raw['openingBalanceA'] !== undefined ? toNumber(raw['openingBalanceA']) : openingBalance / 2,
 					openingBalanceB:
 						raw['openingBalanceB'] !== undefined ? toNumber(raw['openingBalanceB']) : openingBalance / 2,
-					isManualInit: !!raw['isManualInit']
+					isManualInit: !!raw['isManualInit'],
+					skippedRecurring: Array.isArray(raw['skippedRecurring'])
+						? raw['skippedRecurring'].map((t, index) => migrateTransaction(t as UnsafeRecord, index))
+						: undefined
 				};
 				return PeriodSchema.parse(periodData);
 			});
@@ -1466,6 +1469,9 @@ const normalizePeriodsForBackup = (periods: Period[]): Period[] =>
 		};
 		if (period.isManualInit !== undefined) {
 			normalizedPeriod.isManualInit = !!period.isManualInit;
+		}
+		if (period.skippedRecurring && period.skippedRecurring.length > 0) {
+			normalizedPeriod.skippedRecurring = period.skippedRecurring;
 		}
 		return normalizedPeriod;
 	});
