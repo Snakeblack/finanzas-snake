@@ -54,9 +54,19 @@ rechaza.
 | `fromAccountId` | Opcional, máx. 50                                                  |
 | `toAccountId`   | Opcional, máx. 50                                                  |
 | `originId`      | Opcional, máx. 2000. Identificador de la serie recurrente del clon |
+| `sortIndex`     | Opcional. Entero mayor o igual que 0. Orden manual dentro del día  |
 
 En lugar de `money` se acepta el campo antiguo `amount` (número), que se
 importa en euros.
+
+### Orden manual dentro de un día
+
+`sortIndex` es la posición que la persona eligió al arrastrar un movimiento
+entre los de su misma fecha (0 es el primero). Solo lo llevan los movimientos
+de un día que se ha ordenado a mano; los que no lo llevan se muestran antes que
+los ordenados. Las copias anteriores no tienen el campo y se importan igual;
+un valor que no sea un entero mayor o igual que 0 rechaza la copia. El clon de
+un recurrente en otro mes no hereda el orden.
 
 ### Identificadores de los clones de recurrentes
 

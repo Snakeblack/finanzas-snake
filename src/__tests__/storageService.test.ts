@@ -403,9 +403,9 @@ describe('Migración unificada IndexedDB', () => {
 				accountId: 'acc-fail'
 			}
 		];
-		const originalSaveEntitiesBulk = IndexedDBProvider.prototype.saveEntitiesBulk;
+		const originalReplaceAllEntities = IndexedDBProvider.prototype.replaceAllEntities;
 		const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-		const saveSpy = vi.spyOn(IndexedDBProvider.prototype, 'saveEntitiesBulk').mockImplementation(function (
+		const saveSpy = vi.spyOn(IndexedDBProvider.prototype, 'replaceAllEntities').mockImplementation(function (
 			this: IndexedDBProvider,
 			storeName: string,
 			entities: unknown[]
@@ -413,7 +413,7 @@ describe('Migración unificada IndexedDB', () => {
 			if (storeName === 'transactions') {
 				return Promise.reject(new Error('idb transactions write failed'));
 			}
-			return originalSaveEntitiesBulk.call(this, storeName, entities);
+			return originalReplaceAllEntities.call(this, storeName, entities);
 		});
 
 		localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(legacyAccounts));
@@ -596,9 +596,9 @@ describe('Payload canónico de backup/sync', () => {
 		});
 		const existingLegacyTransactions = '[{"id":"legacy-still-present"}]';
 		const existingLegacyAccounts = JSON.stringify(canonicalAccounts);
-		const originalSaveEntitiesBulk = IndexedDBProvider.prototype.saveEntitiesBulk;
+		const originalReplaceAllEntities = IndexedDBProvider.prototype.replaceAllEntities;
 		vi.spyOn(console, 'error').mockImplementation(() => undefined);
-		vi.spyOn(IndexedDBProvider.prototype, 'saveEntitiesBulk').mockImplementation(function (
+		vi.spyOn(IndexedDBProvider.prototype, 'replaceAllEntities').mockImplementation(function (
 			this: IndexedDBProvider,
 			storeName: string,
 			entities: unknown[]
@@ -606,7 +606,7 @@ describe('Payload canónico de backup/sync', () => {
 			if (storeName === 'transactions') {
 				return Promise.reject(new Error('idb import transactions write failed'));
 			}
-			return originalSaveEntitiesBulk.call(this, storeName, entities);
+			return originalReplaceAllEntities.call(this, storeName, entities);
 		});
 
 		localStorage.setItem(STORAGE_KEYS.transactions, existingLegacyTransactions);
@@ -1005,7 +1005,7 @@ describe('Caché y Diffing de Transacciones / Deudas', () => {
 	});
 
 	it('debe propagar errores en saveStoredTransactions y readStoredAccounts cuando falla la persistencia', async () => {
-		const spyBulk = vi.spyOn(IndexedDBProvider.prototype, 'saveEntitiesBulk').mockRejectedValue(new Error('DB Bulk Write Error'));
+		const spyBulk = vi.spyOn(IndexedDBProvider.prototype, 'replaceAllEntities').mockRejectedValue(new Error('DB Bulk Write Error'));
 		const spyGetAll = vi.spyOn(IndexedDBProvider.prototype, 'getAllEntities').mockRejectedValue(new Error('DB Read Error'));
 
 		const validTx = {

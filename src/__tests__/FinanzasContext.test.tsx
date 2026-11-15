@@ -1012,6 +1012,68 @@ describe('Inicialización y Reset', () => {
 		expect(ctxRef.accounts[0].name).toBe('Nuevo A');
 	});
 
+	it('reconfigurar sin cambiar el mes de inicio conserva los periodos existentes', async () => {
+		await renderCtxAndInit();
+		await act(async () => {
+			ctxRef.setInitFlow('past');
+			ctxRef.setInitMonth('2025-01');
+		});
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('init-form'));
+		});
+		await act(async () => {
+			ctxRef.handleCreateNextMonth();
+		});
+		expect(ctxRef.periods.map((p) => p.month)).toEqual(['2025-01', '2025-02']);
+
+		await act(async () => {
+			ctxRef.setIsReconfiguring(true);
+			ctxRef.setReconfigAccounts([
+				{ id: 'default-a', name: 'Principal', owner: 'userA' as const, initialBalance: 700 }
+			]);
+		});
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('init-form'));
+		});
+
+		expect(ctxRef.periods.map((p) => p.month).sort()).toEqual(['2025-01', '2025-02']);
+		expect(ctxRef.periods.find((p) => p.month === '2025-01')?.openingBalance).toBe(700);
+		expect(ctxRef.isReconfiguring).toBe(false);
+	});
+
+	it('reconfigurar con un mes de inicio posterior avisa y no cambia nada', async () => {
+		await renderCtxAndInit();
+		await act(async () => {
+			ctxRef.setInitFlow('past');
+			ctxRef.setInitMonth('2025-01');
+		});
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('init-form'));
+		});
+		await act(async () => {
+			ctxRef.handleCreateNextMonth();
+		});
+		const accountsBefore = ctxRef.accounts;
+		const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+		alertSpy.mockClear();
+
+		await act(async () => {
+			ctxRef.setIsReconfiguring(true);
+			ctxRef.setReconfigAccounts([
+				{ id: 'default-a', name: 'Principal', owner: 'userA' as const, initialBalance: 700 }
+			]);
+			ctxRef.setInitMonth('2025-02');
+		});
+		await act(async () => {
+			fireEvent.submit(screen.getByTestId('init-form'));
+		});
+
+		expect(alertSpy).toHaveBeenCalledTimes(1);
+		expect(ctxRef.periods.map((p) => p.month).sort()).toEqual(['2025-01', '2025-02']);
+		expect(ctxRef.accounts).toBe(accountsBefore);
+		expect(ctxRef.isReconfiguring).toBe(true);
+	});
+
 	it('handleResetAccount debe reiniciar toda la cuenta', async () => {
 		const mockAccounts = [
 			{ id: 'custom-1', name: 'Cuenta Personalizada', owner: 'userA' as const, initialBalance: 123 }

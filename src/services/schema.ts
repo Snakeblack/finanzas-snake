@@ -18,7 +18,8 @@ export const TransactionSchema = z.object({
 	accountId: z.string().optional(),
 	fromAccountId: z.string().optional(),
 	toAccountId: z.string().optional(),
-	originId: z.string().optional()
+	originId: z.string().optional(),
+	sortIndex: z.number().int().nonnegative().optional()
 });
 
 export const ClassicDebtSchema = z.object({

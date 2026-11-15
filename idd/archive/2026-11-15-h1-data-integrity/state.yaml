@@ -1,0 +1,578 @@
+{
+  "schema": "idd-state/v1",
+  "change": "h1-data-integrity",
+  "mode": "idd",
+  "status": "closed",
+  "intent": {
+    "kind": "bug",
+    "summary": "H1 integridad de datos: «Configurar cuenta» conserva los periodos, cuentas y periodos se guardan en una sola operación atómica y el orden manual de movimientos se guarda",
+    "acceptance": "(1) Con varios meses y recurrentes, guardar «Configurar cuenta» sin cambiar el mes de inicio deja los mismos periodos y movimientos y tras recargar no hay recurrentes duplicados; (2) guardar cuentas o periodos nunca vacía el almacén en un paso aparte: un fallo a mitad deja los datos anteriores; (3) tras reordenar a mano movimientos del mismo día y recargar, se ven en el orden elegido"
+  },
+  "facts": {
+    "open": [
+      "Si el nuevo mes de inicio es posterior al primer mes existente (incluido elegir «Mes en curso» con meses anteriores), ¿qué pasa con los meses anteriores y sus movimientos: (a) se rechaza el cambio con un aviso mientras haya meses anteriores, (b) se borran esos meses y sus movimientos tras confirmar, o (c) se quitan los meses y los movimientos quedan guardados sin contar?",
+      "Si el nuevo mes de inicio es anterior al primero existente, ¿los meses que se añaden por delante quedan vacíos (sin clonar recurrentes hacia atrás)?",
+      "Al mover el mes de inicio, ¿el saldo de apertura manual pasa al nuevo primer mes y el anterior primer mes deja de ser de apertura manual?",
+      "¿El orden manual de movimientos debe viajar en la copia exportada y en la sincronización entre dispositivos, o es solo de este dispositivo?"
+    ]
+  },
+  "plan": {
+    "paths": [
+      "docs/api/backup-format.md",
+      "docs/roadmap.md",
+      "setupTests.ts",
+      "src/__tests__/FinanzasContext.test.tsx",
+      "src/__tests__/h1DataIntegrity.test.ts",
+      "src/__tests__/storageService.test.ts",
+      "src/components/transactions/TransactionsTab.tsx",
+      "src/context/FinanzasContext.tsx",
+      "src/hooks/useFinancialSelectors.ts",
+      "src/services/db/idbProvider.ts",
+      "src/services/schema.ts",
+      "src/services/storageService.ts",
+      "src/types/index.ts",
+      "src/utils/backupValidator.ts",
+      "src/utils/dateUtils.ts",
+      "src/utils/transactionOrder.ts"
+    ],
+    "work_units": 3,
+    "decision": true,
+    "operations": [],
+    "decisions": [
+      "«Configurar cuenta» rechaza con un aviso un mes de inicio posterior al primero existente; uno anterior añade meses vacíos y traslada la apertura manual (reconfigurePeriods, función pura en dateUtils)",
+      "Cuentas y periodos se sustituyen en una sola transacción de IndexedDB (replaceAllEntities) que aborta si una escritura lanza; la escritura por entidad queda para H6",
+      "El orden manual es un campo opcional sortIndex por movimiento, asignado a todos los del día al arrastrar; viaja en copia y sincronización sin cambiar la versión del formato porque solo añade",
+      "El doble de IndexedDB de las pruebas restaura el almacén al abortar y rechaza valores no clonables, para poder probar la atomicidad"
+    ]
+  },
+  "signals": [
+    {
+      "id": "always",
+      "reason": "every change with a resolved intent",
+      "source": "declaration"
+    },
+    {
+      "id": "bug-fix",
+      "reason": "the intent is a bug fix",
+      "source": "declaration"
+    },
+    {
+      "id": "multi-unit-or-decision",
+      "reason": "declared 3 work units",
+      "source": "declaration"
+    },
+    {
+      "id": "public-contract",
+      "reason": "public contract: touches src/services/schema.ts and 1 more (matches src/services/schema.ts)",
+      "source": "declaration"
+    },
+    {
+      "id": "persistent-data",
+      "reason": "persistent data: touches src/services/db/idbProvider.ts and 3 more (matches src/services/db/**)",
+      "source": "declaration"
+    },
+    {
+      "id": "adr-or-quality-attribute",
+      "reason": "components app-state, domain, storage, ui: ADR 0002, 0003, 0004, 0005, 0008, 0009 and quality scenario confidencialidad, exactitud-contable, integridad-datos, modificabilidad, rendimiento-historial, usabilidad",
+      "source": "declaration"
+    }
+  ],
+  "impacts": [
+    {
+      "kind": "adr",
+      "id": "0002",
+      "impact": "conforms",
+      "reason": "La lógica nueva (reconfigurePeriods, sortForDisplay, moveWithinDay) son funciones puras en src/utils sin importar la interfaz; el componente y el contexto solo las llaman"
+    },
+    {
+      "kind": "adr",
+      "id": "0003",
+      "impact": "conforms",
+      "reason": "Cuentas y periodos dejan de vaciarse y reescribirse en dos transacciones: la sustitución es una sola transacción que aborta entera si falla. Se acerca a la decisión sin completarla: sigue escribiendo la colección entera, la escritura por entidad afectada está planificada en H6"
+    },
+    {
+      "kind": "adr",
+      "id": "0004",
+      "impact": "conforms",
+      "reason": "No toca importes ni cálculo; reordenar sustituye cada movimiento afectado por un objeto nuevo en lugar de mutarlo"
+    },
+    {
+      "kind": "adr",
+      "id": "0005",
+      "impact": "conforms",
+      "reason": "El formato solo añade un campo opcional (sortIndex); los datos y copias anteriores se leen sin él y hay prueba de ello"
+    },
+    {
+      "kind": "adr",
+      "id": "0008",
+      "impact": "conforms",
+      "reason": "sortIndex se valida por esquema (entero mayor o igual que 0) tanto al leer del disco como al importar; un valor inválido rechaza la copia y no se transforma"
+    },
+    {
+      "kind": "adr",
+      "id": "0009",
+      "impact": "none",
+      "reason": "El camino cifrado no cambia: las entidades se cifran igual y solo cambia que el vaciado y la escritura van en una transacción"
+    },
+    {
+      "kind": "scenario",
+      "id": "confidencialidad",
+      "impact": "none",
+      "reason": "No cambia qué se cifra ni qué sale del dispositivo"
+    },
+    {
+      "kind": "scenario",
+      "id": "exactitud-contable",
+      "impact": "none",
+      "reason": "No cambia ningún cálculo de saldos; solo el orden de presentación dentro de un día"
+    },
+    {
+      "kind": "scenario",
+      "id": "integridad-datos",
+      "impact": "conforms",
+      "reason": "Reconfigurar ya no descarta periodos ni duplica recurrentes, guardar cuentas o periodos no deja el almacén vacío si falla, y el orden manual se conserva"
+    },
+    {
+      "kind": "scenario",
+      "id": "modificabilidad",
+      "impact": "conforms",
+      "reason": "Reglas extraídas a funciones puras con pruebas; sin dependencias nuevas de utilidades hacia la interfaz"
+    },
+    {
+      "kind": "scenario",
+      "id": "rendimiento-historial",
+      "impact": "conforms",
+      "reason": "Reordenar solo reescribe los movimientos del día (guardado por diferencias) y la ordenación para mostrar deja de usar indexOf por comparación"
+    },
+    {
+      "kind": "scenario",
+      "id": "usabilidad",
+      "impact": "none",
+      "reason": "Sin cambios de marcado ni estilos; el único texto nuevo es el aviso al rechazar un mes de inicio posterior"
+    }
+  ],
+  "attestations": [
+    {
+      "kind": "scenario",
+      "id": "rendimiento-historial",
+      "evidence": "Leído saveStoredTransactionsStrict: compara con la caché por isTransactionEqual (ahora incluye sortIndex) y envía a executeBatch solo los movimientos cambiados; moveWithinDay devuelve el mismo objeto para los movimientos de otros días. No se hizo la prueba manual con una copia de varios años",
+      "recorded_at": "2026-11-15T08:36:02.756Z"
+    },
+    {
+      "kind": "scenario",
+      "id": "usabilidad",
+      "evidence": "Revisado el diff: TransactionsTab solo cambia el manejador de soltar y no hay cambios de marcado ni de clases. No se hizo la revisión manual en móvil y escritorio",
+      "recorded_at": "2026-11-15T08:36:02.900Z"
+    }
+  ],
+  "obligations": [
+    {
+      "id": "checks-pass",
+      "signal": "always",
+      "status": "satisfied",
+      "evidence": [
+        "ev-3"
+      ]
+    },
+    {
+      "id": "repro-test",
+      "signal": "bug-fix",
+      "status": "satisfied",
+      "evidence": [
+        "ev-1"
+      ]
+    },
+    {
+      "id": "living-doc",
+      "signal": "multi-unit-or-decision",
+      "status": "satisfied",
+      "evidence": [
+        "ev-6"
+      ]
+    },
+    {
+      "id": "contract-spec-and-test",
+      "signal": "public-contract",
+      "status": "satisfied",
+      "evidence": [
+        "ev-4"
+      ]
+    },
+    {
+      "id": "migration-compat-and-test",
+      "signal": "persistent-data",
+      "status": "satisfied",
+      "evidence": [
+        "ev-2"
+      ]
+    },
+    {
+      "id": "adr-impact-declaration",
+      "signal": "adr-or-quality-attribute",
+      "status": "satisfied",
+      "evidence": [
+        "ev-5"
+      ]
+    }
+  ],
+  "gates": [
+    {
+      "id": "open-facts",
+      "status": "resolved",
+      "opened_turn": 19,
+      "answer": "todas las recomendadas (1: rechazar el cambio con un aviso mientras existan meses anteriores; 2: los meses añadidos por delante quedan vacíos; 3: el saldo de apertura manual pasa al nuevo primer mes; 4: el orden manual viaja en la copia y la sincronización como campo opcional)",
+      "source": "user",
+      "resolved_turn": 20
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-1",
+      "kind": "repro-run-pair",
+      "obligation": "repro-test",
+      "recorded_at": "2026-11-15T08:35:06.996Z",
+      "detail": {
+        "red": "run-6",
+        "green": "run-7",
+        "counterproof": [
+          "run-8",
+          "run-9"
+        ]
+      }
+    },
+    {
+      "id": "ev-2",
+      "kind": "migration-test",
+      "obligation": "migration-compat-and-test",
+      "recorded_at": "2026-11-15T08:35:30.688Z",
+      "detail": {
+        "run": "run-10",
+        "tree": "sha256:e425edbe7302f1bd95ffd78b89f57f74e5a44403a891d51840263c1813eafbd0",
+        "plan": "No hay migración de datos guardados: sortIndex es un campo opcional nuevo del movimiento. Los datos y las copias anteriores no lo tienen y se leen e importan igual (prueba «una copia anterior, sin orden, se sigue importando»). Vuelta atrás: la versión anterior ignora el campo al leer (su esquema descarta claves desconocidas) y solo se pierde el orden manual. La sustitución de cuentas y periodos escribe los mismos registros con las mismas claves; solo cambia que va en una transacción."
+      }
+    },
+    {
+      "id": "ev-3",
+      "kind": "check-run",
+      "obligation": "checks-pass",
+      "recorded_at": "2026-11-15T08:36:21.360Z",
+      "detail": {
+        "tree": "sha256:e38c6de2e2744e5bc6b3415d15514b672c9eaabd1ce132f8d83767de38b7d347",
+        "runs": [
+          "run-11",
+          "run-12",
+          "run-13"
+        ]
+      }
+    },
+    {
+      "id": "ev-4",
+      "kind": "contract-spec-and-test",
+      "obligation": "contract-spec-and-test",
+      "recorded_at": "2026-11-15T08:36:21.360Z",
+      "detail": {
+        "tree": "sha256:e38c6de2e2744e5bc6b3415d15514b672c9eaabd1ce132f8d83767de38b7d347",
+        "check": "ev-3",
+        "documents": [
+          "docs/api/backup-format.md"
+        ],
+        "tests": [
+          "src/__tests__/FinanzasContext.test.tsx",
+          "src/__tests__/h1DataIntegrity.test.ts",
+          "src/__tests__/storageService.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "ev-5",
+      "kind": "adr-impact-declaration",
+      "obligation": "adr-impact-declaration",
+      "recorded_at": "2026-11-15T08:36:21.360Z",
+      "detail": {
+        "refs": [
+          "adr:0002 conforms",
+          "adr:0003 conforms",
+          "adr:0004 conforms",
+          "adr:0005 conforms",
+          "adr:0008 conforms",
+          "adr:0009 none",
+          "scenario:confidencialidad none",
+          "scenario:exactitud-contable none",
+          "scenario:integridad-datos conforms",
+          "scenario:modificabilidad conforms",
+          "scenario:rendimiento-historial conforms",
+          "scenario:usabilidad none"
+        ],
+        "records": [],
+        "tree": "sha256:e38c6de2e2744e5bc6b3415d15514b672c9eaabd1ce132f8d83767de38b7d347",
+        "fitness": [
+          "run-14",
+          "run-15",
+          "run-16",
+          "run-17",
+          "run-18",
+          "run-19",
+          "run-20",
+          "run-21",
+          "run-22",
+          "run-23"
+        ]
+      }
+    },
+    {
+      "id": "ev-6",
+      "kind": "living-doc-current",
+      "obligation": "living-doc",
+      "recorded_at": "2026-11-15T08:36:29.321Z"
+    }
+  ],
+  "base": "82df89fcd5ad41f8371b4bc2ed7c50f87e9c2d56",
+  "runs": [
+    {
+      "id": "run-1",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run src/__tests__/h1DataIntegrity.test.ts src/__tests__/FinanzasContext.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:8536e7d0edf4eba30783a09b44d17c0dd6e7e5bf206b388d1b79a528dac4b38e",
+      "tree": "sha256:70b482c682bceba2c93723d4e48ee8772db651812d01313375f8b6aac4e58a49",
+      "recorded_at": "2026-11-15T08:32:50.380Z"
+    },
+    {
+      "id": "run-2",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run src/__tests__/h1DataIntegrity.test.ts src/__tests__/FinanzasContext.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:5df5bd8aaf5b65fdcd186419b8becfccc50e6a51982b9c8a3b0c39829c1b2583",
+      "tree": "sha256:e425edbe7302f1bd95ffd78b89f57f74e5a44403a891d51840263c1813eafbd0",
+      "recorded_at": "2026-11-15T08:34:31.409Z",
+      "counterproof": [
+        "run-3",
+        "run-4"
+      ]
+    },
+    {
+      "id": "run-3",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "82df89fcd5ad41f8371b4bc2ed7c50f87e9c2d56",
+      "mount": "sha256:f797151a849fb158588fc87d35f5e1514404bc831497dfd627853f09c4fdee32",
+      "command": "pnpm vitest run src/__tests__/h1DataIntegrity.test.ts src/__tests__/FinanzasContext.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:70980928d382e596e151255af0164cf0bc5db4e4fb10b66cf0fb4989e235240c",
+      "tree": "sha256:e425edbe7302f1bd95ffd78b89f57f74e5a44403a891d51840263c1813eafbd0",
+      "recorded_at": "2026-11-15T08:34:31.409Z"
+    },
+    {
+      "id": "run-4",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "82df89fcd5ad41f8371b4bc2ed7c50f87e9c2d56",
+      "mount": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "control": true,
+      "command": "pnpm vitest run src/__tests__/h1DataIntegrity.test.ts src/__tests__/FinanzasContext.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:70980928d382e596e151255af0164cf0bc5db4e4fb10b66cf0fb4989e235240c",
+      "tree": "sha256:e425edbe7302f1bd95ffd78b89f57f74e5a44403a891d51840263c1813eafbd0",
+      "recorded_at": "2026-11-15T08:34:31.409Z"
+    },
+    {
+      "id": "run-5",
+      "purpose": "repro-test",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/h1DataIntegrity.test.ts src/__tests__/FinanzasContext.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:30a01437a509f1e3b8c2cc861a2c3faaccabc55efd0a693d648886c9f9edc776",
+      "tree": "sha256:e425edbe7302f1bd95ffd78b89f57f74e5a44403a891d51840263c1813eafbd0",
+      "recorded_at": "2026-11-15T08:34:52.392Z"
+    },
+    {
+      "id": "run-6",
+      "purpose": "repro-test",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/h1DataIntegrity.test.ts src/__tests__/FinanzasContext.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:d3cb6dc2cd80ed01cc7625ab306eadbf989e32f1d3a36a5d8ddd8eeb9a356f91",
+      "tree": "sha256:fb8417c236895b071b4a627efb66f7340aef797433eabd4ccf2f8955a15d85a5",
+      "recorded_at": "2026-11-15T08:35:04.830Z"
+    },
+    {
+      "id": "run-7",
+      "purpose": "repro-test",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/h1DataIntegrity.test.ts src/__tests__/FinanzasContext.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:a01fa2c08383d48e280772bd06a3b1a21049406110e1c7f9c76292c66340d869",
+      "tree": "sha256:e425edbe7302f1bd95ffd78b89f57f74e5a44403a891d51840263c1813eafbd0",
+      "recorded_at": "2026-11-15T08:35:06.996Z",
+      "counterproof": [
+        "run-8",
+        "run-9"
+      ]
+    },
+    {
+      "id": "run-8",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "82df89fcd5ad41f8371b4bc2ed7c50f87e9c2d56",
+      "mount": "sha256:f797151a849fb158588fc87d35f5e1514404bc831497dfd627853f09c4fdee32",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/h1DataIntegrity.test.ts src/__tests__/FinanzasContext.test.tsx",
+      "exit_code": 1,
+      "output_sha256": "sha256:0f606a2c9f7ca1f8fae9f04bf8f635729fbb56638c3a0a6e67b983cb136bad1e",
+      "tree": "sha256:e425edbe7302f1bd95ffd78b89f57f74e5a44403a891d51840263c1813eafbd0",
+      "recorded_at": "2026-11-15T08:35:06.996Z"
+    },
+    {
+      "id": "run-9",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "82df89fcd5ad41f8371b4bc2ed7c50f87e9c2d56",
+      "mount": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "control": true,
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/h1DataIntegrity.test.ts src/__tests__/FinanzasContext.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:5b166c81d64a9b0a21fb3159c68d238f3d8e878ab7f97ba4b527ef2e6ccf2afe",
+      "tree": "sha256:e425edbe7302f1bd95ffd78b89f57f74e5a44403a891d51840263c1813eafbd0",
+      "recorded_at": "2026-11-15T08:35:06.996Z"
+    },
+    {
+      "id": "run-10",
+      "purpose": "migration-test",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/h1DataIntegrity.test.ts src/__tests__/storageService.test.ts src/__tests__/backupRoundtrip.test.ts src/__tests__/backupValidator.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:f8f46e760d7adf8fb167a29385fbd1469231e0c8eb64df6de02916e23327c200",
+      "tree": "sha256:e425edbe7302f1bd95ffd78b89f57f74e5a44403a891d51840263c1813eafbd0",
+      "recorded_at": "2026-11-15T08:35:30.688Z"
+    },
+    {
+      "id": "run-11",
+      "purpose": "checks",
+      "name": "test",
+      "command": "pnpm vitest run",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3807cf0454b0dde6111ec01951bc01172b38dace37a0f610d914bc9c80ee8ce",
+      "tree": "sha256:e38c6de2e2744e5bc6b3415d15514b672c9eaabd1ce132f8d83767de38b7d347",
+      "recorded_at": "2026-11-15T08:36:21.360Z"
+    },
+    {
+      "id": "run-12",
+      "purpose": "checks",
+      "name": "lint",
+      "command": "pnpm lint",
+      "exit_code": 0,
+      "output_sha256": "sha256:698f35b3067fc8c9494d1803a24cbbdc399d82ad3b53d48d8bf5e20e1601e426",
+      "tree": "sha256:e38c6de2e2744e5bc6b3415d15514b672c9eaabd1ce132f8d83767de38b7d347",
+      "recorded_at": "2026-11-15T08:36:21.360Z"
+    },
+    {
+      "id": "run-13",
+      "purpose": "checks",
+      "name": "typecheck",
+      "command": "pnpm typecheck",
+      "exit_code": 0,
+      "output_sha256": "sha256:8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+      "tree": "sha256:e38c6de2e2744e5bc6b3415d15514b672c9eaabd1ce132f8d83767de38b7d347",
+      "recorded_at": "2026-11-15T08:36:21.360Z"
+    },
+    {
+      "id": "run-14",
+      "purpose": "fitness",
+      "ref": "adr:0002",
+      "command": "sh -c '! grep -rqsE \"from .(react|react-dom).|/(hooks|components|context)/\" src/services src/utils src/domain src/adapters'",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:e38c6de2e2744e5bc6b3415d15514b672c9eaabd1ce132f8d83767de38b7d347",
+      "recorded_at": "2026-11-15T08:36:21.360Z"
+    },
+    {
+      "id": "run-15",
+      "purpose": "fitness",
+      "ref": "adr:0003",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:56e91c29715f74e94985a8ebb9e90a729703c337429803b6c49ce334222839de",
+      "tree": "sha256:e38c6de2e2744e5bc6b3415d15514b672c9eaabd1ce132f8d83767de38b7d347",
+      "recorded_at": "2026-11-15T08:36:21.360Z"
+    },
+    {
+      "id": "run-16",
+      "purpose": "fitness",
+      "ref": "adr:0004",
+      "command": "pnpm vitest run src/__tests__/ledgerEngine.test.ts src/__tests__/financeService.test.ts src/__tests__/openingBalance.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:baa9963a448f5c716e25ca2803ebf303ed06fa2cd0d4459b1211927d99147337",
+      "tree": "sha256:e38c6de2e2744e5bc6b3415d15514b672c9eaabd1ce132f8d83767de38b7d347",
+      "recorded_at": "2026-11-15T08:36:21.360Z"
+    },
+    {
+      "id": "run-17",
+      "purpose": "fitness",
+      "ref": "adr:0005",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:cae112d1be273457b3cd74ddf571cae86d94e4b30f1c06afb526805016dbdf66",
+      "tree": "sha256:e38c6de2e2744e5bc6b3415d15514b672c9eaabd1ce132f8d83767de38b7d347",
+      "recorded_at": "2026-11-15T08:36:21.360Z"
+    },
+    {
+      "id": "run-18",
+      "purpose": "fitness",
+      "ref": "adr:0008",
+      "command": "pnpm vitest run src/__tests__/backupValidator.test.ts src/__tests__/storageService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:0b16509b31fe1abe94b979e8019ff310535f63a82de1b3616b75ee0816cca63d",
+      "tree": "sha256:e38c6de2e2744e5bc6b3415d15514b672c9eaabd1ce132f8d83767de38b7d347",
+      "recorded_at": "2026-11-15T08:36:21.360Z"
+    },
+    {
+      "id": "run-19",
+      "purpose": "fitness",
+      "ref": "adr:0009",
+      "command": "pnpm vitest run src/__tests__/cryptoService.test.ts src/__tests__/useSecurity.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:d58e3d5f9fc0253a72601db00e4cd9943834134ca38c3cc51f876b820141c8e7",
+      "tree": "sha256:e38c6de2e2744e5bc6b3415d15514b672c9eaabd1ce132f8d83767de38b7d347",
+      "recorded_at": "2026-11-15T08:36:21.360Z"
+    },
+    {
+      "id": "run-20",
+      "purpose": "fitness",
+      "ref": "scenario:confidencialidad",
+      "command": "pnpm vitest run src/__tests__/cryptoService.test.ts src/__tests__/useSecurity.test.tsx",
+      "exit_code": 0,
+      "output_sha256": "sha256:38ceed8e42be289c79bf4444569a290f0516431cca47e59c3093226bfe4ba035",
+      "tree": "sha256:e38c6de2e2744e5bc6b3415d15514b672c9eaabd1ce132f8d83767de38b7d347",
+      "recorded_at": "2026-11-15T08:36:21.360Z"
+    },
+    {
+      "id": "run-21",
+      "purpose": "fitness",
+      "ref": "scenario:exactitud-contable",
+      "command": "pnpm vitest run src/__tests__/ledgerEngine.test.ts src/__tests__/financeService.test.ts src/__tests__/openingBalance.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:58b246c21b07246638de118f95f145ce06a10cc5a34cf293a61fcc15c76d6bda",
+      "tree": "sha256:e38c6de2e2744e5bc6b3415d15514b672c9eaabd1ce132f8d83767de38b7d347",
+      "recorded_at": "2026-11-15T08:36:21.360Z"
+    },
+    {
+      "id": "run-22",
+      "purpose": "fitness",
+      "ref": "scenario:integridad-datos",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts src/__tests__/syncService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:ebd0401245b203d0ddf361ca663a9ade13bed4cfb756cc54ece1761a23ecff98",
+      "tree": "sha256:e38c6de2e2744e5bc6b3415d15514b672c9eaabd1ce132f8d83767de38b7d347",
+      "recorded_at": "2026-11-15T08:36:21.360Z"
+    },
+    {
+      "id": "run-23",
+      "purpose": "fitness",
+      "ref": "scenario:modificabilidad",
+      "command": "sh -c \"! grep -rnE \\\"from .(react|react-dom).|/(hooks|components|context)/\\\" src/services src/utils\"",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:e38c6de2e2744e5bc6b3415d15514b672c9eaabd1ce132f8d83767de38b7d347",
+      "recorded_at": "2026-11-15T08:36:21.360Z"
+    }
+  ],
+  "assumptions": [
+    "Los movimientos del mismo día que nadie ha ordenado a mano conservan el orden que tienen hoy; este cambio solo guarda el orden elegido al arrastrar"
+  ],
+  "closed_at": "2026-11-15T08:36:29.321Z"
+}

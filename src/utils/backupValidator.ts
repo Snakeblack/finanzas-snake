@@ -321,7 +321,11 @@ const validateTransactions = (transactions: unknown, legacy: boolean): Transacti
 			accountId: zString(`${prefix}.accountId`, 50, false).optional(),
 			fromAccountId: zString(`${prefix}.fromAccountId`, 50, false).optional(),
 			toAccountId: zString(`${prefix}.toAccountId`, 50, false).optional(),
-			originId: zString(`${prefix}.originId`, MAX_TRANSACTION_ID_LENGTH, false).optional()
+			originId: zString(`${prefix}.originId`, MAX_TRANSACTION_ID_LENGTH, false).optional(),
+			sortIndex: z.preprocess(
+				(val) => (val === null ? undefined : val),
+				zNumber(`${prefix}.sortIndex`, true, true).optional()
+			)
 		});
 
 		const parsedFields = parseWithZod(TransactionItemSchema, rawTx);

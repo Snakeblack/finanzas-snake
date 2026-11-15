@@ -60,7 +60,7 @@ export const cloneRecurringForMonth = (
 	const usedIds = new Set(transactions.map((t) => t.id));
 	return transactions
 		.filter((t) => t.date.substring(0, 7) === sourceMonth && t.recurrence === 'recurring')
-		.map((t) => {
+		.map(({ sortIndex: _sortIndex, ...t }) => {
 			const seriesId = t.originId || t.id;
 			let id = `${seriesId}-${targetMonth}`;
 			if (usedIds.has(id)) {
@@ -115,4 +115,49 @@ export const autoGenerateMissingPeriods = (
 	}
 
 	return { periods, transactions };
+};
+
+export type ReconfigurePeriodsResult =
+	| { ok: true; periods: Period[] }
+	| { ok: false; reason: 'earlier-periods-exist'; firstMonth: string };
+
+/**
+ * Aplica «Configurar cuenta» a los periodos existentes sin descartar ninguno.
+ *
+ * El mes de inicio pasa a ser el único con apertura manual. Si es anterior al primero existente,
+ * los meses intermedios se añaden vacíos (sin clonar recurrentes hacia atrás). Si es posterior, el
+ * cambio se rechaza: dejaría meses y movimientos anteriores al inicio.
+ *
+ * @param periods Lista actual de periodos
+ * @param targetMonth Mes de inicio elegido (YYYY-MM)
+ * @param openingBalance Saldo de apertura manual del mes de inicio
+ * @returns Los periodos resultantes ordenados por mes, o el motivo del rechazo
+ */
+export const reconfigurePeriods = (
+	periods: Period[],
+	targetMonth: string,
+	openingBalance: number
+): ReconfigurePeriodsResult => {
+	const first: Period = { month: targetMonth, openingBalance, isManualInit: true };
+	if (periods.length === 0) {
+		return { ok: true, periods: [first] };
+	}
+
+	const sorted = [...periods].sort((a, b) => a.month.localeCompare(b.month));
+	const firstMonth = sorted[0].month;
+	if (targetMonth > firstMonth) {
+		return { ok: false, reason: 'earlier-periods-exist', firstMonth };
+	}
+	if (targetMonth === firstMonth) {
+		return { ok: true, periods: [first, ...sorted.slice(1)] };
+	}
+
+	const added: Period[] = [];
+	for (let month = addMonthsToMonth(targetMonth, 1); month < firstMonth; month = addMonthsToMonth(month, 1)) {
+		added.push({ month, openingBalance: 0 });
+	}
+	return {
+		ok: true,
+		periods: [first, ...added, { month: firstMonth, openingBalance: 0 }, ...sorted.slice(1)]
+	};
 };

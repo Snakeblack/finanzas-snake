@@ -31,9 +31,9 @@ activo no hay datos financieros en claro en el almacenamiento.
 | El esquema de copias descarta el vínculo de serie recurrente | `src/utils/backupValidator.ts:206` | Resuelto en 0.2.3 |
 | Importar escapa el texto y la interfaz no lo decodifica: los nombres se corrompen en cada ronda | `src/utils/backupValidator.ts:8` | Resuelto en 0.2.3 |
 | El número de perfiles no viaja en la copia ni en la sincronización | `src/services/storageService.ts:1432`, `src/components/sync/SyncModal.tsx:18` | Resuelto en 0.2.3 |
-| «Configurar cuenta» sustituye todos los periodos por uno; al recargar se duplican los recurrentes | `src/context/FinanzasContext.tsx:836` | Reproducido |
-| Cuentas y periodos se guardan vaciando y reescribiendo en dos pasos | `src/services/storageService.ts:472` | Leído |
-| El orden manual de movimientos no se guarda | `src/components/transactions/TransactionsTab.tsx:109` | Leído |
+| «Configurar cuenta» sustituye todos los periodos por uno; al recargar se duplican los recurrentes | `src/context/FinanzasContext.tsx:836` | Resuelto en 0.2.4 |
+| Cuentas y periodos se guardan vaciando y reescribiendo en dos pasos | `src/services/storageService.ts:472` | Resuelto en 0.2.4 |
+| El orden manual de movimientos no se guarda | `src/components/transactions/TransactionsTab.tsx:109` | Resuelto en 0.2.4 |
 
 Aplica los ADR 0003, 0005 y 0008: un esquema por entidad, validar sin
 transformar y escritura atómica.
