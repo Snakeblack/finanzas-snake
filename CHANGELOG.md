@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-11-15
+
+### Fixed
+- Un movimiento con fecha en un mes sin periodo (importado, anotado o editado) crea los meses que faltan y cuenta; los meses anteriores se calculan hacia atrás sin cambiar el saldo del mes configurado (h2-recurring-and-periods)
+- La proyección cuenta cada recurrente una vez al mes en lugar de sumar todo su historial (h2-recurring-and-periods)
+- Editar o borrar «solo este» en el último mes ya no corta la serie recurrente, tampoco tras recargar, restaurar una copia o sincronizar (h2-recurring-and-periods)
+
 ## [0.2.4] - 2026-11-15
 
 ### Fixed
