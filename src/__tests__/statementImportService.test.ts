@@ -565,20 +565,20 @@ describe('statementImportService', () => {
 			expect(resultT2[0].transferCorrelationId).toBeDefined();
 		});
 
-		it('no debe correlacionar traspasos con desfase superior a 2 días (T+3)', () => {
+		it('no debe correlacionar traspasos con desfase superior a 2 días hábiles (T+3, lunes a jueves)', () => {
 			const result = correlateInternalTransfers([
 				createPreparedFixture({
 					id: 'out',
 					type: 'expense',
 					accountId: 'account-a',
-					date: '2026-05-01',
+					date: '2026-05-04',
 					desc: 'Traspaso enviado'
 				}),
 				createPreparedFixture({
 					id: 'in',
 					type: 'income',
 					accountId: 'account-b',
-					date: '2026-05-04',
+					date: '2026-05-07',
 					desc: 'Traspaso recibido'
 				})
 			]);
@@ -802,6 +802,210 @@ describe('statementImportService', () => {
 					expect.objectContaining({ type: 'transfer', fromAccountId: 'account-b', toAccountId: 'account-a' })
 				])
 			);
+		});
+	});
+
+	describe('H2-B filas idénticas y traspasos entre semanas', () => {
+		const CSV_OPTIONS = { dateCol: 0, descCol: 1, amountCol: 2, hasHeader: true };
+		const COFFEE_ROW = ['05/06/2026', 'Cafeteria Sol', '-2,50'];
+
+		const importCsv = (rows: string[][], sourceName = 'extracto.csv') =>
+			prepareImportedTransactions({
+				transactions: processParsedRows([['Fecha', 'Concepto', 'Importe'], ...rows], CSV_OPTIONS),
+				accountId: 'checking',
+				sourceName,
+				accountOwner: 'userA'
+			});
+
+		const persist = (rows: ImportedTransaction[]): Transaction[] =>
+			formatImportedTransactionsForPersistence(detectDuplicates(rows, []), []);
+
+		it('importa dos filas idénticas legítimas como dos movimientos distintos', () => {
+			const checked = detectDuplicates(importCsv([COFFEE_ROW, COFFEE_ROW]), []);
+
+			expect(checked.map((tx) => tx.isDuplicate)).toEqual([false, false]);
+			expect(checked.map((tx) => tx.selected)).toEqual([true, true]);
+			expect(new Set(checked.map((tx) => tx.id)).size).toBe(2);
+
+			const persisted = formatImportedTransactionsForPersistence(checked, []);
+			expect(persisted).toHaveLength(2);
+			expect(new Set(persisted.map((tx) => tx.id)).size).toBe(2);
+		});
+
+		it('la primera de varias filas idénticas conserva la huella de siempre', () => {
+			const [single] = importCsv([COFFEE_ROW]);
+			const [first, second] = importCsv([COFFEE_ROW, COFFEE_ROW]);
+
+			expect(first.importFingerprint).toBe(single.importFingerprint);
+			expect(second.importFingerprint).not.toBe(single.importFingerprint);
+		});
+
+		it('reimportar el mismo extracto con filas idénticas no duplica ninguna', () => {
+			const existing = persist(importCsv([COFFEE_ROW, COFFEE_ROW]));
+
+			const checked = detectDuplicates(importCsv([COFFEE_ROW, COFFEE_ROW]), existing);
+
+			expect(checked.map((tx) => tx.isDuplicate)).toEqual([true, true]);
+		});
+
+		it('ofrece como nueva la fila idéntica que falta en lo guardado', () => {
+			const existing = persist(importCsv([COFFEE_ROW]));
+
+			const checked = detectDuplicates(importCsv([COFFEE_ROW, COFFEE_ROW]), existing);
+
+			expect(checked.map((tx) => tx.isDuplicate)).toEqual([true, false]);
+			expect(checked[1].selected).toBe(true);
+			expect(checked[1].possibleDuplicate).toBeUndefined();
+		});
+
+		it('un movimiento apuntado a mano cubre solo una de dos filas idénticas', () => {
+			const existing: Transaction[] = [
+				{
+					id: 'manual-coffee',
+					desc: 'Cafeteria Sol',
+					money: { amount: '2.50', currency: 'EUR' },
+					type: 'expense',
+					tag: 'Ocio',
+					date: '2026-06-05',
+					owner: 'userA',
+					accountId: 'checking'
+				}
+			];
+
+			const checked = detectDuplicates(importCsv([COFFEE_ROW, COFFEE_ROW]), existing);
+
+			expect(checked.map((tx) => tx.isDuplicate)).toEqual([true, false]);
+		});
+
+		it('el mismo archivo adjunto dos veces marca duplicadas las filas del segundo', () => {
+			const firstAttachment = importCsv([COFFEE_ROW, COFFEE_ROW]);
+			const secondAttachment = importCsv([COFFEE_ROW, COFFEE_ROW]);
+
+			const checked = detectDuplicates([...firstAttachment, ...secondAttachment], []);
+
+			expect(checked.map((tx) => tx.isDuplicate)).toEqual([false, false, true, true]);
+		});
+
+		it('un traspaso manual cubre solo una de dos filas idénticas de su cuenta', () => {
+			const existing: Transaction[] = [
+				{
+					id: 'manual-transfer',
+					desc: 'Traspaso hucha',
+					money: { amount: '150.00', currency: 'EUR' },
+					type: 'transfer',
+					tag: 'Traspaso',
+					date: '2026-06-05',
+					owner: 'joint',
+					fromAccountId: 'checking',
+					toAccountId: 'savings'
+				}
+			];
+			const rows = prepareImportedTransactions({
+				transactions: [
+					createImportedFixture({ type: 'income', desc: 'Traspaso hucha', amount: '150.00' }),
+					createImportedFixture({ type: 'income', desc: 'Traspaso hucha', amount: '150.00' })
+				],
+				accountId: 'savings',
+				sourceName: 'extracto.csv',
+				accountOwner: 'joint'
+			});
+
+			const checked = detectDuplicates(rows, existing);
+
+			expect(checked.map((tx) => tx.isDuplicate)).toEqual([true, false]);
+		});
+
+		it('empareja un traspaso enviado el viernes y recibido el lunes', () => {
+			const result = correlateInternalTransfers([
+				createPreparedFixture({
+					type: 'expense',
+					accountId: 'account-a',
+					date: '2026-05-08',
+					desc: 'Traspaso enviado'
+				}),
+				createPreparedFixture({
+					type: 'income',
+					accountId: 'account-b',
+					date: '2026-05-11',
+					desc: 'Traspaso recibido'
+				})
+			]);
+
+			expect(result.map((tx) => tx.type)).toEqual(['transfer', 'transfer']);
+			expect(result[0].transferCorrelationId).toBe(result[1].transferCorrelationId);
+		});
+
+		it('empareja de viernes a martes (dos días hábiles) y no de viernes a miércoles', () => {
+			const pair = (incomeDate: string) =>
+				correlateInternalTransfers([
+					createPreparedFixture({
+						type: 'expense',
+						accountId: 'account-a',
+						date: '2026-05-08',
+						desc: 'Traspaso enviado'
+					}),
+					createPreparedFixture({
+						type: 'income',
+						accountId: 'account-b',
+						date: incomeDate,
+						desc: 'Traspaso recibido'
+					})
+				]);
+
+			expect(pair('2026-05-12')[0].type).toBe('transfer');
+			expect(pair('2026-05-13')[0].type).toBe('expense');
+		});
+
+		it('ante varios candidatos empareja con el más cercano en días hábiles', () => {
+			const result = correlateInternalTransfers([
+				createPreparedFixture({
+					type: 'expense',
+					accountId: 'account-a',
+					date: '2026-05-08',
+					desc: 'Traspaso enviado'
+				}),
+				createPreparedFixture({
+					type: 'income',
+					accountId: 'account-b',
+					date: '2026-05-11',
+					desc: 'Traspaso recibido'
+				}),
+				createPreparedFixture({
+					type: 'income',
+					accountId: 'account-c',
+					date: '2026-05-12',
+					desc: 'Traspaso recibido'
+				})
+			]);
+
+			expect(result.map((tx) => tx.type)).toEqual(['transfer', 'transfer', 'income']);
+			expect(result[0].toAccountId).toBe('account-b');
+		});
+
+		it('solo empareja si el candidato más cercano lo es en ambos sentidos', () => {
+			const result = correlateInternalTransfers([
+				createPreparedFixture({
+					type: 'expense',
+					accountId: 'account-a',
+					date: '2026-05-08',
+					desc: 'Traspaso enviado'
+				}),
+				createPreparedFixture({
+					type: 'expense',
+					accountId: 'account-c',
+					date: '2026-05-11',
+					desc: 'Traspaso enviado'
+				}),
+				createPreparedFixture({
+					type: 'income',
+					accountId: 'account-b',
+					date: '2026-05-11',
+					desc: 'Traspaso recibido'
+				})
+			]);
+
+			expect(result.map((tx) => tx.type)).toEqual(['expense', 'transfer', 'transfer']);
+			expect(result[1].fromAccountId).toBe('account-c');
 		});
 	});
 

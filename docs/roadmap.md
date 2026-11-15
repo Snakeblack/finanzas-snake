@@ -45,10 +45,10 @@ transformar y escritura atómica.
 | Los movimientos de meses sin periodo no cuentan, y la importación no crea periodos: un extracto anterior al primer mes se guarda pero no se ve | `src/services/financeService.ts:606`, `src/components/transactions/ImportStatementModal.tsx:573` | Resuelto en 0.2.5 |
 | La proyección suma cada instancia mensual de un recurrente: se infla con el historial | `src/services/financeService.ts:931` | Resuelto en 0.2.5 |
 | Editar o borrar «solo este» corta la serie recurrente | `src/hooks/useTransactions.ts:300` | Resuelto en 0.2.5 |
-| Dos filas idénticas legítimas de un extracto comparten huella y la segunda no se puede importar | `src/services/statementImportService.ts:68` | Reproducido |
+| Dos filas idénticas legítimas de un extracto comparten huella y la segunda no se puede importar | `src/services/statementImportService.ts:68` | Resuelto en 0.2.6 |
 | En un perfil, la segunda cuenta o deuda queda como conjunta sin poder corregirlo; el saldo inicial negativo se vuelve positivo | `src/hooks/useAccounts.ts:59`, `src/hooks/useDebts.ts:154` | Leído |
 | En vista individual un gasto conjunto cuenta a medias en gastos y entero en saldo; la liquidación conjunta no convierte divisa | `src/services/financeService.ts:626`, `src/services/financeService.ts:720` | Leído |
-| Un traspaso de viernes a lunes no se empareja (la ventana cuenta días naturales y no desempata) | `src/services/statementImportService.ts:555` | Leído |
+| Un traspaso de viernes a lunes no se empareja (la ventana cuenta días naturales y no desempata) | `src/services/statementImportService.ts:555` | Resuelto en 0.2.6 |
 | Segundo motor de saldos sin uso y saldos en coma flotante | `src/services/ledgerEngine.ts:16`, `src/types/index.ts:52` | Leído |
 
 Aplica el ADR 0004: un solo motor y todo importe decimal exacto.

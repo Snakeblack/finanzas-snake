@@ -45,6 +45,7 @@ const SENT_TRANSFER_TERMS = [
 	'bizum enviado'
 ];
 const POSSIBLE_DUPLICATE_DATE_WINDOW_DAYS = 3;
+const TRANSFER_MATCH_MAX_BUSINESS_DAYS = 2;
 const POSSIBLE_DUPLICATE_REASON = 'concepto similar, mismo importe y fecha cercana';
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -65,17 +66,21 @@ const createStableHash = (value: string): string => {
 	return (hash >>> 0).toString(36);
 };
 
-const createImportFingerprint = (tx: ImportedTransaction, accountId: string): string => {
-	const fingerprintParts = [
+const getImportFingerprintSource = (tx: ImportedTransaction, accountId: string): string =>
+	[
 		tx.date,
 		tx.amount,
 		tx.type,
 		accountId,
 		normalizeFingerprintPart(tx.desc),
 		normalizeFingerprintPart(tx.sourceName || '')
-	];
+	].join('|');
 
-	return `import-${createStableHash(fingerprintParts.join('|'))}`;
+// La primera aparición conserva la huella de siempre para reconocer lo ya importado;
+// las filas idénticas siguientes del mismo extracto se distinguen por su orden.
+const createImportFingerprint = (tx: ImportedTransaction, accountId: string, occurrence = 1): string => {
+	const source = getImportFingerprintSource(tx, accountId);
+	return `import-${createStableHash(occurrence > 1 ? `${source}|#${occurrence}` : source)}`;
 };
 
 const STATEMENT_CONCEPT_STOP_WORDS = new Set([
@@ -139,6 +144,68 @@ const getDateDistanceDays = (firstDate: string, secondDate: string): number | un
 	}
 
 	return Math.abs(Math.round((firstTime - secondTime) / MILLISECONDS_PER_DAY));
+};
+
+// Días hábiles (lunes a viernes, sin festivos) en (startDate, endDate]. Deja de contar al
+// superar el máximo de la ventana para no recorrer fechas lejanas.
+const getTransferBusinessDayDistance = (startDate: string, endDate: string): number | undefined => {
+	const startTime = Date.parse(`${startDate}T00:00:00Z`);
+	const endTime = Date.parse(`${endDate}T00:00:00Z`);
+	if (Number.isNaN(startTime) || Number.isNaN(endTime) || endTime < startTime) {
+		return undefined;
+	}
+
+	let businessDays = 0;
+	for (
+		let time = startTime + MILLISECONDS_PER_DAY;
+		time <= endTime && businessDays <= TRANSFER_MATCH_MAX_BUSINESS_DAYS;
+		time += MILLISECONDS_PER_DAY
+	) {
+		const weekday = new Date(time).getUTCDay();
+		if (weekday !== 0 && weekday !== 6) {
+			businessDays++;
+		}
+	}
+
+	return businessDays <= TRANSFER_MATCH_MAX_BUSINESS_DAYS ? businessDays : undefined;
+};
+
+const getTransferLegDistance = (expense: ImportedTransaction, income: ImportedTransaction): number | undefined => {
+	if (
+		expense.type !== 'expense' ||
+		income.type !== 'income' ||
+		expense.amount !== income.amount ||
+		expense.accountId === income.accountId
+	) {
+		return undefined;
+	}
+
+	return getTransferBusinessDayDistance(expense.date, income.date);
+};
+
+// Devuelve el candidato más cercano si es único; en empate no elige.
+const pickClosestTransferLeg = (
+	candidates: ImportedTransaction[],
+	getDistance: (candidate: ImportedTransaction) => number | undefined
+): ImportedTransaction | undefined => {
+	let closest: ImportedTransaction | undefined;
+	let closestDistance = Number.POSITIVE_INFINITY;
+	let isTied = false;
+
+	for (const candidate of candidates) {
+		const distance = getDistance(candidate);
+		if (distance === undefined || distance > closestDistance) {
+			continue;
+		}
+
+		isTied = distance === closestDistance;
+		if (distance < closestDistance) {
+			closest = candidate;
+			closestDistance = distance;
+		}
+	}
+
+	return isTied ? undefined : closest;
 };
 
 const hasTransferEvidence = (tx: ImportedTransaction): boolean => {
@@ -520,6 +587,8 @@ export function prepareImportedTransactions(options: PrepareImportedTransactions
 	const paidBy: 'userA' | 'userB' | 'shared' =
 		options.accountOwner === 'userA' ? 'userA' : options.accountOwner === 'userB' ? 'userB' : 'shared';
 
+	const occurrencesBySource = new Map<string, number>();
+
 	return options.transactions.map((tx) => {
 		const enrichedTx = {
 			...tx,
@@ -529,7 +598,10 @@ export function prepareImportedTransactions(options: PrepareImportedTransactions
 			paidBy,
 			originalType: tx.originalType || tx.type
 		};
-		const importFingerprint = createImportFingerprint(enrichedTx, options.accountId);
+		const fingerprintSource = getImportFingerprintSource(enrichedTx, options.accountId);
+		const occurrence = (occurrencesBySource.get(fingerprintSource) ?? 0) + 1;
+		occurrencesBySource.set(fingerprintSource, occurrence);
+		const importFingerprint = createImportFingerprint(enrichedTx, options.accountId, occurrence);
 
 		return {
 			...enrichedTx,
@@ -544,28 +616,13 @@ export function correlateInternalTransfers(importedTxs: ImportedTransaction[]): 
 	const transfersById = new Map<string, ImportedTransaction>();
 
 	for (const expense of importedTxs.filter((tx) => tx.type === 'expense')) {
-		const matches = importedTxs.filter((income) => {
-			if (income.type !== 'income' || income.amount !== expense.amount || income.accountId === expense.accountId) {
-				return false;
-			}
-			const dist = getDateDistanceDays(expense.date, income.date);
-			return dist !== undefined && dist <= 2 && expense.date <= income.date;
-		});
-
-		if (matches.length !== 1) {
+		const income = pickClosestTransferLeg(importedTxs, (candidate) => getTransferLegDistance(expense, candidate));
+		if (!income) {
 			continue;
 		}
 
-		const [income] = matches;
-		const inverseMatches = importedTxs.filter((candidate) => {
-			if (candidate.type !== 'expense' || candidate.amount !== income.amount || candidate.accountId === income.accountId) {
-				return false;
-			}
-			const dist = getDateDistanceDays(income.date, candidate.date);
-			return dist !== undefined && dist <= 2 && candidate.date <= income.date;
-		});
-
-		if (inverseMatches.length !== 1 || matchedIds.has(expense.id) || matchedIds.has(income.id)) {
+		const closestExpense = pickClosestTransferLeg(importedTxs, (candidate) => getTransferLegDistance(candidate, income));
+		if (closestExpense !== expense || matchedIds.has(expense.id) || matchedIds.has(income.id)) {
 			continue;
 		}
 
@@ -691,80 +748,128 @@ function getTransferOwner(
 
 /**
  * Identifica posibles duplicaciones comparando fecha, importe y concepto.
+ * Cada movimiento guardado cubre como mucho una fila importada (un traspaso, una por
+ * lado): las huellas exactas reclaman antes que las coincidencias por concepto.
  */
 export function detectDuplicates(
 	importedTxs: ImportedTransaction[],
 	existingTxs: Transaction[]
 ): ImportedTransaction[] {
 	const seenFingerprints = new Set<string>();
-
-	return importedTxs.map((imported) => {
+	const repeatedInBatch = importedTxs.map((imported) => {
 		const fingerprint = imported.importFingerprint || createImportFingerprint(imported, imported.accountId || '');
-		const duplicateInBatch = seenFingerprints.has(fingerprint);
+		const isRepeated = seenFingerprints.has(fingerprint);
 		seenFingerprints.add(fingerprint);
+		return isRepeated;
+	});
 
-		let possibleDuplicate: ImportedTransactionPossibleDuplicate | undefined;
-		const isDuplicate = existingTxs.some((existing) => {
-			const existingAmount = existing.money?.amount ? toNumber(existing.money.amount) : 0;
-			const importedAmount = toNumber(imported.amount);
+	const rowMatches = importedTxs.map((imported) => collectExistingMatches(imported, existingTxs));
+	const claimedKeys = new Set<string>();
+	const coveredRows = new Set<number>();
 
-			const sameAmount = Math.abs(existingAmount - importedAmount) < 0.001;
-			const sameType = existing.type === imported.type;
-			const sameDate = existing.date === imported.date;
-			const sameAccount = hasMatchingAccountEvidence(existing, imported);
-			const sameFingerprint = Boolean(imported.importFingerprint && existing.id === imported.importFingerprint);
-			const sameTransferCorrelation = Boolean(
-				imported.transferCorrelationId && existing.id === imported.transferCorrelationId
+	for (const evidence of ['strong', 'heuristic'] as const) {
+		importedTxs.forEach((imported, index) => {
+			if (repeatedInBatch[index] || coveredRows.has(index)) {
+				return;
+			}
+
+			const match = rowMatches[index][evidence].find(
+				(existing) => !claimedKeys.has(getExistingClaimKey(existing, imported))
 			);
-
-			const desc1 = existing.desc.toLowerCase().trim();
-			const desc2 = imported.desc.toLowerCase().trim();
-			let sameDesc = desc1 === desc2 || desc1.includes(desc2) || desc2.includes(desc1);
-
-			if (!sameDesc) {
-				const words1 = desc1.split(/[^a-záéíóúüñ0-9]+/i).filter((w) => w.length >= 4 && !STATEMENT_CONCEPT_STOP_WORDS.has(w));
-				const words2 = desc2.split(/[^a-záéíóúüñ0-9]+/i).filter((w) => w.length >= 4 && !STATEMENT_CONCEPT_STOP_WORDS.has(w));
-				if (words1.length > 0 && words2.length > 0) {
-					sameDesc = words1.some((w) => words2.includes(w));
-				}
+			if (match) {
+				claimedKeys.add(getExistingClaimKey(match, imported));
+				coveredRows.add(index);
 			}
-
-			if (
-				(sameFingerprint && sameDate && sameAmount && sameAccount) ||
-				(sameTransferCorrelation && sameDate && sameAmount)
-			) {
-				return true;
-			}
-
-			if (isManualTransferDuplicate(existing, imported, { sameAmount, sameDate, sameDesc, sameFingerprint })) {
-				return true;
-			}
-
-			const isExactDuplicate =
-				sameType && sameAmount && sameDate && sameDesc && (!imported.accountId || sameAccount);
-			if (isExactDuplicate) {
-				return true;
-			}
-
-			if (!possibleDuplicate) {
-				possibleDuplicate = getPossibleDuplicateMatch(existing, imported, {
-					sameAmount,
-					sameType,
-					sameAccount
-				});
-			}
-
-			return false;
 		});
-		const duplicate = duplicateInBatch || isDuplicate;
+	}
+
+	return importedTxs.map((imported, index) => {
+		const duplicate = repeatedInBatch[index] || coveredRows.has(index);
+		const possibleDuplicate = duplicate
+			? undefined
+			: rowMatches[index].possible.find(
+					({ existing }) => !claimedKeys.has(getExistingClaimKey(existing, imported))
+				)?.warning;
 
 		return {
 			...imported,
 			isDuplicate: duplicate,
 			selected: !duplicate,
-			possibleDuplicate: duplicate ? undefined : possibleDuplicate
+			possibleDuplicate
 		};
 	});
+}
+
+interface ExistingMatches {
+	strong: Transaction[];
+	heuristic: Transaction[];
+	possible: { existing: Transaction; warning: ImportedTransactionPossibleDuplicate }[];
+}
+
+function collectExistingMatches(imported: ImportedTransaction, existingTxs: Transaction[]): ExistingMatches {
+	const matches: ExistingMatches = { strong: [], heuristic: [], possible: [] };
+	const importedAmount = toNumber(imported.amount);
+
+	for (const existing of existingTxs) {
+		const existingAmount = existing.money?.amount ? toNumber(existing.money.amount) : 0;
+
+		const sameAmount = Math.abs(existingAmount - importedAmount) < 0.001;
+		const sameType = existing.type === imported.type;
+		const sameDate = existing.date === imported.date;
+		const sameAccount = hasMatchingAccountEvidence(existing, imported);
+		const sameFingerprint = Boolean(imported.importFingerprint && existing.id === imported.importFingerprint);
+		const sameTransferCorrelation = Boolean(
+			imported.transferCorrelationId && existing.id === imported.transferCorrelationId
+		);
+
+		if (
+			(sameFingerprint && sameDate && sameAmount && sameAccount) ||
+			(sameTransferCorrelation && sameDate && sameAmount)
+		) {
+			matches.strong.push(existing);
+			continue;
+		}
+
+		const desc1 = existing.desc.toLowerCase().trim();
+		const desc2 = imported.desc.toLowerCase().trim();
+		let sameDesc = desc1 === desc2 || desc1.includes(desc2) || desc2.includes(desc1);
+
+		if (!sameDesc) {
+			const words1 = desc1.split(/[^a-záéíóúüñ0-9]+/i).filter((w) => w.length >= 4 && !STATEMENT_CONCEPT_STOP_WORDS.has(w));
+			const words2 = desc2.split(/[^a-záéíóúüñ0-9]+/i).filter((w) => w.length >= 4 && !STATEMENT_CONCEPT_STOP_WORDS.has(w));
+			if (words1.length > 0 && words2.length > 0) {
+				sameDesc = words1.some((w) => words2.includes(w));
+			}
+		}
+
+		const isExactDuplicate = sameType && sameAmount && sameDate && sameDesc && (!imported.accountId || sameAccount);
+		if (
+			isManualTransferDuplicate(existing, imported, { sameAmount, sameDate, sameDesc, sameFingerprint }) ||
+			isExactDuplicate
+		) {
+			matches.heuristic.push(existing);
+			continue;
+		}
+
+		const warning = getPossibleDuplicateMatch(existing, imported, { sameAmount, sameType, sameAccount });
+		if (warning) {
+			matches.possible.push({ existing, warning });
+		}
+	}
+
+	return matches;
+}
+
+// Un traspaso guardado tiene dos lados (origen y destino) y cada uno cubre su propia fila.
+function getExistingClaimKey(existing: Transaction, imported: ImportedTransaction): string {
+	if (existing.type !== 'transfer') {
+		return existing.id;
+	}
+
+	const isDestinationSide =
+		imported.type === 'income' ||
+		(imported.type === 'transfer' && Boolean(imported.accountId) && imported.accountId === imported.toAccountId);
+	return `${existing.id}:${isDestinationSide ? 'to' : 'from'}`;
 }
 
 function getPossibleDuplicateMatch(

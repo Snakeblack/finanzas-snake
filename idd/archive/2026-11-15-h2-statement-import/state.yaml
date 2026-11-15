@@ -1,0 +1,461 @@
+{
+  "schema": "idd-state/v1",
+  "change": "h2-statement-import",
+  "mode": "idd",
+  "status": "closed",
+  "intent": {
+    "kind": "bug",
+    "summary": "Importación de extractos: dos filas idénticas legítimas comparten huella y la segunda no se puede importar; un traspaso de viernes a lunes no se empareja porque la ventana cuenta días naturales y no desempata",
+    "acceptance": "Un extracto con dos filas idénticas (misma fecha, importe, tipo, concepto y cuenta) importa ambas como movimientos distintos y reimportarlo no duplica ninguna; un gasto del viernes y un ingreso del lunes siguiente en otra cuenta, con indicios de traspaso, se emparejan como un único traspaso"
+  },
+  "facts": {
+    "open": [
+      "¿La segunda y siguientes filas idénticas de un mismo extracto reciben una huella distinta según su orden de aparición, conservando la primera la huella actual para que lo ya importado siga reconociéndose?",
+      "¿Si el mismo archivo se adjunta dos veces en una misma importación, las filas del segundo adjunto siguen marcándose como duplicadas?",
+      "Al comparar con lo ya guardado, ¿cada movimiento guardado cubre como mucho una fila importada (emparejamiento uno a uno), o se mantiene que un movimiento guardado marque como duplicadas todas las filas iguales?",
+      "¿La ventana de emparejamiento de traspasos pasa a contar días hábiles (lunes a viernes, sin festivos) con el mismo máximo de 2, o se amplía la ventana en días naturales?",
+      "La prueba actual «no correlaciona T+3» usa viernes 1 → lunes 4 de mayo de 2026; ¿se acepta que pase a emparejarse y se sustituya por un T+3 hábil real?",
+      "Con varios candidatos a pareja, ¿gana el más cercano en días hábiles (y debe serlo también en sentido inverso) y en empate se deja sin emparejar?"
+    ]
+  },
+  "plan": {
+    "paths": [
+      "docs/roadmap.md",
+      "src/__tests__/statementImportService.test.ts",
+      "src/services/statementImportService.ts"
+    ],
+    "work_units": 1,
+    "decision": true,
+    "operations": [],
+    "decisions": [
+      "La primera aparición de una fila conserva la huella anterior y las filas idénticas siguientes del mismo adjunto añaden su orden (|#n) al origen de la huella: lo ya guardado se reconoce sin migrar datos",
+      "detectDuplicates empareja uno a uno en dos pasadas: primero huella o correlación de traspaso, después traspaso manual y coincidencia exacta por concepto; un traspaso guardado se reclama por lado (origen y destino)",
+      "El aviso de posible duplicado ignora los movimientos guardados que ya cubre otra fila del lote",
+      "La ventana de traspasos cuenta días hábiles (lunes a viernes, sin festivos) en (fecha del gasto, fecha del ingreso], máximo 2; gana el candidato más cercano si lo es en ambos sentidos y en empate no se empareja; los candidatos ya emparejados no se excluyen para que el resultado no dependa del orden"
+    ]
+  },
+  "signals": [
+    {
+      "id": "always",
+      "reason": "every change with a resolved intent",
+      "source": "declaration"
+    },
+    {
+      "id": "bug-fix",
+      "reason": "the intent is a bug fix",
+      "source": "declaration"
+    },
+    {
+      "id": "adr-or-quality-attribute",
+      "reason": "component statement-import: ADR 0007, 0008 and quality scenario exactitud-contable, integridad-datos",
+      "source": "declaration"
+    },
+    {
+      "id": "multi-unit-or-decision",
+      "reason": "declared a non-obvious decision",
+      "source": "declaration"
+    }
+  ],
+  "impacts": [
+    {
+      "kind": "adr",
+      "id": "0007",
+      "impact": "none",
+      "reason": "No cambia la llamada al asesor ni la clave: solo la huella y el emparejamiento posteriores a la extracción"
+    },
+    {
+      "kind": "adr",
+      "id": "0008",
+      "impact": "none",
+      "reason": "No cambia la validación de entradas externas ni el esquema de copias; los identificadores siguen el formato import-<hash>"
+    },
+    {
+      "kind": "scenario",
+      "id": "exactitud-contable",
+      "impact": "conforms",
+      "reason": "Los traspasos entre semanas se emparejan como un único traspaso en lugar de un gasto y un ingreso sueltos; no cambia el cálculo de saldos"
+    },
+    {
+      "kind": "scenario",
+      "id": "integridad-datos",
+      "impact": "conforms",
+      "reason": "Cada fila confirmada se guarda una vez con identificador propio: ninguna fila legítima se pierde y reimportar no duplica; la primera huella no cambia, así que lo ya guardado se sigue reconociendo sin migrar datos"
+    }
+  ],
+  "obligations": [
+    {
+      "id": "checks-pass",
+      "signal": "always",
+      "status": "satisfied",
+      "evidence": [
+        "ev-4"
+      ]
+    },
+    {
+      "id": "repro-test",
+      "signal": "bug-fix",
+      "status": "satisfied",
+      "evidence": [
+        "ev-1"
+      ]
+    },
+    {
+      "id": "adr-impact-declaration",
+      "signal": "adr-or-quality-attribute",
+      "status": "satisfied",
+      "evidence": [
+        "ev-5"
+      ]
+    },
+    {
+      "id": "living-doc",
+      "signal": "multi-unit-or-decision",
+      "status": "satisfied",
+      "evidence": [
+        "ev-6"
+      ]
+    }
+  ],
+  "gates": [
+    {
+      "id": "open-facts",
+      "status": "resolved",
+      "opened_turn": 23,
+      "answer": "todas las recomendadas: 1) sí, huella distinta por orden de aparición y la primera conserva la actual; 2) sí, el mismo archivo adjunto dos veces sigue marcándose duplicado; 3) emparejamiento uno a uno con lo guardado (primero huellas exactas, después heurísticas, traspasos por lado); 4) días hábiles lunes-viernes sin festivos, máximo 2; 5) sí, la prueba viernes→lunes pasa a emparejarse y se sustituye por un T+3 hábil real; 6) gana el más cercano en días hábiles, mutuo, y en empate no se empareja",
+      "source": "user",
+      "resolved_turn": 24
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-1",
+      "kind": "repro-run-pair",
+      "obligation": "repro-test",
+      "recorded_at": "2026-11-15T20:57:43.514Z",
+      "detail": {
+        "red": "run-5",
+        "green": "run-6",
+        "counterproof": [
+          "run-7",
+          "run-8"
+        ]
+      }
+    },
+    {
+      "id": "ev-2",
+      "kind": "check-run",
+      "obligation": "checks-pass",
+      "recorded_at": "2026-11-15T20:58:47.686Z",
+      "detail": {
+        "tree": "sha256:27bf2dc0da89039601bdedbd6110b920fe1c017c5b9df1cc6611c734559ebabd",
+        "runs": [
+          "run-9",
+          "run-10",
+          "run-11"
+        ]
+      }
+    },
+    {
+      "id": "ev-3",
+      "kind": "adr-impact-declaration",
+      "obligation": "adr-impact-declaration",
+      "recorded_at": "2026-11-15T20:58:47.686Z",
+      "detail": {
+        "refs": [
+          "adr:0007 none",
+          "adr:0008 none",
+          "scenario:exactitud-contable conforms",
+          "scenario:integridad-datos conforms"
+        ],
+        "records": [],
+        "tree": "sha256:27bf2dc0da89039601bdedbd6110b920fe1c017c5b9df1cc6611c734559ebabd",
+        "fitness": [
+          "run-12",
+          "run-13",
+          "run-14",
+          "run-15"
+        ]
+      }
+    },
+    {
+      "id": "ev-4",
+      "kind": "check-run",
+      "obligation": "checks-pass",
+      "recorded_at": "2026-11-15T20:59:26.070Z",
+      "detail": {
+        "tree": "sha256:27bf2dc0da89039601bdedbd6110b920fe1c017c5b9df1cc6611c734559ebabd",
+        "runs": [
+          "run-16",
+          "run-17",
+          "run-18"
+        ]
+      }
+    },
+    {
+      "id": "ev-5",
+      "kind": "adr-impact-declaration",
+      "obligation": "adr-impact-declaration",
+      "recorded_at": "2026-11-15T20:59:26.070Z",
+      "detail": {
+        "refs": [
+          "adr:0007 none",
+          "adr:0008 none",
+          "scenario:exactitud-contable conforms",
+          "scenario:integridad-datos conforms"
+        ],
+        "records": [],
+        "tree": "sha256:27bf2dc0da89039601bdedbd6110b920fe1c017c5b9df1cc6611c734559ebabd",
+        "fitness": [
+          "run-19",
+          "run-20",
+          "run-21",
+          "run-22"
+        ]
+      }
+    },
+    {
+      "id": "ev-6",
+      "kind": "living-doc-current",
+      "obligation": "living-doc",
+      "recorded_at": "2026-11-15T20:59:26.188Z"
+    }
+  ],
+  "base": "f901fa7f897e8303d9bc4210d8c02c66877c5086",
+  "runs": [
+    {
+      "id": "run-1",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run src/__tests__/statementImportService.test.ts -t H2-B",
+      "exit_code": 1,
+      "output_sha256": "sha256:0f7b8190aa87f65057014016141825aac431f3dca8b19f1a92011c5c8f8e60e6",
+      "tree": "sha256:7520f6d3a36438e58e22628c67401bf997090cd843d2e2f091c5257a76d74161",
+      "recorded_at": "2026-11-15T20:55:43.386Z"
+    },
+    {
+      "id": "run-2",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run src/__tests__/statementImportService.test.ts -t H2-B",
+      "exit_code": 0,
+      "output_sha256": "sha256:0ad583996b563a0ce202085884e3c1edb088cda8fb9e346d9d12ea62a6a2e9ed",
+      "tree": "sha256:28e56c22d01bb51c82825dbb59b8fc9b111e1b36042946b901defe8a19c31fd0",
+      "recorded_at": "2026-11-15T20:57:14.835Z",
+      "counterproof": [
+        "run-3",
+        "run-4"
+      ]
+    },
+    {
+      "id": "run-3",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "f901fa7f897e8303d9bc4210d8c02c66877c5086",
+      "mount": "sha256:ee2421b62264a2a5c3c8fbf6f4401b80ef2b1e842ff78cd8e36e1c703e5e492e",
+      "command": "pnpm vitest run src/__tests__/statementImportService.test.ts -t H2-B",
+      "exit_code": 1,
+      "output_sha256": "sha256:70980928d382e596e151255af0164cf0bc5db4e4fb10b66cf0fb4989e235240c",
+      "tree": "sha256:28e56c22d01bb51c82825dbb59b8fc9b111e1b36042946b901defe8a19c31fd0",
+      "recorded_at": "2026-11-15T20:57:14.835Z"
+    },
+    {
+      "id": "run-4",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "f901fa7f897e8303d9bc4210d8c02c66877c5086",
+      "mount": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "control": true,
+      "command": "pnpm vitest run src/__tests__/statementImportService.test.ts -t H2-B",
+      "exit_code": 1,
+      "output_sha256": "sha256:70980928d382e596e151255af0164cf0bc5db4e4fb10b66cf0fb4989e235240c",
+      "tree": "sha256:28e56c22d01bb51c82825dbb59b8fc9b111e1b36042946b901defe8a19c31fd0",
+      "recorded_at": "2026-11-15T20:57:14.835Z"
+    },
+    {
+      "id": "run-5",
+      "purpose": "repro-test",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/statementImportService.test.ts -t H2-B",
+      "exit_code": 1,
+      "output_sha256": "sha256:1e52d16d01e4d6a2bc3b6118dc256dc72a35842c88b8ab141a17f39b77b390b3",
+      "tree": "sha256:0e6fd5603ada1733990f8b51be72bebef76452c157dbe00ed25f23364b0e46c9",
+      "recorded_at": "2026-11-15T20:57:42.656Z"
+    },
+    {
+      "id": "run-6",
+      "purpose": "repro-test",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/statementImportService.test.ts -t H2-B",
+      "exit_code": 0,
+      "output_sha256": "sha256:d03155ed94f2f6059b58b38eaa9ceb25b1090992184b91fc3022962d3530fd04",
+      "tree": "sha256:28e56c22d01bb51c82825dbb59b8fc9b111e1b36042946b901defe8a19c31fd0",
+      "recorded_at": "2026-11-15T20:57:43.514Z",
+      "counterproof": [
+        "run-7",
+        "run-8"
+      ]
+    },
+    {
+      "id": "run-7",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "f901fa7f897e8303d9bc4210d8c02c66877c5086",
+      "mount": "sha256:ee2421b62264a2a5c3c8fbf6f4401b80ef2b1e842ff78cd8e36e1c703e5e492e",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/statementImportService.test.ts -t H2-B",
+      "exit_code": 1,
+      "output_sha256": "sha256:93863f01e557d259847da16ebee3dad8ca0e0fff3199f8b0d827f9154d1028a8",
+      "tree": "sha256:28e56c22d01bb51c82825dbb59b8fc9b111e1b36042946b901defe8a19c31fd0",
+      "recorded_at": "2026-11-15T20:57:43.514Z"
+    },
+    {
+      "id": "run-8",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "f901fa7f897e8303d9bc4210d8c02c66877c5086",
+      "mount": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "control": true,
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/statementImportService.test.ts -t H2-B",
+      "exit_code": 0,
+      "output_sha256": "sha256:c9c86f34526d278eed11d6634a9320f748fe188a7774f634b6614e3b814b8704",
+      "tree": "sha256:28e56c22d01bb51c82825dbb59b8fc9b111e1b36042946b901defe8a19c31fd0",
+      "recorded_at": "2026-11-15T20:57:43.514Z"
+    },
+    {
+      "id": "run-9",
+      "purpose": "checks",
+      "name": "test",
+      "command": "pnpm vitest run",
+      "exit_code": 0,
+      "output_sha256": "sha256:d9296eb51e897a1c506c39cccd237cf8a85d917b7b2923120381d865038da9ab",
+      "tree": "sha256:27bf2dc0da89039601bdedbd6110b920fe1c017c5b9df1cc6611c734559ebabd",
+      "recorded_at": "2026-11-15T20:58:47.686Z"
+    },
+    {
+      "id": "run-10",
+      "purpose": "checks",
+      "name": "lint",
+      "command": "pnpm lint",
+      "exit_code": 0,
+      "output_sha256": "sha256:698f35b3067fc8c9494d1803a24cbbdc399d82ad3b53d48d8bf5e20e1601e426",
+      "tree": "sha256:27bf2dc0da89039601bdedbd6110b920fe1c017c5b9df1cc6611c734559ebabd",
+      "recorded_at": "2026-11-15T20:58:47.686Z"
+    },
+    {
+      "id": "run-11",
+      "purpose": "checks",
+      "name": "typecheck",
+      "command": "pnpm typecheck",
+      "exit_code": 0,
+      "output_sha256": "sha256:8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+      "tree": "sha256:27bf2dc0da89039601bdedbd6110b920fe1c017c5b9df1cc6611c734559ebabd",
+      "recorded_at": "2026-11-15T20:58:47.686Z"
+    },
+    {
+      "id": "run-12",
+      "purpose": "fitness",
+      "ref": "adr:0007",
+      "command": "pnpm vitest run src/__tests__/geminiService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:ed89b17bc018406d4d10f89f11fbe18c02eba75c64619f1dfd980b827e5d2d5b",
+      "tree": "sha256:27bf2dc0da89039601bdedbd6110b920fe1c017c5b9df1cc6611c734559ebabd",
+      "recorded_at": "2026-11-15T20:58:47.686Z"
+    },
+    {
+      "id": "run-13",
+      "purpose": "fitness",
+      "ref": "adr:0008",
+      "command": "pnpm vitest run src/__tests__/backupValidator.test.ts src/__tests__/storageService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:4cd705458a8f6228200e1da33231d4772cbf13406eef2fb4e1ff181cc84971b4",
+      "tree": "sha256:27bf2dc0da89039601bdedbd6110b920fe1c017c5b9df1cc6611c734559ebabd",
+      "recorded_at": "2026-11-15T20:58:47.686Z"
+    },
+    {
+      "id": "run-14",
+      "purpose": "fitness",
+      "ref": "scenario:exactitud-contable",
+      "command": "pnpm vitest run src/__tests__/ledgerEngine.test.ts src/__tests__/financeService.test.ts src/__tests__/openingBalance.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:47abb5ad967806e603ea3d9641644be186451f46f0a26aec3a22ea70982b63a8",
+      "tree": "sha256:27bf2dc0da89039601bdedbd6110b920fe1c017c5b9df1cc6611c734559ebabd",
+      "recorded_at": "2026-11-15T20:58:47.686Z"
+    },
+    {
+      "id": "run-15",
+      "purpose": "fitness",
+      "ref": "scenario:integridad-datos",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts src/__tests__/syncService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:1fbd030e38b00c1910a4448d6eeceae9bc2787d697baa649d844ec3295a2d5b4",
+      "tree": "sha256:27bf2dc0da89039601bdedbd6110b920fe1c017c5b9df1cc6611c734559ebabd",
+      "recorded_at": "2026-11-15T20:58:47.686Z"
+    },
+    {
+      "id": "run-16",
+      "purpose": "checks",
+      "name": "test",
+      "command": "pnpm vitest run",
+      "exit_code": 0,
+      "output_sha256": "sha256:d0677870f2ff07d33b634eaa95dcf2b7464243bfd77e27a0680f20b339c47bc2",
+      "tree": "sha256:27bf2dc0da89039601bdedbd6110b920fe1c017c5b9df1cc6611c734559ebabd",
+      "recorded_at": "2026-11-15T20:59:26.070Z"
+    },
+    {
+      "id": "run-17",
+      "purpose": "checks",
+      "name": "lint",
+      "command": "pnpm lint",
+      "exit_code": 0,
+      "output_sha256": "sha256:698f35b3067fc8c9494d1803a24cbbdc399d82ad3b53d48d8bf5e20e1601e426",
+      "tree": "sha256:27bf2dc0da89039601bdedbd6110b920fe1c017c5b9df1cc6611c734559ebabd",
+      "recorded_at": "2026-11-15T20:59:26.070Z"
+    },
+    {
+      "id": "run-18",
+      "purpose": "checks",
+      "name": "typecheck",
+      "command": "pnpm typecheck",
+      "exit_code": 0,
+      "output_sha256": "sha256:8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+      "tree": "sha256:27bf2dc0da89039601bdedbd6110b920fe1c017c5b9df1cc6611c734559ebabd",
+      "recorded_at": "2026-11-15T20:59:26.070Z"
+    },
+    {
+      "id": "run-19",
+      "purpose": "fitness",
+      "ref": "adr:0007",
+      "command": "pnpm vitest run src/__tests__/geminiService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:8e78256e3eba38f9529406583bed198f21f0aad6271fadac6fa6f63b7c1e12a2",
+      "tree": "sha256:27bf2dc0da89039601bdedbd6110b920fe1c017c5b9df1cc6611c734559ebabd",
+      "recorded_at": "2026-11-15T20:59:26.070Z"
+    },
+    {
+      "id": "run-20",
+      "purpose": "fitness",
+      "ref": "adr:0008",
+      "command": "pnpm vitest run src/__tests__/backupValidator.test.ts src/__tests__/storageService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:0be8fe4e00c20b0768e4ab5d193bf2469ca3829596ea74666d00b663c145858a",
+      "tree": "sha256:27bf2dc0da89039601bdedbd6110b920fe1c017c5b9df1cc6611c734559ebabd",
+      "recorded_at": "2026-11-15T20:59:26.070Z"
+    },
+    {
+      "id": "run-21",
+      "purpose": "fitness",
+      "ref": "scenario:exactitud-contable",
+      "command": "pnpm vitest run src/__tests__/ledgerEngine.test.ts src/__tests__/financeService.test.ts src/__tests__/openingBalance.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:3ee9e01dc8d0d36d76fe160bead57578b2f85a2f345db7e18402d416f483f7ba",
+      "tree": "sha256:27bf2dc0da89039601bdedbd6110b920fe1c017c5b9df1cc6611c734559ebabd",
+      "recorded_at": "2026-11-15T20:59:26.070Z"
+    },
+    {
+      "id": "run-22",
+      "purpose": "fitness",
+      "ref": "scenario:integridad-datos",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts src/__tests__/syncService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:af83ac0b96899c7ac0e15c7b1e31ed874df7e13442d9aa7dac96193c84b2c343",
+      "tree": "sha256:27bf2dc0da89039601bdedbd6110b920fe1c017c5b9df1cc6611c734559ebabd",
+      "recorded_at": "2026-11-15T20:59:26.070Z"
+    }
+  ],
+  "closed_at": "2026-11-15T20:59:26.188Z"
+}
