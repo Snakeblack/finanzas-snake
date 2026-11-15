@@ -91,11 +91,30 @@ el límite de `id` y `originId` es de 2000 caracteres.
   (máx. 80), `dueMonth` (`YYYY-MM`), `amount`, `status` (`paid` o `pending`) y
   `label` (máx. 100).
 - Periodo: `month` (`YYYY-MM`), `openingBalance`, `openingBalanceA`,
-  `openingBalanceB` y el opcional `isManualInit`.
+  `openingBalanceB` y los opcionales `isManualInit` y `skippedRecurring`.
 - Mensaje del asesor: `role` (`user` o `model`), `content` (máx. 10000) y
   `timestamp` (máx. 30).
 
 A los textos solo se les quitan los espacios de los extremos.
+
+### Apertura manual y meses anteriores
+
+`isManualInit` marca el mes cuyo saldo de apertura escribió la persona en
+«Configurar cuenta»: el saldo inicial de las cuentas es el de ese mes. Los meses
+anteriores (los que se añaden al importar o anotar un movimiento con fecha
+anterior al primer mes) se calculan hacia atrás desde él, sin cambiar su saldo.
+Si ningún periodo lo lleva, el ancla es el primer mes.
+
+### Series recurrentes tras «solo este»
+
+`skippedRecurring` es la lista de instancias de series recurrentes que se
+quitaron de ese mes con «solo este» (borradas o convertidas en puntuales),
+guardadas tal como estaban, con los mismos campos y límites que un movimiento.
+Al crear el mes siguiente, cada serie que no tenga otra instancia en el mes
+sigue a partir de la guardada. Solo lo lleva el mes que era el último cuando se
+hizo el cambio. Las copias anteriores no tienen el campo y se importan igual;
+una instancia inválida rechaza la copia. No cambia la versión del formato
+porque solo añade.
 
 ## Versiones
 

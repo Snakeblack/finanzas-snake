@@ -38,7 +38,8 @@ export const usePeriods = (): UsePeriodsResult => {
 	) => {
 		if (periods.length === 0) return;
 		const sorted = [...periods].sort((a, b) => a.month.localeCompare(b.month));
-		const latestMonth = sorted[sorted.length - 1].month;
+		const latestPeriod = sorted[sorted.length - 1];
+		const latestMonth = latestPeriod.month;
 		const nextMonth = addMonthsToMonth(latestMonth, 1);
 
 		if (periods.some((p) => p.month === nextMonth)) {
@@ -51,8 +52,8 @@ export const usePeriods = (): UsePeriodsResult => {
 			openingBalance: 0
 		};
 
-		// Copiar movimientos recurrentes del último mes al nuevo
-		const cloned = cloneRecurringForMonth(transactions, latestMonth, nextMonth);
+		// Copiar movimientos recurrentes del último mes al nuevo, con las series que siguen tras «solo este»
+		const cloned = cloneRecurringForMonth(transactions, latestMonth, nextMonth, latestPeriod.skippedRecurring);
 
 		setPeriods([...periods, newPeriod]);
 		if (cloned.length > 0) {

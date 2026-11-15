@@ -1,0 +1,111 @@
+{
+  "schema": "idd-state/v1",
+  "change": "reconfigure-keeps-periods",
+  "mode": "idd",
+  "status": "abandoned",
+  "intent": {
+    "kind": "bug",
+    "summary": "«Configurar cuenta» conserva los periodos existentes en lugar de sustituirlos por uno, y no duplica recurrentes al recargar",
+    "acceptance": "Con varios meses y recurrentes, guardar «Configurar cuenta» sin cambiar el mes de inicio deja los mismos periodos y movimientos; tras recargar no aparece ningún movimiento recurrente duplicado"
+  },
+  "facts": {
+    "open": [
+      "Si el nuevo mes de inicio es posterior al primer mes existente (incluido elegir «Mes en curso» con meses anteriores), ¿qué pasa con los meses anteriores y sus movimientos: (a) se rechaza el cambio con un aviso mientras haya meses anteriores, (b) se borran esos meses y sus movimientos tras confirmar, o (c) se quitan los meses y los movimientos quedan guardados sin contar?",
+      "Si el nuevo mes de inicio es anterior al primero existente, ¿los meses que se añaden por delante quedan vacíos (sin clonar recurrentes hacia atrás)?",
+      "Al mover el mes de inicio, ¿el saldo de apertura manual pasa al nuevo primer mes y el anterior primer mes deja de ser de apertura manual?"
+    ]
+  },
+  "plan": {
+    "paths": [
+      "docs/roadmap.md",
+      "src/__tests__/FinanzasContext.test.tsx",
+      "src/context/FinanzasContext.tsx"
+    ],
+    "work_units": 1,
+    "decision": false,
+    "operations": []
+  },
+  "signals": [
+    {
+      "id": "always",
+      "reason": "every change with a resolved intent",
+      "source": "declaration"
+    },
+    {
+      "id": "bug-fix",
+      "reason": "the intent is a bug fix",
+      "source": "declaration"
+    },
+    {
+      "id": "adr-or-quality-attribute",
+      "reason": "component app-state: ADR 0002, 0003 and quality scenario integridad-datos, modificabilidad",
+      "source": "declaration"
+    }
+  ],
+  "impacts": [
+    {
+      "kind": "adr",
+      "id": "0002",
+      "impact": null
+    },
+    {
+      "kind": "adr",
+      "id": "0003",
+      "impact": null
+    },
+    {
+      "kind": "scenario",
+      "id": "integridad-datos",
+      "impact": null
+    },
+    {
+      "kind": "scenario",
+      "id": "modificabilidad",
+      "impact": null
+    }
+  ],
+  "obligations": [
+    {
+      "id": "checks-pass",
+      "signal": "always",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "repro-test",
+      "signal": "bug-fix",
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "id": "adr-impact-declaration",
+      "signal": "adr-or-quality-attribute",
+      "status": "pending",
+      "evidence": []
+    }
+  ],
+  "gates": [
+    {
+      "id": "open-facts",
+      "status": "open",
+      "opened_turn": 18
+    },
+    {
+      "id": "abandon",
+      "status": "resolved",
+      "reason": "Cambio abierto y vacío que quedó sobrante: su trabajo lo entregó h1-data-integrity en 0.2.4",
+      "superseded_by": "h1-data-integrity",
+      "opened_turn": 21,
+      "answer": "todos las recomendadas (abandonarlo era la recomendada)",
+      "source": "user",
+      "resolved_turn": 22
+    }
+  ],
+  "evidence": [],
+  "base": "82df89fcd5ad41f8371b4bc2ed7c50f87e9c2d56",
+  "abandoned": {
+    "at": "2026-11-15T13:15:30.546Z",
+    "reason": "Cambio abierto y vacío que quedó sobrante: su trabajo lo entregó h1-data-integrity en 0.2.4",
+    "superseded_by": "h1-data-integrity"
+  }
+}

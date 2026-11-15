@@ -37,7 +37,7 @@ import {
 	saveProfileCount,
 	executeSilentMigrationIfRequired
 } from '../services/storageService';
-import { autoGenerateMissingPeriods, reconfigurePeriods } from '../utils/dateUtils';
+import { autoGenerateMissingPeriods, ensurePeriodsForTransactions, reconfigurePeriods } from '../utils/dateUtils';
 import { parseOpeningBalanceInput } from '../utils/openingBalance';
 import { buildChatPdfHtml, type ChatPdfOptions } from '../services/chatPdfExport';
 import type { MonthBalanceData, ProjectedMonthData } from '../services/financeService';
@@ -425,6 +425,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		initialSelectedMonth: selectedMonth,
 		accounts,
 		periods,
+		setPeriods,
 		profileCount
 	});
 
@@ -656,6 +657,20 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 		setUserBName,
 		setProfileCount
 	]);
+
+	// Todo movimiento cae en un periodo: se crean los meses que falten. Importar, anotar, editar,
+	// restaurar una copia y sincronizar pasan todos por aquí. Si el estado cambió entre tanto, no se
+	// pisa: el efecto vuelve a ejecutarse con el estado nuevo.
+	useEffect(() => {
+		if (!isInitialized || isLocked) return;
+		const ensured = ensurePeriodsForTransactions(periods, transactions);
+		if (ensured.periods !== periods) {
+			setPeriods((prev) => (prev === periods ? ensured.periods : prev));
+		}
+		if (ensured.transactions !== transactions) {
+			setTransactions((prev) => (prev === transactions ? ensured.transactions : prev));
+		}
+	}, [periods, transactions, isInitialized, isLocked, setPeriods, setTransactions]);
 
 	useEffect(() => {
 		if (!isInitialized || isLocked) return;

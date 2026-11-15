@@ -70,7 +70,8 @@ export const PeriodSchema = z.object({
 	openingBalance: z.number(),
 	openingBalanceA: z.number().optional(),
 	openingBalanceB: z.number().optional(),
-	isManualInit: z.boolean().default(false)
+	isManualInit: z.boolean().default(false),
+	skippedRecurring: z.array(TransactionSchema).optional()
 });
 
 export const AccountSchema = z.object({

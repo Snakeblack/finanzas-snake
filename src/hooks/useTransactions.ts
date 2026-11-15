@@ -2,7 +2,7 @@ import { useState, type Dispatch, type SetStateAction, type SyntheticEvent } fro
 import type { Account, Period, Transaction, TxForm, TransactionRecurrence } from '../types';
 import { DEFAULT_TAGS } from '../constants';
 import { getInitialData } from '../services/storageService';
-import { getValidDateForMonth } from '../utils/dateUtils';
+import { getValidDateForMonth, recordSkippedRecurring, updateSkippedRecurring } from '../utils/dateUtils';
 import { toNumber } from '../utils/formatters';
 
 interface UseTransactionsParams {
@@ -14,6 +14,8 @@ interface UseTransactionsParams {
 	accounts: Account[];
 	/** Periodos vigentes: los handlers propagan recurrencias a los meses futuros existentes. */
 	periods: Period[];
+	/** Guarda en el último mes las instancias quitadas con «solo este» para que la serie siga. */
+	setPeriods: Dispatch<SetStateAction<Period[]>>;
 	profileCount?: 1 | 2;
 }
 
@@ -48,6 +50,7 @@ export const useTransactions = ({
 	initialSelectedMonth,
 	accounts,
 	periods,
+	setPeriods,
 	profileCount = 2
 }: UseTransactionsParams): UseTransactionsResult => {
 	const isSingle = profileCount === 1;
@@ -292,6 +295,28 @@ export const useTransactions = ({
 		const wasOneOff = editingTx.recurrence !== 'recurring';
 		const isNowRecurring = formToUse.recurrence === 'recurring';
 
+		if (editingTx.recurrence === 'recurring') {
+			if (editScope === 'only-this') {
+				setPeriods((prev) => recordSkippedRecurring(prev, editingTx));
+			} else {
+				const targetRecurrence: TransactionRecurrence = formToUse.recurrence || 'one-off';
+				setPeriods((prev) =>
+					updateSkippedRecurring(prev, rootId, editScope === 'future' ? currentMonth : '', (saved) =>
+						targetRecurrence === 'recurring'
+							? {
+									...saved,
+									...updatedFields,
+									money: {
+										amount: updatedAmount.toFixed(2),
+										currency: formToUse.currency || 'EUR'
+									}
+								}
+							: null
+					)
+				);
+			}
+		}
+
 		setTransactions((prev) => {
 			let updatedTxs = prev.map((t): Transaction => {
 				const isTarget = t.id === editingTx.id;
@@ -408,6 +433,7 @@ export const useTransactions = ({
 			if (deleteFuture) {
 				const rootId = targetTx.originId || targetTx.id;
 				const currentMonth = targetTx.date.substring(0, 7);
+				setPeriods((prev) => updateSkippedRecurring(prev, rootId, currentMonth, () => null));
 				setTransactions(
 					transactions.filter(
 						(t) =>
@@ -417,6 +443,7 @@ export const useTransactions = ({
 				);
 				return;
 			}
+			setPeriods((prev) => recordSkippedRecurring(prev, targetTx));
 		}
 
 		setTransactions(transactions.filter((t) => t.id !== id));

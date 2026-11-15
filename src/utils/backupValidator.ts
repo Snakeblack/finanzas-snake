@@ -223,13 +223,13 @@ const validateAccounts = (accounts: unknown, legacy: boolean): Account[] => {
 /**
  * Valida una lista de transacciones.
  */
-const validateTransactions = (transactions: unknown, legacy: boolean): Transaction[] => {
+const validateTransactions = (transactions: unknown, legacy: boolean, field = 'transactions'): Transaction[] => {
 	if (!Array.isArray(transactions)) {
-		throw new Error("El campo de transacciones ('transactions') debe ser un array.");
+		throw new Error(`El campo de transacciones ('${field}') debe ser un array.`);
 	}
 
 	return transactions.map((tx, index) => {
-		const prefix = `transactions[${index}]`;
+		const prefix = `${field}[${index}]`;
 		if (typeof tx !== 'object' || tx === null) {
 			throw new Error(`La transacción en la posición ${index} es inválida.`);
 		}
@@ -543,13 +543,19 @@ const validatePeriods = (periods: unknown): Period[] => {
 		});
 
 		const parsed = parseWithZod(PeriodItemSchema, rawPeriod);
+		const rawSkipped = rawPeriod['skippedRecurring'];
+		const skippedRecurring =
+			rawSkipped === undefined || rawSkipped === null
+				? undefined
+				: validateTransactions(rawSkipped, false, `${prefix}.skippedRecurring`);
 
 		return {
 			month: parsed.month,
 			openingBalance: parsed.openingBalance,
 			openingBalanceA: parsed.openingBalanceA,
 			openingBalanceB: parsed.openingBalanceB,
-			isManualInit: parsed.isManualInit
+			isManualInit: parsed.isManualInit,
+			...(skippedRecurring ? { skippedRecurring } : {})
 		} as Period;
 	});
 };
