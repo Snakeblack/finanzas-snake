@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-11-15
+
+### Fixed
+- «Configurar cuenta» conserva los meses existentes y ya no duplica los recurrentes al recargar; un mes de inicio posterior al primero se rechaza con un aviso (h1-data-integrity)
+- Cuentas y periodos se guardan en una sola operación: un fallo al guardar ya no deja el almacén vacío (h1-data-integrity)
+- El orden manual de los movimientos de un día se guarda y viaja en la copia y la sincronización (h1-data-integrity)
+
 ## [0.2.3] - 2026-11-14
 
 ### Fixed
