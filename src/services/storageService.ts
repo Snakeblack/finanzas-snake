@@ -384,7 +384,11 @@ export const migrateTransaction = (rawTransaction: UnsafeRecord, index: number):
 				: 'shared',
 		accountId: tx['accountId'] ? String(tx['accountId']) : undefined,
 		fromAccountId: tx['fromAccountId'] ? String(tx['fromAccountId']) : undefined,
-		toAccountId: tx['toAccountId'] ? String(tx['toAccountId']) : undefined
+		toAccountId: tx['toAccountId'] ? String(tx['toAccountId']) : undefined,
+		sortIndex:
+			Number.isInteger(tx['sortIndex']) && (tx['sortIndex'] as number) >= 0
+				? (tx['sortIndex'] as number)
+				: undefined
 	};
 };
 
@@ -463,7 +467,8 @@ export const migrateDebt = (rawDebt: UnsafeRecord, index: number = 0): Debt => {
 };
 
 /**
- * Guarda un array de entidades en lote en un almacén de IndexedDB, limpiándolo primero.
+ * Sustituye el contenido de un almacén de IndexedDB por un array de entidades, en una sola
+ * transacción.
  */
 const saveEntitiesToIdbBulk = async <T extends object>(
 	storeName: string,
@@ -478,11 +483,9 @@ const saveEntitiesToIdbBulk = async <T extends object>(
 				return { [keyField]: keyVal, ciphertext };
 			})
 		);
-		await idb.clearStore(storeName);
-		await idb.saveEntitiesBulk(storeName, encryptedEntities);
+		await idb.replaceAllEntities(storeName, encryptedEntities);
 	} else {
-		await idb.clearStore(storeName);
-		await idb.saveEntitiesBulk(storeName, entities);
+		await idb.replaceAllEntities(storeName, entities);
 	}
 };
 
@@ -508,6 +511,7 @@ const isTransactionEqual = (a: Transaction, b: Transaction): boolean => {
 		a.accountId === b.accountId &&
 		a.fromAccountId === b.fromAccountId &&
 		a.toAccountId === b.toAccountId &&
+		a.sortIndex === b.sortIndex &&
 		a.money?.amount === b.money?.amount &&
 		a.money?.currency === b.money?.currency
 	);

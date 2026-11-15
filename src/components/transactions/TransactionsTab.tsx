@@ -8,6 +8,7 @@ import { Upload } from 'lucide-react';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { toNumber } from '../../utils/formatters';
+import { moveWithinDay } from '../../utils/transactionOrder';
 
 /**
  * Componente que renderiza la pestaña de Transacciones.
@@ -95,19 +96,9 @@ export function TransactionsTab({ openImportModalSignal = 0, onImportModalConsum
 			return;
 		}
 
-		const draggedTx = transactions.find((t) => t.id === draggedTxId);
-		const targetTx = transactions.find((t) => t.id === targetId);
-
-		if (draggedTx && targetTx && draggedTx.date === targetTx.date) {
-			const originalDraggedIndex = transactions.findIndex((t) => t.id === draggedTxId);
-			const originalTargetIndex = transactions.findIndex((t) => t.id === targetId);
-
-			if (originalDraggedIndex !== -1 && originalTargetIndex !== -1) {
-				const updated = [...transactions];
-				const [removed] = updated.splice(originalDraggedIndex, 1);
-				updated.splice(originalTargetIndex, 0, removed);
-				setTransactions(updated);
-			}
+		const updated = moveWithinDay(transactions, draggedTxId, targetId);
+		if (updated !== transactions) {
+			setTransactions(updated);
 		}
 
 		setDraggedTxId(null);

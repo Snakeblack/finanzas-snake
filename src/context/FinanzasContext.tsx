@@ -37,7 +37,7 @@ import {
 	saveProfileCount,
 	executeSilentMigrationIfRequired
 } from '../services/storageService';
-import { autoGenerateMissingPeriods } from '../utils/dateUtils';
+import { autoGenerateMissingPeriods, reconfigurePeriods } from '../utils/dateUtils';
 import { parseOpeningBalanceInput } from '../utils/openingBalance';
 import { buildChatPdfHtml, type ChatPdfOptions } from '../services/chatPdfExport';
 import type { MonthBalanceData, ProjectedMonthData } from '../services/financeService';
@@ -823,6 +823,7 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 
 	const handleInitAccount = (e: SyntheticEvent<HTMLFormElement>) => {
 		e.preventDefault();
+		const targetMonth = initFlow === 'current' ? new Date().toISOString().substring(0, 7) : initMonth;
 		const sourceAccounts = isReconfiguring ? reconfigAccounts : accounts;
 		const filteredAccounts = sourceAccounts.filter((acc) => profileCount === 2 || acc.owner === 'userA');
 		const normalizedAccounts = filteredAccounts.map((account) => {
@@ -833,17 +834,17 @@ export const FinanzasProvider = ({ children }: { children: ReactNode }) => {
 			};
 		});
 
-		setAccounts(normalizedAccounts);
-
 		const totalBalance = normalizedAccounts.reduce((sum, account) => sum + account.initialBalance, 0);
+		const reconfigured = reconfigurePeriods(periods, targetMonth, totalBalance);
+		if (reconfigured.ok === false) {
+			window.alert(
+				`No se puede empezar en ${targetMonth}: ya hay meses anteriores (desde ${reconfigured.firstMonth}). Elige ${reconfigured.firstMonth} o un mes anterior, o reinicia la cuenta para empezar de cero.`
+			);
+			return;
+		}
 
-		const targetMonth = initFlow === 'current' ? new Date().toISOString().substring(0, 7) : initMonth;
-		const newPeriod: Period = {
-			month: targetMonth,
-			openingBalance: totalBalance,
-			isManualInit: true
-		};
-		setPeriods([newPeriod]);
+		setAccounts(normalizedAccounts);
+		setPeriods(reconfigured.periods);
 		setSelectedMonth(targetMonth);
 		setIsReconfiguring(false);
 	};

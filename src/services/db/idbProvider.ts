@@ -84,6 +84,32 @@ export class IndexedDBProvider {
 		});
 	}
 
+	/**
+	 * Sustituye todo el contenido de un almacén en una sola transacción: si algo falla, el almacén
+	 * conserva lo que tenía.
+	 */
+	async replaceAllEntities<T>(storeName: string, entities: T[]): Promise<void> {
+		this.validateStoreName(storeName);
+		const db = await this.initDB();
+		return new Promise((resolve, reject) => {
+			const transaction = db.transaction(storeName, 'readwrite');
+			transaction.onerror = () => reject(transaction.error);
+			transaction.onabort = () => reject(transaction.error);
+			try {
+				const store = transaction.objectStore(storeName);
+				store.clear();
+				entities.forEach((entity) => store.put(entity));
+			} catch (error) {
+				// Una excepción al escribir no aborta la transacción por sí sola: sin esto se confirmaría el vaciado.
+				transaction.onabort = null;
+				transaction.abort();
+				reject(error);
+				return;
+			}
+			transaction.oncomplete = () => resolve();
+		});
+	}
+
 	async getAllEntities<T = unknown>(storeName: string): Promise<T[]> {
 		this.validateStoreName(storeName);
 		const db = await this.initDB();

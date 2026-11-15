@@ -14,6 +14,7 @@ import {
 } from '../services/financeService';
 import { addMonthsToMonth, normalizeMonth } from '../utils/dateUtils';
 import { toNumber } from '../utils/formatters';
+import { sortForDisplay } from '../utils/transactionOrder';
 
 interface UseFinancialSelectorsParams {
 	periods: Period[];
@@ -78,13 +79,7 @@ export const useFinancialSelectors = ({
 	const currentClosingBalance = activePeriodData.closingBalance;
 
 	const filteredTransactions = useMemo(() => {
-		return transactions
-			.filter((t) => t.date.substring(0, 7) === selectedMonth)
-			.sort((a, b) => {
-				const dateCompare = b.date.localeCompare(a.date);
-				if (dateCompare !== 0) return dateCompare;
-				return transactions.indexOf(a) - transactions.indexOf(b);
-			});
+		return sortForDisplay(transactions.filter((t) => t.date.substring(0, 7) === selectedMonth));
 	}, [transactions, selectedMonth]);
 
 	const recurringIncomes = useMemo(() => {

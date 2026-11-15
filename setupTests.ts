@@ -82,6 +82,29 @@ class MockIDBRequest {
 class MockIDBTransaction {
 	private _oncomplete: any = null;
 	onerror: any = null;
+	onabort: any = null;
+	error: any = null;
+	// Copia de cada almacén antes de la primera escritura: abortar la restaura, como en IndexedDB.
+	private _snapshots: Record<string, any[] | undefined> = {};
+
+	private _remember(name: string) {
+		if (!(name in this._snapshots)) {
+			this._snapshots[name] = mockDbStore[name] ? [...mockDbStore[name]] : undefined;
+		}
+	}
+
+	abort() {
+		for (const [name, snapshot] of Object.entries(this._snapshots)) {
+			if (snapshot === undefined) {
+				delete mockDbStore[name];
+			} else {
+				mockDbStore[name] = snapshot;
+			}
+		}
+		this._snapshots = {};
+		this.error = new Error('AbortError');
+		if (this.onabort) this.onabort();
+	}
 
 	get oncomplete() {
 		return this._oncomplete;
@@ -96,6 +119,9 @@ class MockIDBTransaction {
 	objectStore(name: string) {
 		return {
 			put: (item: any) => {
+				// IndexedDB guarda una copia estructurada: un valor no clonable lanza DataCloneError.
+				structuredClone(item);
+				this._remember(name);
 				const req = new MockIDBRequest();
 				if (!mockDbStore[name]) mockDbStore[name] = [];
 				const keyPath = name === 'periods' ? 'month' : (name === 'config' ? 'key' : 'id');
@@ -121,12 +147,14 @@ class MockIDBTransaction {
 				return req;
 			},
 			clear: () => {
+				this._remember(name);
 				const req = new MockIDBRequest();
 				mockDbStore[name] = [];
 				req.result = undefined;
 				return req;
 			},
 			delete: (key: any) => {
+				this._remember(name);
 				const req = new MockIDBRequest();
 				if (mockDbStore[name]) {
 					const keyPath = name === 'periods' ? 'month' : (name === 'config' ? 'key' : 'id');

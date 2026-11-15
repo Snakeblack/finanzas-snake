@@ -87,6 +87,8 @@ export type Transaction = {
 	readonly accountId?: string;
 	readonly fromAccountId?: string;
 	readonly toAccountId?: string;
+	/** Posición elegida a mano entre los movimientos del mismo día (0 es el primero). */
+	readonly sortIndex?: number;
 };
 
 /**
