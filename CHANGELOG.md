@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-11-15
+
+### Fixed
+- Un extracto con dos filas idénticas (dos cafés iguales el mismo día) importa las dos; cada movimiento ya guardado, importado o anotado a mano, cubre una sola fila, y reimportar el extracto no duplica ninguna (h2-statement-import)
+- Un traspaso enviado el viernes y recibido el lunes se empareja: la ventana cuenta dos días hábiles y, con varios candidatos, gana el más cercano en ambos sentidos (h2-statement-import)
+
 ## [0.2.5] - 2026-11-15
 
 ### Fixed
