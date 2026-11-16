@@ -10,7 +10,8 @@ import {
 	getEffectiveAmount,
 	calculateDebtRemainingPrincipal,
 	calculateDebtRemainingInterests,
-	calculateProjections
+	calculateProjections,
+	calculateJointSettlement
 } from '../services/financeService';
 import { addMonthsToMonth, normalizeMonth } from '../utils/dateUtils';
 import { toNumber } from '../utils/formatters';
@@ -121,22 +122,11 @@ export const useFinancialSelectors = ({
 		});
 	}, [debts, selectedMonth]);
 
-	// Gastos conjuntos pagados por cada uno (en el mes activo)
-	const jointPaidByA = useMemo(() => {
-		return filteredTransactions
-			.filter((t) => t.type === 'expense' && t.owner === 'joint' && t.paidBy === 'userA')
-			.reduce((sum, t) => sum + toNumber(t.money?.amount ?? '0'), 0);
-	}, [filteredTransactions]);
-
-	const jointPaidByB = useMemo(() => {
-		return filteredTransactions
-			.filter((t) => t.type === 'expense' && t.owner === 'joint' && t.paidBy === 'userB')
-			.reduce((sum, t) => sum + toNumber(t.money?.amount ?? '0'), 0);
-	}, [filteredTransactions]);
-
-	const netOwed = useMemo(() => {
-		return (jointPaidByA - jointPaidByB) / 2;
-	}, [jointPaidByA, jointPaidByB]);
+	// Gastos conjuntos pagados por cada uno (en el mes activo), en EUR
+	const jointSettlement = useMemo(() => calculateJointSettlement(filteredTransactions), [filteredTransactions]);
+	const jointPaidByA = jointSettlement.paidByA;
+	const jointPaidByB = jointSettlement.paidByB;
+	const netOwed = jointSettlement.netOwed;
 
 	// Desglose de etiquetas para este mes
 	const tagData = useMemo(() => {

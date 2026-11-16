@@ -227,7 +227,6 @@ export function AccountsTab() {
 								type="number"
 								step="0.01"
 								required
-								min="0"
 								placeholder="0.00"
 								value={accountForm.initialBalance}
 								onChange={(e) => setAccountForm({ ...accountForm, initialBalance: e.target.value })}

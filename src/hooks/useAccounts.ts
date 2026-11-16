@@ -28,11 +28,14 @@ export interface UseAccountsResult {
  */
 export const useAccounts = (profileCount: 1 | 2 = 2): UseAccountsResult => {
 	const isSingle = profileCount === 1;
+	// Con un perfil no hay selector de titular: toda cuenta es de la persona
+	const defaultOwner: AccountForm['owner'] = isSingle ? 'userA' : 'joint';
+	const ownerToSave = (owner: AccountForm['owner']): AccountForm['owner'] => (isSingle ? 'userA' : owner);
 	const [accounts, setAccounts] = useState<Account[]>(() => getInitialData().accounts);
 	const [editingAccount, setEditingAccount] = useState<Account | null>(null);
 	const [accountForm, setAccountForm] = useState<AccountForm>({
 		name: '',
-		owner: isSingle ? 'userA' : 'joint',
+		owner: defaultOwner,
 		initialBalance: ''
 	});
 
@@ -55,26 +58,27 @@ export const useAccounts = (profileCount: 1 | 2 = 2): UseAccountsResult => {
 		const newAcc: Account = {
 			id: Date.now().toString(),
 			name: accountForm.name,
-			owner: accountForm.owner,
-			initialBalance: Math.abs(toNumber(accountForm.initialBalance))
+			owner: ownerToSave(accountForm.owner),
+			// Un descubierto o una tarjeta empiezan en negativo: se guarda el signo tal cual
+			initialBalance: toNumber(accountForm.initialBalance)
 		};
 
 		setAccounts([...accounts, newAcc]);
-		setAccountForm({ name: '', owner: 'joint', initialBalance: '' });
+		setAccountForm({ name: '', owner: defaultOwner, initialBalance: '' });
 	};
 
 	const handleSaveEditAccount = (e: SyntheticEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		if (!editingAccount || !accountForm.name) return;
 
-		const updatedBalance = Math.abs(toNumber(accountForm.initialBalance));
+		const updatedBalance = toNumber(accountForm.initialBalance);
 		setAccounts(
 			accounts.map((acc) => {
 				if (acc.id === editingAccount.id) {
 					return {
 						...acc,
 						name: accountForm.name,
-						owner: accountForm.owner,
+						owner: ownerToSave(accountForm.owner),
 						initialBalance: updatedBalance
 					};
 				}
@@ -83,7 +87,7 @@ export const useAccounts = (profileCount: 1 | 2 = 2): UseAccountsResult => {
 		);
 
 		setEditingAccount(null);
-		setAccountForm({ name: '', owner: 'joint', initialBalance: '' });
+		setAccountForm({ name: '', owner: defaultOwner, initialBalance: '' });
 	};
 
 	const handleStartEditAccount = (acc: Account) => {
