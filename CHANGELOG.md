@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.2.7] - 2026-11-16
+
+### Fixed
+- Con un perfil, la segunda cuenta o deuda y las siguientes quedan a nombre de la persona en lugar de como conjuntas; editar una cuenta guardada como conjunta la corrige (h2-joint-profiles)
+- El saldo inicial negativo de una cuenta (descubierto, tarjeta) se guarda con su signo al crearla y al editarla (h2-joint-profiles)
+- En vista individual, ingresos, gastos y cuotas cuentan según la cuenta que mueve el dinero (propia entera, conjunta a medias), igual que el cierre: Apertura + Ingresos − Gastos − Deuda = Cierre (h2-joint-profiles)
+- «Cuentas del mes» convierte a euros los gastos comunes pagados en otra divisa (h2-joint-profiles)
+
 ## [0.2.6] - 2026-11-15
 
 ### Fixed
