@@ -1,0 +1,578 @@
+{
+  "schema": "idd-state/v1",
+  "change": "h2-joint-profiles",
+  "mode": "idd",
+  "status": "closed",
+  "intent": {
+    "kind": "bug",
+    "summary": "Perfiles y cuentas conjuntas: con un perfil la segunda cuenta o deuda queda conjunta sin poder corregirlo y el saldo inicial negativo se vuelve positivo; en vista individual un gasto o cuota conjunta pagada desde la cuenta de una persona cuenta a medias en gastos y entera en el cierre; la liquidación conjunta suma importes de distinta divisa sin convertir",
+    "acceptance": "Con un perfil, toda cuenta o deuda nueva (también la segunda) queda a nombre de la persona; un saldo inicial negativo se guarda negativo al crear y al editar; en vista individual Apertura + Ingresos − Gastos − Deuda = Cierre para un mes con un gasto conjunto y una cuota conjunta pagados desde la cuenta de una persona; la liquidación de «Cuentas del mes» convierte a EUR los gastos en otra divisa con aritmética decimal exacta"
+  },
+  "facts": {
+    "open": [
+      "Con un perfil, las cuentas y deudas ya guardadas como conjuntas por el defecto: ¿se corrigen solo hacia delante (las nuevas y las que se editen pasan a la persona) o se reparan todas al leer los datos?",
+      "Saldo inicial negativo (descubierto, tarjeta): ¿se admite y se guarda con su signo, o se rechaza con un aviso?",
+      "En vista individual, ¿qué modelo cuadra la ecuación: contar cada movimiento y cuota por la cuenta que mueve (caja: propia 100 %, conjunta 50 %), o por su titular (parte de cada uno) con el cierre incluyendo lo que la otra persona debe?"
+    ]
+  },
+  "plan": {
+    "paths": [
+      "docs/roadmap.md",
+      "src/__tests__/backupRoundtrip.test.ts",
+      "src/__tests__/financeService.test.ts",
+      "src/__tests__/h2JointProfiles.test.ts",
+      "src/components/accounts/AccountsTab.tsx",
+      "src/hooks/useAccounts.ts",
+      "src/hooks/useDebts.ts",
+      "src/hooks/useFinancialSelectors.ts",
+      "src/services/financeService.ts"
+    ],
+    "work_units": 1,
+    "decision": true,
+    "operations": [],
+    "decisions": [
+      "Con un perfil, alta y edición de cuentas y alta de deudas guardan siempre userA y el formulario vuelve a userA; las conjuntas antiguas se corrigen al editarlas, sin migrar datos (decisión del propietario)",
+      "El saldo inicial de cuenta se guarda con su signo al crear y al editar, y el campo deja de exigir min=0, igual que la bienvenida",
+      "En vista individual un ingreso o gasto reparte por el titular de su cuenta (sin cuenta, por el del movimiento) y una cuota por el de su cuenta de pago (sin ella, por el de la deuda): mismo criterio que el cierre, aplicado en saldos, desglose por etiqueta y proyección; la deuda pendiente sigue repartiéndose por el titular de la deuda porque es un pasivo, no caja (decisión del propietario: caja)",
+      "La liquidación conjunta sale del selector al dominio (calculateJointSettlement) con Big y conversión a EUR por las tasas estáticas; redondea a céntimos como el resto del motor"
+    ]
+  },
+  "signals": [
+    {
+      "id": "always",
+      "reason": "every change with a resolved intent",
+      "source": "declaration"
+    },
+    {
+      "id": "bug-fix",
+      "reason": "the intent is a bug fix",
+      "source": "declaration"
+    },
+    {
+      "id": "adr-or-quality-attribute",
+      "reason": "declared ADR 0004 and quality scenario exactitud-contable",
+      "source": "declaration"
+    },
+    {
+      "id": "multi-unit-or-decision",
+      "reason": "declared a non-obvious decision",
+      "source": "declaration"
+    },
+    {
+      "id": "persistent-data",
+      "reason": "persistent data: src/components/accounts/AccountsTab.tsx imports src/components/sync/SyncModal.tsx, which uses localStorage",
+      "source": "diff"
+    }
+  ],
+  "impacts": [
+    {
+      "kind": "adr",
+      "id": "0002",
+      "impact": "conforms",
+      "reason": "La liquidación se calcula en el dominio (financeService.calculateJointSettlement) y el selector solo la lee; la interfaz no importa adaptadores nuevos"
+    },
+    {
+      "kind": "adr",
+      "id": "0003",
+      "impact": "none",
+      "reason": "No toca la escritura a disco: los hooks siguen entregando el estado al único escritor"
+    },
+    {
+      "kind": "adr",
+      "id": "0004",
+      "impact": "conforms",
+      "reason": "La liquidación conjunta pasa a aritmética decimal exacta (Big) y convierte a EUR con las mismas tasas que el motor; el reparto de la vista individual sale de un único criterio en el motor. El saldo inicial sigue siendo número: su migración a importe decimal es H2-D"
+    },
+    {
+      "kind": "scenario",
+      "id": "exactitud-contable",
+      "impact": "conforms",
+      "reason": "En vista individual ingresos, gastos, cuotas, desglose por etiqueta, proyección y cierre reparten por la cuenta que mueve el dinero: Apertura + Ingresos − Gastos − Deuda = Cierre con los mismos datos"
+    },
+    {
+      "kind": "scenario",
+      "id": "integridad-datos",
+      "impact": "none",
+      "reason": "No cambia formato ni migra datos: las cuentas y deudas conjuntas antiguas de un perfil se corrigen al editarlas (decisión del propietario)"
+    },
+    {
+      "kind": "scenario",
+      "id": "modificabilidad",
+      "impact": "conforms",
+      "reason": "Cuatro ponderaciones duplicadas de cuotas y movimientos pasan a dos funciones del motor (getCashOwner, getDebtCashOwner)"
+    },
+    {
+      "kind": "scenario",
+      "id": "usabilidad",
+      "impact": "conforms",
+      "reason": "La ecuación del resumen mensual cuadra en vista individual y el campo de saldo inicial admite negativos"
+    }
+  ],
+  "obligations": [
+    {
+      "id": "checks-pass",
+      "signal": "always",
+      "status": "satisfied",
+      "evidence": [
+        "ev-5"
+      ]
+    },
+    {
+      "id": "repro-test",
+      "signal": "bug-fix",
+      "status": "satisfied",
+      "evidence": [
+        "ev-1"
+      ]
+    },
+    {
+      "id": "adr-impact-declaration",
+      "signal": "adr-or-quality-attribute",
+      "status": "satisfied",
+      "evidence": [
+        "ev-6"
+      ]
+    },
+    {
+      "id": "living-doc",
+      "signal": "multi-unit-or-decision",
+      "status": "satisfied",
+      "evidence": [
+        "ev-7"
+      ]
+    },
+    {
+      "id": "migration-compat-and-test",
+      "signal": "persistent-data",
+      "status": "satisfied",
+      "evidence": [
+        "ev-4"
+      ]
+    }
+  ],
+  "gates": [
+    {
+      "id": "open-facts",
+      "status": "resolved",
+      "opened_turn": 25,
+      "answer": "todas las recomendadas (1a: corregir solo hacia delante, las nuevas y las editadas pasan a la persona, sin migrar datos; 2a: admitir el saldo inicial negativo y guardarlo con su signo; 3a: en vista individual contar cada movimiento y cuota por la cuenta que mueve, propia 100 %, conjunta 50 %, sin cuenta por titular)",
+      "source": "user",
+      "resolved_turn": 26
+    }
+  ],
+  "evidence": [
+    {
+      "id": "ev-1",
+      "kind": "repro-run-pair",
+      "obligation": "repro-test",
+      "recorded_at": "2026-11-16T07:45:38.740Z",
+      "detail": {
+        "red": "run-6",
+        "green": "run-7",
+        "counterproof": [
+          "run-8",
+          "run-9"
+        ]
+      }
+    },
+    {
+      "id": "ev-2",
+      "kind": "check-run",
+      "obligation": "checks-pass",
+      "recorded_at": "2026-11-16T07:46:52.587Z",
+      "detail": {
+        "tree": "sha256:af6edd1af8de6cca1eb6d1c38f9b79ebc17b430c0a1e0d3fe1fabac781ec2522",
+        "runs": [
+          "run-10",
+          "run-11",
+          "run-12"
+        ]
+      }
+    },
+    {
+      "id": "ev-3",
+      "kind": "adr-impact-declaration",
+      "obligation": "adr-impact-declaration",
+      "recorded_at": "2026-11-16T07:46:52.587Z",
+      "detail": {
+        "refs": [
+          "adr:0002 conforms",
+          "adr:0003 none",
+          "adr:0004 conforms",
+          "scenario:exactitud-contable conforms",
+          "scenario:integridad-datos none",
+          "scenario:modificabilidad conforms",
+          "scenario:usabilidad conforms"
+        ],
+        "records": [],
+        "tree": "sha256:af6edd1af8de6cca1eb6d1c38f9b79ebc17b430c0a1e0d3fe1fabac781ec2522",
+        "fitness": [
+          "run-13",
+          "run-14",
+          "run-15",
+          "run-16",
+          "run-17",
+          "run-18"
+        ]
+      }
+    },
+    {
+      "id": "ev-4",
+      "kind": "migration-test",
+      "obligation": "migration-compat-and-test",
+      "recorded_at": "2026-11-16T07:47:42.059Z",
+      "detail": {
+        "run": "run-19",
+        "tree": "sha256:63a521d638552993c514bea6b8303997db143b42d6849f0cd513a3988b5418ad",
+        "plan": "Sin cambio de formato ni migración: Account, Debt y Transaction conservan sus campos y tipos. El saldo inicial negativo ya era un número válido para el esquema y para las copias (zNumber sin positive) y una versión anterior lo lee igual; las cuentas y deudas conjuntas de un perfil no se reescriben (se corrigen al editarlas). Vuelta atrás: revertir el commit; los datos guardados siguen siendo legibles por 0.2.6"
+      }
+    },
+    {
+      "id": "ev-5",
+      "kind": "check-run",
+      "obligation": "checks-pass",
+      "recorded_at": "2026-11-16T07:48:17.175Z",
+      "detail": {
+        "tree": "sha256:a05f97577bc3564061fc90b67decf112c3cacfd2310354e253c5172e81bcc1eb",
+        "runs": [
+          "run-20",
+          "run-21",
+          "run-22"
+        ]
+      }
+    },
+    {
+      "id": "ev-6",
+      "kind": "adr-impact-declaration",
+      "obligation": "adr-impact-declaration",
+      "recorded_at": "2026-11-16T07:48:17.175Z",
+      "detail": {
+        "refs": [
+          "adr:0002 conforms",
+          "adr:0003 none",
+          "adr:0004 conforms",
+          "scenario:exactitud-contable conforms",
+          "scenario:integridad-datos none",
+          "scenario:modificabilidad conforms",
+          "scenario:usabilidad conforms"
+        ],
+        "records": [],
+        "tree": "sha256:a05f97577bc3564061fc90b67decf112c3cacfd2310354e253c5172e81bcc1eb",
+        "fitness": [
+          "run-23",
+          "run-24",
+          "run-25",
+          "run-26",
+          "run-27",
+          "run-28"
+        ]
+      }
+    },
+    {
+      "id": "ev-7",
+      "kind": "living-doc-current",
+      "obligation": "living-doc",
+      "recorded_at": "2026-11-16T07:48:17.260Z"
+    }
+  ],
+  "base": "3903525f5bd166995c230b1705996ab2490c5fd1",
+  "runs": [
+    {
+      "id": "run-1",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run src/__tests__/h2JointProfiles.test.ts",
+      "exit_code": 1,
+      "output_sha256": "sha256:bfcf15fd64fb601408e9d75abc0a16b8d5de655a58b695d543c1120a68ea6eba",
+      "tree": "sha256:366b068302899bf95a881368ab8fd5af0b5295584ba0ec7022c7f6dc7b18740a",
+      "recorded_at": "2026-11-16T07:43:59.032Z"
+    },
+    {
+      "id": "run-2",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run src/__tests__/h2JointProfiles.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:efe2d444decdb8821dd6f951c89c4e2d97e5d778619ff721f6c64c46d852ed3f",
+      "tree": "sha256:c94f2801efe506ce258cfb0e8fa2a747f8c1f2d0e5b70a534176b5b86a584e52",
+      "recorded_at": "2026-11-16T07:45:05.206Z",
+      "counterproof": [
+        "run-3",
+        "run-4"
+      ]
+    },
+    {
+      "id": "run-3",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "3903525f5bd166995c230b1705996ab2490c5fd1",
+      "mount": "sha256:0c84c9244e8c3baa12dc05a2ee05c93b0c92751173fbd72c66d4754818b13311",
+      "command": "pnpm vitest run src/__tests__/h2JointProfiles.test.ts",
+      "exit_code": 1,
+      "output_sha256": "sha256:70980928d382e596e151255af0164cf0bc5db4e4fb10b66cf0fb4989e235240c",
+      "tree": "sha256:c94f2801efe506ce258cfb0e8fa2a747f8c1f2d0e5b70a534176b5b86a584e52",
+      "recorded_at": "2026-11-16T07:45:05.206Z"
+    },
+    {
+      "id": "run-4",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "3903525f5bd166995c230b1705996ab2490c5fd1",
+      "mount": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "control": true,
+      "command": "pnpm vitest run src/__tests__/h2JointProfiles.test.ts",
+      "exit_code": 1,
+      "output_sha256": "sha256:70980928d382e596e151255af0164cf0bc5db4e4fb10b66cf0fb4989e235240c",
+      "tree": "sha256:c94f2801efe506ce258cfb0e8fa2a747f8c1f2d0e5b70a534176b5b86a584e52",
+      "recorded_at": "2026-11-16T07:45:05.206Z"
+    },
+    {
+      "id": "run-5",
+      "purpose": "repro-test",
+      "command": "pnpm vitest run src/__tests__/h2JointProfiles.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:88bbd823abb5f21e784b9d7fd1845c02a10575166d0ae848e9265e58d82fb18d",
+      "tree": "sha256:c94f2801efe506ce258cfb0e8fa2a747f8c1f2d0e5b70a534176b5b86a584e52",
+      "recorded_at": "2026-11-16T07:45:17.970Z",
+      "counterproof": [
+        "run-3",
+        "run-4"
+      ]
+    },
+    {
+      "id": "run-6",
+      "purpose": "repro-test",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/h2JointProfiles.test.ts",
+      "exit_code": 1,
+      "output_sha256": "sha256:974b554fe3bdafd8a5282c4d1140545de51c212006646ffd2c4762313880e8b2",
+      "tree": "sha256:366b068302899bf95a881368ab8fd5af0b5295584ba0ec7022c7f6dc7b18740a",
+      "recorded_at": "2026-11-16T07:45:31.542Z"
+    },
+    {
+      "id": "run-7",
+      "purpose": "repro-test",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/h2JointProfiles.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:9fcb3d7eeb090966f9e6c7d074dba5943a33b8fadbb6fd628f147a03134a18a6",
+      "tree": "sha256:c94f2801efe506ce258cfb0e8fa2a747f8c1f2d0e5b70a534176b5b86a584e52",
+      "recorded_at": "2026-11-16T07:45:38.740Z",
+      "counterproof": [
+        "run-8",
+        "run-9"
+      ]
+    },
+    {
+      "id": "run-8",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "3903525f5bd166995c230b1705996ab2490c5fd1",
+      "mount": "sha256:0c84c9244e8c3baa12dc05a2ee05c93b0c92751173fbd72c66d4754818b13311",
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/h2JointProfiles.test.ts",
+      "exit_code": 1,
+      "output_sha256": "sha256:3b94400ea6fc193a2b223b38dec6a992bd24627855268f1d6854b43581d8efc2",
+      "tree": "sha256:c94f2801efe506ce258cfb0e8fa2a747f8c1f2d0e5b70a534176b5b86a584e52",
+      "recorded_at": "2026-11-16T07:45:38.740Z"
+    },
+    {
+      "id": "run-9",
+      "purpose": "counterproof",
+      "obligation": "repro-test",
+      "base": "3903525f5bd166995c230b1705996ab2490c5fd1",
+      "mount": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "control": true,
+      "command": "node_modules/.bin/vitest run --passWithNoTests src/__tests__/h2JointProfiles.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:e13b2a284865a24d08c8432e16af1a12dda1fa9d2125afa81a990dded7df62dd",
+      "tree": "sha256:c94f2801efe506ce258cfb0e8fa2a747f8c1f2d0e5b70a534176b5b86a584e52",
+      "recorded_at": "2026-11-16T07:45:38.740Z"
+    },
+    {
+      "id": "run-10",
+      "purpose": "checks",
+      "name": "test",
+      "command": "pnpm vitest run",
+      "exit_code": 0,
+      "output_sha256": "sha256:73148fcd4c8a151af0b8f1650ab0e66da06d97738eaa0e104c452cff52a974c7",
+      "tree": "sha256:af6edd1af8de6cca1eb6d1c38f9b79ebc17b430c0a1e0d3fe1fabac781ec2522",
+      "recorded_at": "2026-11-16T07:46:52.587Z"
+    },
+    {
+      "id": "run-11",
+      "purpose": "checks",
+      "name": "lint",
+      "command": "pnpm lint",
+      "exit_code": 0,
+      "output_sha256": "sha256:698f35b3067fc8c9494d1803a24cbbdc399d82ad3b53d48d8bf5e20e1601e426",
+      "tree": "sha256:af6edd1af8de6cca1eb6d1c38f9b79ebc17b430c0a1e0d3fe1fabac781ec2522",
+      "recorded_at": "2026-11-16T07:46:52.587Z"
+    },
+    {
+      "id": "run-12",
+      "purpose": "checks",
+      "name": "typecheck",
+      "command": "pnpm typecheck",
+      "exit_code": 0,
+      "output_sha256": "sha256:8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+      "tree": "sha256:af6edd1af8de6cca1eb6d1c38f9b79ebc17b430c0a1e0d3fe1fabac781ec2522",
+      "recorded_at": "2026-11-16T07:46:52.587Z"
+    },
+    {
+      "id": "run-13",
+      "purpose": "fitness",
+      "ref": "adr:0002",
+      "command": "sh -c '! grep -rqsE \"from .(react|react-dom).|/(hooks|components|context)/\" src/services src/utils src/domain src/adapters'",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:af6edd1af8de6cca1eb6d1c38f9b79ebc17b430c0a1e0d3fe1fabac781ec2522",
+      "recorded_at": "2026-11-16T07:46:52.587Z"
+    },
+    {
+      "id": "run-14",
+      "purpose": "fitness",
+      "ref": "adr:0003",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:5254391f4273c0e8128a8ab51a793f08420a7b83f1f2357f007cf8d329bcf7b3",
+      "tree": "sha256:af6edd1af8de6cca1eb6d1c38f9b79ebc17b430c0a1e0d3fe1fabac781ec2522",
+      "recorded_at": "2026-11-16T07:46:52.587Z"
+    },
+    {
+      "id": "run-15",
+      "purpose": "fitness",
+      "ref": "adr:0004",
+      "command": "pnpm vitest run src/__tests__/ledgerEngine.test.ts src/__tests__/financeService.test.ts src/__tests__/openingBalance.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:527c776f11b60002bc58199aa45ce33ab0baf1954fe29fa3a6260d3b6557f760",
+      "tree": "sha256:af6edd1af8de6cca1eb6d1c38f9b79ebc17b430c0a1e0d3fe1fabac781ec2522",
+      "recorded_at": "2026-11-16T07:46:52.587Z"
+    },
+    {
+      "id": "run-16",
+      "purpose": "fitness",
+      "ref": "scenario:exactitud-contable",
+      "command": "pnpm vitest run src/__tests__/ledgerEngine.test.ts src/__tests__/financeService.test.ts src/__tests__/openingBalance.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:40c52dd21249b7e7704643251d6ba1b9410673c18f5c2bd88476c13be48fdaff",
+      "tree": "sha256:af6edd1af8de6cca1eb6d1c38f9b79ebc17b430c0a1e0d3fe1fabac781ec2522",
+      "recorded_at": "2026-11-16T07:46:52.587Z"
+    },
+    {
+      "id": "run-17",
+      "purpose": "fitness",
+      "ref": "scenario:integridad-datos",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts src/__tests__/syncService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:a389f7e607584f676f8f20f6d35f5b121225ade59ff6da986ab2c69c001c60f7",
+      "tree": "sha256:af6edd1af8de6cca1eb6d1c38f9b79ebc17b430c0a1e0d3fe1fabac781ec2522",
+      "recorded_at": "2026-11-16T07:46:52.587Z"
+    },
+    {
+      "id": "run-18",
+      "purpose": "fitness",
+      "ref": "scenario:modificabilidad",
+      "command": "sh -c \"! grep -rnE \\\"from .(react|react-dom).|/(hooks|components|context)/\\\" src/services src/utils\"",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:af6edd1af8de6cca1eb6d1c38f9b79ebc17b430c0a1e0d3fe1fabac781ec2522",
+      "recorded_at": "2026-11-16T07:46:52.587Z"
+    },
+    {
+      "id": "run-19",
+      "purpose": "migration-test",
+      "command": "node_modules/.bin/vitest run src/__tests__/backupRoundtrip.test.ts src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts src/__tests__/syncService.test.ts src/__tests__/h2JointProfiles.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:943f6eb2a24228cfaffe2746247e469c3ced736660a1a4959babcb9020a104d6",
+      "tree": "sha256:63a521d638552993c514bea6b8303997db143b42d6849f0cd513a3988b5418ad",
+      "recorded_at": "2026-11-16T07:47:42.059Z"
+    },
+    {
+      "id": "run-20",
+      "purpose": "checks",
+      "name": "test",
+      "command": "pnpm vitest run",
+      "exit_code": 0,
+      "output_sha256": "sha256:347d251f582722a9bebfa57b2d43b909a33b2279190b0da55d169adba11cdc00",
+      "tree": "sha256:a05f97577bc3564061fc90b67decf112c3cacfd2310354e253c5172e81bcc1eb",
+      "recorded_at": "2026-11-16T07:48:17.175Z"
+    },
+    {
+      "id": "run-21",
+      "purpose": "checks",
+      "name": "lint",
+      "command": "pnpm lint",
+      "exit_code": 0,
+      "output_sha256": "sha256:698f35b3067fc8c9494d1803a24cbbdc399d82ad3b53d48d8bf5e20e1601e426",
+      "tree": "sha256:a05f97577bc3564061fc90b67decf112c3cacfd2310354e253c5172e81bcc1eb",
+      "recorded_at": "2026-11-16T07:48:17.175Z"
+    },
+    {
+      "id": "run-22",
+      "purpose": "checks",
+      "name": "typecheck",
+      "command": "pnpm typecheck",
+      "exit_code": 0,
+      "output_sha256": "sha256:8366207267355d3e3d5bf3bf6e8c94c5f93f6078c34f08973fa2b38cdda6cc92",
+      "tree": "sha256:a05f97577bc3564061fc90b67decf112c3cacfd2310354e253c5172e81bcc1eb",
+      "recorded_at": "2026-11-16T07:48:17.175Z"
+    },
+    {
+      "id": "run-23",
+      "purpose": "fitness",
+      "ref": "adr:0002",
+      "command": "sh -c '! grep -rqsE \"from .(react|react-dom).|/(hooks|components|context)/\" src/services src/utils src/domain src/adapters'",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:a05f97577bc3564061fc90b67decf112c3cacfd2310354e253c5172e81bcc1eb",
+      "recorded_at": "2026-11-16T07:48:17.175Z"
+    },
+    {
+      "id": "run-24",
+      "purpose": "fitness",
+      "ref": "adr:0003",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:92cbfa3efbdcbed22d73969b3b35069b29fe29cc3328c97979c05295e012fb51",
+      "tree": "sha256:a05f97577bc3564061fc90b67decf112c3cacfd2310354e253c5172e81bcc1eb",
+      "recorded_at": "2026-11-16T07:48:17.175Z"
+    },
+    {
+      "id": "run-25",
+      "purpose": "fitness",
+      "ref": "adr:0004",
+      "command": "pnpm vitest run src/__tests__/ledgerEngine.test.ts src/__tests__/financeService.test.ts src/__tests__/openingBalance.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:0de19d64f44bdc55b954915f47e2a245a9b889a9a87f47f40257dc327d04f65e",
+      "tree": "sha256:a05f97577bc3564061fc90b67decf112c3cacfd2310354e253c5172e81bcc1eb",
+      "recorded_at": "2026-11-16T07:48:17.175Z"
+    },
+    {
+      "id": "run-26",
+      "purpose": "fitness",
+      "ref": "scenario:exactitud-contable",
+      "command": "pnpm vitest run src/__tests__/ledgerEngine.test.ts src/__tests__/financeService.test.ts src/__tests__/openingBalance.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:cf4b9ba6eec036969b9623aa08d22a4ca022506117d620bba4d807099ebd1310",
+      "tree": "sha256:a05f97577bc3564061fc90b67decf112c3cacfd2310354e253c5172e81bcc1eb",
+      "recorded_at": "2026-11-16T07:48:17.175Z"
+    },
+    {
+      "id": "run-27",
+      "purpose": "fitness",
+      "ref": "scenario:integridad-datos",
+      "command": "pnpm vitest run src/__tests__/storageService.test.ts src/__tests__/backupValidator.test.ts src/__tests__/syncService.test.ts",
+      "exit_code": 0,
+      "output_sha256": "sha256:b28b907bbb907f60bbd0218ba75b463396597d416f746c1d535d63eb7db08bc0",
+      "tree": "sha256:a05f97577bc3564061fc90b67decf112c3cacfd2310354e253c5172e81bcc1eb",
+      "recorded_at": "2026-11-16T07:48:17.175Z"
+    },
+    {
+      "id": "run-28",
+      "purpose": "fitness",
+      "ref": "scenario:modificabilidad",
+      "command": "sh -c \"! grep -rnE \\\"from .(react|react-dom).|/(hooks|components|context)/\\\" src/services src/utils\"",
+      "exit_code": 0,
+      "output_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "tree": "sha256:a05f97577bc3564061fc90b67decf112c3cacfd2310354e253c5172e81bcc1eb",
+      "recorded_at": "2026-11-16T07:48:17.175Z"
+    }
+  ],
+  "closed_at": "2026-11-16T07:48:17.260Z"
+}

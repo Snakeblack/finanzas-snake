@@ -107,6 +107,21 @@ describe('Ida y vuelta de una copia o sincronización', () => {
 		await expect(readProfileCount()).resolves.toBe(1);
 	});
 
+	it('conserva el signo de un saldo inicial negativo al guardar y en la copia', async () => {
+		const withOverdraft: Account[] = [
+			...accounts,
+			{ id: 'acc-card', name: 'Tarjeta', owner: 'userA', initialBalance: -250.5 }
+		];
+
+		await saveStoredAccounts(withOverdraft);
+		await expect(readStoredAccounts()).resolves.toEqual(withOverdraft);
+
+		const imported = await importFinanceBackupPayload(
+			viajar(buildFinanceBackupPayload(snapshot({ accounts: withOverdraft })))
+		);
+		expect(imported.accounts).toEqual(withOverdraft);
+	});
+
 	it('no altera los textos por muchas rondas que se hagan', async () => {
 		let current = snapshot();
 		for (let ronda = 0; ronda < 3; ronda++) {

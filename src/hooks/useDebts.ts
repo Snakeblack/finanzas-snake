@@ -45,6 +45,7 @@ export interface UseDebtsResult {
  */
 export const useDebts = ({ initialDebtFormDate, onDebtDeleted, profileCount = 2 }: UseDebtsParams): UseDebtsResult => {
 	const isSingle = profileCount === 1;
+	const defaultOwner: DebtForm['owner'] = isSingle ? 'userA' : 'joint';
 	const [debts, setDebts] = useState<Debt[]>(() => readStoredDebtsSync());
 	const [selectedDebtSchedule, setSelectedDebtSchedule] = useState<Debt | null>(null);
 	const [debtForm, setDebtForm] = useState<DebtForm>({
@@ -93,6 +94,8 @@ export const useDebts = ({ initialDebtFormDate, onDebtDeleted, profileCount = 2 
 
 		if (!debtForm.desc) return;
 
+		// Con un perfil no hay selector de titular: toda deuda es de la persona
+		const ownerToSave: DebtForm['owner'] = isSingle ? 'userA' : debtForm.owner;
 		const rawChargeDay = debtForm.chargeDay.trim();
 		const chargeDay = rawChargeDay ? Math.trunc(toNumber(rawChargeDay)) : undefined;
 		const recurringMonthlyCosts = Math.abs(toNumber(debtForm.recurringMonthlyCosts));
@@ -136,7 +139,7 @@ export const useDebts = ({ initialDebtFormDate, onDebtDeleted, profileCount = 2 
 				tag: debtForm.tag,
 				date: normalizeMonth(debtForm.date),
 				chargeDay,
-				owner: debtForm.owner,
+				owner: ownerToSave,
 				paymentAccountId: debtForm.paymentAccountId || undefined
 			};
 
@@ -151,7 +154,7 @@ export const useDebts = ({ initialDebtFormDate, onDebtDeleted, profileCount = 2 
 				tae: '',
 				termMonths: '',
 				chargeDay: '',
-				owner: 'joint',
+				owner: defaultOwner,
 				paymentAccountId: ''
 			});
 			return;
@@ -195,7 +198,7 @@ export const useDebts = ({ initialDebtFormDate, onDebtDeleted, profileCount = 2 
 			date: normalizeMonth(debtForm.date),
 			chargeDay,
 			recurringMonthlyCosts,
-			owner: debtForm.owner,
+			owner: ownerToSave,
 			paymentAccountId: debtForm.paymentAccountId || undefined
 		};
 
@@ -208,7 +211,7 @@ export const useDebts = ({ initialDebtFormDate, onDebtDeleted, profileCount = 2 
 			recurringMonthlyCosts: '',
 			tranches: [{ id: `tranche-${Date.now()}`, months: '', amount: '' }],
 			chargeDay: '',
-			owner: 'joint',
+			owner: defaultOwner,
 			paymentAccountId: ''
 		});
 	};

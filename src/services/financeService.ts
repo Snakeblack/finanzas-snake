@@ -504,6 +504,59 @@ export const getTransactionOwner = (t: Transaction, accounts: Account[]): 'userA
 };
 
 /**
+ * Titular de la cuenta en la que un ingreso o gasto mueve el dinero; sin cuenta, el del movimiento.
+ * La vista individual reparte por la cuenta (propia 100 %, conjunta 50 %), igual que el cierre, para
+ * que Apertura + Ingresos − Gastos − Deuda = Cierre. El reparto a medias de un gasto común que
+ * adelanta una persona lo salda «Cuentas del mes».
+ */
+const getCashOwner = (t: Transaction, accounts: Account[]): 'userA' | 'userB' | 'joint' => {
+	const account = t.accountId ? accounts.find((a) => a.id === t.accountId) : undefined;
+	return account ? account.owner : (t.owner ?? 'joint');
+};
+
+/**
+ * Titular de la cuenta desde la que se paga una cuota: la cuenta de pago o, sin ella, la del titular
+ * de la deuda (la misma caída que aplica el cierre).
+ */
+const getDebtCashOwner = (d: Debt, accounts: Account[]): 'userA' | 'userB' | 'joint' => {
+	const account = d.paymentAccountId ? accounts.find((a) => a.id === d.paymentAccountId) : undefined;
+	return account ? account.owner : (d.owner ?? 'joint');
+};
+
+/** Convierte un importe a EUR con las tasas estáticas, en aritmética decimal exacta. */
+const toEurBig = (money: Money): Big => {
+	const amount = new Big(money.amount);
+	if (money.currency === 'EUR') return amount;
+	const rate = STATIC_EXCHANGE_RATES[money.currency]?.['EUR'];
+	return rate !== undefined ? amount.times(rate) : amount;
+};
+
+export type JointSettlement = {
+	/** Gastos comunes del conjunto que pagó cada persona, en EUR. */
+	paidByA: number;
+	paidByB: number;
+	/** Positivo: B debe a A; negativo: A debe a B. */
+	netOwed: number;
+};
+
+/**
+ * Liquidación de gastos comunes a medias: lo que adelantó cada persona y cuánto debe una a la otra.
+ */
+export const calculateJointSettlement = (transactions: Transaction[]): JointSettlement => {
+	const paidBy = (who: 'userA' | 'userB'): Big =>
+		transactions
+			.filter((t) => t.type === 'expense' && t.owner === 'joint' && t.paidBy === who && t.money)
+			.reduce((sum, t) => sum.plus(toEurBig(t.money as Money)), new Big(0));
+	const paidByA = paidBy('userA');
+	const paidByB = paidBy('userB');
+	return {
+		paidByA: toNumber(paidByA.toFixed(2)),
+		paidByB: toNumber(paidByB.toFixed(2)),
+		netOwed: toNumber(paidByA.minus(paidByB).div(2).toFixed(2))
+	};
+};
+
+/**
  * Calcula el importe ponderado de una transacción de acuerdo a la vista activa del usuario.
  */
 export const getEffectiveAmount = (
@@ -543,16 +596,9 @@ export const getEffectiveAmountBig = (
 	profileCount: number = 2
 ): Big => {
 	if (!t.money) return new Big(0);
-	const amt = new Big(t.money.amount);
-	let amtInEur = amt;
-	if (t.money.currency !== 'EUR') {
-		const rate = STATIC_EXCHANGE_RATES[t.money.currency]?.['EUR'];
-		if (rate !== undefined) {
-			amtInEur = amt.times(rate);
-		}
-	}
+	const amtInEur = toEurBig(t.money);
 	if (profileCount === 1) return amtInEur;
-	const owner = getTransactionOwner(t, accounts);
+	const owner = getCashOwner(t, accounts);
 	if (viewMode === 'all') return amtInEur;
 	if (viewMode === 'userA') {
 		if (owner === 'userA') return amtInEur;
@@ -748,10 +794,10 @@ export const calculateTimelineBalances = (
 			.filter((t) => t.type === 'expense')
 			.reduce((sum, t) => sum.plus(getEffectiveAmountBig(t, viewMode, accounts, profileCount)), new Big(0));
 
-		// Ponderar el pago de deudas según la vista
+		// Ponderar el pago de deudas según la vista, por la cuenta desde la que se paga
 		const getEffectiveDebtPaymentBig = (d: Debt, rawPay: Big): Big => {
 			if (profileCount === 1) return rawPay;
-			const owner = d.owner ?? 'joint';
+			const owner = getDebtCashOwner(d, accounts);
 			if (viewMode === 'all') return rawPay;
 			if (viewMode === 'userA') {
 				if (owner === 'userA') return rawPay;
@@ -832,7 +878,7 @@ export const getTagBreakdown = (
 		const rawCuota = new Big(calculateDebtMonthlyPayment(d, month));
 		const getEffectiveDebtPaymentBig = (debt: Debt, rawPay: Big): Big => {
 			if (profileCount === 1) return rawPay;
-			const owner = debt.owner ?? 'joint';
+			const owner = getDebtCashOwner(debt, accounts);
 			if (viewMode === 'all') return rawPay;
 			if (viewMode === 'userA') {
 				if (owner === 'userA') return rawPay;
@@ -994,7 +1040,7 @@ export const calculateProjections = (
 
 			const getEffectiveDebtPaymentBig = (debt: Debt, rPay: Big): Big => {
 				if (profileCount === 1) return rPay;
-				const owner = debt.owner ?? 'joint';
+				const owner = getDebtCashOwner(debt, accounts);
 				if (viewMode === 'all') return rPay;
 				if (viewMode === 'userA') {
 					if (owner === 'userA') return rPay;
